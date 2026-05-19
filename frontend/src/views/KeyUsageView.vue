@@ -5,7 +5,7 @@
       <nav class="mx-auto flex max-w-6xl items-center justify-between">
         <router-link to="/home" class="flex items-center gap-3">
           <div class="h-10 w-10 overflow-hidden rounded-xl shadow-md">
-            <img :src="siteLogo || '/logo.png'" alt="Logo" class="h-full w-full object-contain" />
+            <img :src="siteLogo" alt="Logo" class="h-full w-full object-contain" />
           </div>
           <span class="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">{{ siteName }}</span>
         </router-link>
@@ -363,29 +363,26 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useThemeMode } from '@/composables/useThemeMode'
 import { useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { resolveBrandLogo } from '@/utils/branding'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
+const { isDark, toggleTheme } = useThemeMode()
 
 // ==================== Site Settings (same as HomeView) ====================
 
 const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || 'Sub2API')
-const siteLogo = computed(() => appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '')
+const siteLogo = computed(() =>
+  resolveBrandLogo(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo, isDark.value)
+)
 const docUrl = computed(() => appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
 const githubUrl = 'https://github.com/Wei-Shaw/sub2api'
 
 // ==================== Theme (same as HomeView) ====================
-
-const isDark = ref(document.documentElement.classList.contains('dark'))
-
-function toggleTheme() {
-  isDark.value = !isDark.value
-  document.documentElement.classList.toggle('dark', isDark.value)
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
-}
 
 const currentYear = computed(() => new Date().getFullYear())
 
@@ -802,14 +799,6 @@ async function queryKey() {
 
 // ==================== Lifecycle ====================
 
-function initTheme() {
-  const savedTheme = localStorage.getItem('theme')
-  if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-    isDark.value = true
-    document.documentElement.classList.add('dark')
-  }
-}
-
 function formatResetTime(resetAt: string | null | undefined): string {
   if (!resetAt) return ''
   const diff = new Date(resetAt).getTime() - now.value.getTime()
@@ -823,7 +812,6 @@ function formatResetTime(resetAt: string | null | undefined): string {
 }
 
 onMounted(() => {
-  initTheme()
   if (!appStore.publicSettingsLoaded) {
     appStore.fetchPublicSettings()
   }

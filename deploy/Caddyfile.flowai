@@ -1,0 +1,4 @@
+flowai.cyou {
+    encode gzip zstd
+    reverse_proxy sub2api:8080
+}

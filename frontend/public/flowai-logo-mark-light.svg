@@ -1,0 +1,22 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="28" y1="24" x2="228" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.58" stop-color="#F0FDFA"/>
+      <stop offset="1" stop-color="#E0F2FE"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="72" y1="64" x2="164" y2="184" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F766E"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="122" y1="92" x2="194" y2="194" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+  </defs>
+  <rect x="20" y="20" width="216" height="216" rx="56" fill="url(#bg)"/>
+  <rect x="20.75" y="20.75" width="214.5" height="214.5" rx="55.25" stroke="#CFFAFE" stroke-width="1.5"/>
+  <path d="M78 72C78 65.3726 83.3726 60 90 60H166C172.627 60 178 65.3726 178 72V82H100V106H164C170.627 106 176 111.373 176 118V130H100V196H78V72Z" fill="url(#teal)"/>
+  <path d="M145.443 96.9167C149.875 86.3211 164.881 86.3211 169.314 96.9167L201.48 173.833C204.715 181.572 199.027 190 190.638 190H124.119C115.73 190 110.042 181.572 113.277 173.833L145.443 96.9167ZM157.378 117.661L136.526 168H178.23L157.378 117.661Z" fill="url(#violet)"/>
+  <circle cx="183" cy="77" r="9" fill="#0F172A" fill-opacity="0.92"/>
+</svg>

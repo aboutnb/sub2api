@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import i18n, { initI18n } from './i18n'
+import { initThemeMode } from '@/composables/useThemeMode'
 import { useAppStore } from '@/stores/app'
 import './style.css'
 
@@ -17,6 +18,7 @@ function initThemeClass() {
 async function bootstrap() {
   // Apply theme class globally before app mount to keep all routes consistent.
   initThemeClass()
+  initThemeMode()
 
   const app = createApp(App)
   const pinia = createPinia()

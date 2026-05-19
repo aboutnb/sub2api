@@ -2,9 +2,20 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="icon" type="image/svg+xml" href="/flowai-logo-mark-light.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sub2API - AI API Gateway</title>
+    <script>
+      (() => {
+        const savedTheme = localStorage.getItem('theme')
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        const isDark = savedTheme === 'dark' || (!savedTheme && prefersDark)
+        const favicon = document.querySelector('link[rel="icon"]')
+        if (favicon) {
+          favicon.href = isDark ? '/flowai-logo-mark-dark.svg' : '/flowai-logo-mark-light.svg'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>
