@@ -28,6 +28,7 @@ services:
     volumes:
       # Data persistence (config.yaml will be auto-generated here)
       - sub2api_data:/app/data
+      - sub2api_mihomo:/app/data/mihomo
       # Optional: Mount custom config.yaml (uncomment and create the file first)
       # Copy config.example.yaml to config.yaml, modify it, then uncomment:
       # - ./config.yaml:/app/data/config.yaml
@@ -178,6 +179,18 @@ services:
       retries: 3
       start_period: 30s
 
+  mihomo-sub2api:
+    image: metacubex/mihomo:latest
+    container_name: mihomo-sub2api
+    restart: unless-stopped
+    command: ["-d", "/root/.config/mihomo", "-ext-ctl", "0.0.0.0:9097"]
+    environment:
+      - SAFE_PATHS=/root/.config/mihomo
+    volumes:
+      - sub2api_mihomo:/root/.config/mihomo
+    networks:
+      - sub2api-network
+
   # ===========================================================================
   # PostgreSQL Database
   # ===========================================================================
@@ -254,6 +267,8 @@ services:
 # =============================================================================
 volumes:
   sub2api_data:
+    driver: local
+  sub2api_mihomo:
     driver: local
   postgres_data:
     driver: local

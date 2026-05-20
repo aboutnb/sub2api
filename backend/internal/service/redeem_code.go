@@ -2,8 +2,14 @@ package service
 
 import (
 	"crypto/rand"
-	"encoding/hex"
+	"strings"
 	"time"
+)
+
+const (
+	redeemCodeAlphabet  = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	redeemCodeLength    = 16
+	redeemCodeGroupSize = 4
 )
 
 type RedeemCode struct {
@@ -48,9 +54,20 @@ func (r *RedeemCode) CanUse() bool {
 }
 
 func GenerateRedeemCode() (string, error) {
-	b := make([]byte, 16)
+	b := make([]byte, redeemCodeLength)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(b), nil
+
+	var builder strings.Builder
+	builder.Grow(redeemCodeLength + (redeemCodeLength/redeemCodeGroupSize - 1))
+
+	for i, v := range b {
+		if i > 0 && i%redeemCodeGroupSize == 0 {
+			builder.WriteByte('-')
+		}
+		builder.WriteByte(redeemCodeAlphabet[int(v)&31])
+	}
+
+	return builder.String(), nil
 }

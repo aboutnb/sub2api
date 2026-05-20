@@ -2,7 +2,37 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="space-y-4">
+          <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-dark-700 dark:bg-dark-800">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+                  <Icon name="server" size="sm" />
+                  <span>{{ t('admin.proxies.projectMihomo.title') }}</span>
+                </div>
+                <div class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                  {{ t('admin.proxies.projectMihomo.summary') }}
+                </div>
+                <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                  <span>{{ t('admin.proxies.projectMihomo.summaryHint', { count: projectMihomoForm.listener_count || 0 }) }}</span>
+                  <span>{{ t('admin.proxies.projectMihomo.protocolLabel', { protocol: projectMihomoForm.protocol.toUpperCase() }) }}</span>
+                  <span v-if="projectMihomoConfigPath" class="truncate">{{ t('admin.proxies.projectMihomo.configPath', { path: projectMihomoConfigPath }) }}</span>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button @click="showProjectMihomoModal = true" class="btn btn-secondary">
+                  <Icon name="cog" size="sm" class="mr-2" />
+                  {{ t('admin.proxies.projectMihomo.manage') }}
+                </button>
+                <button @click="syncProjectMihomoConfig" :disabled="projectMihomoSubmitting" class="btn btn-primary">
+                  <Icon name="sync" size="sm" class="mr-2" />
+                  {{ t('admin.proxies.projectMihomo.sync') }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
           <!-- Left: Search + Filters -->
           <div class="relative w-full sm:w-64">
             <Icon
@@ -84,6 +114,7 @@
               {{ t('admin.proxies.createProxy') }}
             </button>
           </div>
+        </div>
         </div>
       </template>
 
@@ -350,6 +381,88 @@
     </TablePageLayout>
 
     <!-- Create Proxy Modal -->
+    <BaseDialog
+      :show="showProjectMihomoModal"
+      :title="t('admin.proxies.projectMihomo.title')"
+      width="wide"
+      @close="showProjectMihomoModal = false"
+    >
+      <div class="space-y-6">
+        <div class="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,1fr)]">
+          <div class="space-y-4">
+            <div>
+              <label class="input-label">{{ t('admin.proxies.projectMihomo.subscriptionUrls') }}</label>
+              <textarea
+                v-model="projectMihomoSubscriptionUrlsText"
+                rows="6"
+                class="input min-h-[144px] font-mono text-sm"
+                spellcheck="false"
+              ></textarea>
+              <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.proxies.projectMihomo.subscriptionUrlsHint') }}
+              </div>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <div>
+                <label class="input-label">{{ t('admin.proxies.projectMihomo.targetHost') }}</label>
+                <input v-model="projectMihomoForm.target_host" type="text" class="input" />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.proxies.projectMihomo.controllerUrl') }}</label>
+                <input v-model="projectMihomoForm.controller_url" type="text" class="input" />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.proxies.projectMihomo.startPort') }}</label>
+                <input v-model.number="projectMihomoForm.start_port" type="number" min="1" max="65535" class="input" />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.proxies.projectMihomo.listenerCount') }}</label>
+                <input v-model.number="projectMihomoForm.listener_count" type="number" min="1" max="32" class="input" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-700">
+              <div class="mb-3 flex items-center justify-between">
+                <div class="text-sm font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.proxies.projectMihomo.listenerPorts') }}
+                </div>
+              </div>
+              <div class="space-y-3">
+                <div v-for="listener in projectMihomoListenerRows" :key="listener.name">
+                  <label class="input-label">
+                    {{ t('admin.proxies.projectMihomo.listenerRegion', { port: listener.port }) }}
+                  </label>
+                  <div class="space-y-2">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ listener.name }}</div>
+                    <Select
+                      v-model="projectMihomoForm.listener_regions[listener.index]"
+                      :options="projectMihomoRegionOptions"
+                      :placeholder="t('admin.proxies.projectMihomo.regionPlaceholder')"
+                      searchable
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <button @click="showProjectMihomoModal = false" class="btn btn-secondary">
+          {{ t('common.cancel') }}
+        </button>
+        <button @click="saveProjectMihomo" :disabled="projectMihomoSubmitting" class="btn btn-secondary">
+          {{ t('admin.proxies.projectMihomo.save') }}
+        </button>
+        <button @click="saveAndSyncProjectMihomo" :disabled="projectMihomoSubmitting" class="btn btn-primary">
+          {{ t('admin.proxies.projectMihomo.saveAndSync') }}
+        </button>
+      </template>
+    </BaseDialog>
+
     <BaseDialog
       :show="showCreateModal"
       :title="t('admin.proxies.createProxy')"
@@ -872,11 +985,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { Proxy, ProxyAccountSummary, ProxyProtocol, ProxyQualityCheckResult } from '@/types'
+import type {
+  Proxy,
+  ProxyAccountSummary,
+  ProxyProtocol,
+  ProxyQualityCheckResult,
+  ProjectMihomoSettings
+} from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -886,7 +1005,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ImportDataModal from '@/components/admin/proxy/ImportDataModal.vue'
-import Select from '@/components/common/Select.vue'
+import Select, { type SelectOption } from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import { useClipboard } from '@/composables/useClipboard'
@@ -939,6 +1058,16 @@ const editStatusOptions = computed(() => [
   { value: 'inactive', label: t('admin.accounts.status.inactive') }
 ])
 
+const projectMihomoAvailableRegions = ref<string[]>([])
+
+const projectMihomoRegionOptions = computed<SelectOption[]>(() => [
+  { value: '', label: t('admin.proxies.projectMihomo.regionAuto') },
+  ...projectMihomoAvailableRegions.value.map((region) => ({
+    value: region,
+    label: region
+  }))
+])
+
 const proxies = ref<Proxy[]>([])
 const visiblePasswordIds = reactive(new Set<number>())
 const copyMenuProxyId = ref<number | null>(null)
@@ -969,6 +1098,7 @@ const showDeleteDialog = ref(false)
 const showBatchDeleteDialog = ref(false)
 const showExportDataDialog = ref(false)
 const showAccountsModal = ref(false)
+const showProjectMihomoModal = ref(false)
 const submitting = ref(false)
 const exportingData = ref(false)
 const testingProxyIds = ref<Set<number>>(new Set())
@@ -1005,6 +1135,72 @@ const deletingProxy = ref<Proxy | null>(null)
 const showQualityReportDialog = ref(false)
 const qualityReportProxy = ref<Proxy | null>(null)
 const qualityReport = ref<ProxyQualityCheckResult | null>(null)
+const projectMihomoSubmitting = ref(false)
+const projectMihomoConfigPath = ref('')
+const projectMihomoSubscriptionUrlsText = ref('')
+
+const projectMihomoForm = reactive<ProjectMihomoSettings>({
+  subscription_url: '',
+  subscription_urls: [],
+  subscription_user_agent: 'sub2api/mihomo',
+  update_interval: 3600,
+  protocol: 'socks5h',
+  target_host: 'mihomo-sub2api',
+  start_port: 41001,
+  listener_count: 4,
+  controller_url: 'http://mihomo-sub2api:9097',
+  controller_secret: '',
+  proxy_name_prefix: 'project-mihomo',
+  listener_regions: ['', '', '', '']
+})
+
+const projectMihomoListenerRows = computed(() =>
+  Array.from({ length: Math.max(0, projectMihomoForm.listener_count || 0) }, (_, index) => ({
+    index,
+    port: projectMihomoForm.start_port + index,
+    name: `${projectMihomoForm.proxy_name_prefix || 'project-mihomo'}-${String(index + 1).padStart(2, '0')}`
+  }))
+)
+
+const normalizeProjectMihomoListenerRegions = () => {
+  const count = Math.max(1, Math.min(32, Number(projectMihomoForm.listener_count) || 1))
+  projectMihomoForm.listener_regions = Array.from(
+    { length: count },
+    (_, index) => projectMihomoForm.listener_regions?.[index]?.trim() || ''
+  )
+}
+
+const normalizeProjectMihomoSubscriptionUrls = () => {
+  const urls = projectMihomoSubscriptionUrlsText.value
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+  projectMihomoForm.subscription_urls = Array.from(new Set(urls))
+  projectMihomoForm.subscription_url = projectMihomoForm.subscription_urls[0] || ''
+  projectMihomoSubscriptionUrlsText.value = projectMihomoForm.subscription_urls.join('\n')
+}
+
+const syncProjectMihomoSubscriptionUrlsTextFromForm = () => {
+  const urls = Array.from(new Set(
+    (projectMihomoForm.subscription_urls?.length
+      ? projectMihomoForm.subscription_urls
+      : [projectMihomoForm.subscription_url]
+    )
+      .map((item) => item?.trim() || '')
+      .filter(Boolean)
+  ))
+  projectMihomoForm.subscription_urls = urls
+  projectMihomoForm.subscription_url = urls[0] || ''
+  projectMihomoSubscriptionUrlsText.value = urls.join('\n')
+}
+
+watch(
+  () => projectMihomoForm.listener_count,
+  () => {
+    normalizeProjectMihomoListenerRegions()
+  },
+  { immediate: true }
+)
 
 // Batch import state
 const createMode = ref<'standard' | 'batch'>('standard')
@@ -1154,6 +1350,61 @@ const closeCreateModal = () => {
 const handleDataImported = () => {
   showImportData.value = false
   loadProxies()
+}
+
+const loadProjectMihomo = async () => {
+  try {
+    const result = await adminAPI.proxies.getProjectMihomo()
+    Object.assign(projectMihomoForm, result.settings)
+    normalizeProjectMihomoListenerRegions()
+    syncProjectMihomoSubscriptionUrlsTextFromForm()
+    projectMihomoConfigPath.value = result.config_path
+    projectMihomoAvailableRegions.value = result.available_regions || []
+  } catch (error) {
+    console.error('Error loading project mihomo:', error)
+  }
+}
+
+const saveProjectMihomo = async () => {
+  projectMihomoSubmitting.value = true
+  try {
+    normalizeProjectMihomoListenerRegions()
+    normalizeProjectMihomoSubscriptionUrls()
+    const result = await adminAPI.proxies.updateProjectMihomo(projectMihomoForm)
+    Object.assign(projectMihomoForm, result)
+    normalizeProjectMihomoListenerRegions()
+    syncProjectMihomoSubscriptionUrlsTextFromForm()
+    appStore.showSuccess(t('admin.proxies.projectMihomo.saved'))
+  } catch (error: any) {
+    appStore.showError(error.message || t('admin.proxies.projectMihomo.saveFailed'))
+  } finally {
+    projectMihomoSubmitting.value = false
+  }
+}
+
+const syncProjectMihomoConfig = async () => {
+  projectMihomoSubmitting.value = true
+  try {
+    normalizeProjectMihomoListenerRegions()
+    normalizeProjectMihomoSubscriptionUrls()
+    const result = await adminAPI.proxies.syncProjectMihomo(projectMihomoForm)
+    projectMihomoConfigPath.value = result.config_path
+    appStore.showSuccess(t('admin.proxies.projectMihomo.syncDone', { created: result.created, reused: result.reused, assigned: result.assigned }))
+    await Promise.all([loadProjectMihomo(), loadProxies()])
+    return true
+  } catch (error: any) {
+    appStore.showError(error.message || t('admin.proxies.projectMihomo.syncFailed'))
+  } finally {
+    projectMihomoSubmitting.value = false
+  }
+  return false
+}
+
+const saveAndSyncProjectMihomo = async () => {
+  const ok = await syncProjectMihomoConfig()
+  if (ok) {
+    showProjectMihomoModal.value = false
+  }
 }
 
 // Parse proxy URL: protocol://user:pass@host:port or protocol://host:port
@@ -1871,6 +2122,7 @@ function closeCopyMenu() {
 
 onMounted(() => {
   loadProxies()
+  loadProjectMihomo()
   document.addEventListener('click', closeCopyMenu)
 })
 

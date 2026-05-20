@@ -741,6 +741,44 @@ export interface ProxyQualityCheckResult {
   items: ProxyQualityCheckItem[]
 }
 
+export interface ProjectMihomoSettings {
+  subscription_url: string
+  subscription_urls: string[]
+  subscription_user_agent: string
+  update_interval: number
+  protocol: ProxyProtocol
+  target_host: string
+  start_port: number
+  listener_count: number
+  controller_url: string
+  controller_secret: string
+  proxy_name_prefix: string
+  listener_regions: string[]
+}
+
+export interface ProjectMihomoProxy {
+  name: string
+  protocol: ProxyProtocol
+  host: string
+  port: number
+}
+
+export interface ProjectMihomoStatus {
+  settings: ProjectMihomoSettings
+  config_path: string
+  proxies: ProjectMihomoProxy[]
+  available_regions: string[]
+}
+
+export interface ProjectMihomoSyncResult {
+  config_path: string
+  proxies: ProjectMihomoProxy[]
+  created: number
+  reused: number
+  assigned: number
+  reloaded: boolean
+}
+
 // Gemini credentials structure for OAuth and API Key authentication
 export interface GeminiCredentials {
   // API Key authentication

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -15,10 +16,11 @@ func setupAdminRouter() (*gin.Engine, *stubAdminService) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	adminSvc := newStubAdminService()
+	projectMihomoSvc := service.NewProjectMihomoService(&adminSettingRepoStub{values: map[string]string{}}, adminSvc)
 
 	userHandler := NewUserHandler(adminSvc, nil)
 	groupHandler := NewGroupHandler(adminSvc, nil, nil)
-	proxyHandler := NewProxyHandler(adminSvc)
+	proxyHandler := NewProxyHandler(adminSvc, projectMihomoSvc)
 	redeemHandler := NewRedeemHandler(adminSvc, nil)
 
 	router.GET("/api/v1/admin/users", userHandler.List)
@@ -42,6 +44,9 @@ func setupAdminRouter() (*gin.Engine, *stubAdminService) {
 
 	router.GET("/api/v1/admin/proxies", proxyHandler.List)
 	router.GET("/api/v1/admin/proxies/all", proxyHandler.GetAll)
+	router.GET("/api/v1/admin/proxies/project-mihomo", proxyHandler.GetProjectMihomo)
+	router.PUT("/api/v1/admin/proxies/project-mihomo", proxyHandler.UpdateProjectMihomo)
+	router.POST("/api/v1/admin/proxies/project-mihomo/sync", proxyHandler.SyncProjectMihomo)
 	router.GET("/api/v1/admin/proxies/:id", proxyHandler.GetByID)
 	router.POST("/api/v1/admin/proxies", proxyHandler.Create)
 	router.PUT("/api/v1/admin/proxies/:id", proxyHandler.Update)
@@ -220,12 +225,31 @@ func TestProxyHandlerEndpoints(t *testing.T) {
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
+	body, _ := json.Marshal(map[string]any{
+		"subscription_url": "https://example.com/sub.yaml",
+		"protocol":         "socks5h",
+		"target_host":      "mihomo-sub2api",
+		"start_port":       41001,
+		"listener_count":   2,
+		"controller_url":   "http://127.0.0.1:9097",
+	})
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/admin/proxies/project-mihomo", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/project-mihomo", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/4", nil)
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	body, _ := json.Marshal(map[string]any{"name": "proxy", "protocol": "http", "host": "localhost", "port": 8080})
+	body, _ = json.Marshal(map[string]any{"name": "proxy", "protocol": "http", "host": "localhost", "port": 8080})
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/proxies", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -55,5 +56,24 @@ func TestRedeemCodeExpiry(t *testing.T) {
 			require.Equal(t, tt.wantExpired, tt.code.IsExpiredAt(now))
 			require.Equal(t, tt.wantCanUse, tt.code.CanUse())
 		})
+	}
+}
+
+func TestGenerateRedeemCodeFormat(t *testing.T) {
+	code, err := GenerateRedeemCode()
+	require.NoError(t, err)
+
+	parts := strings.Split(code, "-")
+	require.Len(t, parts, redeemCodeLength/redeemCodeGroupSize)
+
+	joined := strings.Join(parts, "")
+	require.Len(t, joined, redeemCodeLength)
+
+	for _, part := range parts {
+		require.Len(t, part, redeemCodeGroupSize)
+		require.Equal(t, strings.ToUpper(part), part)
+		for _, ch := range part {
+			require.Containsf(t, redeemCodeAlphabet, string(ch), "unexpected character %q in %q", ch, code)
+		}
 	}
 }

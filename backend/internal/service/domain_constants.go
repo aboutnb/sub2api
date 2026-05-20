@@ -416,6 +416,9 @@ const (
 
 	// Web Search Emulation
 	SettingKeyWebSearchEmulationConfig = "web_search_emulation_config" // JSON 配置
+
+	// Project Mihomo
+	SettingKeyProjectMihomoSettings = "project_mihomo_settings" // JSON 配置
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys (distinct from user "sk-" keys).

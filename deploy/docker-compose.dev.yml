@@ -18,7 +18,8 @@ services:
     ports:
       - "${BIND_HOST:-127.0.0.1}:${SERVER_PORT:-8080}:8080"
     volumes:
-      - ./data:/app/data
+      - ${DATA_DIR:-./data}:/app/data
+      - ${DATA_DIR:-./data}/mihomo:/app/data/mihomo
     environment:
       - AUTO_SETUP=true
       - SERVER_HOST=0.0.0.0
@@ -60,6 +61,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  mihomo-sub2api:
+    image: metacubex/mihomo:latest
+    container_name: mihomo-sub2api-dev
+    restart: unless-stopped
+    command: ["-d", "/root/.config/mihomo", "-ext-ctl", "0.0.0.0:9097"]
+    ports:
+      - "127.0.0.1:${MIHOMO_CONTROLLER_PORT:-9097}:9097"
+      - "127.0.0.1:${MIHOMO_PROXY_PORT_RANGE:-41001-41032}:41001-41032"
+    environment:
+      - SAFE_PATHS=/root/.config/mihomo
+    volumes:
+      - ${DATA_DIR:-./data}/mihomo:/root/.config/mihomo
+    networks:
+      - sub2api-network
 
   postgres:
     image: postgres:18-alpine
