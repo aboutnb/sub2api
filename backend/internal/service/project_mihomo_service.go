@@ -150,7 +150,7 @@ func DefaultProjectMihomoSettings() ProjectMihomoSettings {
 		UpdateInterval:    3600,
 		Protocol:          "socks5h",
 		TargetHost:        targetHost,
-		StartPort:         41001,
+		StartPort:         61000,
 		ListenerCount:     4,
 		ControllerURL:     controllerURL,
 		ControllerSecret:  "",

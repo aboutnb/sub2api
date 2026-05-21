@@ -239,7 +239,7 @@ func TestProxyHandlerEndpoints(t *testing.T) {
 		"subscription_names": []string{"日本"},
 		"protocol":           "socks5h",
 		"target_host":        "mihomo-sub2api",
-		"start_port":         41001,
+		"start_port":         61000,
 		"listener_count":     2,
 		"controller_url":     "http://127.0.0.1:9097",
 	})
@@ -264,7 +264,7 @@ func TestProxyHandlerEndpoints(t *testing.T) {
 		"subscription_url": server.URL + "/sub.yaml",
 		"protocol":         "socks5h",
 		"target_host":      "mihomo-sub2api",
-		"start_port":       41001,
+		"start_port":       61000,
 		"listener_count":   2,
 		"controller_url":   "http://127.0.0.1:9097",
 		"node": map[string]any{

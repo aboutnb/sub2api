@@ -1362,7 +1362,7 @@ const projectMihomoForm = reactive<ProjectMihomoSettings>({
   update_interval: 3600,
   protocol: 'socks5h',
   target_host: 'mihomo-sub2api',
-  start_port: 41001,
+  start_port: 61000,
   listener_count: 4,
   controller_url: 'http://mihomo-sub2api:9097',
   controller_secret: '',

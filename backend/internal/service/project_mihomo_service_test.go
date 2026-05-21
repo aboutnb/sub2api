@@ -339,7 +339,7 @@ func TestProjectMihomoGetSettingsDefaults(t *testing.T) {
 	settings, err := svc.GetSettings(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, "socks5h", settings.Protocol)
-	require.Equal(t, 41001, settings.StartPort)
+	require.Equal(t, 61000, settings.StartPort)
 	require.Equal(t, 4, settings.ListenerCount)
 	require.Len(t, settings.ListenerRegions, 4)
 	require.Empty(t, settings.SubscriptionURLs)
@@ -352,7 +352,7 @@ func TestProjectMihomoBuildProxies(t *testing.T) {
 	proxies := svc.buildProxies(&ProjectMihomoSettings{
 		Protocol:        "socks5h",
 		TargetHost:      "mihomo-sub2api",
-		StartPort:       41001,
+		StartPort:       61000,
 		ListenerCount:   3,
 		ProxyNamePrefix: "project-mihomo",
 	})
@@ -403,7 +403,7 @@ func TestProjectMihomoSetSettingsCachesAndCleansProviderFiles(t *testing.T) {
 		SubscriptionUA:   "sub2api/mihomo",
 		Protocol:         "socks5h",
 		TargetHost:       "127.0.0.1",
-		StartPort:        41001,
+		StartPort:        61000,
 		ListenerCount:    2,
 		ControllerURL:    "http://127.0.0.1:9097",
 		ProxyNamePrefix:  "project-mihomo",
@@ -425,7 +425,7 @@ func TestProjectMihomoSetSettingsCachesAndCleansProviderFiles(t *testing.T) {
 		SubscriptionUA:   "sub2api/mihomo",
 		Protocol:         "socks5h",
 		TargetHost:       "127.0.0.1",
-		StartPort:        41001,
+		StartPort:        61000,
 		ListenerCount:    2,
 		ControllerURL:    "http://127.0.0.1:9097",
 		ProxyNamePrefix:  "project-mihomo",
@@ -447,7 +447,7 @@ func TestProjectMihomoSetSettingsCachesAndCleansProviderFiles(t *testing.T) {
 		SubscriptionUA:   "sub2api/mihomo",
 		Protocol:         "socks5h",
 		TargetHost:       "127.0.0.1",
-		StartPort:        41001,
+		StartPort:        61000,
 		ListenerCount:    2,
 		ControllerURL:    "http://127.0.0.1:9097",
 		ProxyNamePrefix:  "project-mihomo",
@@ -470,7 +470,7 @@ func TestProjectMihomoSetSettingsReturnsBadRequestWhenSubscriptionFetchFails(t *
 		SubscriptionUA:  "sub2api/mihomo",
 		Protocol:        "socks5h",
 		TargetHost:      "127.0.0.1",
-		StartPort:       41001,
+		StartPort:       61000,
 		ListenerCount:   1,
 		ControllerURL:   "http://127.0.0.1:9097",
 		ProxyNamePrefix: "project-mihomo",
@@ -489,7 +489,7 @@ func TestProjectMihomoSetSettingsAllowsEmptySubscriptions(t *testing.T) {
 		SubscriptionUA:   "sub2api/mihomo",
 		Protocol:         "socks5h",
 		TargetHost:       "127.0.0.1",
-		StartPort:        41001,
+		StartPort:        61000,
 		ListenerCount:    2,
 		ControllerURL:    "http://127.0.0.1:9097",
 		ProxyNamePrefix:  "project-mihomo",
@@ -515,7 +515,7 @@ func TestProjectMihomoNormalizeSubscriptionNames(t *testing.T) {
 		SubscriptionUA:    "sub2api/mihomo",
 		Protocol:          "socks5h",
 		TargetHost:        "127.0.0.1",
-		StartPort:         41001,
+		StartPort:         61000,
 		ListenerCount:     2,
 		ControllerURL:     "http://127.0.0.1:9097",
 		ProxyNamePrefix:   "project-mihomo",
@@ -540,7 +540,7 @@ func TestProjectMihomoSetSettingsReusesCachedProviderFileWhenURLUnchanged(t *tes
 		SubscriptionUA:   "sub2api/mihomo",
 		Protocol:         "socks5h",
 		TargetHost:       "127.0.0.1",
-		StartPort:        41001,
+		StartPort:        61000,
 		ListenerCount:    2,
 		ControllerURL:    "http://127.0.0.1:9097",
 		ProxyNamePrefix:  "project-mihomo",
@@ -747,7 +747,7 @@ func TestProjectMihomoTestNodesReturnsLatencyResults(t *testing.T) {
 		UpdateInterval:  3600,
 		Protocol:        "socks5h",
 		TargetHost:      "127.0.0.1",
-		StartPort:       41001,
+		StartPort:       61000,
 		ListenerCount:   2,
 		ControllerURL:   server.URL,
 		ProxyNamePrefix: "project-mihomo",
@@ -796,7 +796,7 @@ func TestProjectMihomoTestNodeReturnsSingleLatencyResult(t *testing.T) {
 		UpdateInterval:  3600,
 		Protocol:        "socks5h",
 		TargetHost:      "127.0.0.1",
-		StartPort:       41001,
+		StartPort:       61000,
 		ListenerCount:   2,
 		ControllerURL:   server.URL,
 		ProxyNamePrefix: "project-mihomo",
@@ -832,7 +832,7 @@ func TestProjectMihomoGetStatusResolvesLegacyRegionAliases(t *testing.T) {
 		UpdateInterval:  3600,
 		Protocol:        "socks5h",
 		TargetHost:      "127.0.0.1",
-		StartPort:       41001,
+		StartPort:       61000,
 		ListenerCount:   4,
 		ControllerURL:   "http://127.0.0.1:9097",
 		ProxyNamePrefix: "project-mihomo",
@@ -869,7 +869,7 @@ func TestProjectMihomoGetStatusResolvesLegacyNodeKeyToCurrentProvider(t *testing
 		UpdateInterval:  3600,
 		Protocol:        "socks5h",
 		TargetHost:      "127.0.0.1",
-		StartPort:       41001,
+		StartPort:       61000,
 		ListenerCount:   1,
 		ControllerURL:   "http://127.0.0.1:9097",
 		ProxyNamePrefix: "project-mihomo",
@@ -921,7 +921,7 @@ func TestProjectMihomoAvailableRegionsAcrossMultipleProviderCaches(t *testing.T)
 func TestProjectMihomoSyncProxyRowsUpdatesAndCleansManagedDuplicates(t *testing.T) {
 	stub := &projectMihomoAdminServiceStub{
 		proxies: []Proxy{
-			{ID: 1, Name: "project-mihomo-01", Protocol: "socks5h", Host: "127.0.0.1", Port: 41001, Status: StatusActive},
+			{ID: 1, Name: "project-mihomo-01", Protocol: "socks5h", Host: "127.0.0.1", Port: 61000, Status: StatusActive},
 			{ID: 2, Name: "project-mihomo-04", Protocol: "http", Host: "127.0.0.1", Port: 41004, Status: StatusActive},
 			{ID: 3, Name: "project-mihomo-04", Protocol: "socks5h", Host: "127.0.0.1", Port: 41004, Status: StatusActive},
 			{ID: 4, Name: "project-mihomo-05", Protocol: "socks5h", Host: "127.0.0.1", Port: 41005, Status: StatusActive},
@@ -931,7 +931,7 @@ func TestProjectMihomoSyncProxyRowsUpdatesAndCleansManagedDuplicates(t *testing.
 	settings := &ProjectMihomoSettings{
 		Protocol:        "socks5h",
 		TargetHost:      "127.0.0.1",
-		StartPort:       41001,
+		StartPort:       61000,
 		ListenerCount:   4,
 		ProxyNamePrefix: "project-mihomo",
 		ListenerRegions: make([]string, 4),

@@ -69,7 +69,7 @@ services:
     command: ["-d", "/root/.config/mihomo", "-ext-ctl", "0.0.0.0:9097"]
     ports:
       - "127.0.0.1:${MIHOMO_CONTROLLER_PORT:-9097}:9097"
-      - "127.0.0.1:${MIHOMO_PROXY_PORT_RANGE:-41001-41032}:41001-41032"
+      - "127.0.0.1:${MIHOMO_PROXY_PORT_RANGE:-61000-61031}:61000-61031"
     environment:
       - SAFE_PATHS=/root/.config/mihomo
     volumes:
