@@ -744,6 +744,7 @@ export interface ProxyQualityCheckResult {
 export interface ProjectMihomoSettings {
   subscription_url: string
   subscription_urls: string[]
+  subscription_names: string[]
   subscription_user_agent: string
   update_interval: number
   protocol: ProxyProtocol
@@ -763,12 +764,32 @@ export interface ProjectMihomoProxy {
   port: number
 }
 
+export interface ProjectMihomoNode {
+  key: string
+  name: string
+  region: string
+  alive: boolean
+  provider?: string
+  provider_label?: string
+  latency_ms?: number
+  latency_status?: 'success' | 'failed' | 'unknown'
+  latency_message?: string
+}
+
 export interface ProjectMihomoStatus {
   settings: ProjectMihomoSettings
   config_path: string
   proxies: ProjectMihomoProxy[]
+  available_nodes: ProjectMihomoNode[]
   available_regions: string[]
 }
+
+export interface ProjectMihomoNodeTestResult {
+  nodes: ProjectMihomoNode[]
+  available_regions: string[]
+}
+
+export interface ProjectMihomoSingleNodeTestResult extends ProjectMihomoNode {}
 
 export interface ProjectMihomoSyncResult {
   config_path: string

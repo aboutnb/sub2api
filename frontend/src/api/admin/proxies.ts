@@ -8,7 +8,9 @@ import type {
   Proxy,
   ProxyAccountSummary,
   ProxyQualityCheckResult,
+  ProjectMihomoNode,
   ProjectMihomoSettings,
+  ProjectMihomoSingleNodeTestResult,
   ProjectMihomoStatus,
   ProjectMihomoSyncResult,
   CreateProxyRequest,
@@ -273,6 +275,25 @@ export async function syncProjectMihomo(payload: ProjectMihomoSettings): Promise
   return data
 }
 
+export async function testProjectMihomoNodes(payload: ProjectMihomoSettings): Promise<{
+  nodes: ProjectMihomoNode[]
+  available_regions: string[]
+}> {
+  const { data } = await apiClient.post<{
+    nodes: ProjectMihomoNode[]
+    available_regions: string[]
+  }>('/admin/proxies/project-mihomo/test-nodes', payload)
+  return data
+}
+
+export async function testProjectMihomoNode(payload: ProjectMihomoSettings, node: ProjectMihomoNode): Promise<ProjectMihomoSingleNodeTestResult> {
+  const { data } = await apiClient.post<ProjectMihomoSingleNodeTestResult>('/admin/proxies/project-mihomo/test-node', {
+    ...payload,
+    node
+  })
+  return data
+}
+
 export const proxiesAPI = {
   list,
   getAll,
@@ -292,7 +313,9 @@ export const proxiesAPI = {
   importData,
   getProjectMihomo,
   updateProjectMihomo,
-  syncProjectMihomo
+  syncProjectMihomo,
+  testProjectMihomoNodes,
+  testProjectMihomoNode
 }
 
 export default proxiesAPI

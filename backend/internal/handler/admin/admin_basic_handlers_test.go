@@ -12,7 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupAdminRouter() (*gin.Engine, *stubAdminService) {
+func setupAdminRouter(t *testing.T) (*gin.Engine, *stubAdminService) {
+	t.Helper()
+	t.Setenv("DATA_DIR", t.TempDir())
+
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	adminSvc := newStubAdminService()
@@ -47,6 +50,8 @@ func setupAdminRouter() (*gin.Engine, *stubAdminService) {
 	router.GET("/api/v1/admin/proxies/project-mihomo", proxyHandler.GetProjectMihomo)
 	router.PUT("/api/v1/admin/proxies/project-mihomo", proxyHandler.UpdateProjectMihomo)
 	router.POST("/api/v1/admin/proxies/project-mihomo/sync", proxyHandler.SyncProjectMihomo)
+	router.POST("/api/v1/admin/proxies/project-mihomo/test-nodes", proxyHandler.TestProjectMihomoNodes)
+	router.POST("/api/v1/admin/proxies/project-mihomo/test-node", proxyHandler.TestProjectMihomoNode)
 	router.GET("/api/v1/admin/proxies/:id", proxyHandler.GetByID)
 	router.POST("/api/v1/admin/proxies", proxyHandler.Create)
 	router.PUT("/api/v1/admin/proxies/:id", proxyHandler.Update)
@@ -69,7 +74,7 @@ func setupAdminRouter() (*gin.Engine, *stubAdminService) {
 }
 
 func TestUserHandlerEndpoints(t *testing.T) {
-	router, _ := setupAdminRouter()
+	router, _ := setupAdminRouter(t)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users?page=1&page_size=20", nil)
@@ -138,7 +143,7 @@ func TestUserHandlerEndpoints(t *testing.T) {
 }
 
 func TestUserHandlerBindAuthIdentityMapsRequest(t *testing.T) {
-	router, adminSvc := setupAdminRouter()
+	router, adminSvc := setupAdminRouter(t)
 
 	body, err := json.Marshal(map[string]any{
 		"provider_type":    "oidc",
@@ -165,7 +170,7 @@ func TestUserHandlerBindAuthIdentityMapsRequest(t *testing.T) {
 }
 
 func TestGroupHandlerEndpoints(t *testing.T) {
-	router, _ := setupAdminRouter()
+	router, _ := setupAdminRouter(t)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/groups", nil)
@@ -213,7 +218,11 @@ func TestGroupHandlerEndpoints(t *testing.T) {
 }
 
 func TestProxyHandlerEndpoints(t *testing.T) {
-	router, _ := setupAdminRouter()
+	router, _ := setupAdminRouter(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("proxies:\n  - name: 日本-01\n    server: jp.example.com\n"))
+	}))
+	defer server.Close()
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies", nil)
@@ -226,12 +235,13 @@ func TestProxyHandlerEndpoints(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	body, _ := json.Marshal(map[string]any{
-		"subscription_url": "https://example.com/sub.yaml",
-		"protocol":         "socks5h",
-		"target_host":      "mihomo-sub2api",
-		"start_port":       41001,
-		"listener_count":   2,
-		"controller_url":   "http://127.0.0.1:9097",
+		"subscription_url":   server.URL + "/sub.yaml",
+		"subscription_names": []string{"日本"},
+		"protocol":           "socks5h",
+		"target_host":        "mihomo-sub2api",
+		"start_port":         41001,
+		"listener_count":     2,
+		"controller_url":     "http://127.0.0.1:9097",
 	})
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPut, "/api/v1/admin/proxies/project-mihomo", bytes.NewReader(body))
@@ -243,6 +253,29 @@ func TestProxyHandlerEndpoints(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/project-mihomo", nil)
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/proxies/project-mihomo/test-nodes", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.True(t, rec.Code == http.StatusOK || rec.Code >= http.StatusBadRequest)
+
+	singleNodeBody, _ := json.Marshal(map[string]any{
+		"subscription_url": server.URL + "/sub.yaml",
+		"protocol":         "socks5h",
+		"target_host":      "mihomo-sub2api",
+		"start_port":       41001,
+		"listener_count":   2,
+		"controller_url":   "http://127.0.0.1:9097",
+		"node": map[string]any{
+			"name": "node-a",
+		},
+	})
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/proxies/project-mihomo/test-node", bytes.NewReader(singleNodeBody))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.True(t, rec.Code == http.StatusOK || rec.Code >= http.StatusBadRequest)
 
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/4", nil)
@@ -296,7 +329,7 @@ func TestProxyHandlerEndpoints(t *testing.T) {
 }
 
 func TestRedeemHandlerEndpoints(t *testing.T) {
-	router, _ := setupAdminRouter()
+	router, _ := setupAdminRouter(t)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/redeem-codes", nil)

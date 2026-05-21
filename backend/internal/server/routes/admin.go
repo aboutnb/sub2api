@@ -372,6 +372,8 @@ func registerProxyRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		proxies.GET("/project-mihomo", h.Admin.Proxy.GetProjectMihomo)
 		proxies.PUT("/project-mihomo", h.Admin.Proxy.UpdateProjectMihomo)
 		proxies.POST("/project-mihomo/sync", h.Admin.Proxy.SyncProjectMihomo)
+		proxies.POST("/project-mihomo/test-nodes", h.Admin.Proxy.TestProjectMihomoNodes)
+		proxies.POST("/project-mihomo/test-node", h.Admin.Proxy.TestProjectMihomoNode)
 		proxies.GET("/:id", h.Admin.Proxy.GetByID)
 		proxies.POST("", h.Admin.Proxy.Create)
 		proxies.PUT("/:id", h.Admin.Proxy.Update)
