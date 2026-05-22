@@ -2435,6 +2435,8 @@ export default {
         webSearchEmulationGlobalDisabled: '请先在系统设置 → 网关 → Web Search 模拟中启用全局开关',
         codexImageGenerationBridge: 'Codex 图片生成桥接',
         codexImageGenerationBridgeHint: '开启后，OpenAI 分组的 Codex /responses 文本请求可能会被自动注入 image_generation 工具。仅在路由账号支持图片生成时开启。',
+        bedrockCCCompat: 'Bedrock CC 兼容',
+        bedrockCCCompatHint: '⚠️ 开启后，该渠道下 Bedrock 账号的请求将进行 Claude Code 兼容处理（thinking 类型转换、tool_use ID 清理）',
         basicSettings: '基础设置',
         addPlatform: '添加平台',
         noPlatforms: '点击"添加平台"开始配置渠道',
@@ -5518,6 +5520,13 @@ export default {
         secretKeyHint: '服务端验证密钥（请保密）',
         secretKeyConfiguredHint: '密钥已配置，留空以保留当前值。'
       },
+      apiKeyAcl: {
+        title: 'API Key IP 访问控制',
+        description: '控制 API Key 白名单和黑名单使用哪个客户端 IP 判断',
+        trustForwardedIp: '信任反代传递的客户端 IP',
+        trustForwardedIpHint:
+          '默认关闭。仅在源站只允许 Cloudflare 或 Nginx 反代访问时开启；开启后 API Key IP 白/黑名单会使用 CF-Connecting-IP、X-Real-IP 或 X-Forwarded-For，与使用记录中的请求 IP 保持一致。'
+      },
       linuxdo: {
         title: 'LinuxDo Connect 登录',
         description: '配置 LinuxDo Connect OAuth，用于 Sub2API 用户登录',
@@ -5990,6 +5999,12 @@ export default {
         emailsHint: '留空则不发送通知',
         addEmail: '添加邮箱',
         emailPlaceholder: '输入邮箱地址',
+      },
+      subscriptionExpiryNotify: {
+        title: '订阅到期提醒',
+        description: '控制是否向用户发送订阅即将到期的邮件提醒。',
+        enabled: '启用订阅到期提醒',
+        enabledHint: '开启后，系统会在订阅到期前 7 天、3 天、1 天各发送一次提醒。'
       },
       smtp: {
         title: 'SMTP 设置',
