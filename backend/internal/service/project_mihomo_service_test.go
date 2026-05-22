@@ -346,6 +346,21 @@ func TestProjectMihomoGetSettingsDefaults(t *testing.T) {
 	require.Empty(t, settings.SubscriptionNames)
 }
 
+func TestProjectMihomoNormalizeRewritesLoopbackControllerInsideContainer(t *testing.T) {
+	t.Setenv("PROJECT_MIHOMO_CONTAINER_RUNTIME", "true")
+
+	settings := ProjectMihomoSettings{
+		TargetHost:    "127.0.0.1",
+		ControllerURL: "http://127.0.0.1:9097",
+	}
+
+	svc := NewProjectMihomoService(&settingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
+	svc.normalize(&settings)
+
+	require.Equal(t, "mihomo-sub2api", settings.TargetHost)
+	require.Equal(t, "http://mihomo-sub2api:9097", settings.ControllerURL)
+}
+
 func TestProjectMihomoBuildProxies(t *testing.T) {
 	svc := NewProjectMihomoService(&settingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
 

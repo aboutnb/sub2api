@@ -29,6 +29,8 @@ const (
 	projectMihomoProviderPath    = "./providers/project-subscription.yaml"
 	projectMihomoHTTPTimeout     = 10 * time.Second
 	projectMihomoReloadPath      = "/root/.config/mihomo/config.yaml"
+	projectMihomoDockerHost      = "mihomo-sub2api"
+	projectMihomoDockerPort      = "9097"
 	projectMihomoAssignWait      = 8 * time.Second
 	projectMihomoAssignPoll      = 500 * time.Millisecond
 	projectMihomoDelayURL        = "https://www.gstatic.com/generate_204"
@@ -136,9 +138,9 @@ func NewProjectMihomoService(settingRepo SettingRepository, adminService AdminSe
 }
 
 func DefaultProjectMihomoSettings() ProjectMihomoSettings {
-	targetHost := "mihomo-sub2api"
-	controllerURL := "http://mihomo-sub2api:9097"
-	if _, err := os.Stat("/app/data"); err != nil {
+	targetHost := projectMihomoDockerHost
+	controllerURL := "http://" + net.JoinHostPort(projectMihomoDockerHost, projectMihomoDockerPort)
+	if !isProjectMihomoContainerRuntime() {
 		targetHost = "127.0.0.1"
 		controllerURL = "http://127.0.0.1:9097"
 	}
@@ -423,6 +425,8 @@ func (s *ProjectMihomoService) normalize(settings *ProjectMihomoSettings) {
 	if !strings.Contains(settings.ControllerURL, "://") {
 		settings.ControllerURL = "http://" + settings.ControllerURL
 	}
+	settings.ControllerURL = normalizeProjectMihomoControllerURL(settings.ControllerURL)
+	settings.TargetHost = normalizeProjectMihomoTargetHost(settings.TargetHost)
 	settings.ControllerSecret = strings.TrimSpace(settings.ControllerSecret)
 	settings.ProxyNamePrefix = strings.TrimSpace(settings.ProxyNamePrefix)
 	if settings.ProxyNamePrefix == "" {
@@ -720,10 +724,60 @@ func (s *ProjectMihomoService) configDir() string {
 	if dataDir := strings.TrimSpace(os.Getenv("DATA_DIR")); dataDir != "" {
 		return filepath.Join(dataDir, "mihomo")
 	}
-	if _, err := os.Stat("/app/data"); err == nil {
+	if isProjectMihomoContainerRuntime() {
 		return "/app/data/mihomo"
 	}
 	return filepath.Join(".", "data", "mihomo")
+}
+
+func isProjectMihomoContainerRuntime() bool {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("PROJECT_MIHOMO_CONTAINER_RUNTIME")), "true") {
+		return true
+	}
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+	if _, err := os.Stat("/app/data"); err == nil {
+		return true
+	}
+	return false
+}
+
+func normalizeProjectMihomoTargetHost(value string) string {
+	value = strings.TrimSpace(value)
+	if !isProjectMihomoContainerRuntime() {
+		return value
+	}
+	switch strings.ToLower(value) {
+	case "127.0.0.1", "localhost":
+		return projectMihomoDockerHost
+	default:
+		return value
+	}
+}
+
+func normalizeProjectMihomoControllerURL(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || !isProjectMihomoContainerRuntime() {
+		return value
+	}
+
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return value
+	}
+	host := strings.TrimSpace(parsed.Hostname())
+	switch strings.ToLower(host) {
+	case "127.0.0.1", "localhost":
+		port := parsed.Port()
+		if port == "" {
+			port = projectMihomoDockerPort
+		}
+		parsed.Host = net.JoinHostPort(projectMihomoDockerHost, port)
+		return parsed.String()
+	default:
+		return value
+	}
 }
 
 func (s *ProjectMihomoService) configPath() string {

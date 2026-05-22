@@ -8,7 +8,8 @@ services:
     ports:
       - "${BIND_HOST:-0.0.0.0}:${SERVER_PORT:-3000}:8080"
     volumes:
-      - ./preview-data/app:/app/data
+      - ${APP_DATA_DIR:-/root/flowai-preview-data/app}:/app/data
+      - ${APP_DATA_DIR:-/root/flowai-preview-data/app}/mihomo:/app/data/mihomo
     environment:
       - AUTO_SETUP=true
       - SERVER_HOST=0.0.0.0
@@ -58,6 +59,8 @@ services:
       - GATEWAY_IMAGE_CONCURRENCY_WAIT_TIMEOUT_SECONDS=${GATEWAY_IMAGE_CONCURRENCY_WAIT_TIMEOUT_SECONDS:-30}
       - GATEWAY_IMAGE_CONCURRENCY_MAX_WAITING_REQUESTS=${GATEWAY_IMAGE_CONCURRENCY_MAX_WAITING_REQUESTS:-100}
     depends_on:
+      mihomo:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -71,12 +74,26 @@ services:
       retries: 3
       start_period: 30s
 
+  mihomo:
+    image: metacubex/mihomo:latest
+    container_name: ${COMPOSE_NAME:-flowai-preview}-mihomo
+    restart: unless-stopped
+    command: ["-d", "/root/.config/mihomo", "-ext-ctl", "0.0.0.0:9097"]
+    environment:
+      - SAFE_PATHS=/root/.config/mihomo
+    volumes:
+      - ${APP_DATA_DIR:-/root/flowai-preview-data/app}/mihomo:/root/.config/mihomo
+    networks:
+      preview-network:
+        aliases:
+          - mihomo-sub2api
+
   postgres:
     image: postgres:18-alpine
     container_name: ${COMPOSE_NAME:-flowai-preview}-postgres
     restart: unless-stopped
     volumes:
-      - ./preview-data/postgres:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_DIR:-/root/flowai-preview-data/postgres}:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-sub2api}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
@@ -97,7 +114,7 @@ services:
     container_name: ${COMPOSE_NAME:-flowai-preview}-redis
     restart: unless-stopped
     volumes:
-      - ./preview-data/redis:/data
+      - ${REDIS_DATA_DIR:-/root/flowai-preview-data/redis}:/data
     command: >
       sh -c '
         redis-server

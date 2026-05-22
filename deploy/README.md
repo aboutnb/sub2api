@@ -124,6 +124,19 @@ When using Docker Compose with `AUTO_SETUP=true`:
    docker compose logs sub2api | grep "admin password"
    ```
 
+### Preview Deployment Data Root
+
+For preview or domain-bound deployments, set `POSTGRES_DATA_DIR`, `APP_DATA_DIR`,
+`REDIS_DATA_DIR`, `CADDY_DATA_DIR`, and `CADDY_CONFIG_DIR` to one fixed
+absolute host path, for example `/root/flowai-preview-data/...`.
+Do not rely on relative `./preview-data/...` paths across multiple clone
+directories, or you can accidentally start a second diverging database.
+
+The preview compose stack also expects a dedicated `mihomo` sidecar on the same
+Docker network. Keep `/app/data/mihomo` mounted for the app and the `mihomo`
+container together; otherwise Project Mihomo actions such as node testing will
+fail when the app reloads controller config.
+
 ### Database Migration Notes (PostgreSQL)
 
 - Migrations are applied in lexicographic order (e.g. `001_...sql`, `002_...sql`).

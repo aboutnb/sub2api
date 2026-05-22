@@ -8,8 +8,8 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile.flowai:/etc/caddy/Caddyfile:ro
-      - ./preview-data/caddy/data:/data
-      - ./preview-data/caddy/config:/config
+      - ${CADDY_DATA_DIR:-/root/flowai-preview-data/caddy/data}:/data
+      - ${CADDY_CONFIG_DIR:-/root/flowai-preview-data/caddy/config}:/config
     networks:
       - preview-network
 
