@@ -46,6 +46,7 @@ func NewOAuthHandler(oauthService *service.OAuthService) *OAuthHandler {
 // AccountHandler handles admin account management
 type AccountHandler struct {
 	adminService            service.AdminService
+	settingService          *service.SettingService
 	oauthService            *service.OAuthService
 	openaiOAuthService      *service.OpenAIOAuthService
 	geminiOAuthService      *service.GeminiOAuthService
@@ -63,6 +64,7 @@ type AccountHandler struct {
 // NewAccountHandler creates a new admin account handler
 func NewAccountHandler(
 	adminService service.AdminService,
+	settingService *service.SettingService,
 	oauthService *service.OAuthService,
 	openaiOAuthService *service.OpenAIOAuthService,
 	geminiOAuthService *service.GeminiOAuthService,
@@ -78,6 +80,7 @@ func NewAccountHandler(
 ) *AccountHandler {
 	return &AccountHandler{
 		adminService:            adminService,
+		settingService:          settingService,
 		oauthService:            oauthService,
 		openaiOAuthService:      openaiOAuthService,
 		geminiOAuthService:      geminiOAuthService,
@@ -102,6 +105,7 @@ type CreateAccountRequest struct {
 	Credentials             map[string]any `json:"credentials" binding:"required"`
 	Extra                   map[string]any `json:"extra"`
 	ProxyID                 *int64         `json:"proxy_id"`
+	ProxyProvider           string         `json:"proxy_provider"`
 	Concurrency             int            `json:"concurrency"`
 	Priority                int            `json:"priority"`
 	RateMultiplier          *float64       `json:"rate_multiplier"`
@@ -121,6 +125,7 @@ type UpdateAccountRequest struct {
 	Credentials             map[string]any `json:"credentials"`
 	Extra                   map[string]any `json:"extra"`
 	ProxyID                 *int64         `json:"proxy_id"`
+	ProxyProvider           string         `json:"proxy_provider"`
 	Concurrency             *int           `json:"concurrency"`
 	Priority                *int           `json:"priority"`
 	RateMultiplier          *float64       `json:"rate_multiplier"`
@@ -527,12 +532,21 @@ func (h *AccountHandler) Create(c *gin.Context) {
 
 	// 确定是否跳过混合渠道检查
 	skipCheck := req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk
+	allocator, err := h.newProjectMihomoProxyAllocator(c.Request.Context(), isProjectMihomoProxyProvider(req.ProxyProvider))
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 
 	// 捕获闭包内创建的账号引用，用于创建成功后触发异步探测。
 	// 幂等重放时闭包不会执行 → createdAccount 为 nil → 不重复调度。
 	var createdAccount *service.Account
 
 	result, err := executeAdminIdempotent(c, "admin.accounts.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		resolvedProxyID, resolveErr := h.resolveProjectMihomoProxyID(ctx, req.ProxyID, req.ProxyProvider, allocator)
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
 		account, execErr := h.adminService.CreateAccount(ctx, &service.CreateAccountInput{
 			Name:                  req.Name,
 			Notes:                 req.Notes,
@@ -540,7 +554,7 @@ func (h *AccountHandler) Create(c *gin.Context) {
 			Type:                  req.Type,
 			Credentials:           req.Credentials,
 			Extra:                 req.Extra,
-			ProxyID:               req.ProxyID,
+			ProxyID:               resolvedProxyID,
 			Concurrency:           req.Concurrency,
 			Priority:              req.Priority,
 			RateMultiplier:        req.RateMultiplier,
@@ -611,6 +625,21 @@ func (h *AccountHandler) Update(c *gin.Context) {
 
 	// 确定是否跳过混合渠道检查
 	skipCheck := req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk
+	allocator, err := h.newProjectMihomoProxyAllocator(c.Request.Context(), isProjectMihomoProxyProvider(req.ProxyProvider))
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	resolvedProxyID, resolveErr := h.resolveProjectMihomoProxyID(
+		c.Request.Context(),
+		req.ProxyID,
+		req.ProxyProvider,
+		allocator,
+	)
+	if resolveErr != nil {
+		response.BadRequest(c, resolveErr.Error())
+		return
+	}
 
 	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
 		Name:                  req.Name,
@@ -618,7 +647,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		Type:                  req.Type,
 		Credentials:           req.Credentials,
 		Extra:                 req.Extra,
-		ProxyID:               req.ProxyID,
+		ProxyID:               resolvedProxyID,
 		Concurrency:           req.Concurrency, // 指针类型，nil 表示未提供
 		Priority:              req.Priority,    // 指针类型，nil 表示未提供
 		RateMultiplier:        req.RateMultiplier,
@@ -1218,6 +1247,17 @@ func (h *AccountHandler) BatchCreate(c *gin.Context) {
 		// 收集需要异步设置隐私的 OAuth 账号
 		var antigravityPrivacyAccounts []*service.Account
 		var openaiPrivacyAccounts []*service.Account
+		poolRequested := false
+		for i := range req.Accounts {
+			if isProjectMihomoProxyProvider(req.Accounts[i].ProxyProvider) {
+				poolRequested = true
+				break
+			}
+		}
+		allocator, err := h.newProjectMihomoProxyAllocator(ctx, poolRequested)
+		if err != nil {
+			return nil, err
+		}
 
 		for _, item := range req.Accounts {
 			if item.RateMultiplier != nil && *item.RateMultiplier < 0 {
@@ -1234,6 +1274,16 @@ func (h *AccountHandler) BatchCreate(c *gin.Context) {
 			sanitizeExtraBaseRPM(item.Extra)
 
 			skipCheck := item.ConfirmMixedChannelRisk != nil && *item.ConfirmMixedChannelRisk
+			resolvedProxyID, resolveErr := h.resolveProjectMihomoProxyID(ctx, item.ProxyID, item.ProxyProvider, allocator)
+			if resolveErr != nil {
+				failed++
+				results = append(results, gin.H{
+					"name":    item.Name,
+					"success": false,
+					"error":   resolveErr.Error(),
+				})
+				continue
+			}
 
 			account, err := h.adminService.CreateAccount(ctx, &service.CreateAccountInput{
 				Name:                  item.Name,
@@ -1242,7 +1292,7 @@ func (h *AccountHandler) BatchCreate(c *gin.Context) {
 				Type:                  item.Type,
 				Credentials:           item.Credentials,
 				Extra:                 item.Extra,
-				ProxyID:               item.ProxyID,
+				ProxyID:               resolvedProxyID,
 				Concurrency:           item.Concurrency,
 				Priority:              item.Priority,
 				RateMultiplier:        item.RateMultiplier,

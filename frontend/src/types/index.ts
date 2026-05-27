@@ -1066,6 +1066,7 @@ export interface CreateAccountRequest {
   credentials: Record<string, unknown>
   extra?: Record<string, unknown>
   proxy_id?: number | null
+  proxy_provider?: string
   concurrency?: number
   load_factor?: number | null
   priority?: number
@@ -1083,6 +1084,7 @@ export interface UpdateAccountRequest {
   credentials?: Record<string, unknown>
   extra?: Record<string, unknown>
   proxy_id?: number | null
+  proxy_provider?: string
   concurrency?: number
   load_factor?: number | null
   priority?: number
@@ -1191,6 +1193,7 @@ export interface CodexSessionImportRequest {
   notes?: string | null
   group_ids?: number[]
   proxy_id?: number | null
+  proxy_provider?: string
   concurrency?: number
   priority?: number
   rate_multiplier?: number

@@ -66,6 +66,13 @@ type SettingRepository interface {
 	Delete(ctx context.Context, key string) error
 }
 
+func (s *SettingService) GetRawValue(ctx context.Context, key string) (string, error) {
+	if s == nil || s.settingRepo == nil {
+		return "", ErrSettingNotFound
+	}
+	return s.settingRepo.GetValue(ctx, key)
+}
+
 // cachedVersionBounds 缓存 Claude Code 版本号上下限（进程内缓存，60s TTL）
 type cachedVersionBounds struct {
 	min       string // 空字符串 = 不检查

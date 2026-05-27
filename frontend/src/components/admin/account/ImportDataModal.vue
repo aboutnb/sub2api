@@ -40,6 +40,20 @@
         />
       </div>
 
+      <label class="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-200">
+        <input
+          v-model="useProjectMihomoPool"
+          type="checkbox"
+          class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+        />
+        <span>
+          <span class="block font-medium">{{ t('admin.accounts.dataImportUseProjectMihomo') }}</span>
+          <span class="mt-1 block text-xs text-gray-500 dark:text-dark-400">
+            {{ t('admin.accounts.dataImportUseProjectMihomoHint') }}
+          </span>
+        </span>
+      </label>
+
       <div
         v-if="result"
         class="space-y-2 rounded-xl border border-gray-200 p-4 dark:border-dark-700"
@@ -110,6 +124,7 @@ const appStore = useAppStore()
 const importing = ref(false)
 const file = ref<File | null>(null)
 const result = ref<AdminDataImportResult | null>(null)
+const useProjectMihomoPool = ref(false)
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const fileName = computed(() => file.value?.name || '')
@@ -122,6 +137,7 @@ watch(
     if (open) {
       file.value = null
       result.value = null
+      useProjectMihomoPool.value = false
       if (fileInput.value) {
         fileInput.value.value = ''
       }
@@ -174,7 +190,8 @@ const handleImport = async () => {
 
     const res = await adminAPI.accounts.importData({
       data: dataPayload,
-      skip_default_group_bind: true
+      skip_default_group_bind: true,
+      proxy_provider: useProjectMihomoPool.value ? 'project_mihomo' : undefined
     })
 
     result.value = res

@@ -28,6 +28,7 @@ type CodexSessionImportRequest struct {
 	Notes                   *string        `json:"notes"`
 	GroupIDs                []int64        `json:"group_ids"`
 	ProxyID                 *int64         `json:"proxy_id"`
+	ProxyProvider           string         `json:"proxy_provider"`
 	Concurrency             *int           `json:"concurrency"`
 	Priority                *int           `json:"priority"`
 	RateMultiplier          *float64       `json:"rate_multiplier"`
@@ -177,6 +178,10 @@ func (h *AccountHandler) importCodexSessions(ctx context.Context, req CodexSessi
 		skipDefaultGroupBind = *req.SkipDefaultGroupBind
 	}
 	skipMixedChannelCheck := req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk
+	allocator, err := h.newProjectMihomoProxyAllocator(ctx, isProjectMihomoProxyProvider(req.ProxyProvider))
+	if err != nil {
+		return result, err
+	}
 
 	seenIdentity := map[string]int{}
 	for _, entry := range entries {
@@ -256,8 +261,24 @@ func (h *AccountHandler) importCodexSessions(ctx context.Context, req CodexSessi
 				ExpiresAt:          effectiveExpiresAt,
 				AutoPauseOnExpired: autoPauseOnExpired,
 			}
-			if req.ProxyID != nil {
-				updateInput.ProxyID = req.ProxyID
+			if req.ProxyID != nil || isProjectMihomoProxyProvider(req.ProxyProvider) {
+				resolvedProxyID, resolveErr := h.resolveProjectMihomoProxyID(ctx, req.ProxyID, req.ProxyProvider, allocator)
+				if resolveErr != nil {
+					result.Failed++
+					result.Items = append(result.Items, CodexSessionImportItem{
+						Index:   entry.Index,
+						Name:    accountName,
+						Action:  "failed",
+						Message: resolveErr.Error(),
+					})
+					result.Errors = append(result.Errors, CodexSessionImportMessage{
+						Index:   entry.Index,
+						Name:    accountName,
+						Message: resolveErr.Error(),
+					})
+					continue
+				}
+				updateInput.ProxyID = resolvedProxyID
 			}
 			if len(req.GroupIDs) > 0 {
 				groupIDs := append([]int64(nil), req.GroupIDs...)
@@ -298,6 +319,23 @@ func (h *AccountHandler) importCodexSessions(ctx context.Context, req CodexSessi
 			continue
 		}
 
+		resolvedProxyID, resolveErr := h.resolveProjectMihomoProxyID(ctx, req.ProxyID, req.ProxyProvider, allocator)
+		if resolveErr != nil {
+			result.Failed++
+			result.Items = append(result.Items, CodexSessionImportItem{
+				Index:   entry.Index,
+				Name:    accountName,
+				Action:  "failed",
+				Message: resolveErr.Error(),
+			})
+			result.Errors = append(result.Errors, CodexSessionImportMessage{
+				Index:   entry.Index,
+				Name:    accountName,
+				Message: resolveErr.Error(),
+			})
+			continue
+		}
+
 		account, createErr := h.adminService.CreateAccount(ctx, &service.CreateAccountInput{
 			Name:                  accountName,
 			Notes:                 req.Notes,
@@ -305,7 +343,7 @@ func (h *AccountHandler) importCodexSessions(ctx context.Context, req CodexSessi
 			Type:                  service.AccountTypeOAuth,
 			Credentials:           credentials,
 			Extra:                 extra,
-			ProxyID:               req.ProxyID,
+			ProxyID:               resolvedProxyID,
 			Concurrency:           concurrency,
 			Priority:              priority,
 			RateMultiplier:        req.RateMultiplier,

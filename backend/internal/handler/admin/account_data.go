@@ -64,6 +64,7 @@ type DataAccount struct {
 type DataImportRequest struct {
 	Data                 DataPayload `json:"data"`
 	SkipDefaultGroupBind *bool       `json:"skip_default_group_bind"`
+	ProxyProvider        string      `json:"proxy_provider"`
 }
 
 type DataImportResult struct {
@@ -200,6 +201,10 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 
 	dataPayload := req.Data
 	result := DataImportResult{}
+	allocator, err := h.newProjectMihomoProxyAllocator(ctx, isProjectMihomoProxyProvider(req.ProxyProvider))
+	if err != nil {
+		return result, err
+	}
 
 	existingProxies, err := h.listAllProxies(ctx)
 	if err != nil {
@@ -287,7 +292,8 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 		}
 
 		var proxyID *int64
-		if item.ProxyKey != nil && *item.ProxyKey != "" {
+		useProjectMihomoPool := isProjectMihomoProxyProvider(req.ProxyProvider)
+		if !useProjectMihomoPool && item.ProxyKey != nil && *item.ProxyKey != "" {
 			if id, ok := proxyKeyToID[*item.ProxyKey]; ok {
 				proxyID = &id
 			} else {
@@ -301,6 +307,16 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 				continue
 			}
 		}
+		resolvedProxyID, resolveErr := h.resolveProjectMihomoProxyID(ctx, proxyID, req.ProxyProvider, allocator)
+		if resolveErr != nil {
+			result.AccountFailed++
+			result.Errors = append(result.Errors, DataImportError{
+				Kind:    "account",
+				Name:    item.Name,
+				Message: resolveErr.Error(),
+			})
+			continue
+		}
 
 		enrichCredentialsFromIDToken(&item)
 
@@ -311,7 +327,7 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			Type:                 item.Type,
 			Credentials:          item.Credentials,
 			Extra:                item.Extra,
-			ProxyID:              proxyID,
+			ProxyID:              resolvedProxyID,
 			Concurrency:          item.Concurrency,
 			Priority:             item.Priority,
 			RateMultiplier:       item.RateMultiplier,
