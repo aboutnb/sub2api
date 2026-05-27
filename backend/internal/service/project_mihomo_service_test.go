@@ -16,14 +16,17 @@ import (
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 type projectMihomoAdminServiceStub struct {
-	createCalls []*CreateProxyInput
-	updateCalls []projectMihomoUpdateCall
-	deleteCalls []int64
-	exists      map[string]bool
-	proxies     []Proxy
+	createCalls     []*CreateProxyInput
+	updateCalls     []projectMihomoUpdateCall
+	deleteCalls     []int64
+	bulkUpdateCalls []*BulkUpdateAccountsInput
+	exists          map[string]bool
+	proxies         []Proxy
+	proxyAccounts   map[int64][]ProxyAccountSummary
 }
 
 type projectMihomoUpdateCall struct {
@@ -216,8 +219,31 @@ func (s *projectMihomoAdminServiceStub) ForceAntigravityPrivacy(context.Context,
 func (s *projectMihomoAdminServiceStub) SetAccountSchedulable(context.Context, int64, bool) (*Account, error) {
 	panic("unexpected SetAccountSchedulable call")
 }
-func (s *projectMihomoAdminServiceStub) BulkUpdateAccounts(context.Context, *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error) {
-	panic("unexpected BulkUpdateAccounts call")
+func (s *projectMihomoAdminServiceStub) BulkUpdateAccounts(_ context.Context, input *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error) {
+	s.bulkUpdateCalls = append(s.bulkUpdateCalls, input)
+	if input.ProxyID != nil && *input.ProxyID == 0 {
+		for proxyID, accounts := range s.proxyAccounts {
+			filtered := accounts[:0]
+			for _, account := range accounts {
+				remove := false
+				for _, id := range input.AccountIDs {
+					if account.ID == id {
+						remove = true
+						break
+					}
+				}
+				if !remove {
+					filtered = append(filtered, account)
+				}
+			}
+			s.proxyAccounts[proxyID] = filtered
+		}
+	}
+	result := &BulkUpdateAccountsResult{
+		Success:    len(input.AccountIDs),
+		SuccessIDs: append([]int64(nil), input.AccountIDs...),
+	}
+	return result, nil
 }
 func (s *projectMihomoAdminServiceStub) CheckMixedChannelRisk(context.Context, int64, string, []int64) error {
 	panic("unexpected CheckMixedChannelRisk call")
@@ -287,6 +313,9 @@ func (s *projectMihomoAdminServiceStub) UpdateProxy(_ context.Context, id int64,
 }
 func (s *projectMihomoAdminServiceStub) DeleteProxy(_ context.Context, id int64) error {
 	s.deleteCalls = append(s.deleteCalls, id)
+	if len(s.proxyAccounts[id]) > 0 {
+		return ErrProxyInUse
+	}
 	for i := range s.proxies {
 		if s.proxies[i].ID != id {
 			continue
@@ -299,8 +328,13 @@ func (s *projectMihomoAdminServiceStub) DeleteProxy(_ context.Context, id int64)
 func (s *projectMihomoAdminServiceStub) BatchDeleteProxies(context.Context, []int64) (*ProxyBatchDeleteResult, error) {
 	panic("unexpected BatchDeleteProxies call")
 }
-func (s *projectMihomoAdminServiceStub) GetProxyAccounts(context.Context, int64) ([]ProxyAccountSummary, error) {
-	panic("unexpected GetProxyAccounts call")
+func (s *projectMihomoAdminServiceStub) GetProxyAccounts(_ context.Context, proxyID int64) ([]ProxyAccountSummary, error) {
+	if s.proxyAccounts == nil {
+		return nil, nil
+	}
+	out := make([]ProxyAccountSummary, len(s.proxyAccounts[proxyID]))
+	copy(out, s.proxyAccounts[proxyID])
+	return out, nil
 }
 func (s *projectMihomoAdminServiceStub) CheckProxyExists(_ context.Context, host string, port int, username, password string) (bool, error) {
 	return s.exists[s.proxyKey(host, port)], nil
@@ -341,9 +375,14 @@ func TestProjectMihomoGetSettingsDefaults(t *testing.T) {
 	require.Equal(t, "socks5h", settings.Protocol)
 	require.Equal(t, 61000, settings.StartPort)
 	require.Equal(t, 4, settings.ListenerCount)
+	require.Equal(t, []int{61000, 61001, 61002, 61003}, settings.ListenerPorts)
+	require.Equal(t, []string{"project-mihomo-01", "project-mihomo-02", "project-mihomo-03", "project-mihomo-04"}, settings.ListenerNames)
 	require.Len(t, settings.ListenerRegions, 4)
 	require.Empty(t, settings.SubscriptionURLs)
 	require.Empty(t, settings.SubscriptionNames)
+	require.False(t, settings.NodeExcludeEnabled)
+	require.Contains(t, settings.NodeExcludeKeywords, "香港")
+	require.Contains(t, settings.NodeExcludeKeywords, "台湾")
 }
 
 func TestProjectMihomoNormalizeRewritesLoopbackControllerInsideContainer(t *testing.T) {
@@ -373,7 +412,68 @@ func TestProjectMihomoBuildProxies(t *testing.T) {
 	})
 	require.Len(t, proxies, 3)
 	require.Equal(t, "project-mihomo-01", proxies[0].Name)
-	require.Equal(t, 41003, proxies[2].Port)
+	require.Equal(t, 61002, proxies[2].Port)
+}
+
+func TestProjectMihomoBuildProxiesUsesStoredPortsAndNames(t *testing.T) {
+	svc := NewProjectMihomoService(&settingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
+
+	proxies := svc.buildProxies(&ProjectMihomoSettings{
+		Protocol:        "socks5h",
+		TargetHost:      "127.0.0.1",
+		StartPort:       61000,
+		ListenerCount:   2,
+		ListenerPorts:   []int{61000, 61002},
+		ListenerNames:   []string{"project-mihomo-01", "project-mihomo-03"},
+		ProxyNamePrefix: "project-mihomo",
+	})
+	require.Equal(t, []ProjectMihomoProxy{
+		{Name: "project-mihomo-01", Protocol: "socks5h", Host: "127.0.0.1", Port: 61000},
+		{Name: "project-mihomo-03", Protocol: "socks5h", Host: "127.0.0.1", Port: 61002},
+	}, proxies)
+}
+
+func TestProjectMihomoRenderConfigUsesAutoRouteFilters(t *testing.T) {
+	svc := NewProjectMihomoService(&settingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
+	settings := &ProjectMihomoSettings{
+		SubscriptionURLs:    []string{"https://a.example/sub", "https://b.example/sub"},
+		SubscriptionUA:      "sub2api/mihomo",
+		Protocol:            "socks5h",
+		TargetHost:          "127.0.0.1",
+		StartPort:           61000,
+		ListenerCount:       2,
+		ListenerPorts:       []int{61000, 61001},
+		ListenerNames:       []string{"project-mihomo-01", "project-mihomo-02"},
+		ControllerURL:       "http://127.0.0.1:9097",
+		ProxyNamePrefix:     "project-mihomo",
+		ListenerRegions:     []string{"japan", projectMihomoNodeKey("project-subscription-02", "美国-01")},
+		AutoRouteEnabled:    true,
+		AutoRouteTolerance:  120,
+		AutoRouteInterval:   180,
+		NodeExcludeEnabled:  true,
+		NodeExcludeKeywords: copyProjectMihomoDefaultNodeExcludeKeywords(),
+	}
+
+	content, err := svc.renderConfig(settings)
+	require.NoError(t, err)
+
+	var payload struct {
+		ProxyProviders map[string]map[string]any `yaml:"proxy-providers"`
+		ProxyGroups    []map[string]any          `yaml:"proxy-groups"`
+	}
+	require.NoError(t, yaml.Unmarshal(content, &payload))
+	require.Contains(t, fmt.Sprint(payload.ProxyProviders["project-subscription-01"]["exclude-filter"]), "香港")
+	require.Len(t, payload.ProxyGroups, 2)
+
+	require.Equal(t, "url-test", payload.ProxyGroups[0]["type"])
+	require.Equal(t, []any{"project-subscription-01", "project-subscription-02"}, payload.ProxyGroups[0]["use"])
+	require.Equal(t, 120, payload.ProxyGroups[0]["tolerance"])
+	require.Equal(t, 180, payload.ProxyGroups[0]["interval"])
+	require.Contains(t, fmt.Sprint(payload.ProxyGroups[0]["filter"]), "japan")
+
+	require.Equal(t, "url-test", payload.ProxyGroups[1]["type"])
+	require.Equal(t, []any{"project-subscription-02"}, payload.ProxyGroups[1]["use"])
+	require.Equal(t, "^美国-01$", payload.ProxyGroups[1]["filter"])
 }
 
 func TestBuildProjectMihomoProviderRefs(t *testing.T) {
@@ -522,10 +622,16 @@ func TestProjectMihomoSetSettingsAllowsEmptySubscriptions(t *testing.T) {
 }
 
 func TestProjectMihomoNormalizeSubscriptionNames(t *testing.T) {
-	svc := NewProjectMihomoService(&settingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("proxies:\n  - name: 日本-01\n    server: jp.example.com\n"))
+	}))
+	defer server.Close()
+
+	t.Setenv("DATA_DIR", t.TempDir())
+	svc := NewProjectMihomoService(&projectMihomoSettingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
 
 	settings, err := svc.SetSettings(context.Background(), &ProjectMihomoSettings{
-		SubscriptionURLs:  []string{"https://a.example/sub", "https://b.example/sub"},
+		SubscriptionURLs:  []string{server.URL + "/sub-a", server.URL + "/sub-b"},
 		SubscriptionNames: []string{"  Japan  ", "", "ignored"},
 		SubscriptionUA:    "sub2api/mihomo",
 		Protocol:          "socks5h",
@@ -540,17 +646,91 @@ func TestProjectMihomoNormalizeSubscriptionNames(t *testing.T) {
 	require.Equal(t, []string{"Japan", ""}, settings.SubscriptionNames)
 }
 
+func TestProjectMihomoNormalizeNodeExcludeKeywords(t *testing.T) {
+	svc := NewProjectMihomoService(&projectMihomoSettingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
+
+	settings, err := svc.SetSettings(context.Background(), &ProjectMihomoSettings{
+		SubscriptionUA:      "sub2api/mihomo",
+		Protocol:            "socks5h",
+		TargetHost:          "127.0.0.1",
+		StartPort:           61000,
+		ListenerCount:       2,
+		ControllerURL:       "http://127.0.0.1:9097",
+		ProxyNamePrefix:     "project-mihomo",
+		NodeExcludeEnabled:  true,
+		NodeExcludeKeywords: []string{" 香港 ", "", "Hong Kong", "hong-kong", "台湾"},
+	})
+
+	require.NoError(t, err)
+	require.True(t, settings.NodeExcludeEnabled)
+	require.Equal(t, []string{"香港", "Hong Kong", "台湾"}, settings.NodeExcludeKeywords)
+}
+
+func TestProjectMihomoSetSettingsAppendsListenersWithoutResettingExisting(t *testing.T) {
+	previousSettings := ProjectMihomoSettings{
+		SubscriptionUA:  "sub2api/mihomo",
+		Protocol:        "socks5h",
+		TargetHost:      "127.0.0.1",
+		StartPort:       61000,
+		ListenerCount:   2,
+		ListenerPorts:   []int{61000, 61002},
+		ListenerNames:   []string{"project-mihomo-01", "project-mihomo-03"},
+		ControllerURL:   "http://127.0.0.1:9097",
+		ProxyNamePrefix: "project-mihomo",
+		ListenerRegions: []string{"日本", "美国"},
+	}
+	raw, err := json.Marshal(previousSettings)
+	require.NoError(t, err)
+	repo := &projectMihomoSettingRepoStub{values: map[string]string{
+		SettingKeyProjectMihomoSettings: string(raw),
+	}}
+	svc := NewProjectMihomoService(repo, &projectMihomoAdminServiceStub{})
+
+	settings, err := svc.SetSettings(context.Background(), &ProjectMihomoSettings{
+		SubscriptionUA:  "sub2api/mihomo",
+		Protocol:        "socks5h",
+		TargetHost:      "127.0.0.1",
+		StartPort:       61000,
+		ListenerCount:   3,
+		ListenerPorts:   []int{61000, 61002},
+		ListenerNames:   []string{"project-mihomo-01", "project-mihomo-03"},
+		ControllerURL:   "http://127.0.0.1:9097",
+		ProxyNamePrefix: "project-mihomo",
+		ListenerRegions: []string{"日本", "美国"},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, []int{61000, 61002, 61001}, settings.ListenerPorts)
+	require.Equal(t, []string{"project-mihomo-01", "project-mihomo-03", "project-mihomo-04"}, settings.ListenerNames)
+	require.Equal(t, []string{"日本", "美国", ""}, settings.ListenerRegions)
+}
+
 func TestProjectMihomoSetSettingsReusesCachedProviderFileWhenURLUnchanged(t *testing.T) {
 	t.Setenv("DATA_DIR", t.TempDir())
-	repo := &projectMihomoSettingRepoStub{values: map[string]string{}}
-	svc := NewProjectMihomoService(repo, &projectMihomoAdminServiceStub{})
 	sourceURL := "https://example.com/sub"
+	previousSettings := ProjectMihomoSettings{
+		SubscriptionURL:  sourceURL,
+		SubscriptionURLs: []string{sourceURL},
+		SubscriptionUA:   "sub2api/mihomo",
+		Protocol:         "socks5h",
+		TargetHost:       "127.0.0.1",
+		StartPort:        61000,
+		ListenerCount:    2,
+		ControllerURL:    "http://127.0.0.1:9097",
+		ProxyNamePrefix:  "project-mihomo",
+	}
+	raw, err := json.Marshal(previousSettings)
+	require.NoError(t, err)
+	repo := &projectMihomoSettingRepoStub{values: map[string]string{
+		SettingKeyProjectMihomoSettings: string(raw),
+	}}
+	svc := NewProjectMihomoService(repo, &projectMihomoAdminServiceStub{})
 
 	require.NoError(t, os.MkdirAll(svc.providerDir(), 0o755))
 	oldPath := svc.providerCachePath()
 	require.NoError(t, os.WriteFile(oldPath, []byte("proxies:\n  - name: 日本-01\n    server: jp.example.com\n"), 0o644))
 
-	_, err := svc.SetSettings(context.Background(), &ProjectMihomoSettings{
+	_, err = svc.SetSettings(context.Background(), &ProjectMihomoSettings{
 		SubscriptionURLs: []string{sourceURL, "https://example.com/sub-2"},
 		SubscriptionUA:   "sub2api/mihomo",
 		Protocol:         "socks5h",
@@ -598,7 +778,7 @@ func TestProjectMihomoAssignProviderNodes(t *testing.T) {
 	}
 	proxies := []ProjectMihomoProxy{{Name: "project-mihomo-01"}, {Name: "project-mihomo-02"}, {Name: "project-mihomo-03"}}
 
-	assigned, err := svc.assignProviderNodes(context.Background(), settings, proxies)
+	assigned, err := svc.assignProviderNodes(context.Background(), settings, proxies, nil, 0)
 	require.NoError(t, err)
 	require.Equal(t, 3, assigned)
 	require.Equal(t, "node-a", selected["project-mihomo-01"])
@@ -635,7 +815,7 @@ func TestProjectMihomoAssignProviderNodesByRegion(t *testing.T) {
 	}
 	proxies := []ProjectMihomoProxy{{Name: "project-mihomo-01"}, {Name: "project-mihomo-02"}, {Name: "project-mihomo-03"}}
 
-	assigned, err := svc.assignProviderNodes(context.Background(), settings, proxies)
+	assigned, err := svc.assignProviderNodes(context.Background(), settings, proxies, nil, 0)
 	require.NoError(t, err)
 	require.Equal(t, 3, assigned)
 	require.Equal(t, "日本-01", selected["project-mihomo-01"])
@@ -670,11 +850,118 @@ func TestProjectMihomoAssignProviderNodesAcrossMultipleProviders(t *testing.T) {
 	}
 	proxies := []ProjectMihomoProxy{{Name: "project-mihomo-01"}, {Name: "project-mihomo-02"}}
 
-	assigned, err := svc.assignProviderNodes(context.Background(), settings, proxies)
+	assigned, err := svc.assignProviderNodes(context.Background(), settings, proxies, nil, 0)
 	require.NoError(t, err)
 	require.Equal(t, 2, assigned)
 	require.Equal(t, "日本-01", selected["project-mihomo-01"])
 	require.Equal(t, "美国-01", selected["project-mihomo-02"])
+}
+
+func TestProjectMihomoAssignProviderNodesPreservesExistingPortsWhenAdding(t *testing.T) {
+	selected := map[string]string{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/providers/proxies/project-subscription"):
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodGet && r.URL.Path == "/providers/proxies":
+			_, _ = w.Write([]byte(`{"providers":{"project-subscription":{"proxies":[{"name":"日本-01","alive":true},{"name":"美国-01","alive":true},{"name":"新加坡-01","alive":true}]}}}`))
+		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/proxies/"):
+			var payload struct {
+				Name string `json:"name"`
+			}
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			selected[strings.TrimPrefix(r.URL.Path, "/proxies/")] = payload.Name
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	svc := NewProjectMihomoService(&settingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
+	settings := &ProjectMihomoSettings{
+		ControllerURL:   server.URL,
+		SubscriptionURL: "https://example.com/sub",
+	}
+	proxies := []ProjectMihomoProxy{{Name: "project-mihomo-01"}, {Name: "project-mihomo-02"}, {Name: "project-mihomo-03"}}
+
+	assigned, err := svc.assignProviderNodes(context.Background(), settings, proxies, []string{"日本-01", "美国-01"}, 2)
+	require.NoError(t, err)
+	require.Equal(t, 3, assigned)
+	require.Equal(t, "日本-01", selected["project-mihomo-01"])
+	require.Equal(t, "美国-01", selected["project-mihomo-02"])
+	require.Equal(t, "日本-01", selected["project-mihomo-03"])
+}
+
+func TestProjectMihomoAssignProviderNodesAssignsFirstSyncPorts(t *testing.T) {
+	selected := map[string]string{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/providers/proxies/project-subscription"):
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodGet && r.URL.Path == "/providers/proxies":
+			_, _ = w.Write([]byte(`{"providers":{"project-subscription":{"proxies":[{"name":"日本-01","alive":true},{"name":"美国-01","alive":true}]}}}`))
+		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/proxies/"):
+			var payload struct {
+				Name string `json:"name"`
+			}
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			selected[strings.TrimPrefix(r.URL.Path, "/proxies/")] = payload.Name
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	svc := NewProjectMihomoService(&settingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
+	settings := &ProjectMihomoSettings{
+		ControllerURL:   server.URL,
+		SubscriptionURL: "https://example.com/sub",
+	}
+	proxies := []ProjectMihomoProxy{{Name: "project-mihomo-01"}, {Name: "project-mihomo-02"}}
+
+	assigned, err := svc.assignProviderNodes(context.Background(), settings, proxies, nil, 0)
+	require.NoError(t, err)
+	require.Equal(t, 2, assigned)
+	require.Equal(t, "日本-01", selected["project-mihomo-01"])
+	require.Equal(t, "美国-01", selected["project-mihomo-02"])
+}
+
+func TestProjectMihomoAssignProviderNodesSkipsOldPortWhenSelectionUnavailable(t *testing.T) {
+	selected := map[string]string{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/providers/proxies/project-subscription"):
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodGet && r.URL.Path == "/providers/proxies":
+			_, _ = w.Write([]byte(`{"providers":{"project-subscription":{"proxies":[{"name":"日本-01","alive":true},{"name":"美国-01","alive":true}]}}}`))
+		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/proxies/"):
+			var payload struct {
+				Name string `json:"name"`
+			}
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+			selected[strings.TrimPrefix(r.URL.Path, "/proxies/")] = payload.Name
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	svc := NewProjectMihomoService(&settingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
+	settings := &ProjectMihomoSettings{
+		ControllerURL:   server.URL,
+		SubscriptionURL: "https://example.com/sub",
+	}
+	proxies := []ProjectMihomoProxy{{Name: "project-mihomo-01"}, {Name: "project-mihomo-02"}, {Name: "project-mihomo-03"}}
+
+	assigned, err := svc.assignProviderNodes(context.Background(), settings, proxies, []string{"香港-01", "美国-01"}, 2)
+	require.NoError(t, err)
+	require.Equal(t, 2, assigned)
+	require.NotContains(t, selected, "project-mihomo-01")
+	require.Equal(t, "美国-01", selected["project-mihomo-02"])
+	require.Equal(t, "日本-01", selected["project-mihomo-03"])
 }
 
 func TestProjectMihomoProviderNodesKeepDuplicateNamesAcrossProviders(t *testing.T) {
@@ -723,6 +1010,31 @@ func TestProjectMihomoProviderNodesSkipSubscriptionInfoEntries(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 	require.Equal(t, "香港01[X中转1]x2.0", nodes[0].Name)
+}
+
+func TestProjectMihomoProviderNodesExcludeKeywords(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/providers/proxies":
+			_, _ = w.Write([]byte(`{"providers":{"project-subscription":{"proxies":[{"name":"香港-01","alive":true},{"name":"台灣-01","alive":true},{"name":"日本-01","alive":true},{"name":"美国-01","alive":true}]}}}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	svc := NewProjectMihomoService(&settingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
+	settings := &ProjectMihomoSettings{
+		ControllerURL:       server.URL,
+		SubscriptionURL:     "https://example.com/sub",
+		NodeExcludeEnabled:  true,
+		NodeExcludeKeywords: []string{"香港", "台灣"},
+	}
+	svc.normalize(settings)
+
+	nodes, err := svc.providerNodes(context.Background(), server.Client(), settings)
+	require.NoError(t, err)
+	require.Equal(t, []string{"日本-01", "美国-01"}, projectMihomoNodeNames(nodes))
 }
 
 func TestProjectMihomoTestNodesReturnsLatencyResults(t *testing.T) {
@@ -937,9 +1249,9 @@ func TestProjectMihomoSyncProxyRowsUpdatesAndCleansManagedDuplicates(t *testing.
 	stub := &projectMihomoAdminServiceStub{
 		proxies: []Proxy{
 			{ID: 1, Name: "project-mihomo-01", Protocol: "socks5h", Host: "127.0.0.1", Port: 61000, Status: StatusActive},
-			{ID: 2, Name: "project-mihomo-04", Protocol: "http", Host: "127.0.0.1", Port: 41004, Status: StatusActive},
-			{ID: 3, Name: "project-mihomo-04", Protocol: "socks5h", Host: "127.0.0.1", Port: 41004, Status: StatusActive},
-			{ID: 4, Name: "project-mihomo-05", Protocol: "socks5h", Host: "127.0.0.1", Port: 41005, Status: StatusActive},
+			{ID: 2, Name: "project-mihomo-04", Protocol: "http", Host: "127.0.0.1", Port: 61003, Status: StatusActive},
+			{ID: 3, Name: "project-mihomo-04", Protocol: "socks5h", Host: "127.0.0.1", Port: 61003, Status: StatusActive},
+			{ID: 4, Name: "project-mihomo-05", Protocol: "socks5h", Host: "127.0.0.1", Port: 61004, Status: StatusActive},
 		},
 	}
 	svc := NewProjectMihomoService(&settingRepoStub{values: map[string]string{}}, stub)
@@ -974,6 +1286,107 @@ func TestProjectMihomoSyncProxyRowsUpdatesAndCleansManagedDuplicates(t *testing.
 	require.NotContains(t, remaining, "project-mihomo-05")
 	require.Contains(t, stub.deleteCalls, int64(2))
 	require.Contains(t, stub.deleteCalls, int64(4))
+}
+
+func TestProjectMihomoSetSettingsBlocksRemovingListenerInUse(t *testing.T) {
+	previousSettings := ProjectMihomoSettings{
+		SubscriptionUA:  "sub2api/mihomo",
+		Protocol:        "socks5h",
+		TargetHost:      "127.0.0.1",
+		StartPort:       61000,
+		ListenerCount:   2,
+		ListenerPorts:   []int{61000, 61001},
+		ListenerNames:   []string{"project-mihomo-01", "project-mihomo-02"},
+		ControllerURL:   "http://127.0.0.1:9097",
+		ProxyNamePrefix: "project-mihomo",
+		ListenerRegions: make([]string, 2),
+	}
+	raw, err := json.Marshal(previousSettings)
+	require.NoError(t, err)
+	stub := &projectMihomoAdminServiceStub{
+		proxies: []Proxy{
+			{ID: 1, Name: "project-mihomo-01", Protocol: "socks5h", Host: "127.0.0.1", Port: 61000, Status: StatusActive},
+			{ID: 2, Name: "project-mihomo-02", Protocol: "socks5h", Host: "127.0.0.1", Port: 61001, Status: StatusActive},
+		},
+		proxyAccounts: map[int64][]ProxyAccountSummary{
+			2: {{ID: 11, Name: "account-a", Platform: PlatformOpenAI, Type: AccountTypeOAuth}},
+		},
+	}
+	svc := NewProjectMihomoService(&projectMihomoSettingRepoStub{values: map[string]string{
+		SettingKeyProjectMihomoSettings: string(raw),
+	}}, stub)
+
+	_, err = svc.SetSettings(context.Background(), &ProjectMihomoSettings{
+		SubscriptionUA:  "sub2api/mihomo",
+		Protocol:        "socks5h",
+		TargetHost:      "127.0.0.1",
+		StartPort:       61000,
+		ListenerCount:   1,
+		ListenerPorts:   []int{61000},
+		ListenerNames:   []string{"project-mihomo-01"},
+		ControllerURL:   "http://127.0.0.1:9097",
+		ProxyNamePrefix: "project-mihomo",
+		ListenerRegions: []string{""},
+	})
+
+	require.ErrorIs(t, err, ErrProjectMihomoProxyInUse)
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, "1", appErr.Metadata["account_count"])
+	require.Contains(t, appErr.Metadata["proxies"], "project-mihomo-02")
+	require.Empty(t, stub.bulkUpdateCalls)
+	require.Empty(t, stub.deleteCalls)
+}
+
+func TestProjectMihomoSetSettingsForceRemovingListenerClearsAccounts(t *testing.T) {
+	previousSettings := ProjectMihomoSettings{
+		SubscriptionUA:  "sub2api/mihomo",
+		Protocol:        "socks5h",
+		TargetHost:      "127.0.0.1",
+		StartPort:       61000,
+		ListenerCount:   2,
+		ListenerPorts:   []int{61000, 61001},
+		ListenerNames:   []string{"project-mihomo-01", "project-mihomo-02"},
+		ControllerURL:   "http://127.0.0.1:9097",
+		ProxyNamePrefix: "project-mihomo",
+		ListenerRegions: make([]string, 2),
+	}
+	raw, err := json.Marshal(previousSettings)
+	require.NoError(t, err)
+	stub := &projectMihomoAdminServiceStub{
+		proxies: []Proxy{
+			{ID: 1, Name: "project-mihomo-01", Protocol: "socks5h", Host: "127.0.0.1", Port: 61000, Status: StatusActive},
+			{ID: 2, Name: "project-mihomo-02", Protocol: "socks5h", Host: "127.0.0.1", Port: 61001, Status: StatusActive},
+		},
+		proxyAccounts: map[int64][]ProxyAccountSummary{
+			2: {{ID: 11, Name: "account-a", Platform: PlatformOpenAI, Type: AccountTypeOAuth}},
+		},
+	}
+	svc := NewProjectMihomoService(&projectMihomoSettingRepoStub{values: map[string]string{
+		SettingKeyProjectMihomoSettings: string(raw),
+	}}, stub)
+
+	settings, err := svc.SetSettingsWithOptions(context.Background(), &ProjectMihomoSettings{
+		SubscriptionUA:  "sub2api/mihomo",
+		Protocol:        "socks5h",
+		TargetHost:      "127.0.0.1",
+		StartPort:       61000,
+		ListenerCount:   1,
+		ListenerPorts:   []int{61000},
+		ListenerNames:   []string{"project-mihomo-01"},
+		ControllerURL:   "http://127.0.0.1:9097",
+		ProxyNamePrefix: "project-mihomo",
+		ListenerRegions: []string{""},
+	}, ProjectMihomoSaveOptions{ForceRemoveInUse: true})
+
+	require.NoError(t, err)
+	require.Equal(t, []string{"project-mihomo-01"}, settings.ListenerNames)
+	require.Len(t, stub.bulkUpdateCalls, 1)
+	require.Equal(t, []int64{11}, stub.bulkUpdateCalls[0].AccountIDs)
+	require.NotNil(t, stub.bulkUpdateCalls[0].ProxyID)
+	require.Zero(t, *stub.bulkUpdateCalls[0].ProxyID)
+	require.Contains(t, stub.deleteCalls, int64(2))
+	require.Len(t, stub.proxies, 1)
+	require.Equal(t, "project-mihomo-01", stub.proxies[0].Name)
 }
 
 func TestParseProjectMihomoSubscriptionNodeNames_Base64URIsSkipsPlaceholderHost(t *testing.T) {

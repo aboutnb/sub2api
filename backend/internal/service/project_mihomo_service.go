@@ -13,6 +13,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -40,14 +42,30 @@ const (
 	projectMihomoPlaceholderHost = "dont.use.this.node"
 )
 
+var defaultProjectMihomoNodeExcludeKeywords = []string{
+	"香港",
+	"Hong Kong",
+	"HK",
+	"HKG",
+	"台湾",
+	"台灣",
+	"Taiwan",
+	"Taipei",
+	"台北",
+	"TW",
+}
+
 var (
 	ErrProjectMihomoSubscriptionRequired = infraerrors.BadRequest("PROJECT_MIHOMO_SUBSCRIPTION_REQUIRED", "subscription_url is required")
 	ErrProjectMihomoControllerRequired   = infraerrors.BadRequest("PROJECT_MIHOMO_CONTROLLER_REQUIRED", "controller_url is required")
 	ErrProjectMihomoProtocolInvalid      = infraerrors.BadRequest("PROJECT_MIHOMO_PROTOCOL_INVALID", "protocol must be one of http, https, socks5, socks5h")
-	ErrProjectMihomoListenerCountInvalid = infraerrors.BadRequest("PROJECT_MIHOMO_LISTENER_COUNT_INVALID", "listener_count must be between 1 and 32")
+	ErrProjectMihomoListenerCountInvalid = infraerrors.BadRequest("PROJECT_MIHOMO_LISTENER_COUNT_INVALID", "listener_count must be between 0 and 32")
 	ErrProjectMihomoStartPortInvalid     = infraerrors.BadRequest("PROJECT_MIHOMO_START_PORT_INVALID", "start_port must be between 1 and 65535")
 	ErrProjectMihomoPortRangeInvalid     = infraerrors.BadRequest("PROJECT_MIHOMO_PORT_RANGE_INVALID", "listener ports exceed valid range")
+	ErrProjectMihomoPortDuplicate        = infraerrors.BadRequest("PROJECT_MIHOMO_PORT_DUPLICATE", "listener ports must be unique")
+	ErrProjectMihomoListenerNameInvalid  = infraerrors.BadRequest("PROJECT_MIHOMO_LISTENER_NAME_INVALID", "listener names must be unique")
 	ErrProjectMihomoSubscriptionFetch    = infraerrors.BadRequest("PROJECT_MIHOMO_SUBSCRIPTION_FETCH_FAILED", "failed to fetch project mihomo subscription")
+	ErrProjectMihomoProxyInUse           = infraerrors.Conflict("PROJECT_MIHOMO_PROXY_IN_USE", "project mihomo proxy is in use by accounts")
 )
 
 var projectMihomoRegionAliases = map[string][]string{
@@ -62,19 +80,26 @@ var projectMihomoRegionAliases = map[string][]string{
 }
 
 type ProjectMihomoSettings struct {
-	SubscriptionURL   string   `json:"subscription_url"`
-	SubscriptionURLs  []string `json:"subscription_urls"`
-	SubscriptionNames []string `json:"subscription_names"`
-	SubscriptionUA    string   `json:"subscription_user_agent"`
-	UpdateInterval    int      `json:"update_interval"`
-	Protocol          string   `json:"protocol"`
-	TargetHost        string   `json:"target_host"`
-	StartPort         int      `json:"start_port"`
-	ListenerCount     int      `json:"listener_count"`
-	ControllerURL     string   `json:"controller_url"`
-	ControllerSecret  string   `json:"controller_secret"`
-	ProxyNamePrefix   string   `json:"proxy_name_prefix"`
-	ListenerRegions   []string `json:"listener_regions"`
+	SubscriptionURL     string   `json:"subscription_url"`
+	SubscriptionURLs    []string `json:"subscription_urls"`
+	SubscriptionNames   []string `json:"subscription_names"`
+	SubscriptionUA      string   `json:"subscription_user_agent"`
+	UpdateInterval      int      `json:"update_interval"`
+	Protocol            string   `json:"protocol"`
+	TargetHost          string   `json:"target_host"`
+	StartPort           int      `json:"start_port"`
+	ListenerCount       int      `json:"listener_count"`
+	ListenerPorts       []int    `json:"listener_ports"`
+	ListenerNames       []string `json:"listener_names"`
+	ControllerURL       string   `json:"controller_url"`
+	ControllerSecret    string   `json:"controller_secret"`
+	ProxyNamePrefix     string   `json:"proxy_name_prefix"`
+	ListenerRegions     []string `json:"listener_regions"`
+	AutoRouteEnabled    bool     `json:"auto_route_enabled"`
+	AutoRouteTolerance  int      `json:"auto_route_tolerance"`
+	AutoRouteInterval   int      `json:"auto_route_interval"`
+	NodeExcludeEnabled  bool     `json:"node_exclude_enabled"`
+	NodeExcludeKeywords []string `json:"node_exclude_keywords"`
 }
 
 type ProjectMihomoProxy struct {
@@ -118,6 +143,10 @@ type ProjectMihomoSyncResult struct {
 	Reloaded   bool                 `json:"reloaded"`
 }
 
+type ProjectMihomoSaveOptions struct {
+	ForceRemoveInUse bool
+}
+
 type ProjectMihomoService struct {
 	settingRepo  SettingRepository
 	adminService AdminService
@@ -145,19 +174,26 @@ func DefaultProjectMihomoSettings() ProjectMihomoSettings {
 		controllerURL = "http://127.0.0.1:9097"
 	}
 	return ProjectMihomoSettings{
-		SubscriptionURL:   "",
-		SubscriptionURLs:  nil,
-		SubscriptionNames: nil,
-		SubscriptionUA:    "sub2api/mihomo",
-		UpdateInterval:    3600,
-		Protocol:          "socks5h",
-		TargetHost:        targetHost,
-		StartPort:         61000,
-		ListenerCount:     4,
-		ControllerURL:     controllerURL,
-		ControllerSecret:  "",
-		ProxyNamePrefix:   "project-mihomo",
-		ListenerRegions:   make([]string, 4),
+		SubscriptionURL:     "",
+		SubscriptionURLs:    nil,
+		SubscriptionNames:   nil,
+		SubscriptionUA:      "sub2api/mihomo",
+		UpdateInterval:      3600,
+		Protocol:            "socks5h",
+		TargetHost:          targetHost,
+		StartPort:           61000,
+		ListenerCount:       4,
+		ListenerPorts:       []int{61000, 61001, 61002, 61003},
+		ListenerNames:       []string{"project-mihomo-01", "project-mihomo-02", "project-mihomo-03", "project-mihomo-04"},
+		ControllerURL:       controllerURL,
+		ControllerSecret:    "",
+		ProxyNamePrefix:     "project-mihomo",
+		ListenerRegions:     make([]string, 4),
+		AutoRouteEnabled:    false,
+		AutoRouteTolerance:  150,
+		AutoRouteInterval:   300,
+		NodeExcludeEnabled:  false,
+		NodeExcludeKeywords: copyProjectMihomoDefaultNodeExcludeKeywords(),
 	}
 }
 
@@ -183,11 +219,19 @@ func (s *ProjectMihomoService) GetSettings(ctx context.Context) (*ProjectMihomoS
 }
 
 func (s *ProjectMihomoService) SetSettings(ctx context.Context, settings *ProjectMihomoSettings) (*ProjectMihomoSettings, error) {
+	return s.SetSettingsWithOptions(ctx, settings, ProjectMihomoSaveOptions{})
+}
+
+func (s *ProjectMihomoService) SetSettingsWithOptions(ctx context.Context, settings *ProjectMihomoSettings, options ProjectMihomoSaveOptions) (*ProjectMihomoSettings, error) {
 	if settings == nil {
 		return nil, fmt.Errorf("settings cannot be nil")
 	}
 
 	previous, err := s.GetSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	previousExists, err := s.hasSavedSettings(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -199,6 +243,11 @@ func (s *ProjectMihomoService) SetSettings(ctx context.Context, settings *Projec
 	}
 	if err := s.ensureProviderFiles(ctx, previous, &normalized); err != nil {
 		return nil, err
+	}
+	if previousExists {
+		if err := s.cleanupRemovedProxyRows(ctx, previous, &normalized, options.ForceRemoveInUse); err != nil {
+			return nil, err
+		}
 	}
 
 	data, err := json.Marshal(&normalized)
@@ -212,6 +261,17 @@ func (s *ProjectMihomoService) SetSettings(ctx context.Context, settings *Projec
 		return nil, err
 	}
 	return &normalized, nil
+}
+
+func (s *ProjectMihomoService) hasSavedSettings(ctx context.Context) (bool, error) {
+	raw, err := s.settingRepo.GetValue(ctx, SettingKeyProjectMihomoSettings)
+	if err != nil {
+		if errors.Is(err, ErrSettingNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("get project mihomo settings: %w", err)
+	}
+	return strings.TrimSpace(raw) != "", nil
 }
 
 func (s *ProjectMihomoService) GetStatus(ctx context.Context) (*ProjectMihomoStatus, error) {
@@ -235,7 +295,35 @@ func (s *ProjectMihomoService) GetStatus(ctx context.Context) (*ProjectMihomoSta
 }
 
 func (s *ProjectMihomoService) Sync(ctx context.Context, settings *ProjectMihomoSettings) (*ProjectMihomoSyncResult, error) {
-	saved, err := s.SetSettings(ctx, settings)
+	return s.SyncWithOptions(ctx, settings, ProjectMihomoSaveOptions{})
+}
+
+func (s *ProjectMihomoService) SyncWithOptions(ctx context.Context, settings *ProjectMihomoSettings, options ProjectMihomoSaveOptions) (*ProjectMihomoSyncResult, error) {
+	previous, err := s.GetSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	previousExists, err := s.hasSavedSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	previousListenerCount := 0
+	var previousSelections []string
+	var previousSelectionByName map[string]string
+	if previousExists {
+		hasManagedRows, err := s.hasManagedProxyRows(ctx, previous)
+		if err != nil {
+			return nil, err
+		}
+		if hasManagedRows {
+			previousListenerCount = previous.ListenerCount
+			previousProxies := s.buildProxies(previous)
+			previousSelections = s.currentProxyGroupSelections(ctx, previous, previousProxies)
+			previousSelectionByName = projectMihomoSelectionMap(previousProxies, previousSelections)
+		}
+	}
+
+	saved, err := s.SetSettingsWithOptions(ctx, settings, options)
 	if err != nil {
 		return nil, err
 	}
@@ -246,6 +334,10 @@ func (s *ProjectMihomoService) Sync(ctx context.Context, settings *ProjectMihomo
 	}
 
 	proxies := s.buildProxies(saved)
+	if len(previousSelectionByName) > 0 {
+		previousSelections = projectMihomoSelectionsForProxies(proxies, previousSelectionByName)
+		previousListenerCount = len(previousSelections)
+	}
 	created, reused, err := s.syncProxyRows(ctx, saved, proxies)
 	if err != nil {
 		return nil, err
@@ -255,7 +347,9 @@ func (s *ProjectMihomoService) Sync(ctx context.Context, settings *ProjectMihomo
 	assigned := 0
 	if err := s.reloadConfig(ctx, saved, projectMihomoReloadPath); err == nil {
 		reloaded = true
-		if count, err := s.assignProviderNodes(ctx, saved, proxies); err == nil {
+		if saved.AutoRouteEnabled {
+			assigned = len(proxies)
+		} else if count, err := s.assignProviderNodes(ctx, saved, proxies, previousSelections, previousListenerCount); err == nil {
 			assigned = count
 		}
 	}
@@ -415,9 +509,10 @@ func (s *ProjectMihomoService) normalize(settings *ProjectMihomoSettings) {
 	if settings.StartPort == 0 {
 		settings.StartPort = defaults.StartPort
 	}
-	if settings.ListenerCount == 0 {
+	if settings.ListenerCount < 0 {
 		settings.ListenerCount = defaults.ListenerCount
 	}
+	settings.ListenerPorts = normalizeProjectMihomoListenerPorts(settings.ListenerPorts, settings.StartPort, settings.ListenerCount)
 	settings.ControllerURL = strings.TrimSpace(settings.ControllerURL)
 	if settings.ControllerURL == "" {
 		settings.ControllerURL = defaults.ControllerURL
@@ -432,7 +527,18 @@ func (s *ProjectMihomoService) normalize(settings *ProjectMihomoSettings) {
 	if settings.ProxyNamePrefix == "" {
 		settings.ProxyNamePrefix = defaults.ProxyNamePrefix
 	}
+	settings.ListenerNames = normalizeProjectMihomoListenerNames(settings.ListenerNames, settings.ProxyNamePrefix, settings.ListenerCount)
 	settings.ListenerRegions = normalizeProjectMihomoListenerRegions(settings.ListenerRegions, settings.ListenerCount)
+	if settings.AutoRouteTolerance <= 0 {
+		settings.AutoRouteTolerance = defaults.AutoRouteTolerance
+	}
+	if settings.AutoRouteInterval <= 0 {
+		settings.AutoRouteInterval = defaults.AutoRouteInterval
+	}
+	settings.NodeExcludeKeywords = normalizeProjectMihomoNodeExcludeKeywords(settings.NodeExcludeKeywords)
+	if len(settings.NodeExcludeKeywords) == 0 {
+		settings.NodeExcludeKeywords = copyProjectMihomoDefaultNodeExcludeKeywords()
+	}
 }
 
 func (s *ProjectMihomoService) validate(settings *ProjectMihomoSettings, requireSubscription bool) error {
@@ -447,27 +553,128 @@ func (s *ProjectMihomoService) validate(settings *ProjectMihomoSettings, require
 	default:
 		return ErrProjectMihomoProtocolInvalid
 	}
-	if settings.ListenerCount < 1 || settings.ListenerCount > 32 {
+	if settings.ListenerCount < 0 || settings.ListenerCount > 32 {
 		return ErrProjectMihomoListenerCountInvalid
 	}
 	if settings.StartPort < 1 || settings.StartPort > 65535 {
 		return ErrProjectMihomoStartPortInvalid
 	}
-	if settings.StartPort+settings.ListenerCount-1 > 65535 {
-		return ErrProjectMihomoPortRangeInvalid
+	if len(settings.ListenerPorts) != settings.ListenerCount || len(settings.ListenerNames) != settings.ListenerCount {
+		return ErrProjectMihomoListenerCountInvalid
+	}
+	seenPorts := make(map[int]struct{}, len(settings.ListenerPorts))
+	for _, port := range settings.ListenerPorts {
+		if port < 1 || port > 65535 {
+			return ErrProjectMihomoPortRangeInvalid
+		}
+		if _, ok := seenPorts[port]; ok {
+			return ErrProjectMihomoPortDuplicate
+		}
+		seenPorts[port] = struct{}{}
+	}
+	seenNames := make(map[string]struct{}, len(settings.ListenerNames))
+	for _, name := range settings.ListenerNames {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return ErrProjectMihomoListenerNameInvalid
+		}
+		key := strings.ToLower(name)
+		if _, ok := seenNames[key]; ok {
+			return ErrProjectMihomoListenerNameInvalid
+		}
+		seenNames[key] = struct{}{}
 	}
 	return nil
 }
 
 func (s *ProjectMihomoService) buildProxies(settings *ProjectMihomoSettings) []ProjectMihomoProxy {
 	out := make([]ProjectMihomoProxy, 0, settings.ListenerCount)
+	ports := normalizeProjectMihomoListenerPorts(settings.ListenerPorts, settings.StartPort, settings.ListenerCount)
+	names := normalizeProjectMihomoListenerNames(settings.ListenerNames, settings.ProxyNamePrefix, settings.ListenerCount)
 	for i := 0; i < settings.ListenerCount; i++ {
 		out = append(out, ProjectMihomoProxy{
-			Name:     fmt.Sprintf("%s-%02d", settings.ProxyNamePrefix, i+1),
+			Name:     names[i],
 			Protocol: settings.Protocol,
 			Host:     settings.TargetHost,
-			Port:     settings.StartPort + i,
+			Port:     ports[i],
 		})
+	}
+	return out
+}
+
+func normalizeProjectMihomoListenerPorts(ports []int, startPort, count int) []int {
+	if count <= 0 {
+		return nil
+	}
+	out := make([]int, 0, count)
+	for _, port := range ports {
+		if len(out) >= count {
+			break
+		}
+		out = append(out, port)
+	}
+	next := startPort
+	if next < 1 {
+		next = DefaultProjectMihomoSettings().StartPort
+	}
+	seen := make(map[int]struct{}, count)
+	for _, port := range out {
+		if port >= 1 && port <= 65535 {
+			seen[port] = struct{}{}
+		}
+	}
+	for len(out) < count && next <= 65535 {
+		if _, ok := seen[next]; !ok {
+			seen[next] = struct{}{}
+			out = append(out, next)
+		}
+		next++
+	}
+	return out
+}
+
+func normalizeProjectMihomoListenerNames(names []string, prefix string, count int) []string {
+	if count <= 0 {
+		return nil
+	}
+	prefix = strings.TrimSpace(prefix)
+	if prefix == "" {
+		prefix = DefaultProjectMihomoSettings().ProxyNamePrefix
+	}
+	out := make([]string, 0, count)
+	maxIndex := 0
+	for _, name := range names {
+		if len(out) >= count {
+			break
+		}
+		name = strings.TrimSpace(name)
+		out = append(out, name)
+		if strings.HasPrefix(name, prefix+"-") {
+			if n, err := strconv.Atoi(strings.TrimPrefix(name, prefix+"-")); err == nil && n > maxIndex {
+				maxIndex = n
+			}
+		}
+	}
+	seen := make(map[string]struct{}, count)
+	for _, name := range out {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			seen[strings.ToLower(name)] = struct{}{}
+		}
+	}
+	next := maxIndex + 1
+	if next < 1 {
+		next = 1
+	}
+	for len(out) < count {
+		name := fmt.Sprintf("%s-%02d", prefix, next)
+		next++
+		key := strings.ToLower(name)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, name)
 	}
 	return out
 }
@@ -649,6 +856,148 @@ func (s *ProjectMihomoService) syncProxyRows(ctx context.Context, settings *Proj
 	return created, reused, nil
 }
 
+func (s *ProjectMihomoService) cleanupRemovedProxyRows(ctx context.Context, previous, current *ProjectMihomoSettings, force bool) error {
+	if previous == nil || current == nil {
+		return nil
+	}
+	removed := s.removedProjectMihomoProxies(previous, current)
+	if len(removed) == 0 {
+		return nil
+	}
+
+	existing, err := s.adminService.GetAllProxies(ctx)
+	if err != nil {
+		return err
+	}
+	removedByName := make(map[string]ProjectMihomoProxy, len(removed))
+	for i := range removed {
+		removedByName[strings.ToLower(strings.TrimSpace(removed[i].Name))] = removed[i]
+	}
+
+	var blocked []Proxy
+	var accounts []ProxyAccountSummary
+	toDelete := make([]int64, 0, len(removed))
+	for i := range existing {
+		name := strings.ToLower(strings.TrimSpace(existing[i].Name))
+		if _, ok := removedByName[name]; !ok {
+			continue
+		}
+		items, err := s.adminService.GetProxyAccounts(ctx, existing[i].ID)
+		if err != nil {
+			return err
+		}
+		if len(items) > 0 {
+			blocked = append(blocked, existing[i])
+			accounts = append(accounts, items...)
+		}
+		toDelete = append(toDelete, existing[i].ID)
+	}
+	if len(toDelete) == 0 {
+		return nil
+	}
+	if len(accounts) > 0 && !force {
+		return projectMihomoProxyInUseError(blocked, accounts)
+	}
+	if len(accounts) > 0 {
+		accountIDs := make([]int64, 0, len(accounts))
+		seen := make(map[int64]struct{}, len(accounts))
+		for _, account := range accounts {
+			if account.ID <= 0 {
+				continue
+			}
+			if _, ok := seen[account.ID]; ok {
+				continue
+			}
+			seen[account.ID] = struct{}{}
+			accountIDs = append(accountIDs, account.ID)
+		}
+		if len(accountIDs) > 0 {
+			emptyProxyID := int64(0)
+			if _, err := s.adminService.BulkUpdateAccounts(ctx, &BulkUpdateAccountsInput{
+				AccountIDs: accountIDs,
+				ProxyID:    &emptyProxyID,
+			}); err != nil {
+				return err
+			}
+		}
+	}
+	for _, id := range dedupeProjectMihomoProxyIDs(toDelete) {
+		if err := s.adminService.DeleteProxy(ctx, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *ProjectMihomoService) removedProjectMihomoProxies(previous, current *ProjectMihomoSettings) []ProjectMihomoProxy {
+	previousProxies := s.buildProxies(previous)
+	currentProxies := s.buildProxies(current)
+	currentNames := make(map[string]struct{}, len(currentProxies))
+	for i := range currentProxies {
+		currentNames[strings.ToLower(strings.TrimSpace(currentProxies[i].Name))] = struct{}{}
+	}
+	out := make([]ProjectMihomoProxy, 0)
+	for i := range previousProxies {
+		key := strings.ToLower(strings.TrimSpace(previousProxies[i].Name))
+		if _, ok := currentNames[key]; ok {
+			continue
+		}
+		out = append(out, previousProxies[i])
+	}
+	return out
+}
+
+func projectMihomoProxyInUseError(proxies []Proxy, accounts []ProxyAccountSummary) error {
+	proxyNames := make([]string, 0, len(proxies))
+	for i := range proxies {
+		name := strings.TrimSpace(proxies[i].Name)
+		if name != "" {
+			proxyNames = append(proxyNames, name)
+		}
+	}
+	accountNames := make([]string, 0, len(accounts))
+	seenAccounts := make(map[int64]struct{}, len(accounts))
+	for _, account := range accounts {
+		if account.ID > 0 {
+			if _, ok := seenAccounts[account.ID]; ok {
+				continue
+			}
+			seenAccounts[account.ID] = struct{}{}
+		}
+		name := strings.TrimSpace(account.Name)
+		if name != "" {
+			accountNames = append(accountNames, name)
+		}
+	}
+	return ErrProjectMihomoProxyInUse.WithMetadata(map[string]string{
+		"proxy_count":   strconv.Itoa(len(proxyNames)),
+		"account_count": strconv.Itoa(len(seenAccounts)),
+		"proxies":       strings.Join(proxyNames, ", "),
+		"accounts":      strings.Join(accountNames, ", "),
+	})
+}
+
+func (s *ProjectMihomoService) hasManagedProxyRows(ctx context.Context, settings *ProjectMihomoSettings) (bool, error) {
+	proxies := s.buildProxies(settings)
+	if len(proxies) == 0 {
+		return false, nil
+	}
+	existing, err := s.adminService.GetAllProxies(ctx)
+	if err != nil {
+		return false, err
+	}
+	expectedPorts := make(map[int]struct{}, len(proxies))
+	for i := range proxies {
+		expectedPorts[proxies[i].Port] = struct{}{}
+	}
+	for i := range existing {
+		if isProjectMihomoManagedProxy(settings, &existing[i], expectedPorts) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func isProjectMihomoManagedProxy(settings *ProjectMihomoSettings, proxy *Proxy, expectedPorts map[int]struct{}) bool {
 	if proxy == nil {
 		return false
@@ -818,6 +1167,9 @@ func (s *ProjectMihomoService) availableNodes(settings *ProjectMihomoSettings) [
 			if !isProjectMihomoSelectableNodeName(name) {
 				continue
 			}
+			if isProjectMihomoExcludedNodeName(settings, name) {
+				continue
+			}
 			nodes = append(nodes, ProjectMihomoNode{
 				Key:           projectMihomoNodeKey(providers[i].Name, name),
 				Name:          name,
@@ -862,7 +1214,7 @@ func (s *ProjectMihomoService) renderConfig(settings *ProjectMihomoSettings) ([]
 	for i := range providers {
 		item := providers[i]
 		providerNames = append(providerNames, item.Name)
-		providerConfigs[item.Name] = map[string]any{
+		providerConfig := map[string]any{
 			"type": "file",
 			"path": item.Path,
 			"health-check": map[string]any{
@@ -873,6 +1225,10 @@ func (s *ProjectMihomoService) renderConfig(settings *ProjectMihomoSettings) ([]
 				"lazy":     true,
 			},
 		}
+		if excludeFilter := projectMihomoNodeExcludeFilter(settings); excludeFilter != "" {
+			providerConfig["exclude-filter"] = excludeFilter
+		}
+		providerConfigs[item.Name] = providerConfig
 	}
 	for i := range proxies {
 		item := proxies[i]
@@ -884,11 +1240,24 @@ func (s *ProjectMihomoService) renderConfig(settings *ProjectMihomoSettings) ([]
 			"udp":    true,
 			"proxy":  item.Name,
 		})
-		groups = append(groups, map[string]any{
+		group := map[string]any{
 			"name": item.Name,
-			"type": "select",
-			"use":  providerNames,
-		})
+		}
+		if settings.AutoRouteEnabled {
+			group["type"] = "url-test"
+			group["use"] = projectMihomoListenerGroupProviders(providers, settings.ListenerRegions[i])
+			group["url"] = projectMihomoDelayURL
+			group["interval"] = settings.AutoRouteInterval
+			group["tolerance"] = settings.AutoRouteTolerance
+			group["lazy"] = true
+			if filter := projectMihomoListenerGroupFilter(settings.ListenerRegions[i]); filter != "" {
+				group["filter"] = filter
+			}
+		} else {
+			group["type"] = "select"
+			group["use"] = providerNames
+		}
+		groups = append(groups, group)
 	}
 
 	root := map[string]any{
@@ -980,6 +1349,14 @@ type mihomoProvidersResponse struct {
 	Providers map[string]mihomoProvider `json:"providers"`
 }
 
+type mihomoProxiesResponse struct {
+	Proxies map[string]mihomoProxyGroup `json:"proxies"`
+}
+
+type mihomoProxyGroup struct {
+	Now string `json:"now"`
+}
+
 type mihomoProvider struct {
 	Proxies []mihomoProviderProxy `json:"proxies"`
 }
@@ -993,7 +1370,7 @@ type mihomoProviderProxy struct {
 	} `json:"history"`
 }
 
-func (s *ProjectMihomoService) assignProviderNodes(ctx context.Context, settings *ProjectMihomoSettings, proxies []ProjectMihomoProxy) (int, error) {
+func (s *ProjectMihomoService) assignProviderNodes(ctx context.Context, settings *ProjectMihomoSettings, proxies []ProjectMihomoProxy, previousSelections []string, previousListenerCount int) (int, error) {
 	client, err := httpclient.GetClient(httpclient.Options{
 		Timeout: projectMihomoHTTPTimeout,
 	})
@@ -1027,23 +1404,35 @@ func (s *ProjectMihomoService) assignProviderNodes(ctx context.Context, settings
 	regionOffsets := make(map[string]int, len(proxies))
 	for i := range proxies {
 		var selectedNode *ProjectMihomoNode
+		previousSelection := ""
 		regionFilter := ""
 		if i < len(settings.ListenerRegions) {
-			regionFilter = settings.ListenerRegions[i]
+			regionFilter = strings.TrimSpace(settings.ListenerRegions[i])
 		}
-		if matched := findProjectMihomoNode(nodes, regionFilter); matched != nil {
-			selectedNode = matched
-		}
-		candidates := filterProjectMihomoNodeEntriesByRegion(nodes, regionFilter)
-		if len(candidates) == 0 {
-			if selectedNode == nil {
-				selectedNode = &nodes[fallbackIndex%len(nodes)]
-				fallbackIndex++
+		if regionFilter != "" {
+			if matched := findProjectMihomoNode(nodes, regionFilter); matched != nil {
+				selectedNode = matched
 			}
-		} else if selectedNode == nil {
-			key := normalizeProjectMihomoRegionText(regionFilter)
-			selectedNode = &candidates[regionOffsets[key]%len(candidates)]
-			regionOffsets[key]++
+			candidates := filterProjectMihomoNodeEntriesByRegion(nodes, regionFilter)
+			if len(candidates) > 0 && selectedNode == nil {
+				key := normalizeProjectMihomoRegionText(regionFilter)
+				selectedNode = &candidates[regionOffsets[key]%len(candidates)]
+				regionOffsets[key]++
+			}
+		}
+		if selectedNode == nil && i < len(previousSelections) {
+			previousSelection = strings.TrimSpace(previousSelections[i])
+			if matched := findProjectMihomoNode(nodes, previousSelection); matched != nil {
+				selectedNode = matched
+			}
+		}
+		if selectedNode == nil {
+			hadPreviousSelectionSlot := i < previousListenerCount
+			if hadPreviousSelectionSlot && !isProjectMihomoExcludedNodeName(settings, firstNonEmptyString(previousSelection, regionFilter)) {
+				continue
+			}
+			selectedNode = &nodes[fallbackIndex%len(nodes)]
+			fallbackIndex++
 		}
 		if selectedNode == nil {
 			continue
@@ -1054,6 +1443,73 @@ func (s *ProjectMihomoService) assignProviderNodes(ctx context.Context, settings
 		assigned++
 	}
 	return assigned, nil
+}
+
+func (s *ProjectMihomoService) currentProxyGroupSelections(ctx context.Context, settings *ProjectMihomoSettings, proxies []ProjectMihomoProxy) []string {
+	if settings == nil || len(proxies) == 0 {
+		return nil
+	}
+
+	client, err := httpclient.GetClient(httpclient.Options{
+		Timeout: projectMihomoHTTPTimeout,
+	})
+	if err != nil {
+		return nil
+	}
+
+	req, err := s.controllerRequest(ctx, http.MethodGet, settings, "/proxies", nil)
+	if err != nil {
+		return nil
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil
+	}
+
+	var payload mihomoProxiesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil
+	}
+
+	out := make([]string, len(proxies))
+	for i := range proxies {
+		group, ok := payload.Proxies[proxies[i].Name]
+		if !ok {
+			continue
+		}
+		out[i] = strings.TrimSpace(group.Now)
+	}
+	return out
+}
+
+func projectMihomoSelectionMap(proxies []ProjectMihomoProxy, selections []string) map[string]string {
+	out := make(map[string]string, len(proxies))
+	for i := range proxies {
+		if i >= len(selections) {
+			continue
+		}
+		value := strings.TrimSpace(selections[i])
+		if value == "" {
+			continue
+		}
+		out[strings.TrimSpace(proxies[i].Name)] = value
+	}
+	return out
+}
+
+func projectMihomoSelectionsForProxies(proxies []ProjectMihomoProxy, selections map[string]string) []string {
+	if len(proxies) == 0 || len(selections) == 0 {
+		return nil
+	}
+	out := make([]string, len(proxies))
+	for i := range proxies {
+		out[i] = strings.TrimSpace(selections[strings.TrimSpace(proxies[i].Name)])
+	}
+	return out
 }
 
 func (s *ProjectMihomoService) refreshProvider(ctx context.Context, client *http.Client, settings *ProjectMihomoSettings) error {
@@ -1136,6 +1592,9 @@ func (s *ProjectMihomoService) providerNodes(ctx context.Context, client *http.C
 			if !isProjectMihomoSelectableNodeName(name) {
 				continue
 			}
+			if isProjectMihomoExcludedNodeName(settings, name) {
+				continue
+			}
 			if _, ok := aliveSet[name]; ok {
 				continue
 			}
@@ -1165,6 +1624,9 @@ func (s *ProjectMihomoService) providerNodes(ctx context.Context, client *http.C
 			for i := range cachedNames {
 				name := cachedNames[i]
 				if !isProjectMihomoSelectableNodeName(name) {
+					continue
+				}
+				if isProjectMihomoExcludedNodeName(settings, name) {
 					continue
 				}
 				node, ok := byName[name]
@@ -1219,6 +1681,59 @@ func projectMihomoLatencyStatus(alive bool, latency *int) string {
 		return "failed"
 	}
 	return "unknown"
+}
+
+func copyProjectMihomoDefaultNodeExcludeKeywords() []string {
+	out := make([]string, len(defaultProjectMihomoNodeExcludeKeywords))
+	copy(out, defaultProjectMihomoNodeExcludeKeywords)
+	return out
+}
+
+func normalizeProjectMihomoNodeExcludeKeywords(keywords []string) []string {
+	if len(keywords) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(keywords))
+	out := make([]string, 0, len(keywords))
+	for i := range keywords {
+		keyword := strings.TrimSpace(keywords[i])
+		if keyword == "" {
+			continue
+		}
+		key := normalizeProjectMihomoRegionText(keyword)
+		if key == "" {
+			key = strings.ToLower(keyword)
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, keyword)
+	}
+	return out
+}
+
+func isProjectMihomoExcludedNodeName(settings *ProjectMihomoSettings, name string) bool {
+	if settings == nil || !settings.NodeExcludeEnabled {
+		return false
+	}
+	if _, nodeName, ok := parseProjectMihomoNodeKey(name); ok {
+		name = nodeName
+	}
+	normalizedName := normalizeProjectMihomoRegionText(name)
+	if normalizedName == "" {
+		return false
+	}
+	for _, keyword := range settings.NodeExcludeKeywords {
+		normalizedKeyword := normalizeProjectMihomoRegionText(keyword)
+		if normalizedKeyword == "" {
+			continue
+		}
+		if strings.Contains(normalizedName, normalizedKeyword) {
+			return true
+		}
+	}
+	return false
 }
 
 func projectMihomoNodeNames(nodes []ProjectMihomoNode) []string {
@@ -1277,6 +1792,99 @@ func filterProjectMihomoNodeEntriesByRegion(nodes []ProjectMihomoNode, regionFil
 			}
 		}
 	}
+	return out
+}
+
+func projectMihomoListenerGroupProviders(providers []projectMihomoProviderRef, selection string) []string {
+	if len(providers) == 0 {
+		return nil
+	}
+	provider, _, ok := parseProjectMihomoNodeKey(selection)
+	if ok {
+		for i := range providers {
+			if strings.TrimSpace(providers[i].Name) == provider {
+				return []string{provider}
+			}
+		}
+	}
+	out := make([]string, 0, len(providers))
+	for i := range providers {
+		out = append(out, providers[i].Name)
+	}
+	return out
+}
+
+func projectMihomoListenerGroupFilter(selection string) string {
+	target := strings.TrimSpace(selection)
+	if target == "" {
+		return ""
+	}
+	if _, name, ok := parseProjectMihomoNodeKey(target); ok {
+		return "^" + regexp.QuoteMeta(strings.TrimSpace(name)) + "$"
+	}
+	tokens := projectMihomoRegionFilterTokens(target)
+	if len(tokens) == 0 {
+		return ""
+	}
+	patterns := make([]string, 0, len(tokens))
+	seen := make(map[string]struct{}, len(tokens))
+	for i := range tokens {
+		item := strings.TrimSpace(tokens[i])
+		if item == "" {
+			continue
+		}
+		key := strings.ToLower(item)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		patterns = append(patterns, regexp.QuoteMeta(item))
+	}
+	if len(patterns) == 0 {
+		return ""
+	}
+	return "(?i)(" + strings.Join(patterns, "|") + ")"
+}
+
+func projectMihomoNodeExcludeFilter(settings *ProjectMihomoSettings) string {
+	if settings == nil || !settings.NodeExcludeEnabled {
+		return ""
+	}
+	patterns := make([]string, 0, len(settings.NodeExcludeKeywords))
+	seen := make(map[string]struct{}, len(settings.NodeExcludeKeywords))
+	for i := range settings.NodeExcludeKeywords {
+		item := strings.TrimSpace(settings.NodeExcludeKeywords[i])
+		if item == "" {
+			continue
+		}
+		key := normalizeProjectMihomoRegionText(item)
+		if key == "" {
+			key = strings.ToLower(item)
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		patterns = append(patterns, regexp.QuoteMeta(item))
+	}
+	if len(patterns) == 0 {
+		return ""
+	}
+	return "(?i)(" + strings.Join(patterns, "|") + ")"
+}
+
+func projectMihomoRegionFilterTokens(regionFilter string) []string {
+	normalizedFilter := normalizeProjectMihomoRegionText(regionFilter)
+	if normalizedFilter == "" {
+		return nil
+	}
+	tokens := projectMihomoRegionAliases[normalizedFilter]
+	if len(tokens) == 0 {
+		return []string{strings.TrimSpace(regionFilter)}
+	}
+	out := make([]string, 0, len(tokens)+1)
+	out = append(out, strings.TrimSpace(regionFilter))
+	out = append(out, tokens...)
 	return out
 }
 

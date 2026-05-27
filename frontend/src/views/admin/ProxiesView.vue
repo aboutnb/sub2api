@@ -516,8 +516,55 @@
               </div>
               <div>
                 <label class="input-label">{{ t('admin.proxies.projectMihomo.listenerCount') }}</label>
-                <input v-model.number="projectMihomoForm.listener_count" type="number" min="1" max="32" class="input" />
+                <input v-model.number="projectMihomoForm.listener_count" type="number" min="0" max="32" class="input" />
               </div>
+            </div>
+            <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-700">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <div class="text-sm font-medium text-gray-900 dark:text-white">
+                    {{ t('admin.proxies.projectMihomo.autoRoute') }}
+                  </div>
+                  <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.proxies.projectMihomo.autoRouteHint') }}
+                  </div>
+                </div>
+                <Toggle v-model="projectMihomoForm.auto_route_enabled" />
+              </div>
+              <div
+                v-if="projectMihomoForm.auto_route_enabled"
+                class="mt-3 grid gap-4 md:grid-cols-2"
+              >
+                <div>
+                  <label class="input-label">{{ t('admin.proxies.projectMihomo.autoRouteTolerance') }}</label>
+                  <input v-model.number="projectMihomoForm.auto_route_tolerance" type="number" min="1" class="input" />
+                </div>
+                <div>
+                  <label class="input-label">{{ t('admin.proxies.projectMihomo.autoRouteInterval') }}</label>
+                  <input v-model.number="projectMihomoForm.auto_route_interval" type="number" min="1" class="input" />
+                </div>
+              </div>
+            </div>
+            <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-700">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <div class="text-sm font-medium text-gray-900 dark:text-white">
+                    {{ t('admin.proxies.projectMihomo.nodeExclude') }}
+                  </div>
+                  <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.proxies.projectMihomo.nodeExcludeHint') }}
+                  </div>
+                </div>
+                <Toggle v-model="projectMihomoForm.node_exclude_enabled" />
+              </div>
+              <textarea
+                v-if="projectMihomoForm.node_exclude_enabled"
+                v-model="projectMihomoNodeExcludeKeywordsText"
+                class="input mt-3 min-h-[112px] resize-y font-mono text-sm"
+                :placeholder="t('admin.proxies.projectMihomo.nodeExcludePlaceholder')"
+                spellcheck="false"
+                @blur="normalizeProjectMihomoNodeExcludeKeywords"
+              />
             </div>
           </div>
 
@@ -532,20 +579,48 @@
                     {{ projectMihomoActiveSubscriptionSource?.label || projectMihomoSubscriptionSources[0]?.label || '-' }}
                   </div>
                 </div>
+                <button
+                  type="button"
+                  class="project-mihomo-icon-btn shrink-0"
+                  :disabled="projectMihomoSubmitting || projectMihomoForm.listener_count >= 32"
+                  :title="t('admin.proxies.projectMihomo.addListener')"
+                  @click="appendProjectMihomoListener"
+                >
+                  <Icon name="plus" size="sm" />
+                </button>
               </div>
               <div class="space-y-3">
-                <div v-for="listener in projectMihomoListenerRows" :key="listener.name">
+                <div v-for="listener in projectMihomoListenerRows" :key="listener.name" class="rounded-lg border border-gray-100 p-3 dark:border-dark-700">
                   <label class="input-label">
-                    {{ t('admin.proxies.projectMihomo.listenerNode', { port: listener.port }) }}
+                    {{
+                      t(
+                        projectMihomoForm.auto_route_enabled
+                          ? 'admin.proxies.projectMihomo.listenerRoute'
+                          : 'admin.proxies.projectMihomo.listenerNode',
+                        { port: listener.port }
+                      )
+                    }}
                   </label>
                   <div class="space-y-2">
-                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ listener.name }}</div>
+                    <div class="flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
+                      <span class="truncate">{{ listener.name }}</span>
+                      <button
+                        type="button"
+                        class="project-mihomo-row-btn text-red-500 hover:text-red-600 dark:text-red-400"
+                        :title="t('admin.proxies.projectMihomo.removeListener')"
+                        @click="removeProjectMihomoListener(listener.index)"
+                      >
+                        <Icon name="trash" size="xs" />
+                      </button>
+                    </div>
                     <div class="project-mihomo-listener-picker">
                       <div class="project-mihomo-listener-select">
                         <Select
                           v-model="projectMihomoForm.listener_regions[listener.index]"
                           :options="projectMihomoNodeOptionsForListener(listener.index)"
-                          :placeholder="t('admin.proxies.projectMihomo.nodePlaceholder')"
+                          :placeholder="projectMihomoForm.auto_route_enabled
+                            ? t('admin.proxies.projectMihomo.routePlaceholder')
+                            : t('admin.proxies.projectMihomo.nodePlaceholder')"
                           searchable
                         >
                           <template #selected="{ option }">
@@ -558,7 +633,11 @@
                                 {{ option.latencyLabel }}
                               </span>
                             </div>
-                            <span v-else>{{ t('admin.proxies.projectMihomo.nodePlaceholder') }}</span>
+                            <span v-else>{{
+                              projectMihomoForm.auto_route_enabled
+                                ? t('admin.proxies.projectMihomo.routePlaceholder')
+                                : t('admin.proxies.projectMihomo.nodePlaceholder')
+                            }}</span>
                           </template>
                           <template #option="{ option }">
                             <div class="flex min-w-0 flex-1 items-center justify-between gap-3">
@@ -579,7 +658,7 @@
                         :title="isProjectMihomoNodeTestingByKey(findProjectMihomoSelectedNode(listener.index)?.key || '')
                           ? t('admin.proxies.projectMihomo.testingSingleNodeLatency')
                           : t('admin.proxies.projectMihomo.testSingleNodeLatency')"
-                        :disabled="projectMihomoSubmitting || !findProjectMihomoSelectedNode(listener.index) || isProjectMihomoNodeTestingByKey(findProjectMihomoSelectedNode(listener.index)?.key || '')"
+                        :disabled="projectMihomoSubmitting || !canTestProjectMihomoListener(listener.index) || isProjectMihomoNodeTestingByKey(findProjectMihomoSelectedNode(listener.index)?.key || '')"
                         @click="testProjectMihomoSingleNode(findProjectMihomoSelectedNode(listener.index))"
                       >
                         <Icon
@@ -1159,6 +1238,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import ImportDataModal from '@/components/admin/proxy/ImportDataModal.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
+import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import { useClipboard } from '@/composables/useClipboard'
@@ -1231,12 +1311,35 @@ const projectMihomoLatencyClass = (node: ProjectMihomoNode) => {
   return 'badge-danger'
 }
 
-const projectMihomoNodeValueSet = computed(() => new Set(projectMihomoAvailableNodes.value.map((node) => node.key)))
+const normalizeProjectMihomoFilterText = (value: string) =>
+  value.trim().toLowerCase().replace(/[\s\-_[\]().]/g, '')
+
+const projectMihomoActiveNodeExcludeKeywords = computed(() => {
+  const source = projectMihomoNodeExcludeKeywordsText.value.trim()
+    ? projectMihomoNodeExcludeKeywordsText.value.split(/\r?\n/)
+    : projectMihomoForm.node_exclude_keywords
+  return Array.from(new Set((source || [])
+    .map((item) => normalizeProjectMihomoFilterText(item))
+    .filter(Boolean)))
+})
+
+const isProjectMihomoNodeExcludedByForm = (node: ProjectMihomoNode) => {
+  if (!projectMihomoForm.node_exclude_enabled) return false
+  const name = normalizeProjectMihomoFilterText(node.name)
+  if (!name) return false
+  return projectMihomoActiveNodeExcludeKeywords.value.some((keyword) => name.includes(keyword))
+}
+
+const projectMihomoVisibleNodes = computed(() =>
+  projectMihomoAvailableNodes.value.filter((node) => !isProjectMihomoNodeExcludedByForm(node))
+)
+
+const projectMihomoNodeValueSet = computed(() => new Set(projectMihomoVisibleNodes.value.map((node) => node.key)))
 
 const projectMihomoFilteredNodes = computed(() => {
   const provider = projectMihomoSelectedProvider.value.trim()
   if (!provider) return []
-  return projectMihomoAvailableNodes.value.filter((node) => node.provider === provider)
+  return projectMihomoVisibleNodes.value.filter((node) => node.provider === provider)
 })
 
 const projectMihomoSubscriptionSources = computed(() => {
@@ -1246,7 +1349,7 @@ const projectMihomoSubscriptionSources = computed(() => {
     const provider = urls.length > 1
       ? `project-subscription-${String(index + 1).padStart(2, '0')}`
       : 'project-subscription'
-    const sampleNode = projectMihomoAvailableNodes.value.find((node) => node.provider === provider)
+    const sampleNode = projectMihomoVisibleNodes.value.find((node) => node.provider === provider)
     const customName = names[index]?.trim() || ''
     return {
       index,
@@ -1254,7 +1357,7 @@ const projectMihomoSubscriptionSources = computed(() => {
       provider,
       name: customName,
       label: customName || sampleNode?.provider_label || projectMihomoSourceLabel(url, index, urls.length),
-      nodeCount: projectMihomoAvailableNodes.value.filter((node) => node.provider === provider).length
+      nodeCount: projectMihomoVisibleNodes.value.filter((node) => node.provider === provider).length
     }
   })
 })
@@ -1359,6 +1462,19 @@ const projectMihomoConfigPath = ref('')
 const projectMihomoNewSubscriptionName = ref('')
 const projectMihomoNewSubscriptionUrl = ref('')
 const projectMihomoSelectedProvider = ref('')
+const defaultProjectMihomoNodeExcludeKeywords = [
+  '香港',
+  'Hong Kong',
+  'HK',
+  'HKG',
+  '台湾',
+  '台灣',
+  'Taiwan',
+  'Taipei',
+  '台北',
+  'TW'
+]
+const projectMihomoNodeExcludeKeywordsText = ref(defaultProjectMihomoNodeExcludeKeywords.join('\n'))
 
 const projectMihomoForm = reactive<ProjectMihomoSettings>({
   subscription_url: '',
@@ -1370,17 +1486,24 @@ const projectMihomoForm = reactive<ProjectMihomoSettings>({
   target_host: 'mihomo-sub2api',
   start_port: 61000,
   listener_count: 4,
+  listener_ports: [61000, 61001, 61002, 61003],
+  listener_names: ['project-mihomo-01', 'project-mihomo-02', 'project-mihomo-03', 'project-mihomo-04'],
   controller_url: 'http://mihomo-sub2api:9097',
   controller_secret: '',
   proxy_name_prefix: 'project-mihomo',
-  listener_regions: ['', '', '', '']
+  listener_regions: ['', '', '', ''],
+  auto_route_enabled: false,
+  auto_route_tolerance: 150,
+  auto_route_interval: 300,
+  node_exclude_enabled: false,
+  node_exclude_keywords: defaultProjectMihomoNodeExcludeKeywords.slice()
 })
 
 const projectMihomoListenerRows = computed(() =>
   Array.from({ length: Math.max(0, projectMihomoForm.listener_count || 0) }, (_, index) => ({
     index,
-    port: projectMihomoForm.start_port + index,
-    name: `${projectMihomoForm.proxy_name_prefix || 'project-mihomo'}-${String(index + 1).padStart(2, '0')}`
+    port: projectMihomoForm.listener_ports?.[index] || projectMihomoForm.start_port + index,
+    name: projectMihomoForm.listener_names?.[index] || `${projectMihomoForm.proxy_name_prefix || 'project-mihomo'}-${String(index + 1).padStart(2, '0')}`
   }))
 )
 
@@ -1429,7 +1552,7 @@ const findProjectMihomoNodeByValue = (value: string, provider?: string) => {
   if (!target) return null
 
   const preferredProvider = (provider || '').trim()
-  const candidates = projectMihomoAvailableNodes.value.filter((node) => {
+  const candidates = projectMihomoVisibleNodes.value.filter((node) => {
     if (node.key === target || node.name === target || node.region === target) {
       return preferredProvider ? node.provider === preferredProvider : true
     }
@@ -1439,7 +1562,7 @@ const findProjectMihomoNodeByValue = (value: string, provider?: string) => {
     return candidates[0]
   }
 
-  return projectMihomoAvailableNodes.value.find((node) =>
+  return projectMihomoVisibleNodes.value.find((node) =>
     node.key === target || node.name === target || node.region === target
   ) || null
 }
@@ -1448,6 +1571,7 @@ const projectMihomoNodeOption = (node: ProjectMihomoNode): SelectOption => ({
   value: node.key,
   label: node.name,
   key: node.key,
+  kind: 'node',
   meta: projectMihomoNodeMeta(node),
   latencyLabel: formatProjectMihomoNodeLatency(node),
   latencyClass: projectMihomoLatencyClass(node),
@@ -1456,18 +1580,65 @@ const projectMihomoNodeOption = (node: ProjectMihomoNode): SelectOption => ({
 
 const projectMihomoNodeOptionsForListener = (listenerIndex: number): SelectOption[] => {
   const options: SelectOption[] = [
-    { value: '', label: t('admin.proxies.projectMihomo.regionAuto') },
+    {
+      value: '',
+      label: t('admin.proxies.projectMihomo.regionAuto'),
+      kind: 'auto',
+      meta: projectMihomoForm.auto_route_enabled
+        ? t('admin.proxies.projectMihomo.autoRouteAnywhere')
+        : ''
+    },
     ...(projectMihomoForm.listener_regions || [])
       .map((value, index) => (index === listenerIndex ? value.trim() : ''))
       .filter((value) => value && !projectMihomoNodeValueSet.value.has(value))
       .map((value) => ({
         value,
         label: projectMihomoLegacyValueLabel(value),
+        kind: 'legacy',
         meta: t('admin.proxies.projectMihomo.legacyRegion'),
         latencyLabel: '',
         latencyClass: 'badge-gray'
       }))
   ]
+
+  if (projectMihomoForm.auto_route_enabled) {
+    const selectedValue = projectMihomoForm.listener_regions?.[listenerIndex]?.trim() || ''
+    const regionMap = new Map<string, { value: string; label: string; count: number }>()
+    for (const node of projectMihomoFilteredNodes.value) {
+      const region = (node.region || '').trim()
+      if (!region) continue
+      const key = region.toLowerCase()
+      const current = regionMap.get(key)
+      if (current) {
+        current.count += 1
+        continue
+      }
+      regionMap.set(key, {
+        value: region,
+        label: region,
+        count: 1
+      })
+    }
+    if (selectedValue && !selectedValue.includes('::') && selectedValue !== '' && !regionMap.has(selectedValue.toLowerCase())) {
+      regionMap.set(selectedValue.toLowerCase(), {
+        value: selectedValue,
+        label: projectMihomoLegacyValueLabel(selectedValue),
+        count: 0
+      })
+    }
+    for (const item of regionMap.values()) {
+      options.push({
+        value: item.value,
+        label: item.label,
+        kind: 'region',
+        meta: item.count > 0
+          ? t('admin.proxies.projectMihomo.autoRouteRegionMeta', { count: item.count })
+          : t('admin.proxies.projectMihomo.legacyRegion'),
+        latencyLabel: '',
+        latencyClass: 'badge-gray'
+      })
+    }
+  }
 
   const filtered = projectMihomoFilteredNodes.value.slice()
   const selectedNode = findProjectMihomoSelectedNode(listenerIndex)
@@ -1484,12 +1655,90 @@ const projectMihomoNodeOptionsForListener = (listenerIndex: number): SelectOptio
   return options
 }
 
-const normalizeProjectMihomoListenerRegions = () => {
-  const count = Math.max(1, Math.min(32, Number(projectMihomoForm.listener_count) || 1))
-  projectMihomoForm.listener_regions = Array.from(
-    { length: count },
-    (_, index) => projectMihomoForm.listener_regions?.[index]?.trim() || ''
-  )
+const nextProjectMihomoListenerPort = (ports: number[]) => {
+  const used = new Set(ports.filter((port) => Number.isInteger(port) && port > 0 && port <= 65535))
+  let port = Number(projectMihomoForm.start_port) || 61000
+  if (port < 1 || port > 65535) port = 61000
+  while (used.has(port) && port < 65535) port++
+  return port
+}
+
+const nextProjectMihomoListenerName = (names: string[]) => {
+  const prefix = projectMihomoForm.proxy_name_prefix?.trim() || 'project-mihomo'
+  const used = new Set(names.map((name) => name.trim()).filter(Boolean))
+  let maxIndex = 0
+  for (const name of used) {
+    if (!name.startsWith(`${prefix}-`)) continue
+    const value = Number.parseInt(name.slice(prefix.length + 1), 10)
+    if (Number.isFinite(value) && value > maxIndex) maxIndex = value
+  }
+  let next = Math.max(1, maxIndex + 1)
+  let name = `${prefix}-${String(next).padStart(2, '0')}`
+  while (used.has(name)) {
+    next++
+    name = `${prefix}-${String(next).padStart(2, '0')}`
+  }
+  return name
+}
+
+const normalizeProjectMihomoListeners = () => {
+  const rawCount = Number(projectMihomoForm.listener_count)
+  const count = Math.max(0, Math.min(32, Number.isFinite(rawCount) ? rawCount : 0))
+  const ports = (projectMihomoForm.listener_ports || [])
+    .map((port) => Number(port))
+    .filter((port) => Number.isInteger(port) && port > 0 && port <= 65535)
+    .slice(0, count)
+  const names = (projectMihomoForm.listener_names || [])
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .slice(0, count)
+  const regions = (projectMihomoForm.listener_regions || [])
+    .map((region) => region.trim())
+    .slice(0, count)
+
+  while (ports.length < count) ports.push(nextProjectMihomoListenerPort(ports))
+  while (names.length < count) names.push(nextProjectMihomoListenerName(names))
+  while (regions.length < count) regions.push('')
+
+  projectMihomoForm.listener_count = count
+  projectMihomoForm.listener_ports = ports
+  projectMihomoForm.listener_names = names
+  projectMihomoForm.listener_regions = regions
+}
+
+const appendProjectMihomoListener = () => {
+  normalizeProjectMihomoListeners()
+  if ((projectMihomoForm.listener_count || 0) >= 32) return
+  const ports = [...(projectMihomoForm.listener_ports || [])]
+  const names = [...(projectMihomoForm.listener_names || [])]
+  const regions = [...(projectMihomoForm.listener_regions || [])]
+  ports.push(nextProjectMihomoListenerPort(ports))
+  names.push(nextProjectMihomoListenerName(names))
+  regions.push('')
+  projectMihomoForm.listener_ports = ports
+  projectMihomoForm.listener_names = names
+  projectMihomoForm.listener_regions = regions
+  projectMihomoForm.listener_count = ports.length
+}
+
+const removeProjectMihomoListener = (index: number) => {
+  if (index < 0 || index >= projectMihomoForm.listener_count) return
+  projectMihomoForm.listener_ports = (projectMihomoForm.listener_ports || []).filter((_, current) => current !== index)
+  projectMihomoForm.listener_names = (projectMihomoForm.listener_names || []).filter((_, current) => current !== index)
+  projectMihomoForm.listener_regions = (projectMihomoForm.listener_regions || []).filter((_, current) => current !== index)
+  projectMihomoForm.listener_count = projectMihomoForm.listener_ports.length
+  normalizeProjectMihomoListeners()
+}
+
+const normalizeProjectMihomoNodeExcludeKeywords = () => {
+  const keywords = projectMihomoNodeExcludeKeywordsText.value
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+  projectMihomoForm.node_exclude_keywords = keywords.length
+    ? Array.from(new Set(keywords))
+    : defaultProjectMihomoNodeExcludeKeywords.slice()
+  projectMihomoNodeExcludeKeywordsText.value = projectMihomoForm.node_exclude_keywords.join('\n')
 }
 
 const normalizeProjectMihomoSubscriptionUrls = () => {
@@ -1545,14 +1794,42 @@ const removeProjectMihomoSubscriptionUrl = (index: number) => {
   normalizeProjectMihomoSubscriptionUrls()
 }
 
+const buildProjectMihomoPayload = (forceRemoveInUse = false): ProjectMihomoSettings => ({
+  ...projectMihomoForm,
+  subscription_urls: [...(projectMihomoForm.subscription_urls || [])],
+  subscription_names: [...(projectMihomoForm.subscription_names || [])],
+  listener_ports: [...(projectMihomoForm.listener_ports || [])],
+  listener_names: [...(projectMihomoForm.listener_names || [])],
+  listener_regions: [...(projectMihomoForm.listener_regions || [])],
+  node_exclude_keywords: [...(projectMihomoForm.node_exclude_keywords || [])],
+  force_remove_in_use: forceRemoveInUse
+})
+
+const confirmProjectMihomoProxyInUse = (error: any) => {
+  if (error?.reason !== 'PROJECT_MIHOMO_PROXY_IN_USE') return false
+  const metadata = error.metadata || {}
+  return window.confirm(t('admin.proxies.projectMihomo.proxyInUseConfirm', {
+    count: metadata.account_count || 0,
+    proxies: metadata.proxies || '-',
+    accounts: metadata.accounts || '-'
+  }))
+}
+
 const findProjectMihomoSelectedNode = (listenerIndex: number) => {
   const key = projectMihomoForm.listener_regions?.[listenerIndex]?.trim()
   if (!key) return null
+  if (projectMihomoForm.auto_route_enabled && !key.includes('::')) return null
 
   const providerFromKey = key.includes('::')
     ? projectMihomoQueryDecode(key.split('::', 1)[0])
     : projectMihomoSelectedProvider.value.trim() || projectMihomoSubscriptionSources.value[0]?.provider || ''
   return findProjectMihomoNodeByValue(key, providerFromKey)
+}
+
+const canTestProjectMihomoListener = (listenerIndex: number) => {
+  if (!projectMihomoForm.auto_route_enabled) return !!findProjectMihomoSelectedNode(listenerIndex)
+  const value = projectMihomoForm.listener_regions?.[listenerIndex]?.trim() || ''
+  return value.includes('::')
 }
 
 const isProjectMihomoNodeTestingByKey = (nodeKey: string) => projectMihomoSingleNodeTesting.value.has(nodeKey)
@@ -1576,9 +1853,10 @@ const testProjectMihomoSingleNode = async (node: ProjectMihomoNode | null) => {
   next.add(node.key)
   projectMihomoSingleNodeTesting.value = next
   try {
-    normalizeProjectMihomoListenerRegions()
+    normalizeProjectMihomoListeners()
     normalizeProjectMihomoSubscriptionUrls()
-    const result = await adminAPI.proxies.testProjectMihomoNode(projectMihomoForm, node)
+    normalizeProjectMihomoNodeExcludeKeywords()
+    const result = await adminAPI.proxies.testProjectMihomoNode(buildProjectMihomoPayload(), node)
     upsertProjectMihomoNodeResult(result)
     appStore.showSuccess(t('admin.proxies.projectMihomo.testSingleNodeLatencyDone', { name: result.name }))
   } catch (error: any) {
@@ -1593,7 +1871,7 @@ const testProjectMihomoSingleNode = async (node: ProjectMihomoNode | null) => {
 watch(
   () => projectMihomoForm.listener_count,
   () => {
-    normalizeProjectMihomoListenerRegions()
+    normalizeProjectMihomoListeners()
   },
   { immediate: true }
 )
@@ -1752,7 +2030,11 @@ const loadProjectMihomo = async () => {
   try {
     const result = await adminAPI.proxies.getProjectMihomo()
     Object.assign(projectMihomoForm, result.settings)
-    normalizeProjectMihomoListenerRegions()
+    normalizeProjectMihomoListeners()
+    projectMihomoNodeExcludeKeywordsText.value = (projectMihomoForm.node_exclude_keywords?.length
+      ? projectMihomoForm.node_exclude_keywords
+      : defaultProjectMihomoNodeExcludeKeywords
+    ).join('\n')
     syncProjectMihomoSubscriptionUrlsFromForm()
     projectMihomoConfigPath.value = result.config_path
     projectMihomoAvailableNodes.value = result.available_nodes || []
@@ -1764,14 +2046,31 @@ const loadProjectMihomo = async () => {
 const saveProjectMihomo = async () => {
   projectMihomoSubmitting.value = true
   try {
-    normalizeProjectMihomoListenerRegions()
+    normalizeProjectMihomoListeners()
     normalizeProjectMihomoSubscriptionUrls()
-    const result = await adminAPI.proxies.updateProjectMihomo(projectMihomoForm)
+    normalizeProjectMihomoNodeExcludeKeywords()
+    const result = await adminAPI.proxies.updateProjectMihomo(buildProjectMihomoPayload())
     Object.assign(projectMihomoForm, result)
-    normalizeProjectMihomoListenerRegions()
+    normalizeProjectMihomoListeners()
+    projectMihomoNodeExcludeKeywordsText.value = projectMihomoForm.node_exclude_keywords.join('\n')
     syncProjectMihomoSubscriptionUrlsFromForm()
     appStore.showSuccess(t('admin.proxies.projectMihomo.saved'))
   } catch (error: any) {
+    if (confirmProjectMihomoProxyInUse(error)) {
+      try {
+        const result = await adminAPI.proxies.updateProjectMihomo(buildProjectMihomoPayload(true))
+        Object.assign(projectMihomoForm, result)
+        normalizeProjectMihomoListeners()
+        projectMihomoNodeExcludeKeywordsText.value = projectMihomoForm.node_exclude_keywords.join('\n')
+        syncProjectMihomoSubscriptionUrlsFromForm()
+        await loadProxies()
+        appStore.showSuccess(t('admin.proxies.projectMihomo.saved'))
+        return
+      } catch (retryError: any) {
+        appStore.showError(retryError.message || t('admin.proxies.projectMihomo.saveFailed'))
+        return
+      }
+    }
     appStore.showError(error.message || t('admin.proxies.projectMihomo.saveFailed'))
   } finally {
     projectMihomoSubmitting.value = false
@@ -1781,14 +2080,27 @@ const saveProjectMihomo = async () => {
 const syncProjectMihomoConfig = async () => {
   projectMihomoSubmitting.value = true
   try {
-    normalizeProjectMihomoListenerRegions()
+    normalizeProjectMihomoListeners()
     normalizeProjectMihomoSubscriptionUrls()
-    const result = await adminAPI.proxies.syncProjectMihomo(projectMihomoForm)
+    normalizeProjectMihomoNodeExcludeKeywords()
+    const result = await adminAPI.proxies.syncProjectMihomo(buildProjectMihomoPayload())
     projectMihomoConfigPath.value = result.config_path
     appStore.showSuccess(t('admin.proxies.projectMihomo.syncDone', { created: result.created, reused: result.reused, assigned: result.assigned }))
     await Promise.all([loadProjectMihomo(), loadProxies()])
     return true
   } catch (error: any) {
+    if (confirmProjectMihomoProxyInUse(error)) {
+      try {
+        const result = await adminAPI.proxies.syncProjectMihomo(buildProjectMihomoPayload(true))
+        projectMihomoConfigPath.value = result.config_path
+        appStore.showSuccess(t('admin.proxies.projectMihomo.syncDone', { created: result.created, reused: result.reused, assigned: result.assigned }))
+        await Promise.all([loadProjectMihomo(), loadProxies()])
+        return true
+      } catch (retryError: any) {
+        appStore.showError(retryError.message || t('admin.proxies.projectMihomo.syncFailed'))
+        return false
+      }
+    }
     appStore.showError(error.message || t('admin.proxies.projectMihomo.syncFailed'))
   } finally {
     projectMihomoSubmitting.value = false
@@ -1804,10 +2116,11 @@ const testProjectMihomoSourceNodes = async (source: { index: number; provider: s
   next.add(source.provider)
   projectMihomoProviderTesting.value = next
   try {
-    normalizeProjectMihomoListenerRegions()
+    normalizeProjectMihomoListeners()
     normalizeProjectMihomoSubscriptionUrls()
+    normalizeProjectMihomoNodeExcludeKeywords()
     const payload: ProjectMihomoSettings = {
-      ...projectMihomoForm,
+      ...buildProjectMihomoPayload(),
       subscription_url: url,
       subscription_urls: [url],
       subscription_names: [source.name || '']
@@ -2630,5 +2943,9 @@ onUnmounted(() => {
 
 .project-mihomo-listener-action:disabled {
   @apply cursor-not-allowed opacity-60;
+}
+
+.project-mihomo-row-btn {
+  @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-gray-100 dark:hover:bg-dark-700;
 }
 </style>

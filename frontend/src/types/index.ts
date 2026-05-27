@@ -751,10 +751,18 @@ export interface ProjectMihomoSettings {
   target_host: string
   start_port: number
   listener_count: number
+  listener_ports: number[]
+  listener_names: string[]
   controller_url: string
   controller_secret: string
   proxy_name_prefix: string
   listener_regions: string[]
+  auto_route_enabled: boolean
+  auto_route_tolerance: number
+  auto_route_interval: number
+  node_exclude_enabled: boolean
+  node_exclude_keywords: string[]
+  force_remove_in_use?: boolean
 }
 
 export interface ProjectMihomoProxy {
