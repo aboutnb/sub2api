@@ -122,11 +122,12 @@ type ProjectMihomoNode struct {
 }
 
 type ProjectMihomoStatus struct {
-	Settings         ProjectMihomoSettings `json:"settings"`
-	ConfigPath       string                `json:"config_path"`
-	Proxies          []ProjectMihomoProxy  `json:"proxies"`
-	AvailableNodes   []ProjectMihomoNode   `json:"available_nodes"`
-	AvailableRegions []string              `json:"available_regions"`
+	Settings          ProjectMihomoSettings `json:"settings"`
+	ConfigPath        string                `json:"config_path"`
+	Proxies           []ProjectMihomoProxy  `json:"proxies"`
+	AvailableNodes    []ProjectMihomoNode   `json:"available_nodes"`
+	AvailableRegions  []string              `json:"available_regions"`
+	CurrentSelections []string              `json:"current_selections"`
 }
 
 type ProjectMihomoNodeTestResult struct {
@@ -284,13 +285,16 @@ func (s *ProjectMihomoService) GetStatus(ctx context.Context) (*ProjectMihomoSta
 	availableRegions := extractProjectMihomoRegions(projectMihomoNodeNames(availableNodes))
 	statusSettings := *settings
 	statusSettings.ListenerRegions = resolveProjectMihomoListenerSelections(statusSettings.ListenerRegions, availableNodes, availableRegions)
+	proxies := s.buildProxies(settings)
+	currentSelections := s.resolveCurrentProxyGroupSelections(ctx, settings, proxies, availableNodes)
 
 	return &ProjectMihomoStatus{
-		Settings:         statusSettings,
-		ConfigPath:       s.configPath(),
-		Proxies:          s.buildProxies(settings),
-		AvailableNodes:   availableNodes,
-		AvailableRegions: availableRegions,
+		Settings:          statusSettings,
+		ConfigPath:        s.configPath(),
+		Proxies:           proxies,
+		AvailableNodes:    availableNodes,
+		AvailableRegions:  availableRegions,
+		CurrentSelections: currentSelections,
 	}, nil
 }
 
@@ -1486,6 +1490,29 @@ func (s *ProjectMihomoService) currentProxyGroupSelections(ctx context.Context, 
 	return out
 }
 
+func (s *ProjectMihomoService) resolveCurrentProxyGroupSelections(ctx context.Context, settings *ProjectMihomoSettings, proxies []ProjectMihomoProxy, nodes []ProjectMihomoNode) []string {
+	if settings == nil || len(proxies) == 0 || settings.AutoRouteEnabled {
+		return nil
+	}
+	current := s.currentProxyGroupSelections(ctx, settings, proxies)
+	if len(current) == 0 {
+		return nil
+	}
+	out := make([]string, len(current))
+	for i := range current {
+		value := strings.TrimSpace(current[i])
+		if value == "" {
+			continue
+		}
+		if matched := findProjectMihomoNode(nodes, value); matched != nil {
+			out[i] = matched.Key
+			continue
+		}
+		out[i] = value
+	}
+	return out
+}
+
 func projectMihomoSelectionMap(proxies []ProjectMihomoProxy, selections []string) map[string]string {
 	out := make(map[string]string, len(proxies))
 	for i := range proxies {
@@ -2163,6 +2190,30 @@ func (s *ProjectMihomoService) pruneProviderFiles(current *ProjectMihomoSettings
 }
 
 func (s *ProjectMihomoService) fetchProviderContent(ctx context.Context, client *http.Client, userAgent, rawURL string) ([]byte, error) {
+	content, err := s.fetchProviderContentOnce(ctx, client, userAgent, rawURL)
+	if err == nil {
+		return content, nil
+	}
+	firstErr := err
+	lastErr := err
+	for _, fallbackURL := range projectMihomoNestedSubscriptionURLs(rawURL) {
+		content, err = s.fetchProviderContentOnce(ctx, client, userAgent, fallbackURL)
+		if err == nil {
+			return content, nil
+		}
+		lastErr = err
+	}
+	if lastErr != firstErr {
+		return nil, ErrProjectMihomoSubscriptionFetch.
+			WithCause(fmt.Errorf("%w; fallback failed: %v", firstErr, lastErr)).
+			WithMetadata(map[string]string{"detail": errorWithoutProjectMihomoEnvelope(lastErr)})
+	}
+	return nil, ErrProjectMihomoSubscriptionFetch.
+		WithCause(firstErr).
+		WithMetadata(map[string]string{"detail": errorWithoutProjectMihomoEnvelope(firstErr)})
+}
+
+func (s *ProjectMihomoService) fetchProviderContentOnce(ctx context.Context, client *http.Client, userAgent, rawURL string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimSpace(rawURL), nil)
 	if err != nil {
 		return nil, ErrProjectMihomoSubscriptionFetch.WithCause(fmt.Errorf("build subscription request: %w", err))
@@ -2176,6 +2227,10 @@ func (s *ProjectMihomoService) fetchProviderContent(ctx context.Context, client 
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		message := readProjectMihomoErrorSnippet(resp.Body)
+		if message != "" {
+			return nil, ErrProjectMihomoSubscriptionFetch.WithCause(fmt.Errorf("request subscription: unexpected status %d: %s", resp.StatusCode, message))
+		}
 		return nil, ErrProjectMihomoSubscriptionFetch.WithCause(fmt.Errorf("request subscription: unexpected status %d", resp.StatusCode))
 	}
 	limited := io.LimitReader(resp.Body, projectMihomoProviderMaxSize+1)
@@ -2190,6 +2245,17 @@ func (s *ProjectMihomoService) fetchProviderContent(ctx context.Context, client 
 		return nil, ErrProjectMihomoSubscriptionFetch.WithCause(fmt.Errorf("read subscription: response too large"))
 	}
 	return content, nil
+}
+
+func readProjectMihomoErrorSnippet(body io.Reader) string {
+	if body == nil {
+		return ""
+	}
+	data, err := io.ReadAll(io.LimitReader(body, 512))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 func isProjectMihomoDelayPathFallbackError(err error) bool {
@@ -2261,6 +2327,59 @@ func projectMihomoProviderHost(raw string) string {
 		return ""
 	}
 	return strings.TrimSpace(parsed.Hostname())
+}
+
+func projectMihomoNestedSubscriptionURLs(raw string) []string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return nil
+	}
+	values := parsed.Query()
+	keys := []string{"url", "urls", "link", "sub", "target"}
+	out := make([]string, 0, len(keys))
+	seen := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		for _, value := range values[key] {
+			item := strings.TrimSpace(value)
+			if item == "" || item == raw {
+				continue
+			}
+			parsedItem, err := url.Parse(item)
+			if err != nil || parsedItem.Scheme == "" || parsedItem.Host == "" {
+				continue
+			}
+			switch strings.ToLower(parsedItem.Scheme) {
+			case "http", "https":
+			default:
+				continue
+			}
+			if _, ok := seen[item]; ok {
+				continue
+			}
+			seen[item] = struct{}{}
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func errorWithoutProjectMihomoEnvelope(err error) string {
+	if err == nil {
+		return ""
+	}
+	if appErr := infraerrors.FromError(err); appErr != nil && appErr.Unwrap() != nil {
+		return redactProjectMihomoErrorText(appErr.Unwrap().Error())
+	}
+	return redactProjectMihomoErrorText(err.Error())
+}
+
+func redactProjectMihomoErrorText(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	pattern := regexp.MustCompile(`(?i)((?:token2?|key|password|passwd|pass|secret)=)[^&\s]+`)
+	return pattern.ReplaceAllString(value, "${1}***")
 }
 
 func projectMihomoNodeKey(providerName string, nodeName string) string {

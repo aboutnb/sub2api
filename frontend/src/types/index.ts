@@ -810,6 +810,7 @@ export interface ProjectMihomoStatus {
   proxies: ProjectMihomoProxy[]
   available_nodes: ProjectMihomoNode[]
   available_regions: string[]
+  current_selections?: string[]
 }
 
 export interface ProjectMihomoNodeTestResult {

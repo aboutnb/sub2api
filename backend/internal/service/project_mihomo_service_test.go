@@ -138,6 +138,9 @@ func (s *projectMihomoAdminServiceStub) GetAllGroupsByPlatform(context.Context, 
 func (s *projectMihomoAdminServiceStub) GetGroup(context.Context, int64) (*Group, error) {
 	panic("unexpected GetGroup call")
 }
+func (s *projectMihomoAdminServiceStub) GetGroupModelsListCandidates(context.Context, int64, string) ([]string, error) {
+	panic("unexpected GetGroupModelsListCandidates call")
+}
 func (s *projectMihomoAdminServiceStub) CreateGroup(context.Context, *CreateGroupInput) (*Group, error) {
 	panic("unexpected CreateGroup call")
 }
@@ -191,6 +194,9 @@ func (s *projectMihomoAdminServiceStub) CreateAccount(context.Context, *CreateAc
 }
 func (s *projectMihomoAdminServiceStub) UpdateAccount(context.Context, int64, *UpdateAccountInput) (*Account, error) {
 	panic("unexpected UpdateAccount call")
+}
+func (s *projectMihomoAdminServiceStub) UpdateAccountExtra(context.Context, int64, map[string]any) error {
+	panic("unexpected UpdateAccountExtra call")
 }
 func (s *projectMihomoAdminServiceStub) DeleteAccount(context.Context, int64) error {
 	panic("unexpected DeleteAccount call")
@@ -593,6 +599,43 @@ func TestProjectMihomoSetSettingsReturnsBadRequestWhenSubscriptionFetchFails(t *
 	require.Error(t, err)
 	require.True(t, infraerrors.IsBadRequest(err))
 	require.ErrorContains(t, err, "PROJECT_MIHOMO_SUBSCRIPTION_FETCH_FAILED")
+}
+
+func TestProjectMihomoSetSettingsFallsBackToNestedSubscriptionURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/convert":
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte("conversion failed"))
+		case "/raw":
+			_, _ = w.Write([]byte("proxies:\n  - name: 日本-01\n    server: jp.example.com\n"))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	t.Setenv("DATA_DIR", t.TempDir())
+	svc := NewProjectMihomoService(&projectMihomoSettingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
+
+	settings, err := svc.SetSettings(context.Background(), &ProjectMihomoSettings{
+		SubscriptionURL:  server.URL + "/convert?target=clash&url=" + url.QueryEscape(server.URL+"/raw"),
+		SubscriptionUA:   "sub2api/mihomo",
+		Protocol:         "socks5h",
+		TargetHost:       "127.0.0.1",
+		StartPort:        61000,
+		ListenerCount:    1,
+		ControllerURL:    "http://127.0.0.1:9097",
+		ProxyNamePrefix:  "project-mihomo",
+		ListenerRegions:  []string{""},
+		SubscriptionURLs: nil,
+	})
+	require.NoError(t, err)
+	require.Equal(t, server.URL+"/convert?target=clash&url="+url.QueryEscape(server.URL+"/raw"), settings.SubscriptionURL)
+
+	content, err := os.ReadFile(svc.providerCachePath())
+	require.NoError(t, err)
+	require.Contains(t, string(content), "日本-01")
 }
 
 func TestProjectMihomoSetSettingsAllowsEmptySubscriptions(t *testing.T) {
@@ -1221,6 +1264,58 @@ func TestProjectMihomoGetStatusResolvesLegacyNodeKeyToCurrentProvider(t *testing
 	require.NoError(t, err)
 	require.Len(t, status.AvailableNodes, 1)
 	require.Equal(t, status.AvailableNodes[0].Key, status.Settings.ListenerRegions[0])
+}
+
+func TestProjectMihomoGetStatusReturnsCurrentProxySelections(t *testing.T) {
+	settings := ProjectMihomoSettings{
+		SubscriptionURLs: []string{"https://a.example/sub", "https://b.example/sub"},
+		SubscriptionUA:   "sub2api/mihomo",
+		UpdateInterval:   3600,
+		Protocol:         "socks5h",
+		TargetHost:       "127.0.0.1",
+		StartPort:        61000,
+		ListenerCount:    2,
+		ListenerPorts:    []int{61000, 61001},
+		ListenerNames:    []string{"project-mihomo-01", "project-mihomo-02"},
+		ProxyNamePrefix:  "project-mihomo",
+		ListenerRegions:  []string{"", ""},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/proxies" {
+			_, _ = w.Write([]byte(`{"proxies":{"project-mihomo-01":{"now":"日本-01"},"project-mihomo-02":{"now":"美国-01"}}}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	settings.ControllerURL = server.URL
+	raw, err := json.Marshal(settings)
+	require.NoError(t, err)
+	svc := NewProjectMihomoService(&settingRepoStub{values: map[string]string{
+		SettingKeyProjectMihomoSettings: string(raw),
+	}}, &projectMihomoAdminServiceStub{})
+
+	t.Setenv("DATA_DIR", t.TempDir())
+	require.NoError(t, os.MkdirAll(filepath.Join(svc.configDir(), "providers"), 0o755))
+	require.NoError(t, os.WriteFile(
+		svc.providerCachePathFor("./providers/project-subscription-01.yaml"),
+		[]byte("proxies:\n  - name: 日本-01\n    server: jp.example.com\n"),
+		0o644,
+	))
+	require.NoError(t, os.WriteFile(
+		svc.providerCachePathFor("./providers/project-subscription-02.yaml"),
+		[]byte("proxies:\n  - name: 美国-01\n    server: us.example.com\n"),
+		0o644,
+	))
+
+	status, err := svc.GetStatus(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, []string{
+		projectMihomoNodeKey("project-subscription-01", "日本-01"),
+		projectMihomoNodeKey("project-subscription-02", "美国-01"),
+	}, status.CurrentSelections)
 }
 
 func TestProjectMihomoAvailableRegionsAcrossMultipleProviderCaches(t *testing.T) {

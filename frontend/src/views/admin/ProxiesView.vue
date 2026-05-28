@@ -14,7 +14,8 @@
                   {{ t('admin.proxies.projectMihomo.summary') }}
                 </div>
                 <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                  <span>{{ t('admin.proxies.projectMihomo.summaryHint', { count: projectMihomoForm.listener_count || 0 }) }}</span>
+                  <span>{{ t('admin.proxies.projectMihomo.summaryHint', { count: projectMihomoVisibleNodes.length }) }}</span>
+                  <span>{{ t('admin.proxies.projectMihomo.listenerSummaryHint', { count: projectMihomoForm.listener_count || 0 }) }}</span>
                   <span>{{ t('admin.proxies.projectMihomo.protocolLabel', { protocol: projectMihomoForm.protocol.toUpperCase() }) }}</span>
                   <span v-if="projectMihomoConfigPath" class="truncate">{{ t('admin.proxies.projectMihomo.configPath', { path: projectMihomoConfigPath }) }}</span>
                 </div>
@@ -1815,6 +1816,9 @@ const confirmProjectMihomoProxyInUse = (error: any) => {
   }))
 }
 
+const projectMihomoErrorMessage = (error: any, fallback: string) =>
+  error?.metadata?.detail || error?.message || fallback
+
 const findProjectMihomoSelectedNode = (listenerIndex: number) => {
   const key = projectMihomoForm.listener_regions?.[listenerIndex]?.trim()
   if (!key) return null
@@ -1847,6 +1851,37 @@ const upsertProjectMihomoNodeResult = (result: ProjectMihomoNode) => {
   projectMihomoAvailableNodes.value = current
 }
 
+const applyProjectMihomoCurrentSelections = (currentSelections?: string[]) => {
+  if (projectMihomoForm.auto_route_enabled || !currentSelections?.length) return
+  const regions = [...(projectMihomoForm.listener_regions || [])]
+  let changed = false
+
+  for (let index = 0; index < projectMihomoForm.listener_count; index++) {
+    const value = currentSelections[index]?.trim()
+    if (!value) continue
+    const matched = findProjectMihomoNodeByValue(value)
+    regions[index] = matched?.key || value
+    changed = true
+  }
+
+  if (changed) {
+    projectMihomoForm.listener_regions = regions
+    normalizeProjectMihomoListeners()
+  }
+}
+
+const normalizeProjectMihomoTestNodesForSource = (
+  nodes: ProjectMihomoNode[],
+  source: { provider: string; name?: string }
+) => nodes.map((node) => ({
+  ...node,
+  key: node.provider === source.provider
+    ? node.key
+    : `${encodeURIComponent(source.provider)}::${encodeURIComponent(node.name)}`,
+  provider: source.provider,
+  provider_label: source.name?.trim() || node.provider_label
+}))
+
 const testProjectMihomoSingleNode = async (node: ProjectMihomoNode | null) => {
   if (!node?.key) return
   const next = new Set(projectMihomoSingleNodeTesting.value)
@@ -1860,7 +1895,7 @@ const testProjectMihomoSingleNode = async (node: ProjectMihomoNode | null) => {
     upsertProjectMihomoNodeResult(result)
     appStore.showSuccess(t('admin.proxies.projectMihomo.testSingleNodeLatencyDone', { name: result.name }))
   } catch (error: any) {
-    appStore.showError(error.message || t('admin.proxies.projectMihomo.testSingleNodeLatencyFailed'))
+    appStore.showError(projectMihomoErrorMessage(error, t('admin.proxies.projectMihomo.testSingleNodeLatencyFailed')))
   } finally {
     const done = new Set(projectMihomoSingleNodeTesting.value)
     done.delete(node.key)
@@ -2038,6 +2073,7 @@ const loadProjectMihomo = async () => {
     syncProjectMihomoSubscriptionUrlsFromForm()
     projectMihomoConfigPath.value = result.config_path
     projectMihomoAvailableNodes.value = result.available_nodes || []
+    applyProjectMihomoCurrentSelections(result.current_selections)
   } catch (error) {
     console.error('Error loading project mihomo:', error)
   }
@@ -2067,11 +2103,11 @@ const saveProjectMihomo = async () => {
         appStore.showSuccess(t('admin.proxies.projectMihomo.saved'))
         return
       } catch (retryError: any) {
-        appStore.showError(retryError.message || t('admin.proxies.projectMihomo.saveFailed'))
+        appStore.showError(projectMihomoErrorMessage(retryError, t('admin.proxies.projectMihomo.saveFailed')))
         return
       }
     }
-    appStore.showError(error.message || t('admin.proxies.projectMihomo.saveFailed'))
+    appStore.showError(projectMihomoErrorMessage(error, t('admin.proxies.projectMihomo.saveFailed')))
   } finally {
     projectMihomoSubmitting.value = false
   }
@@ -2097,11 +2133,11 @@ const syncProjectMihomoConfig = async () => {
         await Promise.all([loadProjectMihomo(), loadProxies()])
         return true
       } catch (retryError: any) {
-        appStore.showError(retryError.message || t('admin.proxies.projectMihomo.syncFailed'))
+        appStore.showError(projectMihomoErrorMessage(retryError, t('admin.proxies.projectMihomo.syncFailed')))
         return false
       }
     }
-    appStore.showError(error.message || t('admin.proxies.projectMihomo.syncFailed'))
+    appStore.showError(projectMihomoErrorMessage(error, t('admin.proxies.projectMihomo.syncFailed')))
   } finally {
     projectMihomoSubmitting.value = false
   }
@@ -2127,10 +2163,11 @@ const testProjectMihomoSourceNodes = async (source: { index: number; provider: s
     }
     const result = await adminAPI.proxies.testProjectMihomoNodes(payload)
     const otherNodes = projectMihomoAvailableNodes.value.filter((node) => node.provider !== source.provider)
-    projectMihomoAvailableNodes.value = [...otherNodes, ...(result.nodes || [])]
+    const sourceNodes = normalizeProjectMihomoTestNodesForSource(result.nodes || [], source)
+    projectMihomoAvailableNodes.value = [...otherNodes, ...sourceNodes]
     appStore.showSuccess(t('admin.proxies.projectMihomo.testLatencyDone', { count: (result.nodes || []).length }))
   } catch (error: any) {
-    appStore.showError(error.message || t('admin.proxies.projectMihomo.testLatencyFailed'))
+    appStore.showError(projectMihomoErrorMessage(error, t('admin.proxies.projectMihomo.testLatencyFailed')))
   } finally {
     const done = new Set(projectMihomoProviderTesting.value)
     done.delete(source.provider)
