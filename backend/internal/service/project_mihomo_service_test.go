@@ -96,6 +96,9 @@ func (s *projectMihomoAdminServiceStub) ListUsers(context.Context, int, int, Use
 func (s *projectMihomoAdminServiceStub) GetUser(context.Context, int64) (*User, error) {
 	panic("unexpected GetUser call")
 }
+func (s *projectMihomoAdminServiceStub) GetUserIncludeDeleted(context.Context, int64) (*User, error) {
+	panic("unexpected GetUserIncludeDeleted call")
+}
 func (s *projectMihomoAdminServiceStub) CreateUser(context.Context, *CreateUserInput) (*User, error) {
 	panic("unexpected CreateUser call")
 }
@@ -253,6 +256,9 @@ func (s *projectMihomoAdminServiceStub) BulkUpdateAccounts(_ context.Context, in
 }
 func (s *projectMihomoAdminServiceStub) CheckMixedChannelRisk(context.Context, int64, string, []int64) error {
 	panic("unexpected CheckMixedChannelRisk call")
+}
+func (s *projectMihomoAdminServiceStub) RevertAccountProxyFallback(context.Context, int64) error {
+	panic("unexpected RevertAccountProxyFallback call")
 }
 func (s *projectMihomoAdminServiceStub) ListProxies(context.Context, int, int, string, string, string, string, string) ([]Proxy, int64, error) {
 	panic("unexpected ListProxies call")
