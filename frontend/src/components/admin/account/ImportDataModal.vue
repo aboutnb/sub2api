@@ -16,6 +16,14 @@
         {{ t('admin.accounts.dataImportWarning') }}
       </div>
 
+      <div
+        v-if="groupsLoading"
+        class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-400"
+      >
+        {{ t('admin.accounts.dataImportGroupsLoading') }}
+      </div>
+      <GroupSelector v-else v-model="groupIds" :groups="groups" searchable />
+
       <div>
         <label class="input-label">{{ t('admin.accounts.dataImportFile') }}</label>
         <div
@@ -99,12 +107,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import GroupSelector from '@/components/common/GroupSelector.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
-import type { AdminDataImportResult } from '@/types'
+import type { AdminDataImportResult, AdminGroup } from '@/types'
 
 interface Props {
   show: boolean
@@ -125,11 +134,26 @@ const importing = ref(false)
 const file = ref<File | null>(null)
 const result = ref<AdminDataImportResult | null>(null)
 const useProjectMihomoPool = ref(false)
+const groups = ref<AdminGroup[]>([])
+const groupIds = ref<number[]>([])
+const groupsLoading = ref(false)
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const fileName = computed(() => file.value?.name || '')
 
 const errorItems = computed(() => result.value?.errors || [])
+
+const loadGroups = async () => {
+  groupsLoading.value = true
+  try {
+    groups.value = await adminAPI.groups.getAll()
+  } catch (error) {
+    groups.value = []
+    appStore.showError(t('admin.accounts.dataImportGroupsLoadFailed'))
+  } finally {
+    groupsLoading.value = false
+  }
+}
 
 watch(
   () => props.show,
@@ -138,12 +162,20 @@ watch(
       file.value = null
       result.value = null
       useProjectMihomoPool.value = false
+      groupIds.value = []
+      loadGroups()
       if (fileInput.value) {
         fileInput.value.value = ''
       }
     }
   }
 )
+
+onMounted(() => {
+  if (props.show) {
+    loadGroups()
+  }
+})
 
 const openFilePicker = () => {
   fileInput.value?.click()
@@ -191,6 +223,7 @@ const handleImport = async () => {
     const res = await adminAPI.accounts.importData({
       data: dataPayload,
       skip_default_group_bind: true,
+      group_ids: groupIds.value,
       proxy_provider: useProjectMihomoPool.value ? 'project_mihomo' : undefined
     })
 

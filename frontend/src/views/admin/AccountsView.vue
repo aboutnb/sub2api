@@ -125,6 +125,24 @@
                       </span>
                       <span class="flex-1 text-left">{{ t('admin.errorPassthrough.title') }}</span>
                     </button>
+                    <button
+                      class="account-tools-menu-item"
+                      :disabled="batchTestLoading"
+                      @click="openBatchTestFromMenu"
+                    >
+                      <span class="account-tools-menu-icon bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-300">
+                        <Icon name="play" size="sm" :class="{ 'animate-spin': batchTestLoading }" />
+                      </span>
+                      <span class="flex-1 text-left">
+                        {{ batchTestLoading ? t('admin.accounts.batchTest.loadingAccounts') : t('admin.accounts.batchTest.menu') }}
+                      </span>
+                      <span
+                        v-if="selIds.length"
+                        class="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/40 dark:text-primary-300"
+                      >
+                        {{ t('admin.accounts.selectedCount', { count: selIds.length }) }}
+                      </span>
+                    </button>
                     <button class="account-tools-menu-item" @click="openTLSFingerprintProfiles">
                       <span class="account-tools-menu-icon bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200">
                         <Icon name="lock" size="sm" />
@@ -182,6 +200,7 @@
           @clear="clearSelection"
           @select-page="selectPage"
           @toggle-schedulable="handleBulkToggleSchedulable"
+          @batch-test="openBatchTestSelected"
         />
         <div ref="accountTableRef" class="flex min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
@@ -366,6 +385,7 @@
     <EditAccountModal :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="showEdit = false" @updated="handleAccountUpdated" />
     <ReAuthAccountModal :show="showReAuth" :account="reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
     <AccountTestModal :show="showTest" :account="testingAcc" @close="closeTestModal" />
+    <BatchAccountTestModal :show="showBatchTest" :accounts="batchTestAccounts" @close="closeBatchTestModal" />
     <AccountStatsModal :show="showStats" :account="statsAcc" @close="closeStatsModal" />
     <ScheduledTestsPanel :show="showSchedulePanel" :account-id="scheduleAcc?.id ?? null" :model-options="scheduleModelOptions" @close="closeSchedulePanel" />
     <AccountActionMenu :show="menu.show" :account="menu.acc" :position="menu.pos" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" @set-privacy="handleSetPrivacy" />
@@ -419,6 +439,7 @@ import AccountActionMenu from '@/components/admin/account/AccountActionMenu.vue'
 import ImportDataModal from '@/components/admin/account/ImportDataModal.vue'
 import ReAuthAccountModal from '@/components/admin/account/ReAuthAccountModal.vue'
 import AccountTestModal from '@/components/admin/account/AccountTestModal.vue'
+import BatchAccountTestModal from '@/components/admin/account/BatchAccountTestModal.vue'
 import AccountStatsModal from '@/components/admin/account/AccountStatsModal.vue'
 import ScheduledTestsPanel from '@/components/admin/account/ScheduledTestsPanel.vue'
 import type { SelectOption } from '@/components/common/Select.vue'
@@ -495,6 +516,7 @@ const showTempUnsched = ref(false)
 const showDeleteDialog = ref(false)
 const showReAuth = ref(false)
 const showTest = ref(false)
+const showBatchTest = ref(false)
 const showStats = ref(false)
 const showErrorPassthrough = ref(false)
 const showTLSFingerprintProfiles = ref(false)
@@ -503,6 +525,7 @@ const tempUnschedAcc = ref<Account | null>(null)
 const deletingAcc = ref<Account | null>(null)
 const reAuthAcc = ref<Account | null>(null)
 const testingAcc = ref<Account | null>(null)
+const batchTestAccounts = ref<Account[]>([])
 const statsAcc = ref<Account | null>(null)
 const showSchedulePanel = ref(false)
 const scheduleAcc = ref<Account | null>(null)
@@ -510,6 +533,7 @@ const scheduleModelOptions = ref<SelectOption[]>([])
 const togglingSchedulable = ref<number | null>(null)
 const menu = reactive<{show:boolean, acc:Account|null, pos:{top:number, left:number}|null}>({ show: false, acc: null, pos: null })
 const exportingData = ref(false)
+const batchTestLoading = ref(false)
 
 // Account tools dropdown
 const showAccountToolsDropdown = ref(false)
@@ -873,6 +897,7 @@ const isAnyModalOpen = computed(() => {
     showDeleteDialog.value ||
     showReAuth.value ||
     showTest.value ||
+    showBatchTest.value ||
     showStats.value ||
     showSchedulePanel.value ||
     showErrorPassthrough.value ||
@@ -1407,6 +1432,75 @@ const openBulkEditFiltered = async () => {
   showBulkEdit.value = true
 }
 
+const openBatchTestWithAccounts = (targetAccounts: Account[]) => {
+  if (targetAccounts.length === 0) {
+    appStore.showError(t('admin.accounts.batchTest.noAccounts'))
+    return
+  }
+  batchTestAccounts.value = targetAccounts
+  showBatchTest.value = true
+}
+
+const loadSelectedBatchTestAccounts = async () => {
+  const selected = [...selIds.value]
+  if (selected.length === 0) return []
+
+  const currentById = new Map(accounts.value.map(account => [account.id, account]))
+  const loaded = await Promise.all(
+    selected.map(async (id) => currentById.get(id) ?? await adminAPI.accounts.getById(id))
+  )
+  return loaded
+}
+
+const loadFilteredBatchTestAccounts = async () => {
+  const filters = buildAccountQueryFilters()
+  const pageSize = 1000
+  let page = 1
+  let total = Number.POSITIVE_INFINITY
+  const loaded: Account[] = []
+
+  while (loaded.length < total) {
+    const result = await adminAPI.accounts.list(page, pageSize, filters)
+    const items = result.items ?? []
+    total = result.total ?? loaded.length + items.length
+    loaded.push(...items)
+    if (items.length === 0 || page >= (result.pages || page)) break
+    page += 1
+  }
+
+  return loaded
+}
+
+const openBatchTestSelected = async () => {
+  if (batchTestLoading.value) return
+  batchTestLoading.value = true
+  try {
+    openBatchTestWithAccounts(await loadSelectedBatchTestAccounts())
+  } catch (error: any) {
+    console.error('Failed to load selected accounts for batch test:', error)
+    appStore.showError(error?.message || t('admin.accounts.batchTest.loadFailed'))
+  } finally {
+    batchTestLoading.value = false
+  }
+}
+
+const openBatchTestFromMenu = async () => {
+  if (batchTestLoading.value) return
+  batchTestLoading.value = true
+  try {
+    const targetAccounts = selIds.value.length > 0
+      ? await loadSelectedBatchTestAccounts()
+      : await loadFilteredBatchTestAccounts()
+    closeAccountToolsDropdown()
+    openBatchTestWithAccounts(targetAccounts)
+  } catch (error: any) {
+    console.error('Failed to load accounts for batch test:', error)
+    appStore.showError(error?.message || t('admin.accounts.batchTest.loadFailed'))
+  } finally {
+    batchTestLoading.value = false
+  }
+}
+
 const handleBulkUpdated = () => {
   showBulkEdit.value = false
   bulkEditTarget.value = null
@@ -1414,6 +1508,7 @@ const handleBulkUpdated = () => {
   reload()
 }
 const handleDataImported = () => { showImportData.value = false; reload() }
+const closeBatchTestModal = () => { showBatchTest.value = false; batchTestAccounts.value = [] }
 const ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE = 'ungrouped'
 const ACCOUNT_PRIVACY_MODE_UNSET_QUERY_VALUE = '__unset__'
 const buildAccountQueryFilters = () => ({
@@ -1714,6 +1809,10 @@ onUnmounted(() => {
 <style scoped>
 .account-tools-menu-item {
   @apply flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700;
+}
+
+.account-tools-menu-item:disabled {
+  @apply cursor-not-allowed opacity-60;
 }
 
 .account-tools-menu-icon {

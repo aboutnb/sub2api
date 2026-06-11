@@ -68,6 +68,7 @@ type DataAccount struct {
 type DataImportRequest struct {
 	Data                 DataPayload `json:"data"`
 	SkipDefaultGroupBind *bool       `json:"skip_default_group_bind"`
+	GroupIDs             []int64     `json:"group_ids"`
 	ProxyProvider        string      `json:"proxy_provider"`
 }
 
@@ -224,6 +225,7 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 	}
 
 	dataPayload := req.Data
+	groupIDs := normalizeDataImportGroupIDs(req.GroupIDs)
 	result := DataImportResult{}
 	allocator, err := h.newProjectMihomoProxyAllocator(ctx, isProjectMihomoProxyProvider(req.ProxyProvider))
 	if err != nil {
@@ -430,7 +432,7 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			Concurrency:          item.Concurrency,
 			Priority:             item.Priority,
 			RateMultiplier:       item.RateMultiplier,
-			GroupIDs:             nil,
+			GroupIDs:             groupIDs,
 			ExpiresAt:            item.ExpiresAt,
 			AutoPauseOnExpired:   item.AutoPauseOnExpired,
 			SkipDefaultGroupBind: skipDefaultGroupBind,
@@ -607,6 +609,28 @@ func parseAccountIDs(c *gin.Context) ([]int64, error) {
 		}
 	}
 	return ids, nil
+}
+
+func normalizeDataImportGroupIDs(ids []int64) []int64 {
+	if len(ids) == 0 {
+		return nil
+	}
+	seen := make(map[int64]struct{}, len(ids))
+	out := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func parseIncludeProxies(c *gin.Context) (bool, error) {
