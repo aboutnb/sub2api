@@ -12,6 +12,7 @@ describe('API Client', () => {
 
   beforeEach(async () => {
     localStorage.clear()
+    window.__APP_CONFIG__ = undefined
     // 每次测试重新导入以获取干净的模块状态
     vi.resetModules()
     const mod = await import('@/api/client')
@@ -106,6 +107,28 @@ describe('API Client', () => {
 
       const config = adapter.mock.calls[0][0]
       expect(config.withCredentials).toBe(true)
+    })
+
+    it('启用公开访问守卫时自动附加 publish key header', async () => {
+      window.__APP_CONFIG__ = {
+        public_access_guard_enabled: true,
+        public_access_publish_key: 'pub-test-key',
+        public_access_header_name: 'x-custom-public-key',
+      } as any
+
+      const adapter = vi.fn().mockResolvedValue({
+        status: 200,
+        data: { code: 0, data: {} },
+        headers: {},
+        config: {},
+        statusText: 'OK',
+      })
+      apiClient.defaults.adapter = adapter
+
+      await apiClient.post('/auth/logout', {})
+
+      const config = adapter.mock.calls[0][0]
+      expect(config.headers.get('x-custom-public-key')).toBe('pub-test-key')
     })
   })
 
@@ -224,6 +247,71 @@ describe('API Client', () => {
       expect(localStorage.getItem('auth_token')).toBeNull()
 
       // 恢复 location
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+      })
+    })
+
+    it('裸 axios refresh 请求也附加 publish key header', async () => {
+      window.__APP_CONFIG__ = {
+        public_access_guard_enabled: true,
+        public_access_publish_key: 'pub-test-key',
+        public_access_header_name: 'x-custom-public-key',
+      } as any
+      localStorage.setItem('auth_token', 'expired-token')
+      localStorage.setItem('refresh_token', 'refresh-token')
+
+      const originalLocation = window.location
+      Object.defineProperty(window, 'location', {
+        value: { ...originalLocation, pathname: '/dashboard', href: '/dashboard' },
+        writable: true,
+      })
+
+      const adapter = vi.fn()
+        .mockRejectedValueOnce({
+          response: {
+            status: 401,
+            data: { code: 'TOKEN_EXPIRED', message: 'Token expired' },
+          },
+          config: {
+            url: '/test',
+            headers: { Authorization: 'Bearer expired-token' },
+          },
+          code: 'ERR_BAD_REQUEST',
+        })
+        .mockResolvedValueOnce({
+          status: 200,
+          data: { code: 0, data: {} },
+          headers: {},
+          config: {},
+          statusText: 'OK',
+        })
+      apiClient.defaults.adapter = adapter
+
+      const axiosPost = vi.spyOn(axios, 'post').mockResolvedValue({
+        data: {
+          code: 0,
+          data: {
+            access_token: 'new-token',
+            refresh_token: 'new-refresh',
+            expires_in: 3600,
+          },
+        },
+      })
+
+      await apiClient.get('/test')
+
+      expect(axiosPost).toHaveBeenCalledWith(
+        '/api/v1/auth/refresh',
+        { refresh_token: 'refresh-token' },
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'x-custom-public-key': 'pub-test-key',
+          }),
+        })
+      )
+
       Object.defineProperty(window, 'location', {
         value: originalLocation,
         writable: true,

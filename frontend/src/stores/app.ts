@@ -361,6 +361,9 @@ export const useAppStore = defineStore('app', () => {
         service_quota_enabled: false,
         affiliate_enabled: false,
         allow_user_view_error_requests: false,
+        public_access_guard_enabled: false,
+        public_access_publish_key: '',
+        public_access_header_name: 'x-sub2api-publish-key',
       }
     }
 

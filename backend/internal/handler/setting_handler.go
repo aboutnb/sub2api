@@ -100,6 +100,9 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		RiskControlEnabled: settings.RiskControlEnabled,
 
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
+		PublicAccessGuardEnabled:   settings.PublicAccessGuardEnabled,
+		PublicAccessPublishKey:     settings.PublicAccessPublishKey,
+		PublicAccessHeaderName:     settings.PublicAccessHeaderName,
 	})
 }
 

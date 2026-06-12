@@ -15,6 +15,10 @@ import (
 )
 
 func newGatewayRoutesTestRouter() *gin.Engine {
+	return newGatewayRoutesTestRouterWithConfig(&config.Config{}, nil)
+}
+
+func newGatewayRoutesTestRouterWithConfig(cfg *config.Config, authCalled *bool) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
@@ -25,6 +29,9 @@ func newGatewayRoutesTestRouter() *gin.Engine {
 			OpenAIGateway: &handler.OpenAIGatewayHandler{},
 		},
 		servermiddleware.APIKeyAuthMiddleware(func(c *gin.Context) {
+			if authCalled != nil {
+				*authCalled = true
+			}
 			groupID := int64(1)
 			c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
 				GroupID: &groupID,
@@ -36,7 +43,7 @@ func newGatewayRoutesTestRouter() *gin.Engine {
 		nil,
 		nil,
 		nil,
-		&config.Config{},
+		cfg,
 	)
 
 	return router
@@ -76,4 +83,24 @@ func TestGatewayRoutesOpenAIImagesPathsAreRegistered(t *testing.T) {
 		router.ServeHTTP(w, req)
 		require.NotEqual(t, http.StatusNotFound, w.Code, "path=%s should hit OpenAI images handler", path)
 	}
+}
+
+func TestGatewayRoutesRejectMalformedGatewayKeyBeforeAuth(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Security.PublicAccessGuard.Enabled = true
+	cfg.Security.PublicAccessGuard.RejectMalformedGatewayKeys = true
+	cfg.Security.PublicAccessGuard.GatewayKeyAllowedPrefixes = []string{"sk-"}
+
+	authCalled := false
+	router := newGatewayRoutesTestRouterWithConfig(cfg, &authCalled)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer junk")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+	require.False(t, authCalled)
 }

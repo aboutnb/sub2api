@@ -321,6 +321,10 @@ type PublicSettings struct {
 	RiskControlEnabled bool `json:"risk_control_enabled"`
 
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
+
+	PublicAccessGuardEnabled bool   `json:"public_access_guard_enabled"`
+	PublicAccessPublishKey   string `json:"public_access_publish_key"`
+	PublicAccessHeaderName   string `json:"public_access_header_name"`
 }
 
 type LoginAgreementDocument struct {

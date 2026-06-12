@@ -140,6 +140,35 @@ security:
     # 辅助服务（更新检查、定价数据拉取）代理初始化失败时是否允许回退直连。
     # 不影响 AI 账号网关连接。默认 false：fail-fast 防止 IP 泄露。
     allow_direct_on_error: false
+  public_access_guard:
+    # Lightweight "honest-client" noise filter for public POST endpoints and malformed gateway keys.
+    # 轻量“防君子”降噪：保护站点公开 POST，并在网关鉴权查库前短路明显不像平台 API Key 的噪音。
+    # This publish key is sent to the browser and is NOT a security boundary.
+    # 该 publish key 会下发到浏览器，不是安全边界；恶意攻击仍需通过 IP/WAF/反代限流控制。
+    enabled: false
+    # Example: set a random public marker and keep it stable across rolling restarts.
+    # 示例：设置一个随机公开标记，滚动重启期间保持一致。
+    publish_key: "9c07c119-b6ad-4eb5-97c6-b725d0cd3fbf"
+    # Header automatically attached by the official frontend when enabled.
+    # 官方前端启用后会自动携带的 Header。
+    # If you customize it for cross-origin deployments, also allow it in CORS/reverse proxy rules.
+    # 跨域部署如自定义该 Header 名，也要同步放行 CORS/反代规则。
+    header_name: "x-sub2api-publish-key"
+    # Require the publish key on first-party public AJAX POST endpoints (auth/payment public lookups).
+    # 对站点一方公开 AJAX POST 接口要求携带 publish key。
+    protect_site_public_post: true
+    # Reject obviously malformed AI gateway API keys before DB lookup.
+    # AI 网关请求中明显不像平台 API Key 的值，在查库前直接拒绝。
+    reject_malformed_gateway_keys: true
+    # Prefixes accepted by the cheap gateway key shape check. The configured default.api_key_prefix is always allowed too.
+    # 网关 Key 形状检查允许的前缀；当前 default.api_key_prefix 也会自动允许。
+    gateway_key_allowed_prefixes:
+      - "sk-"
+      - "sk_"
+      - "sk-ant-"
+      - "sk-ant_"
+      - "sk-proj-"
+      - "sk-proj_"
 
 # =============================================================================
 # Gateway Configuration

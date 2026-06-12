@@ -236,6 +236,9 @@ export interface PublicSettings {
   service_quota_enabled: boolean
   affiliate_enabled: boolean
   allow_user_view_error_requests?: boolean
+  public_access_guard_enabled?: boolean
+  public_access_publish_key?: string
+  public_access_header_name?: string
 }
 
 export interface AuthResponse {

@@ -10,6 +10,33 @@ import { getLocale } from '@/i18n'
 // ==================== Axios Instance Configuration ====================
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+const DEFAULT_PUBLIC_ACCESS_HEADER = 'x-sub2api-publish-key'
+
+function getPublicAccessPublishKey(): string {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+  const config = window.__APP_CONFIG__
+  if (config?.public_access_guard_enabled !== true) {
+    return ''
+  }
+  return (config.public_access_publish_key || '').trim()
+}
+
+function getPublicAccessHeaderName(): string {
+  if (typeof window === 'undefined') {
+    return DEFAULT_PUBLIC_ACCESS_HEADER
+  }
+  return (window.__APP_CONFIG__?.public_access_header_name || DEFAULT_PUBLIC_ACCESS_HEADER).trim() || DEFAULT_PUBLIC_ACCESS_HEADER
+}
+
+function withPublicAccessHeader(headers: Record<string, string> = {}): Record<string, string> {
+  const publishKey = getPublicAccessPublishKey()
+  if (publishKey) {
+    headers[getPublicAccessHeaderName()] = publishKey
+  }
+  return headers
+}
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -64,6 +91,10 @@ apiClient.interceptors.request.use(
     // Attach locale for backend translations
     if (config.headers) {
       config.headers['Accept-Language'] = getLocale()
+      const publishKey = getPublicAccessPublishKey()
+      if (publishKey) {
+        config.headers[getPublicAccessHeaderName()] = publishKey
+      }
     }
 
     // Attach timezone for all GET requests (backend may use it for default date ranges)
@@ -205,7 +236,7 @@ apiClient.interceptors.response.use(
             const refreshResponse = await axios.post(
               `${API_BASE_URL}/auth/refresh`,
               { refresh_token: refreshToken },
-              { headers: { 'Content-Type': 'application/json' } }
+              { headers: withPublicAccessHeader({ 'Content-Type': 'application/json' }) }
             )
 
             const refreshData = refreshResponse.data as ApiResponse<{

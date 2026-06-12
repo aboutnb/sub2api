@@ -107,6 +107,7 @@ var backendModeSF singleflight.Group
 const backendModeCacheTTL = 60 * time.Second
 const backendModeErrorTTL = 5 * time.Second
 const backendModeDBTimeout = 5 * time.Second
+const defaultPublicAccessHeaderName = "x-sub2api-publish-key"
 
 // cachedGatewayForwardingSettings 缓存网关转发行为设置（进程内缓存，60s TTL）
 type cachedGatewayForwardingSettings struct {
@@ -804,6 +805,15 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 	gitHubEnabled := s.emailOAuthPublicEnabled(settings, "github")
 	googleEnabled := s.emailOAuthPublicEnabled(settings, "google")
 	weChatEnabled, weChatOpenEnabled, weChatMPEnabled, weChatMobileEnabled := s.weChatOAuthCapabilitiesFromSettings(settings)
+	publicAccessGuardEnabled := s.cfg != nil && s.cfg.Security.PublicAccessGuard.Enabled
+	publicAccessPublishKey := ""
+	publicAccessHeaderName := defaultPublicAccessHeaderName
+	if publicAccessGuardEnabled {
+		publicAccessPublishKey = strings.TrimSpace(s.cfg.Security.PublicAccessGuard.PublishKey)
+		if headerName := strings.TrimSpace(s.cfg.Security.PublicAccessGuard.HeaderName); headerName != "" {
+			publicAccessHeaderName = headerName
+		}
+	}
 
 	// Password reset requires email verification to be enabled
 	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
@@ -883,6 +893,9 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
 		AllowUserViewErrorRequests: settings[SettingKeyAllowUserViewErrorRequests] == "true",
+		PublicAccessGuardEnabled:   publicAccessGuardEnabled,
+		PublicAccessPublishKey:     publicAccessPublishKey,
+		PublicAccessHeaderName:     publicAccessHeaderName,
 	}, nil
 }
 
@@ -1191,12 +1204,15 @@ type PublicSettingsInjectionPayload struct {
 	// Feature flags — MUST match the opt-in/opt-out registry in
 	// frontend/src/utils/featureFlags.ts. Missing a field here is the bug
 	// that hid the "可用渠道" menu on page refresh.
-	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
-	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
-	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
-	AffiliateEnabled                     bool `json:"affiliate_enabled"`
-	RiskControlEnabled                   bool `json:"risk_control_enabled"`
-	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
+	ChannelMonitorEnabled                bool   `json:"channel_monitor_enabled"`
+	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
+	AvailableChannelsEnabled             bool   `json:"available_channels_enabled"`
+	AffiliateEnabled                     bool   `json:"affiliate_enabled"`
+	RiskControlEnabled                   bool   `json:"risk_control_enabled"`
+	AllowUserViewErrorRequests           bool   `json:"allow_user_view_error_requests"`
+	PublicAccessGuardEnabled             bool   `json:"public_access_guard_enabled"`
+	PublicAccessPublishKey               string `json:"public_access_publish_key"`
+	PublicAccessHeaderName               string `json:"public_access_header_name"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -1260,6 +1276,9 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
+		PublicAccessGuardEnabled:             settings.PublicAccessGuardEnabled,
+		PublicAccessPublishKey:               settings.PublicAccessPublishKey,
+		PublicAccessHeaderName:               settings.PublicAccessHeaderName,
 	}, nil
 }
 

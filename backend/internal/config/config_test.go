@@ -181,6 +181,42 @@ func TestLoadDefaultOpenAIWSConfig(t *testing.T) {
 	}
 }
 
+func TestLoadDefaultPublicAccessGuardConfig(t *testing.T) {
+	resetViperWithJWTSecret(t)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	require.False(t, cfg.Security.PublicAccessGuard.Enabled)
+	require.Equal(t, "x-sub2api-publish-key", cfg.Security.PublicAccessGuard.HeaderName)
+	require.True(t, cfg.Security.PublicAccessGuard.ProtectSitePublicPOST)
+	require.True(t, cfg.Security.PublicAccessGuard.RejectMalformedGatewayKeys)
+	require.Contains(t, cfg.Security.PublicAccessGuard.GatewayKeyAllowedPrefixes, "sk-")
+}
+
+func TestLoadPublicAccessGuardRequiresPublishKeyWhenEnabled(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("SECURITY_PUBLIC_ACCESS_GUARD_ENABLED", "true")
+
+	_, err := Load()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "security.public_access_guard.publish_key")
+}
+
+func TestLoadPublicAccessGuardFromEnv(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("SECURITY_PUBLIC_ACCESS_GUARD_ENABLED", "true")
+	t.Setenv("SECURITY_PUBLIC_ACCESS_GUARD_PUBLISH_KEY", "pub-from-env")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	require.True(t, cfg.Security.PublicAccessGuard.Enabled)
+	require.Equal(t, "pub-from-env", cfg.Security.PublicAccessGuard.PublishKey)
+}
+
 func TestLoadDefaultOpenAIHTTP2Enabled(t *testing.T) {
 	resetViperWithJWTSecret(t)
 

@@ -574,13 +574,14 @@ type CORSConfig struct {
 }
 
 type SecurityConfig struct {
-	URLAllowlist                     URLAllowlistConfig   `mapstructure:"url_allowlist"`
-	ResponseHeaders                  ResponseHeaderConfig `mapstructure:"response_headers"`
-	CSP                              CSPConfig            `mapstructure:"csp"`
-	ProxyFallback                    ProxyFallbackConfig  `mapstructure:"proxy_fallback"`
-	ProxyProbe                       ProxyProbeConfig     `mapstructure:"proxy_probe"`
-	TrustForwardedIPForAPIKeyACL     bool                 `mapstructure:"trust_forwarded_ip_for_api_key_acl"`
-	trustForwardedIPForAPIKeyACLLive *atomic.Bool         `mapstructure:"-"`
+	URLAllowlist                     URLAllowlistConfig      `mapstructure:"url_allowlist"`
+	ResponseHeaders                  ResponseHeaderConfig    `mapstructure:"response_headers"`
+	CSP                              CSPConfig               `mapstructure:"csp"`
+	ProxyFallback                    ProxyFallbackConfig     `mapstructure:"proxy_fallback"`
+	ProxyProbe                       ProxyProbeConfig        `mapstructure:"proxy_probe"`
+	PublicAccessGuard                PublicAccessGuardConfig `mapstructure:"public_access_guard"`
+	TrustForwardedIPForAPIKeyACL     bool                    `mapstructure:"trust_forwarded_ip_for_api_key_acl"`
+	trustForwardedIPForAPIKeyACLLive *atomic.Bool            `mapstructure:"-"`
 }
 
 func (c *Config) TrustForwardedIPForAPIKeyACL() bool {
@@ -639,6 +640,17 @@ type ProxyFallbackConfig struct {
 
 type ProxyProbeConfig struct {
 	InsecureSkipVerify bool `mapstructure:"insecure_skip_verify"` // 已禁用：禁止跳过 TLS 证书验证
+}
+
+// PublicAccessGuardConfig is a lightweight deployment-side noise filter.
+// The publish key is intentionally public and must not be treated as a security boundary.
+type PublicAccessGuardConfig struct {
+	Enabled                    bool     `mapstructure:"enabled"`
+	PublishKey                 string   `mapstructure:"publish_key"`
+	HeaderName                 string   `mapstructure:"header_name"`
+	ProtectSitePublicPOST      bool     `mapstructure:"protect_site_public_post"`
+	RejectMalformedGatewayKeys bool     `mapstructure:"reject_malformed_gateway_keys"`
+	GatewayKeyAllowedPrefixes  []string `mapstructure:"gateway_key_allowed_prefixes"`
 }
 
 type BillingConfig struct {
@@ -1452,6 +1464,9 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	cfg.Security.ResponseHeaders.AdditionalAllowed = normalizeStringSlice(cfg.Security.ResponseHeaders.AdditionalAllowed)
 	cfg.Security.ResponseHeaders.ForceRemove = normalizeStringSlice(cfg.Security.ResponseHeaders.ForceRemove)
 	cfg.Security.CSP.Policy = strings.TrimSpace(cfg.Security.CSP.Policy)
+	cfg.Security.PublicAccessGuard.PublishKey = strings.TrimSpace(cfg.Security.PublicAccessGuard.PublishKey)
+	cfg.Security.PublicAccessGuard.HeaderName = strings.TrimSpace(cfg.Security.PublicAccessGuard.HeaderName)
+	cfg.Security.PublicAccessGuard.GatewayKeyAllowedPrefixes = normalizeStringSlice(cfg.Security.PublicAccessGuard.GatewayKeyAllowedPrefixes)
 	cfg.SetTrustForwardedIPForAPIKeyACL(cfg.Security.TrustForwardedIPForAPIKeyACL)
 	cfg.Log.Level = strings.ToLower(strings.TrimSpace(cfg.Log.Level))
 	cfg.Log.Format = strings.ToLower(strings.TrimSpace(cfg.Log.Format))
@@ -1598,6 +1613,19 @@ func setDefaults() {
 	viper.SetDefault("security.csp.policy", DefaultCSPPolicy)
 	viper.SetDefault("security.proxy_probe.insecure_skip_verify", false)
 	viper.SetDefault("security.trust_forwarded_ip_for_api_key_acl", false)
+	viper.SetDefault("security.public_access_guard.enabled", false)
+	viper.SetDefault("security.public_access_guard.publish_key", "")
+	viper.SetDefault("security.public_access_guard.header_name", "x-sub2api-publish-key")
+	viper.SetDefault("security.public_access_guard.protect_site_public_post", true)
+	viper.SetDefault("security.public_access_guard.reject_malformed_gateway_keys", true)
+	viper.SetDefault("security.public_access_guard.gateway_key_allowed_prefixes", []string{
+		"sk-",
+		"sk_",
+		"sk-ant-",
+		"sk-ant_",
+		"sk-proj-",
+		"sk-proj_",
+	})
 
 	// Security - disable direct fallback on proxy error
 	viper.SetDefault("security.proxy_fallback.allow_direct_on_error", false)
@@ -2086,6 +2114,14 @@ func (c *Config) Validate() error {
 	}
 	if c.Security.CSP.Enabled && strings.TrimSpace(c.Security.CSP.Policy) == "" {
 		return fmt.Errorf("security.csp.policy is required when CSP is enabled")
+	}
+	if c.Security.PublicAccessGuard.Enabled {
+		if strings.TrimSpace(c.Security.PublicAccessGuard.PublishKey) == "" {
+			return fmt.Errorf("security.public_access_guard.publish_key is required when public access guard is enabled")
+		}
+		if strings.TrimSpace(c.Security.PublicAccessGuard.HeaderName) == "" {
+			return fmt.Errorf("security.public_access_guard.header_name is required when public access guard is enabled")
+		}
 	}
 	if c.LinuxDo.Enabled {
 		if strings.TrimSpace(c.LinuxDo.ClientID) == "" {
