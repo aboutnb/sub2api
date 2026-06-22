@@ -18,8 +18,8 @@ services:
     ports:
       - "${BIND_HOST:-127.0.0.1}:${SERVER_PORT:-8080}:8080"
     volumes:
-      - ${DATA_DIR:-./data}:/app/data
-      - ${DATA_DIR:-./data}/mihomo:/app/data/mihomo
+      - ${DATA_DIR:-./data}:/app/data:Z
+      - ${DATA_DIR:-./data}/mihomo:/app/data/mihomo:Z
     environment:
       - AUTO_SETUP=true
       - SERVER_HOST=0.0.0.0
@@ -89,7 +89,7 @@ services:
     container_name: sub2api-postgres-dev
     restart: unless-stopped
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data:Z
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-sub2api}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
@@ -110,7 +110,7 @@ services:
     container_name: sub2api-redis-dev
     restart: unless-stopped
     volumes:
-      - ./redis_data:/data
+      - ./redis_data:/data:Z
     command: >
         sh -c '
           redis-server
