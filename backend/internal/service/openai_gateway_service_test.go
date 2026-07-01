@@ -483,7 +483,7 @@ func TestOpenAISelectAccountWithLoadAwareness_ImageRateLimitSkipsOnlyImageReques
 		Status:      StatusActive,
 		Schedulable: true,
 		Concurrency: 1,
-		Priority:    0,
+		Priority:    2,
 		Extra: map[string]any{
 			modelRateLimitsKey: map[string]any{
 				openAIImageGenerationRateLimitKey: map[string]any{
@@ -746,8 +746,8 @@ func TestOpenAISelectAccountWithLoadAwareness_LoadBatchErrorFallback(t *testing.
 	groupID := int64(1)
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 2},
-			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 2},
 		},
 	}
 	cache := &stubGatewayCache{}

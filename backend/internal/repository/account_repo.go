@@ -641,7 +641,7 @@ func (r *accountRepository) ListByGroup(ctx context.Context, groupID int64) ([]s
 func (r *accountRepository) ListActive(ctx context.Context) ([]service.Account, error) {
 	accounts, err := r.client.Account.Query().
 		Where(dbaccount.StatusEQ(service.StatusActive)).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority), dbent.Asc(dbaccount.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -670,7 +670,7 @@ func (r *accountRepository) ListOAuthRefreshCandidates(ctx context.Context) ([]s
 				temp_unschedulable_until > NOW()
 				AND temp_unschedulable_reason LIKE 'token refresh retry exhausted:%'
 			) IS NOT TRUE
-		ORDER BY priority ASC, id ASC
+		ORDER BY priority DESC, id ASC
 	`)
 	if err != nil {
 		return nil, err
@@ -711,7 +711,7 @@ func (r *accountRepository) ListByPlatform(ctx context.Context, platform string)
 			dbaccount.PlatformEQ(platform),
 			dbaccount.StatusEQ(service.StatusActive),
 		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority), dbent.Asc(dbaccount.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -992,7 +992,7 @@ func (r *accountRepository) ListSchedulable(ctx context.Context) ([]service.Acco
 			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
 			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
 		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority), dbent.Asc(dbaccount.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1019,7 +1019,7 @@ func (r *accountRepository) ListSchedulableByPlatform(ctx context.Context, platf
 			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
 			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
 		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority), dbent.Asc(dbaccount.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1053,7 +1053,7 @@ func (r *accountRepository) ListSchedulableByPlatforms(ctx context.Context, plat
 			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
 			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
 		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority), dbent.Asc(dbaccount.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1074,7 +1074,7 @@ func (r *accountRepository) ListSchedulableUngroupedByPlatform(ctx context.Conte
 			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
 			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
 		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority), dbent.Asc(dbaccount.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1098,7 +1098,7 @@ func (r *accountRepository) ListSchedulableUngroupedByPlatforms(ctx context.Cont
 			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
 			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
 		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority), dbent.Asc(dbaccount.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1617,7 +1617,8 @@ func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID in
 	groups, err := q.
 		Order(
 			dbaccountgroup.ByPriority(),
-			dbaccountgroup.ByAccountField(dbaccount.FieldPriority),
+			dbaccountgroup.ByAccountField(dbaccount.FieldPriority, entsql.OrderDesc()),
+			dbaccountgroup.ByAccountField(dbaccount.FieldID),
 		).
 		WithAccount().
 		All(ctx)

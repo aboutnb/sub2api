@@ -53,7 +53,7 @@ func TestAccountRepository_ListOAuthRefreshCandidates_SQLFilter(t *testing.T) {
 		"must use IS NOT TRUE so accounts with NULL temp_unschedulable_until are not silently excluded by PG 3-valued logic")
 	require.NotContains(t, normalized, "AND NOT (",
 		"plain NOT (...) excludes NULL temp_unschedulable_until rows (the common healthy case)")
-	require.Contains(t, normalized, "ORDER BY priority ASC, id ASC")
+	require.Contains(t, normalized, "ORDER BY priority DESC, id ASC")
 	require.NotContains(t, normalized, "credentials->>'expires_at'")
 	require.NoError(t, mock.ExpectationsWereMet())
 }

@@ -335,7 +335,7 @@ func TestGatewayService_SelectAccountForModelWithPlatform_Anthropic(t *testing.T
 	acc, err := svc.selectAccountForModelWithPlatform(ctx, nil, "", "claude-3-5-sonnet-20241022", nil, PlatformAnthropic)
 	require.NoError(t, err)
 	require.NotNil(t, acc)
-	require.Equal(t, int64(1), acc.ID, "应选择优先级最高的 anthropic 账户")
+	require.Equal(t, int64(2), acc.ID, "应选择优先级最高的 anthropic 账户")
 	require.Equal(t, PlatformAnthropic, acc.Platform, "应只返回 anthropic 平台账户")
 }
 
@@ -1214,7 +1214,7 @@ func TestGatewayService_selectAccountWithMixedScheduling(t *testing.T) {
 		repo := &mockAccountRepoForPlatform{
 			accounts: []Account{
 				{ID: 1, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true},
-				{ID: 2, Platform: PlatformAntigravity, Priority: 1, Status: StatusActive, Schedulable: true, Extra: map[string]any{"mixed_scheduling": true}},
+				{ID: 2, Platform: PlatformAntigravity, Priority: 3, Status: StatusActive, Schedulable: true, Extra: map[string]any{"mixed_scheduling": true}},
 			},
 			accountsByID: map[int64]*Account{},
 		}
@@ -2142,7 +2142,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)
-		require.Equal(t, int64(1), result.Account.ID, "应选择优先级最高的账号")
+		require.Equal(t, int64(2), result.Account.ID, "应选择优先级最高的账号")
 	})
 
 	t.Run("模型路由-无ConcurrencyService也生效", func(t *testing.T) {
@@ -2202,8 +2202,8 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 	t.Run("无ConcurrencyService-降级到传统选择", func(t *testing.T) {
 		repo := &mockAccountRepoForPlatform{
 			accounts: []Account{
-				{ID: 1, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true, Concurrency: 5},
-				{ID: 2, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true, Concurrency: 5},
+				{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true, Concurrency: 5},
+				{ID: 2, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true, Concurrency: 5},
 			},
 			accountsByID: map[int64]*Account{},
 		}
