@@ -6,10 +6,11 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
 import type { ApiResponse } from '@/types'
 import { getLocale } from '@/i18n'
+import { getAPIBaseURL } from './url'
+export { buildApiUrl, buildGatewayUrl } from './url'
 
 // ==================== Axios Instance Configuration ====================
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 const DEFAULT_PUBLIC_ACCESS_HEADER = 'x-sub2api-publish-key'
 
 function getPublicAccessPublishKey(): string {
@@ -39,7 +40,7 @@ function withPublicAccessHeader(headers: Record<string, string> = {}): Record<st
 }
 
 export const apiClient: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getAPIBaseURL(),
   withCredentials: true,
   timeout: 30000,
   headers: {
@@ -234,7 +235,7 @@ apiClient.interceptors.response.use(
           try {
             // Call refresh endpoint directly to avoid circular dependency
             const refreshResponse = await axios.post(
-              `${API_BASE_URL}/auth/refresh`,
+              `${getAPIBaseURL()}/auth/refresh`,
               { refresh_token: refreshToken },
               { headers: withPublicAccessHeader({ 'Content-Type': 'application/json' }) }
             )
