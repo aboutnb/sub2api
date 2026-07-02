@@ -138,6 +138,9 @@ func (s *projectMihomoAdminServiceStub) GetAllGroups(context.Context) ([]Group, 
 func (s *projectMihomoAdminServiceStub) GetAllGroupsByPlatform(context.Context, string) ([]Group, error) {
 	panic("unexpected GetAllGroupsByPlatform call")
 }
+func (s *projectMihomoAdminServiceStub) GetAllGroupsIncludingInactive(context.Context) ([]Group, error) {
+	panic("unexpected GetAllGroupsIncludingInactive call")
+}
 func (s *projectMihomoAdminServiceStub) GetGroup(context.Context, int64) (*Group, error) {
 	panic("unexpected GetGroup call")
 }
@@ -390,6 +393,7 @@ func TestProjectMihomoGetSettingsDefaults(t *testing.T) {
 	require.Equal(t, []int{61000, 61001, 61002, 61003}, settings.ListenerPorts)
 	require.Equal(t, []string{"project-mihomo-01", "project-mihomo-02", "project-mihomo-03", "project-mihomo-04"}, settings.ListenerNames)
 	require.Len(t, settings.ListenerRegions, 4)
+	require.Equal(t, projectMihomoSubscriptionUA, settings.SubscriptionUA)
 	require.Empty(t, settings.SubscriptionURLs)
 	require.Empty(t, settings.SubscriptionNames)
 	require.False(t, settings.NodeExcludeEnabled)
@@ -638,6 +642,53 @@ func TestProjectMihomoSetSettingsFallsBackToNestedSubscriptionURL(t *testing.T) 
 	})
 	require.NoError(t, err)
 	require.Equal(t, server.URL+"/convert?target=clash&url="+url.QueryEscape(server.URL+"/raw"), settings.SubscriptionURL)
+
+	content, err := os.ReadFile(svc.providerCachePath())
+	require.NoError(t, err)
+	require.Contains(t, string(content), "日本-01")
+}
+
+func TestProjectMihomoSetSettingsRetriesBlockedSubscriptionWithCompatibleHeaders(t *testing.T) {
+	var userAgents []string
+	var retryAccept string
+	var retryAcceptLanguage string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userAgent := r.Header.Get("User-Agent")
+		userAgents = append(userAgents, userAgent)
+		if userAgent == "sub2api/mihomo" {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte("blocked"))
+			return
+		}
+		retryAccept = r.Header.Get("Accept")
+		retryAcceptLanguage = r.Header.Get("Accept-Language")
+		if userAgent != projectMihomoSubscriptionUA {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		_, _ = w.Write([]byte("proxies:\n  - name: 日本-01\n    server: jp.example.com\n"))
+	}))
+	defer server.Close()
+
+	t.Setenv("DATA_DIR", t.TempDir())
+	svc := NewProjectMihomoService(&projectMihomoSettingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
+
+	_, err := svc.SetSettings(context.Background(), &ProjectMihomoSettings{
+		SubscriptionURL:  server.URL + "/sub",
+		SubscriptionUA:   "sub2api/mihomo",
+		Protocol:         "socks5h",
+		TargetHost:       "127.0.0.1",
+		StartPort:        61000,
+		ListenerCount:    1,
+		ControllerURL:    "http://127.0.0.1:9097",
+		ProxyNamePrefix:  "project-mihomo",
+		ListenerRegions:  []string{""},
+		SubscriptionURLs: nil,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"sub2api/mihomo", projectMihomoSubscriptionUA}, userAgents)
+	require.Contains(t, retryAccept, "text/yaml")
+	require.Contains(t, retryAcceptLanguage, "zh-CN")
 
 	content, err := os.ReadFile(svc.providerCachePath())
 	require.NoError(t, err)

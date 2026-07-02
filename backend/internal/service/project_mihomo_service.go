@@ -29,6 +29,7 @@ const (
 	projectMihomoConfigFilename  = "config.yaml"
 	projectMihomoProviderName    = "project-subscription"
 	projectMihomoProviderPath    = "./providers/project-subscription.yaml"
+	projectMihomoSubscriptionUA  = "clash.meta"
 	projectMihomoHTTPTimeout     = 10 * time.Second
 	projectMihomoReloadPath      = "/root/.config/mihomo/config.yaml"
 	projectMihomoDockerHost      = "mihomo-sub2api"
@@ -178,7 +179,7 @@ func DefaultProjectMihomoSettings() ProjectMihomoSettings {
 		SubscriptionURL:     "",
 		SubscriptionURLs:    nil,
 		SubscriptionNames:   nil,
-		SubscriptionUA:      "sub2api/mihomo",
+		SubscriptionUA:      projectMihomoSubscriptionUA,
 		UpdateInterval:      3600,
 		Protocol:            "socks5h",
 		TargetHost:          targetHost,
@@ -2190,14 +2191,14 @@ func (s *ProjectMihomoService) pruneProviderFiles(current *ProjectMihomoSettings
 }
 
 func (s *ProjectMihomoService) fetchProviderContent(ctx context.Context, client *http.Client, userAgent, rawURL string) ([]byte, error) {
-	content, err := s.fetchProviderContentOnce(ctx, client, userAgent, rawURL)
+	content, err := s.fetchProviderContentWithRetry(ctx, client, userAgent, rawURL)
 	if err == nil {
 		return content, nil
 	}
 	firstErr := err
 	lastErr := err
 	for _, fallbackURL := range projectMihomoNestedSubscriptionURLs(rawURL) {
-		content, err = s.fetchProviderContentOnce(ctx, client, userAgent, fallbackURL)
+		content, err = s.fetchProviderContentWithRetry(ctx, client, userAgent, fallbackURL)
 		if err == nil {
 			return content, nil
 		}
@@ -2213,14 +2214,34 @@ func (s *ProjectMihomoService) fetchProviderContent(ctx context.Context, client 
 		WithMetadata(map[string]string{"detail": errorWithoutProjectMihomoEnvelope(firstErr)})
 }
 
-func (s *ProjectMihomoService) fetchProviderContentOnce(ctx context.Context, client *http.Client, userAgent, rawURL string) ([]byte, error) {
+func (s *ProjectMihomoService) fetchProviderContentWithRetry(ctx context.Context, client *http.Client, userAgent, rawURL string) ([]byte, error) {
+	content, err := s.fetchProviderContentOnce(ctx, client, userAgent, rawURL, false)
+	if err == nil {
+		return content, nil
+	}
+	if !isProjectMihomoSubscriptionRetryableStatus(err) {
+		return nil, err
+	}
+	lastErr := err
+	for _, fallbackUA := range projectMihomoSubscriptionFallbackUserAgents(userAgent) {
+		content, retryErr := s.fetchProviderContentOnce(ctx, client, fallbackUA, rawURL, true)
+		if retryErr == nil {
+			return content, nil
+		}
+		lastErr = retryErr
+		if !isProjectMihomoSubscriptionRetryableStatus(retryErr) {
+			break
+		}
+	}
+	return nil, lastErr
+}
+
+func (s *ProjectMihomoService) fetchProviderContentOnce(ctx context.Context, client *http.Client, userAgent, rawURL string, compatibilityMode bool) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimSpace(rawURL), nil)
 	if err != nil {
 		return nil, ErrProjectMihomoSubscriptionFetch.WithCause(fmt.Errorf("build subscription request: %w", err))
 	}
-	if strings.TrimSpace(userAgent) != "" {
-		req.Header.Set("User-Agent", strings.TrimSpace(userAgent))
-	}
+	applyProjectMihomoSubscriptionRequestHeaders(req, userAgent, compatibilityMode)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, ErrProjectMihomoSubscriptionFetch.WithCause(fmt.Errorf("request subscription: %w", err))
@@ -2228,10 +2249,10 @@ func (s *ProjectMihomoService) fetchProviderContentOnce(ctx context.Context, cli
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		message := readProjectMihomoErrorSnippet(resp.Body)
-		if message != "" {
-			return nil, ErrProjectMihomoSubscriptionFetch.WithCause(fmt.Errorf("request subscription: unexpected status %d: %s", resp.StatusCode, message))
-		}
-		return nil, ErrProjectMihomoSubscriptionFetch.WithCause(fmt.Errorf("request subscription: unexpected status %d", resp.StatusCode))
+		return nil, ErrProjectMihomoSubscriptionFetch.WithCause(&projectMihomoSubscriptionHTTPError{
+			StatusCode: resp.StatusCode,
+			Message:    message,
+		})
 	}
 	limited := io.LimitReader(resp.Body, projectMihomoProviderMaxSize+1)
 	content, err := io.ReadAll(limited)
@@ -2245,6 +2266,74 @@ func (s *ProjectMihomoService) fetchProviderContentOnce(ctx context.Context, cli
 		return nil, ErrProjectMihomoSubscriptionFetch.WithCause(fmt.Errorf("read subscription: response too large"))
 	}
 	return content, nil
+}
+
+type projectMihomoSubscriptionHTTPError struct {
+	StatusCode int
+	Message    string
+}
+
+func (e *projectMihomoSubscriptionHTTPError) Error() string {
+	if e == nil {
+		return "request subscription: unexpected status"
+	}
+	if strings.TrimSpace(e.Message) != "" {
+		return fmt.Sprintf("request subscription: unexpected status %d: %s", e.StatusCode, strings.TrimSpace(e.Message))
+	}
+	return fmt.Sprintf("request subscription: unexpected status %d", e.StatusCode)
+}
+
+func applyProjectMihomoSubscriptionRequestHeaders(req *http.Request, userAgent string, compatibilityMode bool) {
+	if req == nil {
+		return
+	}
+	if strings.TrimSpace(userAgent) != "" {
+		req.Header.Set("User-Agent", strings.TrimSpace(userAgent))
+	}
+	req.Header.Set("Accept", "text/yaml, application/yaml, application/x-yaml, text/plain, */*")
+	req.Header.Set("Cache-Control", "no-cache")
+	if compatibilityMode {
+		req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	}
+}
+
+func projectMihomoSubscriptionFallbackUserAgents(userAgent string) []string {
+	candidates := []string{
+		projectMihomoSubscriptionUA,
+		"ClashforWindows/0.20.39",
+		"Mihomo/1.19.0",
+	}
+	seen := map[string]struct{}{}
+	if trimmed := strings.TrimSpace(userAgent); trimmed != "" {
+		seen[strings.ToLower(trimmed)] = struct{}{}
+	}
+	out := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		trimmed := strings.TrimSpace(candidate)
+		if trimmed == "" {
+			continue
+		}
+		key := strings.ToLower(trimmed)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, trimmed)
+	}
+	return out
+}
+
+func isProjectMihomoSubscriptionRetryableStatus(err error) bool {
+	var httpErr *projectMihomoSubscriptionHTTPError
+	if !errors.As(err, &httpErr) || httpErr == nil {
+		return false
+	}
+	switch httpErr.StatusCode {
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotAcceptable, http.StatusTooManyRequests:
+		return true
+	default:
+		return false
+	}
 }
 
 func readProjectMihomoErrorSnippet(body io.Reader) string {

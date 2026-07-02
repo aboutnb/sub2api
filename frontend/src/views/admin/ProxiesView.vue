@@ -1568,12 +1568,13 @@ const defaultProjectMihomoNodeExcludeKeywords = [
   'TW'
 ]
 const projectMihomoNodeExcludeKeywordsText = ref(defaultProjectMihomoNodeExcludeKeywords.join('\n'))
+const defaultProjectMihomoSubscriptionUserAgent = 'clash.meta'
 
 const projectMihomoForm = reactive<ProjectMihomoSettings>({
   subscription_url: '',
   subscription_urls: [],
   subscription_names: [],
-  subscription_user_agent: 'sub2api/mihomo',
+  subscription_user_agent: defaultProjectMihomoSubscriptionUserAgent,
   update_interval: 3600,
   protocol: 'socks5h',
   target_host: 'mihomo-sub2api',
