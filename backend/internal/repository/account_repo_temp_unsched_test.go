@@ -9,6 +9,7 @@ import (
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,6 +56,39 @@ func TestAccountRepository_ListOAuthRefreshCandidates_SQLFilter(t *testing.T) {
 		"plain NOT (...) excludes NULL temp_unschedulable_until rows (the common healthy case)")
 	require.Contains(t, normalized, "ORDER BY priority DESC, id ASC")
 	require.NotContains(t, normalized, "credentials->>'expires_at'")
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAccountRepository_QueryAccountsByGroup_QualifiesJoinedOrdering(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	var capturedSQL string
+	mock.ExpectQuery("SELECT ag\\.account_id").
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"account_id"}))
+
+	repo := newAccountRepositoryWithSQL(nil, captureQuerySQL{db: db, captured: &capturedSQL}, nil)
+
+	accounts, err := repo.queryAccountsByGroup(context.Background(), 2, accountGroupQueryOptions{
+		status:      service.StatusActive,
+		schedulable: true,
+		platforms:   []string{service.PlatformOpenAI},
+	})
+	require.NoError(t, err)
+	require.Empty(t, accounts)
+
+	normalized := normalizeSQLWhitespace(capturedSQL)
+	require.Contains(t, normalized, "FROM account_groups ag JOIN accounts a ON a.id = ag.account_id")
+	require.Contains(t, normalized, "ag.group_id = $1")
+	require.Contains(t, normalized, "a.status = $2")
+	require.Contains(t, normalized, "a.platform = ANY($3)")
+	require.Contains(t, normalized, "a.schedulable = TRUE")
+	require.Contains(t, normalized, "(a.expires_at IS NULL OR a.expires_at > $4 OR a.auto_pause_on_expired = FALSE)")
+	require.Contains(t, normalized, "ORDER BY ag.priority ASC, a.priority DESC, a.id ASC")
+	require.NotContains(t, normalized, "ORDER BY id")
+	require.NotContains(t, normalized, " priority DESC, id")
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

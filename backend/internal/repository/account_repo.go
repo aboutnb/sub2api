@@ -1587,10 +1587,44 @@ type accountGroupQueryOptions struct {
 }
 
 func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID int64, opts accountGroupQueryOptions) ([]service.Account, error) {
-	q := r.client.AccountGroup.Query().
-		Where(dbaccountgroup.GroupIDEQ(groupID))
+	orderedIDs, err := r.queryOrderedAccountIDsByGroup(ctx, groupID, opts)
+	if err != nil {
+		return nil, err
+	}
+	if len(orderedIDs) == 0 {
+		return []service.Account{}, nil
+	}
 
-	// 通过 account_groups 中间表查询账号，并按需叠加状态/平台/调度能力过滤。
+	accountMap := make(map[int64]*dbent.Account, len(orderedIDs))
+	for start := 0; start < len(orderedIDs); start += postgresParameterBatchSize {
+		end := start + postgresParameterBatchSize
+		if end > len(orderedIDs) {
+			end = len(orderedIDs)
+		}
+		preds := groupedAccountPredicates(opts)
+		preds = append([]dbpredicate.Account{dbaccount.IDIn(orderedIDs[start:end]...)}, preds...)
+		accounts, err := r.client.Account.Query().
+			Where(preds...).
+			All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, acc := range accounts {
+			accountMap[acc.ID] = acc
+		}
+	}
+
+	accounts := make([]*dbent.Account, 0, len(orderedIDs))
+	for _, id := range orderedIDs {
+		if acc, ok := accountMap[id]; ok {
+			accounts = append(accounts, acc)
+		}
+	}
+
+	return r.accountsToService(ctx, accounts)
+}
+
+func groupedAccountPredicates(opts accountGroupQueryOptions) []dbpredicate.Account {
 	preds := make([]dbpredicate.Account, 0, 6)
 	preds = append(preds, dbaccount.DeletedAtIsNil())
 	if opts.status != "" {
@@ -1609,44 +1643,74 @@ func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID in
 			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
 		)
 	}
+	return preds
+}
 
-	if len(preds) > 0 {
-		q = q.Where(dbaccountgroup.HasAccountWith(preds...))
+func (r *accountRepository) queryOrderedAccountIDsByGroup(ctx context.Context, groupID int64, opts accountGroupQueryOptions) ([]int64, error) {
+	if r.sql == nil {
+		return nil, errors.New("account repository SQL executor is not configured")
 	}
 
-	groups, err := q.
-		Order(
-			dbaccountgroup.ByPriority(),
-			dbaccountgroup.ByAccountField(dbaccount.FieldPriority, entsql.OrderDesc()),
-			dbaccountgroup.ByAccountField(dbaccount.FieldID),
-		).
-		WithAccount().
-		All(ctx)
+	where := []string{
+		"ag.group_id = $1",
+		"a.deleted_at IS NULL",
+	}
+	args := []any{groupID}
+	addArg := func(value any) string {
+		args = append(args, value)
+		return "$" + strconv.Itoa(len(args))
+	}
+
+	if opts.status != "" {
+		where = append(where, "a.status = "+addArg(opts.status))
+	}
+	if len(opts.platforms) > 0 {
+		where = append(where, "a.platform = ANY("+addArg(pq.Array(opts.platforms))+")")
+	}
+	if opts.schedulable {
+		nowParam := addArg(time.Now())
+		where = append(where,
+			"a.schedulable = TRUE",
+			"(a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= NOW())",
+			"(a.expires_at IS NULL OR a.expires_at > "+nowParam+" OR a.auto_pause_on_expired = FALSE)",
+			"(a.overload_until IS NULL OR a.overload_until <= "+nowParam+")",
+			"(a.rate_limit_reset_at IS NULL OR a.rate_limit_reset_at <= "+nowParam+")",
+		)
+	}
+
+	query := `
+SELECT ag.account_id
+FROM account_groups ag
+JOIN accounts a ON a.id = ag.account_id
+WHERE ` + strings.Join(where, " AND ") + `
+ORDER BY ag.priority ASC, a.priority DESC, a.id ASC`
+
+	rows, err := r.sql.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
+	defer func() { _ = rows.Close() }()
 
-	orderedIDs := make([]int64, 0, len(groups))
-	accountMap := make(map[int64]*dbent.Account, len(groups))
-	for _, ag := range groups {
-		if ag.Edges.Account == nil {
+	orderedIDs := make([]int64, 0)
+	seen := make(map[int64]struct{})
+	for rows.Next() {
+		var accountID int64
+		if err := rows.Scan(&accountID); err != nil {
+			return nil, err
+		}
+		if accountID <= 0 {
 			continue
 		}
-		if _, exists := accountMap[ag.AccountID]; exists {
+		if _, ok := seen[accountID]; ok {
 			continue
 		}
-		accountMap[ag.AccountID] = ag.Edges.Account
-		orderedIDs = append(orderedIDs, ag.AccountID)
+		seen[accountID] = struct{}{}
+		orderedIDs = append(orderedIDs, accountID)
 	}
-
-	accounts := make([]*dbent.Account, 0, len(orderedIDs))
-	for _, id := range orderedIDs {
-		if acc, ok := accountMap[id]; ok {
-			accounts = append(accounts, acc)
-		}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
-
-	return r.accountsToService(ctx, accounts)
+	return orderedIDs, nil
 }
 
 func (r *accountRepository) accountsToService(ctx context.Context, accounts []*dbent.Account) ([]service.Account, error) {
