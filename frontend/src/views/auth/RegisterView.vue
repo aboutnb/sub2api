@@ -28,6 +28,16 @@
 
       <!-- Registration Form -->
       <form v-else @submit.prevent="handleRegister" class="space-y-5">
+        <input
+          data-registration-trap
+          type="text"
+          name="company_website"
+          tabindex="-1"
+          autocomplete="off"
+          aria-hidden="true"
+          class="pointer-events-none absolute -left-[10000px] top-auto h-px w-px opacity-0"
+        />
+
         <!-- Email Input -->
         <div>
           <label for="email" class="input-label">
@@ -316,7 +326,7 @@ import {
   validatePromoCode,
   validateInvitationCode
 } from '@/api/auth'
-import { buildAuthErrorMessage } from '@/utils/authError'
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import {
   formatRegistrationEmailSuffixWhitelistForMessage,
   isRegistrationEmailSuffixAllowed,
@@ -905,9 +915,12 @@ async function handleRegister(): Promise<void> {
     }
 
     // Handle registration error
-    errorMessage.value = buildAuthErrorMessage(error, {
-      fallback: t('auth.registrationFailed')
-    })
+    errorMessage.value = extractI18nErrorMessage(
+      error,
+      t,
+      'auth.errors',
+      t('auth.registrationFailed')
+    )
 
     // Also show error toast
     appStore.showError(errorMessage.value)

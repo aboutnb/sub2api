@@ -24,6 +24,7 @@ var (
 	ErrInvalidVerifyCode     = infraerrors.BadRequest("INVALID_VERIFY_CODE", "invalid or expired verification code")
 	ErrVerifyCodeTooFrequent = infraerrors.TooManyRequests("VERIFY_CODE_TOO_FREQUENT", "please wait before requesting a new code")
 	ErrVerifyCodeMaxAttempts = infraerrors.TooManyRequests("VERIFY_CODE_MAX_ATTEMPTS", "too many failed attempts, please request a new code")
+	ErrVerifyCodeContext     = infraerrors.BadRequest("VERIFY_CODE_CONTEXT_MISMATCH", "verification code context mismatch")
 
 	// Password reset errors
 	ErrInvalidResetToken = infraerrors.BadRequest("INVALID_RESET_TOKEN", "invalid or expired password reset token")
@@ -57,10 +58,14 @@ type EmailCache interface {
 
 // VerificationCodeData represents verification code data
 type VerificationCodeData struct {
-	Code      string
-	Attempts  int
-	CreatedAt time.Time
-	ExpiresAt time.Time // absolute expiry; used to preserve remaining TTL when updating attempts
+	Code                          string
+	Attempts                      int
+	CreatedAt                     time.Time
+	ExpiresAt                     time.Time // absolute expiry; used to preserve remaining TTL when updating attempts
+	RegistrationAction            string
+	RegistrationClientIPHash      string
+	RegistrationUserAgentHash     string
+	RegistrationNetworkBucketHash string
 }
 
 // PasswordResetTokenData represents password reset token data
@@ -346,6 +351,12 @@ func (s *EmailService) SendVerifyCode(ctx context.Context, email, siteName strin
 		CreatedAt: time.Now(),
 		ExpiresAt: time.Now().Add(verifyCodeTTL),
 	}
+	if registrationCtx, ok := registrationVerificationContextFrom(ctx); ok {
+		data.RegistrationAction = registrationCtx.Action
+		data.RegistrationClientIPHash = registrationCtx.ClientIPHash
+		data.RegistrationUserAgentHash = registrationCtx.UserAgentHash
+		data.RegistrationNetworkBucketHash = registrationCtx.NetworkBucketHash
+	}
 	if err := s.cache.SetVerificationCode(ctx, email, data, verifyCodeTTL); err != nil {
 		return fmt.Errorf("save verify code: %w", err)
 	}
@@ -394,6 +405,10 @@ func (s *EmailService) VerifyCode(ctx context.Context, email, code string) error
 		return ErrVerifyCodeMaxAttempts
 	}
 
+	if err := verifyRegistrationCodeContext(ctx, data, email); err != nil {
+		return err
+	}
+
 	// 验证码不匹配 (constant-time comparison to prevent timing attacks)
 	if subtle.ConstantTimeCompare([]byte(data.Code), []byte(code)) != 1 {
 		data.Attempts++
@@ -415,6 +430,36 @@ func (s *EmailService) VerifyCode(ctx context.Context, email, code string) error
 		slog.Error("failed to delete verification code after success", "email", email, "error", err)
 	}
 	return nil
+}
+
+func verifyRegistrationCodeContext(ctx context.Context, data *VerificationCodeData, email string) error {
+	if data == nil || !verificationCodeHasRegistrationContext(data) {
+		return nil
+	}
+	current, ok := registrationVerificationContextFrom(ctx)
+	if !ok {
+		slog.Warn("registration verification code missing current context", "email_hash", notificationEmailHash(email))
+		return ErrVerifyCodeContext
+	}
+	if data.RegistrationUserAgentHash != "" && data.RegistrationUserAgentHash != current.UserAgentHash {
+		slog.Warn("registration verification code user-agent mismatch", "email_hash", notificationEmailHash(email))
+		return ErrVerifyCodeContext
+	}
+	if data.RegistrationClientIPHash != "" && data.RegistrationClientIPHash != current.ClientIPHash {
+		slog.Warn("registration verification code client ip changed", "email_hash", notificationEmailHash(email))
+	}
+	if data.RegistrationNetworkBucketHash != "" && data.RegistrationNetworkBucketHash != current.NetworkBucketHash {
+		slog.Warn("registration verification code network bucket changed", "email_hash", notificationEmailHash(email))
+	}
+	return nil
+}
+
+func verificationCodeHasRegistrationContext(data *VerificationCodeData) bool {
+	return data != nil &&
+		(data.RegistrationAction != "" ||
+			data.RegistrationClientIPHash != "" ||
+			data.RegistrationUserAgentHash != "" ||
+			data.RegistrationNetworkBucketHash != "")
 }
 
 // buildVerifyCodeEmailBody 构建验证码邮件HTML内容

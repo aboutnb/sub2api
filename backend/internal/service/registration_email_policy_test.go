@@ -42,3 +42,33 @@ func TestIsRegistrationEmailSuffixAllowed(t *testing.T) {
 	require.False(t, IsRegistrationEmailSuffixAllowed("user@c.cn", []string{"@a.com", "*.b.cn"}))
 	require.True(t, IsRegistrationEmailSuffixAllowed("user@any.com", []string{}))
 }
+
+func TestIsRegistrationEmailAlias(t *testing.T) {
+	tests := []struct {
+		name  string
+		email string
+		want  bool
+	}{
+		{name: "plus alias", email: "user+spam@example.com", want: true},
+		{name: "plus alias uppercase domain", email: "User+Spam@Example.COM", want: true},
+		{name: "gmail dot alias", email: "first.last@gmail.com", want: true},
+		{name: "googlemail dot alias", email: "first.last@googlemail.com", want: true},
+		{name: "plain gmail", email: "firstlast@gmail.com", want: false},
+		{name: "company dotted local part", email: "first.last@company.com", want: false},
+		{name: "invalid format", email: "not-an-email", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, IsRegistrationEmailAlias(tt.email))
+		})
+	}
+}
+
+func TestIsDisposableRegistrationEmailDomain(t *testing.T) {
+	require.True(t, IsDisposableRegistrationEmailDomain("user@mailinator.com"))
+	require.True(t, IsDisposableRegistrationEmailDomain("User@TEMP-MAIL.ORG"))
+	require.False(t, IsDisposableRegistrationEmailDomain("user@gmail.com"))
+	require.False(t, IsDisposableRegistrationEmailDomain("first.last@company.com"))
+	require.False(t, IsDisposableRegistrationEmailDomain("not-an-email"))
+}

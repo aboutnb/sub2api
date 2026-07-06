@@ -65,7 +65,7 @@ func TestAccountHandlerListReturnsSchedulerScoresPerGroup(t *testing.T) {
 			Status:      service.StatusActive,
 			Schedulable: true,
 			Concurrency: 10,
-			Priority:    1,
+			Priority:    100000,
 			AccountGroups: []service.AccountGroup{
 				{AccountID: 101, GroupID: groupID, Priority: 100, Group: &service.Group{ID: groupID, Name: "openai"}},
 			},
@@ -81,7 +81,7 @@ func TestAccountHandlerListReturnsSchedulerScoresPerGroup(t *testing.T) {
 			Status:      service.StatusActive,
 			Schedulable: true,
 			Concurrency: 10,
-			Priority:    100000,
+			Priority:    1,
 			AccountGroups: []service.AccountGroup{
 				{AccountID: 102, GroupID: groupID, Priority: 1, Group: &service.Group{ID: groupID, Name: "openai"}},
 			},
@@ -159,7 +159,7 @@ func TestAccountHandlerListKeepsSchedulerScoreScopedToFilter(t *testing.T) {
 		Status:      service.StatusActive,
 		Schedulable: true,
 		Concurrency: 10,
-		Priority:    100000,
+		Priority:    1,
 		AccountGroups: []service.AccountGroup{
 			{AccountID: 201, GroupID: groupID, Priority: 1, Group: &service.Group{ID: groupID, Name: "openai"}},
 		},
@@ -175,7 +175,7 @@ func TestAccountHandlerListKeepsSchedulerScoreScopedToFilter(t *testing.T) {
 		Status:      service.StatusActive,
 		Schedulable: true,
 		Concurrency: 10,
-		Priority:    1,
+		Priority:    100000,
 		AccountGroups: []service.AccountGroup{
 			{AccountID: 202, GroupID: groupID, Priority: 2, Group: &service.Group{ID: groupID, Name: "openai"}},
 		},
@@ -226,7 +226,7 @@ func TestAccountHandlerListSchedulerScoreIgnoresPagination(t *testing.T) {
 		Status:      service.StatusActive,
 		Schedulable: true,
 		Concurrency: 10,
-		Priority:    100000,
+		Priority:    1,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -238,7 +238,7 @@ func TestAccountHandlerListSchedulerScoreIgnoresPagination(t *testing.T) {
 		Status:      service.StatusActive,
 		Schedulable: true,
 		Concurrency: 10,
-		Priority:    1,
+		Priority:    100000,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}

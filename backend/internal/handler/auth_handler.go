@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 // AuthHandler handles authentication-related requests
@@ -27,6 +28,7 @@ type AuthHandler struct {
 	redeemService        *service.RedeemService
 	totpService          *service.TotpService
 	userAttributeService *service.UserAttributeService
+	redisClient          *redis.Client
 
 	dingTalkClientInstance *DingTalkClient
 	dingTalkClientMu       sync.Mutex
@@ -46,21 +48,30 @@ func NewAuthHandler(cfg *config.Config, authService *service.AuthService, userSe
 	}
 }
 
+func (h *AuthHandler) SetRegistrationRiskRedis(redisClient *redis.Client) {
+	if h == nil {
+		return
+	}
+	h.redisClient = redisClient
+}
+
 // RegisterRequest represents the registration request payload
 type RegisterRequest struct {
-	Email          string `json:"email" binding:"required,email"`
-	Password       string `json:"password" binding:"required,min=6"`
-	VerifyCode     string `json:"verify_code"`
-	TurnstileToken string `json:"turnstile_token"`
-	PromoCode      string `json:"promo_code"`      // 注册优惠码
-	InvitationCode string `json:"invitation_code"` // 邀请码
-	AffCode        string `json:"aff_code"`        // 邀请返利码
+	Email                 string                           `json:"email" binding:"required,email"`
+	Password              string                           `json:"password" binding:"required,min=6"`
+	VerifyCode            string                           `json:"verify_code"`
+	TurnstileToken        string                           `json:"turnstile_token"`
+	RegistrationChallenge *RegistrationChallengeSubmission `json:"registration_challenge"`
+	PromoCode             string                           `json:"promo_code"`      // 注册优惠码
+	InvitationCode        string                           `json:"invitation_code"` // 邀请码
+	AffCode               string                           `json:"aff_code"`        // 邀请返利码
 }
 
 // SendVerifyCodeRequest 发送验证码请求
 type SendVerifyCodeRequest struct {
-	Email          string `json:"email" binding:"required,email"`
-	TurnstileToken string `json:"turnstile_token"`
+	Email                 string                           `json:"email" binding:"required,email"`
+	TurnstileToken        string                           `json:"turnstile_token"`
+	RegistrationChallenge *RegistrationChallengeSubmission `json:"registration_challenge"`
 }
 
 // SendVerifyCodeResponse 发送验证码响应
@@ -165,6 +176,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	if err := h.requireRegistrationChallenge(c, "register", req.Email, req.RegistrationChallenge); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
 	// Turnstile 验证（邮箱验证码注册场景避免重复校验一次性 token）
 	if err := h.authService.VerifyTurnstileForRegister(c.Request.Context(), req.TurnstileToken, ip.GetClientIP(c), req.VerifyCode); err != nil {
 		response.ErrorFrom(c, err)
@@ -194,6 +210,11 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 	var req SendVerifyCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := h.requireRegistrationChallenge(c, "send_verify_code", req.Email, req.RegistrationChallenge); err != nil {
+		response.ErrorFrom(c, err)
 		return
 	}
 

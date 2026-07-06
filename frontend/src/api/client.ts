@@ -48,6 +48,219 @@ export const apiClient: AxiosInstance = axios.create({
   }
 })
 
+// ==================== Registration Challenge ====================
+
+type RegistrationChallengeAction =
+  | 'register'
+  | 'send_verify_code'
+  | 'oauth_pending_send_verify_code'
+  | 'oauth_pending_create_account'
+
+interface RegistrationChallengeResponse {
+  token: string
+  issued_at: number
+  expires_at: number
+  min_elapsed_ms: number
+  trap_field: string
+  salt: string
+}
+
+interface RegistrationChallengeSubmission {
+  token: string
+  completed_at: number
+  proof: string
+  trap_field: string
+  trap_value: string
+}
+
+const REGISTRATION_CHALLENGE_ENDPOINTS: Array<{
+  suffix: string
+  action: RegistrationChallengeAction
+}> = [
+  { suffix: '/auth/register', action: 'register' },
+  { suffix: '/auth/send-verify-code', action: 'send_verify_code' },
+  {
+    suffix: '/auth/oauth/pending/send-verify-code',
+    action: 'oauth_pending_send_verify_code'
+  },
+  {
+    suffix: '/auth/oauth/pending/create-account',
+    action: 'oauth_pending_create_account'
+  }
+]
+
+let cachedRegistrationChallenge: RegistrationChallengeResponse | null = null
+let pendingRegistrationChallenge: Promise<RegistrationChallengeResponse> | null = null
+
+function getRegistrationChallengeAction(config: InternalAxiosRequestConfig): RegistrationChallengeAction | null {
+  if (String(config.method || '').toLowerCase() !== 'post') return null
+  const rawURL = String(config.url || '')
+  if (!rawURL) return null
+  let pathname = rawURL
+  try {
+    pathname = new URL(rawURL, 'https://sub2api.local').pathname
+  } catch {
+    pathname = rawURL.split('?')[0] || rawURL
+  }
+  const match = REGISTRATION_CHALLENGE_ENDPOINTS.find(endpoint => pathname.endsWith(endpoint.suffix))
+  return match?.action || null
+}
+
+function isRegistrationChallengeFresh(challenge: RegistrationChallengeResponse | null): challenge is RegistrationChallengeResponse {
+  return !!challenge && Date.now() < challenge.expires_at - 30_000
+}
+
+async function fetchRegistrationChallenge(): Promise<RegistrationChallengeResponse> {
+  if (isRegistrationChallengeFresh(cachedRegistrationChallenge)) {
+    return cachedRegistrationChallenge
+  }
+  if (pendingRegistrationChallenge) {
+    return pendingRegistrationChallenge
+  }
+
+  pendingRegistrationChallenge = axios
+    .get<ApiResponse<RegistrationChallengeResponse>>('/auth/registration-challenge', {
+      baseURL: getAPIBaseURL(),
+      withCredentials: true,
+      headers: withPublicAccessHeader({
+        'Accept-Language': getLocale()
+      })
+    })
+    .then(response => {
+      const payload = response.data
+      if (!payload || payload.code !== 0 || !payload.data?.token) {
+        throw new Error(payload?.message || 'Failed to initialize registration challenge')
+      }
+      cachedRegistrationChallenge = payload.data
+      return payload.data
+    })
+    .finally(() => {
+      pendingRegistrationChallenge = null
+    })
+
+  return pendingRegistrationChallenge
+}
+
+function getRegistrationTrapValue(): string {
+  if (typeof document === 'undefined') return ''
+  const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('[data-registration-trap]'))
+  for (const input of inputs) {
+    const value = input.value || ''
+    if (value.trim()) return value
+  }
+  return ''
+}
+
+function normalizeChallengeEmail(email: unknown): string {
+  return typeof email === 'string' ? email.trim().toLowerCase() : ''
+}
+
+function registrationChallengeProofSource(
+  token: string,
+  email: string,
+  action: RegistrationChallengeAction,
+  completedAt: number,
+  trapField: string,
+  salt: string
+): string {
+  return [token, email, action, String(completedAt), trapField, salt].join('\n')
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    throw new Error('Web Crypto is unavailable')
+  }
+  const encoded = new TextEncoder().encode(value)
+  const digest = await crypto.subtle.digest('SHA-256', encoded)
+  return Array.from(new Uint8Array(digest))
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+function fnv1a64Hex(value: string): string {
+  let hash = 0xcbf29ce484222325n
+  const prime = 0x100000001b3n
+  const mask = 0xffffffffffffffffn
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= BigInt(value.charCodeAt(i))
+    hash = (hash * prime) & mask
+  }
+  return `fnv1a:${hash.toString(16).padStart(16, '0')}`
+}
+
+async function buildRegistrationChallengeSubmission(
+  challenge: RegistrationChallengeResponse,
+  action: RegistrationChallengeAction,
+  email: string
+): Promise<RegistrationChallengeSubmission> {
+  const waitMs = challenge.min_elapsed_ms - (Date.now() - challenge.issued_at)
+  if (waitMs > 0 && waitMs < 5_000) {
+    await new Promise(resolve => setTimeout(resolve, waitMs))
+  }
+
+  const completedAt = Date.now()
+  const proofSource = registrationChallengeProofSource(
+    challenge.token,
+    email,
+    action,
+    completedAt,
+    challenge.trap_field,
+    challenge.salt
+  )
+
+  let proof: string
+  try {
+    proof = await sha256Hex(proofSource)
+  } catch {
+    proof = fnv1a64Hex(proofSource)
+  }
+
+  return {
+    token: challenge.token,
+    completed_at: completedAt,
+    proof,
+    trap_field: challenge.trap_field,
+    trap_value: getRegistrationTrapValue()
+  }
+}
+
+function parseRequestBody(data: unknown): { body: Record<string, unknown>; stringify: boolean } | null {
+  if (!data) return { body: {}, stringify: false }
+  if (typeof data === 'string') {
+    try {
+      const parsed = JSON.parse(data)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return { body: parsed as Record<string, unknown>, stringify: true }
+      }
+    } catch {
+      return null
+    }
+    return null
+  }
+  if (typeof data === 'object' && !Array.isArray(data)) {
+    return { body: data as Record<string, unknown>, stringify: false }
+  }
+  return null
+}
+
+async function attachRegistrationChallenge(config: InternalAxiosRequestConfig): Promise<void> {
+  const action = getRegistrationChallengeAction(config)
+  if (!action) return
+
+  const parsed = parseRequestBody(config.data)
+  if (!parsed) return
+  if (parsed.body.registration_challenge) return
+
+  const challenge = await fetchRegistrationChallenge()
+  cachedRegistrationChallenge = null
+  parsed.body.registration_challenge = await buildRegistrationChallengeSubmission(
+    challenge,
+    action,
+    normalizeChallengeEmail(parsed.body.email)
+  )
+  config.data = parsed.stringify ? JSON.stringify(parsed.body) : parsed.body
+}
+
 // ==================== Token Refresh State ====================
 
 // Track if a token refresh is in progress to prevent multiple simultaneous refresh requests
@@ -82,7 +295,7 @@ const getUserTimezone = (): string => {
 }
 
 apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
     // Attach token from localStorage
     const token = localStorage.getItem('auth_token')
     if (token && config.headers) {
@@ -105,6 +318,8 @@ apiClient.interceptors.request.use(
       }
       config.params.timezone = getUserTimezone()
     }
+
+    await attachRegistrationChallenge(config)
 
     return config
   },

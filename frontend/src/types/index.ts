@@ -121,9 +121,18 @@ export interface RegisterRequest {
   password: string
   verify_code?: string
   turnstile_token?: string
+  registration_challenge?: RegistrationChallengeSubmission
   promo_code?: string
   invitation_code?: string
   aff_code?: string
+}
+
+export interface RegistrationChallengeSubmission {
+  token: string
+  completed_at: number
+  proof: string
+  trap_field: string
+  trap_value: string
 }
 
 export interface AffiliateInvitee {
@@ -155,6 +164,7 @@ export interface AffiliateTransferResponse {
 export interface SendVerifyCodeRequest {
   email: string
   turnstile_token?: string
+  registration_challenge?: RegistrationChallengeSubmission
   pending_auth_token?: string
   pending_oauth_token?: string
 }
@@ -788,10 +798,13 @@ export interface ProxyQualityCheckResult {
   items: ProxyQualityCheckItem[]
 }
 
+export type ProjectMihomoSubscriptionFetchMode = 'mihomo' | 'backend'
+
 export interface ProjectMihomoSettings {
   subscription_url: string
   subscription_urls: string[]
   subscription_names: string[]
+  subscription_fetch_modes: ProjectMihomoSubscriptionFetchMode[]
   subscription_user_agent: string
   update_interval: number
   protocol: ProxyProtocol

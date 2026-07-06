@@ -465,6 +465,7 @@
                       @click="selectProjectMihomoProvider(source.provider)"
                     >
                       <span class="truncate text-sm font-medium">{{ source.label }}</span>
+                      <span class="badge badge-gray shrink-0">{{ source.fetchModeLabel }}</span>
                       <span class="badge badge-gray shrink-0">{{ source.nodeCount }}</span>
                     </button>
                     <button
@@ -487,7 +488,7 @@
               </div>
               <div
                 v-if="projectMihomoActiveSubscriptionSource"
-                class="mt-3 grid gap-2 md:grid-cols-[160px_minmax(0,1fr)_40px]"
+                class="mt-3 grid gap-2 md:grid-cols-[160px_minmax(0,1fr)_180px_40px]"
               >
                 <div class="min-w-0">
                   <input
@@ -508,6 +509,15 @@
                     @blur="normalizeProjectMihomoSubscriptionUrls"
                   />
                 </div>
+                <div class="min-w-0">
+                  <Select
+                    v-model="projectMihomoForm.subscription_fetch_modes[projectMihomoActiveSubscriptionSource.index]"
+                    :options="projectMihomoSubscriptionFetchModeOptions"
+                    :placeholder="t('admin.proxies.projectMihomo.fetchMode')"
+                    :searchable="false"
+                    @change="normalizeProjectMihomoSubscriptionFetchModes"
+                  />
+                </div>
                 <button
                   type="button"
                   class="project-mihomo-icon-btn text-red-600 hover:border-red-200 hover:text-red-600 dark:text-red-400 dark:hover:border-red-800 dark:hover:text-red-400"
@@ -516,6 +526,9 @@
                 >
                   <Icon name="trash" size="sm" />
                 </button>
+                <div class="text-xs text-gray-500 dark:text-gray-400 md:col-span-4">
+                  {{ projectMihomoSubscriptionFetchModeHint(projectMihomoForm.subscription_fetch_modes[projectMihomoActiveSubscriptionSource.index]) }}
+                </div>
               </div>
             </div>
 
@@ -1313,6 +1326,7 @@ import type {
   ProxyProtocol,
   ProxyQualityCheckResult,
   ProjectMihomoNode,
+  ProjectMihomoSubscriptionFetchMode,
   ProjectMihomoSettings
 } from '@/types'
 import type { Column } from '@/components/common/types'
@@ -1438,17 +1452,21 @@ const projectMihomoFilteredNodes = computed(() => {
 const projectMihomoSubscriptionSources = computed(() => {
   const urls = projectMihomoForm.subscription_urls || []
   const names = projectMihomoForm.subscription_names || []
+  const fetchModes = projectMihomoForm.subscription_fetch_modes || []
   return urls.map((url, index) => {
     const provider = urls.length > 1
       ? `project-subscription-${String(index + 1).padStart(2, '0')}`
       : 'project-subscription'
     const sampleNode = projectMihomoVisibleNodes.value.find((node) => node.provider === provider)
     const customName = names[index]?.trim() || ''
+    const fetchMode = normalizeProjectMihomoSubscriptionFetchMode(fetchModes[index])
     return {
       index,
       url,
       provider,
       name: customName,
+      fetchMode,
+      fetchModeLabel: projectMihomoSubscriptionFetchModeLabel(fetchMode),
       label: customName || sampleNode?.provider_label || projectMihomoSourceLabel(url, index, urls.length),
       nodeCount: projectMihomoVisibleNodes.value.filter((node) => node.provider === provider).length
     }
@@ -1569,11 +1587,31 @@ const defaultProjectMihomoNodeExcludeKeywords = [
 ]
 const projectMihomoNodeExcludeKeywordsText = ref(defaultProjectMihomoNodeExcludeKeywords.join('\n'))
 const defaultProjectMihomoSubscriptionUserAgent = 'clash.meta'
+const defaultProjectMihomoSubscriptionFetchMode: ProjectMihomoSubscriptionFetchMode = 'mihomo'
+
+const normalizeProjectMihomoSubscriptionFetchMode = (mode?: string | null): ProjectMihomoSubscriptionFetchMode =>
+  mode === 'backend' ? 'backend' : defaultProjectMihomoSubscriptionFetchMode
+
+const projectMihomoSubscriptionFetchModeLabel = (mode?: string | null) =>
+  normalizeProjectMihomoSubscriptionFetchMode(mode) === 'backend'
+    ? t('admin.proxies.projectMihomo.fetchModeBackend')
+    : t('admin.proxies.projectMihomo.fetchModeMihomo')
+
+const projectMihomoSubscriptionFetchModeHint = (mode?: string | null) =>
+  normalizeProjectMihomoSubscriptionFetchMode(mode) === 'backend'
+    ? t('admin.proxies.projectMihomo.fetchModeBackendHint')
+    : t('admin.proxies.projectMihomo.fetchModeMihomoHint')
+
+const projectMihomoSubscriptionFetchModeOptions = computed<SelectOption[]>(() => [
+  { value: 'mihomo', label: t('admin.proxies.projectMihomo.fetchModeMihomo') },
+  { value: 'backend', label: t('admin.proxies.projectMihomo.fetchModeBackend') }
+])
 
 const projectMihomoForm = reactive<ProjectMihomoSettings>({
   subscription_url: '',
   subscription_urls: [],
   subscription_names: [],
+  subscription_fetch_modes: [],
   subscription_user_agent: defaultProjectMihomoSubscriptionUserAgent,
   update_interval: 3600,
   protocol: 'socks5h',
@@ -1835,15 +1873,23 @@ const normalizeProjectMihomoNodeExcludeKeywords = () => {
   projectMihomoNodeExcludeKeywordsText.value = projectMihomoForm.node_exclude_keywords.join('\n')
 }
 
+const normalizeProjectMihomoSubscriptionFetchModes = () => {
+  const count = projectMihomoForm.subscription_urls?.length || 0
+  projectMihomoForm.subscription_fetch_modes = Array.from({ length: count }, (_, index) =>
+    normalizeProjectMihomoSubscriptionFetchMode(projectMihomoForm.subscription_fetch_modes?.[index])
+  )
+}
+
 const normalizeProjectMihomoSubscriptionUrls = () => {
   const pairs = (projectMihomoForm.subscription_urls || [])
     .map((item, index) => ({
       url: item.trim(),
-      name: projectMihomoForm.subscription_names?.[index]?.trim() || ''
+      name: projectMihomoForm.subscription_names?.[index]?.trim() || '',
+      fetchMode: normalizeProjectMihomoSubscriptionFetchMode(projectMihomoForm.subscription_fetch_modes?.[index])
     }))
     .filter((item) => item.url)
 
-  const deduped: Array<{ url: string; name: string }> = []
+  const deduped: Array<{ url: string; name: string; fetchMode: ProjectMihomoSubscriptionFetchMode }> = []
   const seen = new Set<string>()
   for (const item of pairs) {
     if (seen.has(item.url)) continue
@@ -1853,6 +1899,7 @@ const normalizeProjectMihomoSubscriptionUrls = () => {
 
   projectMihomoForm.subscription_urls = deduped.map((item) => item.url)
   projectMihomoForm.subscription_names = deduped.map((item) => item.name)
+  projectMihomoForm.subscription_fetch_modes = deduped.map((item) => item.fetchMode)
   projectMihomoForm.subscription_url = projectMihomoForm.subscription_urls[0] || ''
   ensureProjectMihomoSelectedProvider()
 }
@@ -1872,6 +1919,10 @@ const addProjectMihomoSubscriptionUrl = () => {
   const name = projectMihomoNewSubscriptionName.value.trim()
   projectMihomoForm.subscription_urls = [...(projectMihomoForm.subscription_urls || []), value]
   projectMihomoForm.subscription_names = [...(projectMihomoForm.subscription_names || []), name]
+  projectMihomoForm.subscription_fetch_modes = [
+    ...(projectMihomoForm.subscription_fetch_modes || []),
+    defaultProjectMihomoSubscriptionFetchMode
+  ]
   normalizeProjectMihomoSubscriptionUrls()
   const addedIndex = Math.max(0, projectMihomoForm.subscription_urls.findIndex((item) => item === value))
   const total = projectMihomoForm.subscription_urls.length
@@ -1885,6 +1936,7 @@ const addProjectMihomoSubscriptionUrl = () => {
 const removeProjectMihomoSubscriptionUrl = (index: number) => {
   projectMihomoForm.subscription_urls = (projectMihomoForm.subscription_urls || []).filter((_, current) => current !== index)
   projectMihomoForm.subscription_names = (projectMihomoForm.subscription_names || []).filter((_, current) => current !== index)
+  projectMihomoForm.subscription_fetch_modes = (projectMihomoForm.subscription_fetch_modes || []).filter((_, current) => current !== index)
   normalizeProjectMihomoSubscriptionUrls()
 }
 
@@ -1892,6 +1944,7 @@ const buildProjectMihomoPayload = (forceRemoveInUse = false): ProjectMihomoSetti
   ...projectMihomoForm,
   subscription_urls: [...(projectMihomoForm.subscription_urls || [])],
   subscription_names: [...(projectMihomoForm.subscription_names || [])],
+  subscription_fetch_modes: [...(projectMihomoForm.subscription_fetch_modes || [])],
   listener_ports: [...(projectMihomoForm.listener_ports || [])],
   listener_names: [...(projectMihomoForm.listener_names || [])],
   listener_regions: [...(projectMihomoForm.listener_regions || [])],
@@ -2258,7 +2311,13 @@ const syncProjectMihomoConfig = async () => {
   return false
 }
 
-const testProjectMihomoSourceNodes = async (source: { index: number; provider: string; url: string; name?: string }) => {
+const testProjectMihomoSourceNodes = async (source: {
+  index: number
+  provider: string
+  url: string
+  name?: string
+  fetchMode?: ProjectMihomoSubscriptionFetchMode
+}) => {
   const url = source.url.trim()
   if (!url) return
 
@@ -2273,7 +2332,8 @@ const testProjectMihomoSourceNodes = async (source: { index: number; provider: s
       ...buildProjectMihomoPayload(),
       subscription_url: url,
       subscription_urls: [url],
-      subscription_names: [source.name || '']
+      subscription_names: [source.name || ''],
+      subscription_fetch_modes: [normalizeProjectMihomoSubscriptionFetchMode(source.fetchMode)]
     }
     const result = await adminAPI.proxies.testProjectMihomoNodes(payload)
     const otherNodes = projectMihomoAvailableNodes.value.filter((node) => node.provider !== source.provider)

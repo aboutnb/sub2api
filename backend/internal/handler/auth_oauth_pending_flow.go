@@ -66,20 +66,22 @@ type bindPendingOAuthLoginRequest struct {
 }
 
 type createPendingOAuthAccountRequest struct {
-	Email            string `json:"email" binding:"required,email"`
-	VerifyCode       string `json:"verify_code,omitempty"`
-	Password         string `json:"password" binding:"required,min=6"`
-	InvitationCode   string `json:"invitation_code,omitempty"`
-	AffCode          string `json:"aff_code,omitempty"`
-	AdoptDisplayName *bool  `json:"adopt_display_name,omitempty"`
-	AdoptAvatar      *bool  `json:"adopt_avatar,omitempty"`
+	Email                 string                           `json:"email" binding:"required,email"`
+	VerifyCode            string                           `json:"verify_code,omitempty"`
+	Password              string                           `json:"password" binding:"required,min=6"`
+	InvitationCode        string                           `json:"invitation_code,omitempty"`
+	AffCode               string                           `json:"aff_code,omitempty"`
+	RegistrationChallenge *RegistrationChallengeSubmission `json:"registration_challenge,omitempty"`
+	AdoptDisplayName      *bool                            `json:"adopt_display_name,omitempty"`
+	AdoptAvatar           *bool                            `json:"adopt_avatar,omitempty"`
 }
 
 type sendPendingOAuthVerifyCodeRequest struct {
-	Email             string `json:"email" binding:"required,email"`
-	TurnstileToken    string `json:"turnstile_token,omitempty"`
-	PendingAuthToken  string `json:"pending_auth_token,omitempty"`
-	PendingOAuthToken string `json:"pending_oauth_token,omitempty"`
+	Email                 string                           `json:"email" binding:"required,email"`
+	TurnstileToken        string                           `json:"turnstile_token,omitempty"`
+	PendingAuthToken      string                           `json:"pending_auth_token,omitempty"`
+	PendingOAuthToken     string                           `json:"pending_oauth_token,omitempty"`
+	RegistrationChallenge *RegistrationChallengeSubmission `json:"registration_challenge,omitempty"`
 }
 
 func (r bindPendingOAuthLoginRequest) adoptionDecision() oauthAdoptionDecisionRequest {
@@ -561,6 +563,11 @@ func (h *AuthHandler) SendPendingOAuthVerifyCode(c *gin.Context) {
 	var req sendPendingOAuthVerifyCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := h.requireRegistrationChallenge(c, "oauth_pending_send_verify_code", req.Email, req.RegistrationChallenge); err != nil {
+		response.ErrorFrom(c, err)
 		return
 	}
 
@@ -1704,6 +1711,11 @@ func (h *AuthHandler) createPendingOAuthAccount(c *gin.Context, provider string)
 	var req createPendingOAuthAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := h.requireRegistrationChallenge(c, "oauth_pending_create_account", req.Email, req.RegistrationChallenge); err != nil {
+		response.ErrorFrom(c, err)
 		return
 	}
 

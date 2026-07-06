@@ -184,6 +184,15 @@
                 <li>{{ t('redeem.codeRule2') }}</li>
                 <li>
                   {{ t('redeem.codeRule3') }}
+                  <a
+                    href="https://t.me/wable77"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="ml-1.5 inline-flex items-center rounded-md bg-primary-200/60 px-2 py-0.5 text-xs font-semibold text-primary-900 underline-offset-2 transition-colors hover:bg-primary-300/70 hover:underline dark:bg-primary-800/50 dark:text-primary-100 dark:hover:bg-primary-700/60"
+                    aria-label="Telegram @wable77"
+                  >
+                    TG：@wable77
+                  </a>
                   <span
                     v-if="contactInfo"
                     class="ml-1.5 inline-flex items-center rounded-md bg-primary-200/50 px-2 py-0.5 text-xs font-medium text-primary-800 dark:bg-primary-800/40 dark:text-primary-200"

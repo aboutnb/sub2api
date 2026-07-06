@@ -466,6 +466,20 @@ export default {
     loginFailed: 'Login failed. Please check your credentials and try again.',
     errors: {
       USER_NOT_ACTIVE: 'Account has been disabled.',
+      EMAIL_ALIAS_NOT_ALLOWED:
+        'Email aliases are not supported for registration. Use the primary email address.',
+      EMAIL_DISPOSABLE_NOT_ALLOWED:
+        'Disposable email addresses are not supported for registration. Use a long-term email address.',
+      REGISTRATION_CHALLENGE_REQUIRED:
+        'Registration verification expired. Refresh the page and try again.',
+      REGISTRATION_CHALLENGE_INVALID:
+        'Registration verification failed. Refresh the page and try again.',
+      REGISTRATION_TOO_MANY_ATTEMPTS:
+        'Too many registration attempts. Please try again later.',
+      REGISTRATION_RISK_CONTROL_UNAVAILABLE:
+        'Registration verification is temporarily unavailable. Please try again later.',
+      VERIFY_CODE_CONTEXT_MISMATCH:
+        'The verification code context changed. Please request a new code.',
     },
     registrationFailed: 'Registration failed. Please try again.',
     emailSuffixNotAllowed: 'This email domain is not allowed for registration.',
@@ -4527,6 +4541,11 @@ export default {
         proxySourceNamePlaceholder: 'e.g. Japan feed',
         proxySourcePlaceholder: 'Paste a Clash subscription URL',
         proxySourceFallback: 'Source {index}',
+        fetchMode: 'Fetch mode',
+        fetchModeMihomo: 'Mihomo fetch',
+        fetchModeMihomoHint: 'Mihomo requests this subscription directly, preserving Mihomo/Clash request behavior for providers that auto-detect UA or block backend HTTP clients.',
+        fetchModeBackend: 'Backend static file',
+        fetchModeBackendHint: 'Sub2API downloads and stores a static provider file. If the subscription URL expires or refresh fails, the previous file stays usable; removing the source cleans up its file.',
         targetHost: 'Project proxy host',
         controllerUrl: 'Controller URL',
         startPort: 'Start port',

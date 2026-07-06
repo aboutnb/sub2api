@@ -1012,11 +1012,15 @@ func TestCreateOIDCOAuthAccountCreatesUserBindsIdentityAndConsumesSession(t *tes
 		Save(ctx)
 	require.NoError(t, err)
 
-	body := bytes.NewBufferString(`{"email":"fresh@example.com","verify_code":"246810","password":"secret-123","adopt_display_name":false,"adopt_avatar":false}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegistrationChallengeJSONRequestForTest(t, handler, ginCtx, "/api/v1/auth/oauth/oidc/create-account", "fresh@example.com", "oauth_pending_create_account", map[string]any{
+		"email":              "fresh@example.com",
+		"verify_code":        "246810",
+		"password":           "secret-123",
+		"adopt_display_name": false,
+		"adopt_avatar":       false,
+	})
 	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
 	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("create-account-browser-session-key")})
 	ginCtx.Request = req
@@ -1084,11 +1088,13 @@ func TestCreateOIDCOAuthAccountAppliesPromoCodeFromPendingSession(t *testing.T) 
 		Save(ctx)
 	require.NoError(t, err)
 
-	body := bytes.NewBufferString(`{"email":"promo@example.com","verify_code":"246810","password":"secret-123"}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegistrationChallengeJSONRequestForTest(t, handler, ginCtx, "/api/v1/auth/oauth/oidc/create-account", "promo@example.com", "oauth_pending_create_account", map[string]any{
+		"email":       "promo@example.com",
+		"verify_code": "246810",
+		"password":    "secret-123",
+	})
 	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
 	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue(session.BrowserSessionKey)})
 	ginCtx.Request = req
@@ -1137,11 +1143,13 @@ func TestCreateOIDCOAuthAccountWithoutPromoCodeDoesNotApplyPromo(t *testing.T) {
 		Save(ctx)
 	require.NoError(t, err)
 
-	body := bytes.NewBufferString(`{"email":"no-promo@example.com","verify_code":"246810","password":"secret-123"}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegistrationChallengeJSONRequestForTest(t, handler, ginCtx, "/api/v1/auth/oauth/oidc/create-account", "no-promo@example.com", "oauth_pending_create_account", map[string]any{
+		"email":       "no-promo@example.com",
+		"verify_code": "246810",
+		"password":    "secret-123",
+	})
 	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
 	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue(session.BrowserSessionKey)})
 	ginCtx.Request = req
@@ -1189,11 +1197,13 @@ func TestCreateOIDCOAuthAccountDoesNotApplyPromoWhenDisabled(t *testing.T) {
 		Save(ctx)
 	require.NoError(t, err)
 
-	body := bytes.NewBufferString(`{"email":"promo-disabled@example.com","verify_code":"246810","password":"secret-123"}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegistrationChallengeJSONRequestForTest(t, handler, ginCtx, "/api/v1/auth/oauth/oidc/create-account", "promo-disabled@example.com", "oauth_pending_create_account", map[string]any{
+		"email":       "promo-disabled@example.com",
+		"verify_code": "246810",
+		"password":    "secret-123",
+	})
 	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
 	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue(session.BrowserSessionKey)})
 	ginCtx.Request = req
@@ -1275,11 +1285,13 @@ func TestCreateOIDCOAuthAccountExistingEmailReturnsChoicePendingSessionState(t *
 		Save(ctx)
 	require.NoError(t, err)
 
-	body := bytes.NewBufferString(`{"email":"owner@example.com","verify_code":"135790","password":"secret-123"}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegistrationChallengeJSONRequestForTest(t, handler, ginCtx, "/api/v1/auth/oauth/oidc/create-account", "owner@example.com", "oauth_pending_create_account", map[string]any{
+		"email":       "owner@example.com",
+		"verify_code": "135790",
+		"password":    "secret-123",
+	})
 	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
 	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("existing-email-browser-session-key")})
 	ginCtx.Request = req
@@ -1349,11 +1361,13 @@ func TestCreateOIDCOAuthAccountExistingEmailNormalizesLegacySpacingAndCase(t *te
 		Save(ctx)
 	require.NoError(t, err)
 
-	body := bytes.NewBufferString(`{"email":"owner@example.com","verify_code":"135790","password":"secret-123"}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegistrationChallengeJSONRequestForTest(t, handler, ginCtx, "/api/v1/auth/oauth/oidc/create-account", "owner@example.com", "oauth_pending_create_account", map[string]any{
+		"email":       "owner@example.com",
+		"verify_code": "135790",
+		"password":    "secret-123",
+	})
 	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
 	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("existing-email-normalized-browser-session-key")})
 	ginCtx.Request = req
@@ -1406,11 +1420,13 @@ func TestCreateOIDCOAuthAccountRejectsEmailOutsideRegistrationSuffixWhitelist(t 
 		Save(ctx)
 	require.NoError(t, err)
 
-	body := bytes.NewBufferString(`{"email":"foo@gmail.com","verify_code":"135790","password":"secret-123"}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegistrationChallengeJSONRequestForTest(t, handler, ginCtx, "/api/v1/auth/oauth/oidc/create-account", "foo@gmail.com", "oauth_pending_create_account", map[string]any{
+		"email":       "foo@gmail.com",
+		"verify_code": "135790",
+		"password":    "secret-123",
+	})
 	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
 	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("suffix-whitelist-browser-session-key")})
 	ginCtx.Request = req
@@ -1456,11 +1472,32 @@ func TestSendPendingOAuthVerifyCodeExistingEmailReturnsBindLoginState(t *testing
 		Save(ctx)
 	require.NoError(t, err)
 
-	body := bytes.NewBufferString(`{"email":"owner@example.com"}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/pending/send-verify-code", body)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/pending/send-verify-code", nil)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 pending-oauth-send-code-test")
+	req.Header.Set("CF-Connecting-IP", "203.0.113.88")
+	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
+	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("existing-email-send-code-browser-session-key")})
+	ginCtx.Request = req
+	challenge := buildRegistrationChallengeSubmissionForTest(
+		t,
+		handler,
+		ginCtx,
+		"owner@example.com",
+		"oauth_pending_send_verify_code",
+		"",
+	)
+	bodyBytes, err := json.Marshal(map[string]any{
+		"email":                  "owner@example.com",
+		"registration_challenge": challenge,
+	})
+	require.NoError(t, err)
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/pending/send-verify-code", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 pending-oauth-send-code-test")
+	req.Header.Set("CF-Connecting-IP", "203.0.113.88")
 	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
 	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("existing-email-send-code-browser-session-key")})
 	ginCtx.Request = req
@@ -1515,11 +1552,13 @@ func TestCreateOIDCOAuthAccountBlocksBackendModeBeforeCreatingUser(t *testing.T)
 		Save(ctx)
 	require.NoError(t, err)
 
-	body := bytes.NewBufferString(`{"email":"fresh@example.com","verify_code":"246810","password":"secret-123"}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegistrationChallengeJSONRequestForTest(t, handler, ginCtx, "/api/v1/auth/oauth/oidc/create-account", "fresh@example.com", "oauth_pending_create_account", map[string]any{
+		"email":       "fresh@example.com",
+		"verify_code": "246810",
+		"password":    "secret-123",
+	})
 	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
 	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("create-account-backend-mode-browser-session-key")})
 	ginCtx.Request = req
@@ -1604,11 +1643,14 @@ func TestCreateOIDCOAuthAccountRollsBackCreatedUserWhenBindingFails(t *testing.T
 		Save(ctx)
 	require.NoError(t, err)
 
-	body := bytes.NewBufferString(`{"email":"fresh@example.com","verify_code":"246810","password":"secret-123","invitation_code":"INVITE123"}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegistrationChallengeJSONRequestForTest(t, handler, ginCtx, "/api/v1/auth/oauth/oidc/create-account", "fresh@example.com", "oauth_pending_create_account", map[string]any{
+		"email":           "fresh@example.com",
+		"verify_code":     "246810",
+		"password":        "secret-123",
+		"invitation_code": "INVITE123",
+	})
 	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
 	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("create-account-conflict-browser-session-key")})
 	ginCtx.Request = req
@@ -1672,11 +1714,13 @@ func TestCreateOIDCOAuthAccountRollsBackPostBindFailureBeforeIdentityCanCommit(t
 		pendingOAuthCreateAccountPreCommitHook = nil
 	})
 
-	body := bytes.NewBufferString(`{"email":"fresh@example.com","verify_code":"246810","password":"secret-123"}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegistrationChallengeJSONRequestForTest(t, handler, ginCtx, "/api/v1/auth/oauth/oidc/create-account", "fresh@example.com", "oauth_pending_create_account", map[string]any{
+		"email":       "fresh@example.com",
+		"verify_code": "246810",
+		"password":    "secret-123",
+	})
 	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
 	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("create-account-finalize-failure-browser-session-key")})
 	ginCtx.Request = req

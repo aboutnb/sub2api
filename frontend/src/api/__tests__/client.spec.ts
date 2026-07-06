@@ -143,6 +143,108 @@ describe('API Client', () => {
       const config = adapter.mock.calls[0][0]
       expect(config.headers.get('x-custom-public-key')).toBe('pub-test-key')
     })
+
+    it('注册相关接口自动附加注册挑战载荷', async () => {
+      vi.spyOn(axios, 'get').mockResolvedValue({
+        data: {
+          code: 0,
+          data: {
+            token: 'challenge-token',
+            issued_at: Date.now() - 2_000,
+            expires_at: Date.now() + 60_000,
+            min_elapsed_ms: 900,
+            trap_field: 'company_website_test',
+            salt: 'challenge-salt'
+          }
+        }
+      })
+
+      const adapter = vi.fn().mockResolvedValue({
+        status: 200,
+        data: { code: 0, data: {} },
+        headers: {},
+        config: {},
+        statusText: 'OK',
+      })
+      apiClient.defaults.adapter = adapter
+
+      await apiClient.post('/auth/register', {
+        email: 'User@Example.com',
+        password: 'secret-123'
+      })
+
+      expect(axios.get).toHaveBeenCalledWith(
+        '/auth/registration-challenge',
+        expect.objectContaining({ withCredentials: true })
+      )
+      const config = adapter.mock.calls[0][0]
+      const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
+      expect(body.registration_challenge).toEqual(
+        expect.objectContaining({
+          token: 'challenge-token',
+          trap_field: 'company_website_test',
+          trap_value: ''
+        })
+      )
+      expect(body.registration_challenge.proof).toEqual(expect.any(String))
+    })
+
+    it('注册相关接口不会复用已提交的注册挑战', async () => {
+      const now = Date.now()
+      vi.spyOn(axios, 'get')
+        .mockResolvedValueOnce({
+          data: {
+            code: 0,
+            data: {
+              token: 'challenge-token-1',
+              issued_at: now - 2_000,
+              expires_at: now + 60_000,
+              min_elapsed_ms: 0,
+              trap_field: 'company_website_test_1',
+              salt: 'challenge-salt-1'
+            }
+          }
+        })
+        .mockResolvedValueOnce({
+          data: {
+            code: 0,
+            data: {
+              token: 'challenge-token-2',
+              issued_at: now - 2_000,
+              expires_at: now + 60_000,
+              min_elapsed_ms: 0,
+              trap_field: 'company_website_test_2',
+              salt: 'challenge-salt-2'
+            }
+          }
+        })
+
+      const adapter = vi.fn().mockResolvedValue({
+        status: 200,
+        data: { code: 0, data: {} },
+        headers: {},
+        config: {},
+        statusText: 'OK',
+      })
+      apiClient.defaults.adapter = adapter
+
+      await apiClient.post('/auth/send-verify-code', {
+        email: 'user@example.com'
+      })
+      await apiClient.post('/auth/register', {
+        email: 'user@example.com',
+        password: 'secret-123',
+        verify_code: '123456'
+      })
+
+      expect(axios.get).toHaveBeenCalledTimes(2)
+      const firstRawBody = adapter.mock.calls[0][0].data
+      const secondRawBody = adapter.mock.calls[1][0].data
+      const firstBody = typeof firstRawBody === 'string' ? JSON.parse(firstRawBody) : firstRawBody
+      const secondBody = typeof secondRawBody === 'string' ? JSON.parse(secondRawBody) : secondRawBody
+      expect(firstBody.registration_challenge.token).toBe('challenge-token-1')
+      expect(secondBody.registration_challenge.token).toBe('challenge-token-2')
+    })
   })
 
   // --- 响应拦截器 ---

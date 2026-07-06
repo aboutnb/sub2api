@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
 	"os"
 	"strings"
@@ -574,14 +575,15 @@ type CORSConfig struct {
 }
 
 type SecurityConfig struct {
-	URLAllowlist                     URLAllowlistConfig      `mapstructure:"url_allowlist"`
-	ResponseHeaders                  ResponseHeaderConfig    `mapstructure:"response_headers"`
-	CSP                              CSPConfig               `mapstructure:"csp"`
-	ProxyFallback                    ProxyFallbackConfig     `mapstructure:"proxy_fallback"`
-	ProxyProbe                       ProxyProbeConfig        `mapstructure:"proxy_probe"`
-	PublicAccessGuard                PublicAccessGuardConfig `mapstructure:"public_access_guard"`
-	TrustForwardedIPForAPIKeyACL     bool                    `mapstructure:"trust_forwarded_ip_for_api_key_acl"`
-	trustForwardedIPForAPIKeyACLLive *atomic.Bool            `mapstructure:"-"`
+	URLAllowlist                     URLAllowlistConfig             `mapstructure:"url_allowlist"`
+	ResponseHeaders                  ResponseHeaderConfig           `mapstructure:"response_headers"`
+	CSP                              CSPConfig                      `mapstructure:"csp"`
+	ProxyFallback                    ProxyFallbackConfig            `mapstructure:"proxy_fallback"`
+	ProxyProbe                       ProxyProbeConfig               `mapstructure:"proxy_probe"`
+	PublicAccessGuard                PublicAccessGuardConfig        `mapstructure:"public_access_guard"`
+	CloudflareSiteProtection         CloudflareSiteProtectionConfig `mapstructure:"cloudflare_site_protection"`
+	TrustForwardedIPForAPIKeyACL     bool                           `mapstructure:"trust_forwarded_ip_for_api_key_acl"`
+	trustForwardedIPForAPIKeyACLLive *atomic.Bool                   `mapstructure:"-"`
 }
 
 func (c *Config) TrustForwardedIPForAPIKeyACL() bool {
@@ -651,6 +653,20 @@ type PublicAccessGuardConfig struct {
 	ProtectSitePublicPOST      bool     `mapstructure:"protect_site_public_post"`
 	RejectMalformedGatewayKeys bool     `mapstructure:"reject_malformed_gateway_keys"`
 	GatewayKeyAllowedPrefixes  []string `mapstructure:"gateway_key_allowed_prefixes"`
+}
+
+// CloudflareSiteProtectionConfig rejects direct-to-origin site requests that do
+// not carry the expected Cloudflare/reverse-proxy markers. It is an origin guard,
+// not a replacement for Cloudflare WAF/rate limiting or origin firewall rules.
+type CloudflareSiteProtectionConfig struct {
+	Enabled              bool     `mapstructure:"enabled"`
+	RequiredHeaders      []string `mapstructure:"required_headers"`
+	RequiredSecretHeader string   `mapstructure:"required_secret_header"`
+	RequiredSecretValue  string   `mapstructure:"required_secret_value"`
+	TrustedProxyCIDRs    []string `mapstructure:"trusted_proxy_cidrs"`
+	ProtectedPrefixes    []string `mapstructure:"protected_prefixes"`
+	BypassPaths          []string `mapstructure:"bypass_paths"`
+	BypassPrefixes       []string `mapstructure:"bypass_prefixes"`
 }
 
 type BillingConfig struct {
@@ -1487,6 +1503,13 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	cfg.Security.PublicAccessGuard.PublishKey = strings.TrimSpace(cfg.Security.PublicAccessGuard.PublishKey)
 	cfg.Security.PublicAccessGuard.HeaderName = strings.TrimSpace(cfg.Security.PublicAccessGuard.HeaderName)
 	cfg.Security.PublicAccessGuard.GatewayKeyAllowedPrefixes = normalizeStringSlice(cfg.Security.PublicAccessGuard.GatewayKeyAllowedPrefixes)
+	cfg.Security.CloudflareSiteProtection.RequiredHeaders = normalizeStringSlice(cfg.Security.CloudflareSiteProtection.RequiredHeaders)
+	cfg.Security.CloudflareSiteProtection.RequiredSecretHeader = strings.TrimSpace(cfg.Security.CloudflareSiteProtection.RequiredSecretHeader)
+	cfg.Security.CloudflareSiteProtection.RequiredSecretValue = strings.TrimSpace(cfg.Security.CloudflareSiteProtection.RequiredSecretValue)
+	cfg.Security.CloudflareSiteProtection.TrustedProxyCIDRs = normalizeStringSlice(cfg.Security.CloudflareSiteProtection.TrustedProxyCIDRs)
+	cfg.Security.CloudflareSiteProtection.ProtectedPrefixes = normalizeStringSlice(cfg.Security.CloudflareSiteProtection.ProtectedPrefixes)
+	cfg.Security.CloudflareSiteProtection.BypassPaths = normalizeStringSlice(cfg.Security.CloudflareSiteProtection.BypassPaths)
+	cfg.Security.CloudflareSiteProtection.BypassPrefixes = normalizeStringSlice(cfg.Security.CloudflareSiteProtection.BypassPrefixes)
 	cfg.SetTrustForwardedIPForAPIKeyACL(cfg.Security.TrustForwardedIPForAPIKeyACL)
 	cfg.Log.Level = strings.ToLower(strings.TrimSpace(cfg.Log.Level))
 	cfg.Log.Format = strings.ToLower(strings.TrimSpace(cfg.Log.Format))
@@ -1645,6 +1668,27 @@ func setDefaults() {
 		"sk-ant_",
 		"sk-proj-",
 		"sk-proj_",
+	})
+	viper.SetDefault("security.cloudflare_site_protection.enabled", false)
+	viper.SetDefault("security.cloudflare_site_protection.required_headers", []string{
+		"CF-Connecting-IP",
+		"CF-Ray",
+	})
+	viper.SetDefault("security.cloudflare_site_protection.required_secret_header", "")
+	viper.SetDefault("security.cloudflare_site_protection.required_secret_value", "")
+	viper.SetDefault("security.cloudflare_site_protection.trusted_proxy_cidrs", []string{})
+	viper.SetDefault("security.cloudflare_site_protection.protected_prefixes", []string{"/"})
+	viper.SetDefault("security.cloudflare_site_protection.bypass_paths", []string{"/health"})
+	viper.SetDefault("security.cloudflare_site_protection.bypass_prefixes", []string{
+		"/v1",
+		"/v1beta",
+		"/responses",
+		"/chat/completions",
+		"/embeddings",
+		"/images",
+		"/videos",
+		"/backend-api/codex",
+		"/antigravity",
 	})
 
 	// Security - disable direct fallback on proxy error
@@ -2152,6 +2196,9 @@ func (c *Config) Validate() error {
 		if strings.TrimSpace(c.Security.PublicAccessGuard.HeaderName) == "" {
 			return fmt.Errorf("security.public_access_guard.header_name is required when public access guard is enabled")
 		}
+	}
+	if err := validateCloudflareSiteProtection(c.Security.CloudflareSiteProtection); err != nil {
+		return err
 	}
 	if c.LinuxDo.Enabled {
 		if strings.TrimSpace(c.LinuxDo.ClientID) == "" {
@@ -2895,6 +2942,90 @@ func normalizeStringSlice(values []string) []string {
 		normalized = append(normalized, trimmed)
 	}
 	return normalized
+}
+
+func validateCloudflareSiteProtection(cfg CloudflareSiteProtectionConfig) error {
+	if !cfg.Enabled {
+		return nil
+	}
+	hasSecret := strings.TrimSpace(cfg.RequiredSecretHeader) != "" || strings.TrimSpace(cfg.RequiredSecretValue) != ""
+	if len(cfg.RequiredHeaders) == 0 && !hasSecret && len(cfg.TrustedProxyCIDRs) == 0 {
+		return fmt.Errorf("security.cloudflare_site_protection requires at least one of required_headers, required_secret_header/value, or trusted_proxy_cidrs when enabled")
+	}
+	if strings.TrimSpace(cfg.RequiredSecretHeader) != "" && strings.TrimSpace(cfg.RequiredSecretValue) == "" {
+		return fmt.Errorf("security.cloudflare_site_protection.required_secret_value is required when required_secret_header is set")
+	}
+	if strings.TrimSpace(cfg.RequiredSecretHeader) == "" && strings.TrimSpace(cfg.RequiredSecretValue) != "" {
+		return fmt.Errorf("security.cloudflare_site_protection.required_secret_header is required when required_secret_value is set")
+	}
+	if strings.TrimSpace(cfg.RequiredSecretHeader) != "" && !isValidHTTPHeaderName(cfg.RequiredSecretHeader) {
+		return fmt.Errorf("security.cloudflare_site_protection.required_secret_header is invalid")
+	}
+	for _, header := range cfg.RequiredHeaders {
+		if !isValidHTTPHeaderName(header) {
+			return fmt.Errorf("security.cloudflare_site_protection.required_headers contains invalid header name %q", header)
+		}
+	}
+	for _, pattern := range cfg.TrustedProxyCIDRs {
+		if !isValidIPOrCIDR(pattern) {
+			return fmt.Errorf("security.cloudflare_site_protection.trusted_proxy_cidrs contains invalid IP/CIDR %q", pattern)
+		}
+	}
+	if len(cfg.ProtectedPrefixes) == 0 {
+		return fmt.Errorf("security.cloudflare_site_protection.protected_prefixes must not be empty when enabled")
+	}
+	if err := validatePathValues("security.cloudflare_site_protection.protected_prefixes", cfg.ProtectedPrefixes, true); err != nil {
+		return err
+	}
+	if err := validatePathValues("security.cloudflare_site_protection.bypass_paths", cfg.BypassPaths, true); err != nil {
+		return err
+	}
+	if err := validatePathValues("security.cloudflare_site_protection.bypass_prefixes", cfg.BypassPrefixes, false); err != nil {
+		return err
+	}
+	return nil
+}
+
+func isValidHTTPHeaderName(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	const separators = "()<>@,;:\\\"/[]?={}"
+	for _, r := range value {
+		if r <= 32 || r >= 127 || strings.ContainsRune(separators, r) {
+			return false
+		}
+	}
+	return true
+}
+
+func isValidIPOrCIDR(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	if strings.Contains(value, "/") {
+		_, _, err := net.ParseCIDR(value)
+		return err == nil
+	}
+	return net.ParseIP(value) != nil
+}
+
+func validatePathValues(name string, values []string, allowRoot bool) error {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if !strings.HasPrefix(value, "/") {
+			return fmt.Errorf("%s values must start with /", name)
+		}
+		if !allowRoot && value == "/" {
+			return fmt.Errorf("%s must not contain /", name)
+		}
+	}
+	return nil
 }
 
 func isWeakJWTSecret(secret string) bool {

@@ -26,21 +26,23 @@ import (
 )
 
 const (
-	projectMihomoConfigFilename  = "config.yaml"
-	projectMihomoProviderName    = "project-subscription"
-	projectMihomoProviderPath    = "./providers/project-subscription.yaml"
-	projectMihomoSubscriptionUA  = "clash.meta"
-	projectMihomoHTTPTimeout     = 10 * time.Second
-	projectMihomoReloadPath      = "/root/.config/mihomo/config.yaml"
-	projectMihomoDockerHost      = "mihomo-sub2api"
-	projectMihomoDockerPort      = "9097"
-	projectMihomoAssignWait      = 8 * time.Second
-	projectMihomoAssignPoll      = 500 * time.Millisecond
-	projectMihomoDelayURL        = "https://www.gstatic.com/generate_204"
-	projectMihomoDelayTimeoutMS  = 3000
-	projectMihomoDelayWorkers    = 32
-	projectMihomoProviderMaxSize = 16 << 20
-	projectMihomoPlaceholderHost = "dont.use.this.node"
+	projectMihomoConfigFilename   = "config.yaml"
+	projectMihomoProviderName     = "project-subscription"
+	projectMihomoProviderPath     = "./providers/project-subscription.yaml"
+	projectMihomoSubscriptionUA   = "clash.meta"
+	projectMihomoFetchModeMihomo  = "mihomo"
+	projectMihomoFetchModeBackend = "backend"
+	projectMihomoHTTPTimeout      = 10 * time.Second
+	projectMihomoReloadPath       = "/root/.config/mihomo/config.yaml"
+	projectMihomoDockerHost       = "mihomo-sub2api"
+	projectMihomoDockerPort       = "9097"
+	projectMihomoAssignWait       = 8 * time.Second
+	projectMihomoAssignPoll       = 500 * time.Millisecond
+	projectMihomoDelayURL         = "https://www.gstatic.com/generate_204"
+	projectMihomoDelayTimeoutMS   = 3000
+	projectMihomoDelayWorkers     = 32
+	projectMihomoProviderMaxSize  = 16 << 20
+	projectMihomoPlaceholderHost  = "dont.use.this.node"
 )
 
 var defaultProjectMihomoNodeExcludeKeywords = []string{
@@ -81,26 +83,27 @@ var projectMihomoRegionAliases = map[string][]string{
 }
 
 type ProjectMihomoSettings struct {
-	SubscriptionURL     string   `json:"subscription_url"`
-	SubscriptionURLs    []string `json:"subscription_urls"`
-	SubscriptionNames   []string `json:"subscription_names"`
-	SubscriptionUA      string   `json:"subscription_user_agent"`
-	UpdateInterval      int      `json:"update_interval"`
-	Protocol            string   `json:"protocol"`
-	TargetHost          string   `json:"target_host"`
-	StartPort           int      `json:"start_port"`
-	ListenerCount       int      `json:"listener_count"`
-	ListenerPorts       []int    `json:"listener_ports"`
-	ListenerNames       []string `json:"listener_names"`
-	ControllerURL       string   `json:"controller_url"`
-	ControllerSecret    string   `json:"controller_secret"`
-	ProxyNamePrefix     string   `json:"proxy_name_prefix"`
-	ListenerRegions     []string `json:"listener_regions"`
-	AutoRouteEnabled    bool     `json:"auto_route_enabled"`
-	AutoRouteTolerance  int      `json:"auto_route_tolerance"`
-	AutoRouteInterval   int      `json:"auto_route_interval"`
-	NodeExcludeEnabled  bool     `json:"node_exclude_enabled"`
-	NodeExcludeKeywords []string `json:"node_exclude_keywords"`
+	SubscriptionURL        string   `json:"subscription_url"`
+	SubscriptionURLs       []string `json:"subscription_urls"`
+	SubscriptionNames      []string `json:"subscription_names"`
+	SubscriptionFetchModes []string `json:"subscription_fetch_modes"`
+	SubscriptionUA         string   `json:"subscription_user_agent"`
+	UpdateInterval         int      `json:"update_interval"`
+	Protocol               string   `json:"protocol"`
+	TargetHost             string   `json:"target_host"`
+	StartPort              int      `json:"start_port"`
+	ListenerCount          int      `json:"listener_count"`
+	ListenerPorts          []int    `json:"listener_ports"`
+	ListenerNames          []string `json:"listener_names"`
+	ControllerURL          string   `json:"controller_url"`
+	ControllerSecret       string   `json:"controller_secret"`
+	ProxyNamePrefix        string   `json:"proxy_name_prefix"`
+	ListenerRegions        []string `json:"listener_regions"`
+	AutoRouteEnabled       bool     `json:"auto_route_enabled"`
+	AutoRouteTolerance     int      `json:"auto_route_tolerance"`
+	AutoRouteInterval      int      `json:"auto_route_interval"`
+	NodeExcludeEnabled     bool     `json:"node_exclude_enabled"`
+	NodeExcludeKeywords    []string `json:"node_exclude_keywords"`
 }
 
 type ProjectMihomoProxy struct {
@@ -158,6 +161,7 @@ type projectMihomoProviderRef struct {
 	Name        string
 	Path        string
 	URL         string
+	FetchMode   string
 	DisplayName string
 }
 
@@ -176,26 +180,27 @@ func DefaultProjectMihomoSettings() ProjectMihomoSettings {
 		controllerURL = "http://127.0.0.1:9097"
 	}
 	return ProjectMihomoSettings{
-		SubscriptionURL:     "",
-		SubscriptionURLs:    nil,
-		SubscriptionNames:   nil,
-		SubscriptionUA:      projectMihomoSubscriptionUA,
-		UpdateInterval:      3600,
-		Protocol:            "socks5h",
-		TargetHost:          targetHost,
-		StartPort:           61000,
-		ListenerCount:       4,
-		ListenerPorts:       []int{61000, 61001, 61002, 61003},
-		ListenerNames:       []string{"project-mihomo-01", "project-mihomo-02", "project-mihomo-03", "project-mihomo-04"},
-		ControllerURL:       controllerURL,
-		ControllerSecret:    "",
-		ProxyNamePrefix:     "project-mihomo",
-		ListenerRegions:     make([]string, 4),
-		AutoRouteEnabled:    false,
-		AutoRouteTolerance:  150,
-		AutoRouteInterval:   300,
-		NodeExcludeEnabled:  false,
-		NodeExcludeKeywords: copyProjectMihomoDefaultNodeExcludeKeywords(),
+		SubscriptionURL:        "",
+		SubscriptionURLs:       nil,
+		SubscriptionNames:      nil,
+		SubscriptionFetchModes: nil,
+		SubscriptionUA:         projectMihomoSubscriptionUA,
+		UpdateInterval:         3600,
+		Protocol:               "socks5h",
+		TargetHost:             targetHost,
+		StartPort:              61000,
+		ListenerCount:          4,
+		ListenerPorts:          []int{61000, 61001, 61002, 61003},
+		ListenerNames:          []string{"project-mihomo-01", "project-mihomo-02", "project-mihomo-03", "project-mihomo-04"},
+		ControllerURL:          controllerURL,
+		ControllerSecret:       "",
+		ProxyNamePrefix:        "project-mihomo",
+		ListenerRegions:        make([]string, 4),
+		AutoRouteEnabled:       false,
+		AutoRouteTolerance:     150,
+		AutoRouteInterval:      300,
+		NodeExcludeEnabled:     false,
+		NodeExcludeKeywords:    copyProjectMihomoDefaultNodeExcludeKeywords(),
 	}
 }
 
@@ -491,6 +496,7 @@ func (s *ProjectMihomoService) normalize(settings *ProjectMihomoSettings) {
 	settings.SubscriptionURL = strings.TrimSpace(settings.SubscriptionURL)
 	settings.SubscriptionURLs = normalizeProjectMihomoSubscriptionURLs(settings.SubscriptionURLs, settings.SubscriptionURL)
 	settings.SubscriptionNames = normalizeProjectMihomoSubscriptionNames(settings.SubscriptionNames, len(settings.SubscriptionURLs))
+	settings.SubscriptionFetchModes = normalizeProjectMihomoSubscriptionFetchModes(settings.SubscriptionFetchModes, len(settings.SubscriptionURLs))
 	if len(settings.SubscriptionURLs) > 0 {
 		settings.SubscriptionURL = settings.SubscriptionURLs[0]
 	} else {
@@ -734,6 +740,31 @@ func normalizeProjectMihomoSubscriptionNames(names []string, count int) []string
 		}
 	}
 	return out
+}
+
+func normalizeProjectMihomoSubscriptionFetchModes(modes []string, count int) []string {
+	if count <= 0 {
+		return nil
+	}
+
+	out := make([]string, count)
+	for i := 0; i < count; i++ {
+		if i < len(modes) {
+			out[i] = normalizeProjectMihomoSubscriptionFetchMode(modes[i])
+			continue
+		}
+		out[i] = projectMihomoFetchModeMihomo
+	}
+	return out
+}
+
+func normalizeProjectMihomoSubscriptionFetchMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case projectMihomoFetchModeBackend:
+		return projectMihomoFetchModeBackend
+	default:
+		return projectMihomoFetchModeMihomo
+	}
 }
 
 func resolveProjectMihomoListenerRegions(regions []string, availableRegions []string) []string {
@@ -1220,8 +1251,6 @@ func (s *ProjectMihomoService) renderConfig(settings *ProjectMihomoSettings) ([]
 		item := providers[i]
 		providerNames = append(providerNames, item.Name)
 		providerConfig := map[string]any{
-			"type": "file",
-			"path": item.Path,
 			"health-check": map[string]any{
 				"enable":   true,
 				"url":      "https://www.gstatic.com/generate_204",
@@ -1229,6 +1258,24 @@ func (s *ProjectMihomoService) renderConfig(settings *ProjectMihomoSettings) ([]
 				"timeout":  5000,
 				"lazy":     true,
 			},
+		}
+		if item.FetchMode == projectMihomoFetchModeBackend {
+			providerConfig["type"] = "file"
+			providerConfig["path"] = item.Path
+		} else {
+			updateInterval := settings.UpdateInterval
+			if updateInterval <= 0 {
+				updateInterval = DefaultProjectMihomoSettings().UpdateInterval
+			}
+			providerConfig["type"] = "http"
+			providerConfig["url"] = item.URL
+			providerConfig["path"] = item.Path
+			providerConfig["interval"] = updateInterval
+			if strings.TrimSpace(settings.SubscriptionUA) != "" {
+				providerConfig["header"] = map[string]any{
+					"User-Agent": []string{strings.TrimSpace(settings.SubscriptionUA)},
+				}
+			}
 		}
 		if excludeFilter := projectMihomoNodeExcludeFilter(settings); excludeFilter != "" {
 			providerConfig["exclude-filter"] = excludeFilter
@@ -2081,13 +2128,20 @@ func (s *ProjectMihomoService) ensureProviderFiles(ctx context.Context, previous
 	}
 
 	for _, provider := range providers {
+		if provider.FetchMode != projectMihomoFetchModeBackend {
+			continue
+		}
 		targetPath := s.providerCachePathFor(provider.Path)
 		currentURL := strings.TrimSpace(provider.URL)
 		previousURL := previousURLs[provider.Name]
-		if currentURL == previousURL {
-			if _, err := os.Stat(targetPath); err == nil {
-				continue
-			}
+		targetExists := false
+		if _, err := os.Stat(targetPath); err == nil {
+			targetExists = true
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("stat mihomo provider file: %w", err)
+		}
+		if currentURL == previousURL && targetExists {
+			continue
 		}
 		if reused, err := s.restoreProviderFileFromPrevious(previousRefs, currentURL, targetPath); err != nil {
 			return err
@@ -2096,6 +2150,9 @@ func (s *ProjectMihomoService) ensureProviderFiles(ctx context.Context, previous
 		}
 		content, err := s.fetchProviderContent(ctx, client, current.SubscriptionUA, currentURL)
 		if err != nil {
+			if shouldKeepExistingProjectMihomoProviderFile(previousRefs, previousURL, currentURL, targetExists) {
+				continue
+			}
 			return err
 		}
 		if err := os.WriteFile(targetPath, content, 0o644); err != nil {
@@ -2103,6 +2160,19 @@ func (s *ProjectMihomoService) ensureProviderFiles(ctx context.Context, previous
 		}
 	}
 	return s.pruneProviderFiles(current)
+}
+
+func shouldKeepExistingProjectMihomoProviderFile(previousRefs []projectMihomoProviderRef, previousURL, currentURL string, targetExists bool) bool {
+	if !targetExists || strings.TrimSpace(previousURL) == "" {
+		return false
+	}
+	currentURL = strings.TrimSpace(currentURL)
+	for _, ref := range previousRefs {
+		if strings.TrimSpace(ref.URL) == currentURL {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *ProjectMihomoService) restoreProviderFileFromPrevious(previousRefs []projectMihomoProviderRef, currentURL, targetPath string) (bool, error) {
@@ -2364,6 +2434,7 @@ func buildProjectMihomoProviderRefs(settings *ProjectMihomoSettings) []projectMi
 	if len(urls) == 0 {
 		return nil
 	}
+	fetchModes := normalizeProjectMihomoSubscriptionFetchModes(settings.SubscriptionFetchModes, len(urls))
 
 	out := make([]projectMihomoProviderRef, 0, len(urls))
 	if len(urls) == 1 {
@@ -2375,6 +2446,7 @@ func buildProjectMihomoProviderRefs(settings *ProjectMihomoSettings) []projectMi
 			Name:        projectMihomoProviderName,
 			Path:        projectMihomoProviderPath,
 			URL:         urls[0],
+			FetchMode:   fetchModes[0],
 			DisplayName: label,
 		}}
 	}
@@ -2389,6 +2461,7 @@ func buildProjectMihomoProviderRefs(settings *ProjectMihomoSettings) []projectMi
 			Name:        projectMihomoProviderName + suffix,
 			Path:        "./providers/" + projectMihomoProviderName + suffix + ".yaml",
 			URL:         urls[i],
+			FetchMode:   fetchModes[i],
 			DisplayName: label,
 		})
 	}

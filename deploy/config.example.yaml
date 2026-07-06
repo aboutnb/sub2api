@@ -148,7 +148,7 @@ security:
     enabled: false
     # Example: set a random public marker and keep it stable across rolling restarts.
     # 示例：设置一个随机公开标记，滚动重启期间保持一致。
-    publish_key: "9c07c119-b6ad-4eb5-97c6-b725d0cd3fbf"
+    publish_key: "replace-with-random-public-marker"
     # Header automatically attached by the official frontend when enabled.
     # 官方前端启用后会自动携带的 Header。
     # If you customize it for cross-origin deployments, also allow it in CORS/reverse proxy rules.
@@ -169,6 +169,51 @@ security:
       - "sk-ant_"
       - "sk-proj-"
       - "sk-proj_"
+  cloudflare_site_protection:
+    # Origin direct-access guard for the first-party website and /api/v1 site APIs.
+    # Cloudflare 站点源站直连防护：保护一方站点和 /api/v1 站点接口。
+    # This rejects site traffic that does not carry Cloudflare/reverse-proxy markers.
+    # 这会拒绝没有 Cloudflare/反代标记的站点流量。
+    # It does not replace Cloudflare WAF/rate limiting/origin firewall rules.
+    # 它不能替代 Cloudflare WAF、限流或源站防火墙规则。
+    enabled: false
+    # Headers expected on requests forwarded by Cloudflare.
+    # 经过 Cloudflare 转发时应存在的请求头。
+    # Set to [] if you rely only on required_secret_header or trusted_proxy_cidrs.
+    # 如果只依赖 secret header 或 CIDR 白名单，可设为 []。
+    required_headers:
+      - "CF-Connecting-IP"
+      - "CF-Ray"
+    # Optional stronger origin guard: configure a Cloudflare Transform Rule or your reverse proxy
+    # to inject this private header before forwarding to the origin.
+    # 可选的更强源站保护：在 Cloudflare Transform Rule 或反代中注入该私密 Header。
+    required_secret_header: ""
+    required_secret_value: ""
+    # Optional RemoteAddr allowlist for Cloudflare/proxy IPs. Use CIDR or single IP values.
+    # 可选 RemoteAddr 白名单，填 Cloudflare/反代出口 IP，支持 CIDR 或单个 IP。
+    # If your app sits behind Nginx on 127.0.0.1, enforce Cloudflare IPs in Nginx/firewall instead.
+    # 如果应用在 Nginx 后且 RemoteAddr 是 127.0.0.1，应在 Nginx/防火墙层限制 Cloudflare IP。
+    trusted_proxy_cidrs: []
+    # Protected site prefixes. Default "/" protects the embedded frontend and /api/v1 site APIs.
+    # 受保护的站点前缀。默认 "/" 会保护内置前端和 /api/v1 站点接口。
+    protected_prefixes:
+      - "/"
+    # Exact paths that remain reachable without Cloudflare markers.
+    # 不要求 Cloudflare 标记的精确路径。
+    bypass_paths:
+      - "/health"
+    # Gateway/client API paths are bypassed by default to avoid breaking SDK/CLI clients.
+    # 默认绕过模型网关/客户端 API，避免影响 SDK/CLI 客户端。
+    bypass_prefixes:
+      - "/v1"
+      - "/v1beta"
+      - "/responses"
+      - "/chat/completions"
+      - "/embeddings"
+      - "/images"
+      - "/videos"
+      - "/backend-api/codex"
+      - "/antigravity"
 
 # =============================================================================
 # Gateway Configuration

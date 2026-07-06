@@ -220,6 +220,96 @@ func TestLoadPublicAccessGuardFromEnv(t *testing.T) {
 	require.Equal(t, "pub-from-env", cfg.Security.PublicAccessGuard.PublishKey)
 }
 
+func TestLoadDefaultCloudflareSiteProtectionConfig(t *testing.T) {
+	resetViperWithJWTSecret(t)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	guard := cfg.Security.CloudflareSiteProtection
+	require.False(t, guard.Enabled)
+	require.Equal(t, []string{"CF-Connecting-IP", "CF-Ray"}, guard.RequiredHeaders)
+	require.Equal(t, []string{"/"}, guard.ProtectedPrefixes)
+	require.Contains(t, guard.BypassPaths, "/health")
+	require.Contains(t, guard.BypassPrefixes, "/v1")
+	require.Contains(t, guard.BypassPrefixes, "/backend-api/codex")
+}
+
+func TestLoadCloudflareSiteProtectionFromEnv(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("SECURITY_CLOUDFLARE_SITE_PROTECTION_ENABLED", "true")
+	t.Setenv("SECURITY_CLOUDFLARE_SITE_PROTECTION_REQUIRED_SECRET_HEADER", "X-Origin-Guard")
+	t.Setenv("SECURITY_CLOUDFLARE_SITE_PROTECTION_REQUIRED_SECRET_VALUE", "origin-secret")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	guard := cfg.Security.CloudflareSiteProtection
+	require.True(t, guard.Enabled)
+	require.Equal(t, "X-Origin-Guard", guard.RequiredSecretHeader)
+	require.Equal(t, "origin-secret", guard.RequiredSecretValue)
+}
+
+func TestValidateCloudflareSiteProtectionConfig(t *testing.T) {
+	buildValid := func(t *testing.T) *Config {
+		t.Helper()
+		resetViperWithJWTSecret(t)
+		cfg, err := Load()
+		require.NoError(t, err)
+		cfg.Security.CloudflareSiteProtection.Enabled = true
+		return cfg
+	}
+
+	t.Run("requires_at_least_one_signal", func(t *testing.T) {
+		cfg := buildValid(t)
+		cfg.Security.CloudflareSiteProtection.RequiredHeaders = nil
+		cfg.Security.CloudflareSiteProtection.RequiredSecretHeader = ""
+		cfg.Security.CloudflareSiteProtection.RequiredSecretValue = ""
+		cfg.Security.CloudflareSiteProtection.TrustedProxyCIDRs = nil
+
+		err := cfg.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "security.cloudflare_site_protection requires at least one")
+	})
+
+	t.Run("requires_secret_value_when_header_set", func(t *testing.T) {
+		cfg := buildValid(t)
+		cfg.Security.CloudflareSiteProtection.RequiredSecretHeader = "X-Origin-Guard"
+		cfg.Security.CloudflareSiteProtection.RequiredSecretValue = ""
+
+		err := cfg.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "security.cloudflare_site_protection.required_secret_value")
+	})
+
+	t.Run("rejects_invalid_trusted_proxy_cidr", func(t *testing.T) {
+		cfg := buildValid(t)
+		cfg.Security.CloudflareSiteProtection.TrustedProxyCIDRs = []string{"not-a-cidr"}
+
+		err := cfg.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "security.cloudflare_site_protection.trusted_proxy_cidrs")
+	})
+
+	t.Run("rejects_root_bypass_prefix", func(t *testing.T) {
+		cfg := buildValid(t)
+		cfg.Security.CloudflareSiteProtection.BypassPrefixes = []string{"/"}
+
+		err := cfg.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "security.cloudflare_site_protection.bypass_prefixes")
+	})
+
+	t.Run("allows_secret_only_protection", func(t *testing.T) {
+		cfg := buildValid(t)
+		cfg.Security.CloudflareSiteProtection.RequiredHeaders = nil
+		cfg.Security.CloudflareSiteProtection.RequiredSecretHeader = "X-Origin-Guard"
+		cfg.Security.CloudflareSiteProtection.RequiredSecretValue = "origin-secret"
+
+		require.NoError(t, cfg.Validate())
+	})
+}
+
 func TestLoadDefaultOpenAICompactModel(t *testing.T) {
 	resetViperWithJWTSecret(t)
 

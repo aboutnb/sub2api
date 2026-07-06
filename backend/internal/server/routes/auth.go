@@ -26,6 +26,9 @@ func RegisterAuthRoutes(
 ) {
 	// 创建速率限制器
 	rateLimiter := middleware.NewRateLimiter(redisClient)
+	if h != nil && h.Auth != nil {
+		h.Auth.SetRegistrationRiskRedis(redisClient)
+	}
 	protectPublicPOST := cfg != nil &&
 		cfg.Security.PublicAccessGuard.Enabled &&
 		cfg.Security.PublicAccessGuard.ProtectSitePublicPOST &&
@@ -45,6 +48,9 @@ func RegisterAuthRoutes(
 	}
 	{
 		// 注册/登录/2FA/验证码发送均属于高风险入口，增加服务端兜底限流（Redis 故障时 fail-close）
+		auth.GET("/registration-challenge", rateLimiter.LimitWithOptions("auth-registration-challenge", 60, time.Minute, middleware.RateLimitOptions{
+			FailureMode: middleware.RateLimitFailClose,
+		}), h.Auth.GetRegistrationChallenge)
 		auth.POST("/register", rateLimiter.LimitWithOptions("auth-register", 5, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,
 		}), h.Auth.Register)

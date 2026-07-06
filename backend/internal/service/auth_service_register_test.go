@@ -167,6 +167,7 @@ func (s *emailCacheStub) GetVerificationCode(ctx context.Context, email string) 
 }
 
 func (s *emailCacheStub) SetVerificationCode(ctx context.Context, email string, data *VerificationCodeData, ttl time.Duration) error {
+	s.data = data
 	return nil
 }
 
@@ -355,6 +356,53 @@ func TestAuthService_Register_EmailVerifyInvalid(t *testing.T) {
 	require.ErrorContains(t, err, "verify code")
 }
 
+func TestAuthService_Register_EmailVerifyAllowsLegacyCodeWithoutContext(t *testing.T) {
+	repo := &userRepoStub{nextID: 3}
+	cache := &emailCacheStub{
+		data: &VerificationCodeData{
+			Code:      "123456",
+			Attempts:  0,
+			CreatedAt: time.Now().UTC(),
+			ExpiresAt: time.Now().UTC().Add(15 * time.Minute),
+		},
+	}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+		SettingKeyEmailVerifyEnabled:  "true",
+	}, cache, nil)
+
+	_, user, err := service.RegisterWithVerification(context.Background(), "user@test.com", "password", "123456", "", "", "")
+	require.NoError(t, err)
+	require.NotNil(t, user)
+}
+
+func TestAuthService_Register_EmailVerifyRejectsContextMismatch(t *testing.T) {
+	repo := &userRepoStub{nextID: 4}
+	cache := &emailCacheStub{
+		data: &VerificationCodeData{
+			Code:                      "123456",
+			Attempts:                  0,
+			CreatedAt:                 time.Now().UTC(),
+			ExpiresAt:                 time.Now().UTC().Add(15 * time.Minute),
+			RegistrationAction:        "send_verify_code",
+			RegistrationUserAgentHash: "ua-a",
+		},
+	}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+		SettingKeyEmailVerifyEnabled:  "true",
+	}, cache, nil)
+	ctx := WithRegistrationVerificationContext(context.Background(), RegistrationVerificationContext{
+		Action:        "register",
+		UserAgentHash: "ua-b",
+	})
+
+	_, _, err := service.RegisterWithVerification(ctx, "user@test.com", "password", "123456", "", "", "")
+	require.ErrorIs(t, err, ErrVerifyCodeContext)
+	require.ErrorContains(t, err, "verify code")
+	require.Empty(t, repo.created)
+}
+
 func TestAuthService_Register_EmailExists(t *testing.T) {
 	repo := &userRepoStub{exists: true}
 	service := newAuthService(repo, map[string]string{
@@ -415,6 +463,53 @@ func TestAuthService_Register_EmailSuffixAllowed(t *testing.T) {
 	require.Equal(t, int64(8), user.ID)
 }
 
+func TestAuthService_Register_EmailAliasNotAllowed(t *testing.T) {
+	tests := []string{
+		"user+spam@example.com",
+		"first.last@gmail.com",
+		"first.last@googlemail.com",
+	}
+
+	for _, email := range tests {
+		t.Run(email, func(t *testing.T) {
+			repo := &userRepoStub{}
+			service := newAuthService(repo, map[string]string{
+				SettingKeyRegistrationEnabled: "true",
+			}, nil, nil)
+
+			_, _, err := service.Register(context.Background(), email, "password")
+			require.ErrorIs(t, err, ErrEmailAliasNotAllowed)
+			appErr := infraerrors.FromError(err)
+			require.Equal(t, "EMAIL_ALIAS_NOT_ALLOWED", appErr.Reason)
+			require.Empty(t, repo.created)
+		})
+	}
+}
+
+func TestAuthService_Register_DisposableEmailNotAllowed(t *testing.T) {
+	repo := &userRepoStub{}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+	}, nil, nil)
+
+	_, _, err := service.Register(context.Background(), "user@mailinator.com", "password")
+	require.ErrorIs(t, err, ErrEmailDisposableNotAllowed)
+	require.Equal(t, "EMAIL_DISPOSABLE_NOT_ALLOWED", infraerrors.FromError(err).Reason)
+	require.Empty(t, repo.created)
+}
+
+func TestAuthService_Register_DottedCompanyEmailAllowed(t *testing.T) {
+	repo := &userRepoStub{nextID: 9}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+	}, nil, nil)
+
+	_, user, err := service.Register(context.Background(), "first.last@company.com", "password")
+	require.NoError(t, err)
+	require.NotNil(t, user)
+	require.Equal(t, "first.last@company.com", user.Email)
+}
+
 func TestAuthService_SendVerifyCode_EmailSuffixNotAllowed(t *testing.T) {
 	repo := &userRepoStub{}
 	service := newAuthService(repo, map[string]string{
@@ -428,6 +523,17 @@ func TestAuthService_SendVerifyCode_EmailSuffixNotAllowed(t *testing.T) {
 	require.Contains(t, appErr.Message, "@example.com")
 	require.Contains(t, appErr.Message, "@company.com")
 	require.Equal(t, "2", appErr.Metadata["allowed_suffix_count"])
+}
+
+func TestAuthService_SendVerifyCode_EmailAliasNotAllowed(t *testing.T) {
+	repo := &userRepoStub{}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+	}, nil, nil)
+
+	err := service.SendVerifyCode(context.Background(), "user+spam@example.com")
+	require.ErrorIs(t, err, ErrEmailAliasNotAllowed)
+	require.Equal(t, "EMAIL_ALIAS_NOT_ALLOWED", infraerrors.FromError(err).Reason)
 }
 
 func TestAuthService_Register_CreateError(t *testing.T) {
