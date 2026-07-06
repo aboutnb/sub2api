@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"net/http"
 	"strings"
 	"time"
 
@@ -22,6 +23,17 @@ const (
 	OpsUpstreamLatencyMsKey  = "ops_upstream_latency_ms"
 	OpsResponseLatencyMsKey  = "ops_response_latency_ms"
 	OpsTimeToFirstTokenMsKey = "ops_time_to_first_token_ms"
+	// Low-level upstream HTTP timings captured by httptrace.
+	OpsUpstreamConnWaitMsKey     = "ops_upstream_conn_wait_ms"
+	OpsUpstreamDNSMsKey          = "ops_upstream_dns_ms"
+	OpsUpstreamConnectMsKey      = "ops_upstream_connect_ms"
+	OpsUpstreamTLSMsKey          = "ops_upstream_tls_ms"
+	OpsUpstreamRequestWriteMsKey = "ops_upstream_request_write_ms"
+	OpsUpstreamHeaderWaitMsKey   = "ops_upstream_header_wait_ms"
+	OpsUpstreamFirstByteMsKey    = "ops_upstream_first_byte_ms"
+	OpsUpstreamConnIdleMsKey     = "ops_upstream_conn_idle_ms"
+	OpsUpstreamConnReusedKey     = "ops_upstream_conn_reused"
+	OpsUpstreamConnWasIdleKey    = "ops_upstream_conn_was_idle"
 	// OpenAI WS 关键观测字段
 	OpsOpenAIWSQueueWaitMsKey = "ops_openai_ws_queue_wait_ms"
 	OpsOpenAIWSConnPickMsKey  = "ops_openai_ws_conn_pick_ms"
@@ -63,6 +75,74 @@ func SetOpsLatencyMs(c *gin.Context, key string, value int64) {
 		return
 	}
 	c.Set(key, value)
+}
+
+func SetOpsHTTPUpstreamTrace(c *gin.Context, req *http.Request) {
+	if c == nil {
+		return
+	}
+	clearOpsHTTPUpstreamTrace(c)
+	if req == nil {
+		return
+	}
+	trace, ok := HTTPUpstreamTraceFromContext(req.Context())
+	if !ok {
+		return
+	}
+	snapshot := trace.Snapshot()
+	if snapshot.GotConn {
+		setOpsLatencyDuration(c, OpsUpstreamConnWaitMsKey, snapshot.ConnWaitDuration)
+		c.Set(OpsUpstreamConnReusedKey, snapshot.ConnReused)
+		c.Set(OpsUpstreamConnWasIdleKey, snapshot.ConnWasIdle)
+		if snapshot.ConnWasIdle {
+			setOpsLatencyDuration(c, OpsUpstreamConnIdleMsKey, snapshot.ConnIdleDuration)
+		}
+	}
+	if snapshot.HasDNS {
+		setOpsLatencyDuration(c, OpsUpstreamDNSMsKey, snapshot.DNSDuration)
+	}
+	if snapshot.HasConnect {
+		setOpsLatencyDuration(c, OpsUpstreamConnectMsKey, snapshot.ConnectDuration)
+	}
+	if snapshot.HasTLSHandshake {
+		setOpsLatencyDuration(c, OpsUpstreamTLSMsKey, snapshot.TLSHandshakeDuration)
+	}
+	if snapshot.WroteRequest {
+		setOpsLatencyDuration(c, OpsUpstreamRequestWriteMsKey, snapshot.RequestWriteDuration)
+	}
+	if snapshot.GotFirstResponse {
+		setOpsLatencyDuration(c, OpsUpstreamFirstByteMsKey, snapshot.FirstResponseDuration)
+		if snapshot.WroteRequest {
+			setOpsLatencyDuration(c, OpsUpstreamHeaderWaitMsKey, snapshot.HeaderWaitDuration)
+		}
+	}
+}
+
+func clearOpsHTTPUpstreamTrace(c *gin.Context) {
+	if c == nil {
+		return
+	}
+	for _, key := range []string{
+		OpsUpstreamConnWaitMsKey,
+		OpsUpstreamDNSMsKey,
+		OpsUpstreamConnectMsKey,
+		OpsUpstreamTLSMsKey,
+		OpsUpstreamRequestWriteMsKey,
+		OpsUpstreamHeaderWaitMsKey,
+		OpsUpstreamFirstByteMsKey,
+		OpsUpstreamConnIdleMsKey,
+		OpsUpstreamConnReusedKey,
+		OpsUpstreamConnWasIdleKey,
+	} {
+		c.Set(key, nil)
+	}
+}
+
+func setOpsLatencyDuration(c *gin.Context, key string, value time.Duration) {
+	if value < 0 {
+		return
+	}
+	SetOpsLatencyMs(c, key, value.Milliseconds())
 }
 
 func MarkOpsClientBusinessLimited(c *gin.Context, reason string) {
@@ -139,6 +219,16 @@ type OpsUpstreamErrorEvent struct {
 
 	Message string `json:"message,omitempty"`
 	Detail  string `json:"detail,omitempty"`
+
+	UpstreamConnReused     *bool  `json:"upstream_conn_reused,omitempty"`
+	UpstreamConnWasIdle    *bool  `json:"upstream_conn_was_idle,omitempty"`
+	UpstreamConnWaitMs     *int64 `json:"upstream_conn_wait_ms,omitempty"`
+	UpstreamDNSMs          *int64 `json:"upstream_dns_ms,omitempty"`
+	UpstreamConnectMs      *int64 `json:"upstream_connect_ms,omitempty"`
+	UpstreamTLSMs          *int64 `json:"upstream_tls_ms,omitempty"`
+	UpstreamRequestWriteMs *int64 `json:"upstream_request_write_ms,omitempty"`
+	UpstreamHeaderWaitMs   *int64 `json:"upstream_header_wait_ms,omitempty"`
+	UpstreamFirstByteMs    *int64 `json:"upstream_first_byte_ms,omitempty"`
 }
 
 func appendOpsUpstreamError(c *gin.Context, ev OpsUpstreamErrorEvent) {
@@ -158,6 +248,7 @@ func appendOpsUpstreamError(c *gin.Context, ev OpsUpstreamErrorEvent) {
 	if ev.Message != "" {
 		ev.Message = sanitizeUpstreamErrorMessage(ev.Message)
 	}
+	enrichOpsUpstreamErrorWithTrace(c, &ev)
 
 	var existing []*OpsUpstreamErrorEvent
 	if v, ok := c.Get(OpsUpstreamErrorsKey); ok {
@@ -171,6 +262,81 @@ func appendOpsUpstreamError(c *gin.Context, ev OpsUpstreamErrorEvent) {
 	c.Set(OpsUpstreamErrorsKey, existing)
 
 	checkSkipMonitoringForUpstreamEvent(c, &evCopy)
+}
+
+func enrichOpsUpstreamErrorWithTrace(c *gin.Context, ev *OpsUpstreamErrorEvent) {
+	if c == nil || ev == nil {
+		return
+	}
+	if ev.UpstreamConnReused == nil {
+		ev.UpstreamConnReused = getOpsBoolFromContext(c, OpsUpstreamConnReusedKey)
+	}
+	if ev.UpstreamConnWasIdle == nil {
+		ev.UpstreamConnWasIdle = getOpsBoolFromContext(c, OpsUpstreamConnWasIdleKey)
+	}
+	if ev.UpstreamConnWaitMs == nil {
+		ev.UpstreamConnWaitMs = getOpsInt64FromContext(c, OpsUpstreamConnWaitMsKey)
+	}
+	if ev.UpstreamDNSMs == nil {
+		ev.UpstreamDNSMs = getOpsInt64FromContext(c, OpsUpstreamDNSMsKey)
+	}
+	if ev.UpstreamConnectMs == nil {
+		ev.UpstreamConnectMs = getOpsInt64FromContext(c, OpsUpstreamConnectMsKey)
+	}
+	if ev.UpstreamTLSMs == nil {
+		ev.UpstreamTLSMs = getOpsInt64FromContext(c, OpsUpstreamTLSMsKey)
+	}
+	if ev.UpstreamRequestWriteMs == nil {
+		ev.UpstreamRequestWriteMs = getOpsInt64FromContext(c, OpsUpstreamRequestWriteMsKey)
+	}
+	if ev.UpstreamHeaderWaitMs == nil {
+		ev.UpstreamHeaderWaitMs = getOpsInt64FromContext(c, OpsUpstreamHeaderWaitMsKey)
+	}
+	if ev.UpstreamFirstByteMs == nil {
+		ev.UpstreamFirstByteMs = getOpsInt64FromContext(c, OpsUpstreamFirstByteMsKey)
+	}
+}
+
+func getOpsInt64FromContext(c *gin.Context, key string) *int64 {
+	if c == nil || strings.TrimSpace(key) == "" {
+		return nil
+	}
+	v, ok := c.Get(key)
+	if !ok {
+		return nil
+	}
+	var out int64
+	switch t := v.(type) {
+	case int:
+		out = int64(t)
+	case int32:
+		out = int64(t)
+	case int64:
+		out = t
+	case float64:
+		out = int64(t)
+	default:
+		return nil
+	}
+	if out < 0 {
+		return nil
+	}
+	return &out
+}
+
+func getOpsBoolFromContext(c *gin.Context, key string) *bool {
+	if c == nil || strings.TrimSpace(key) == "" {
+		return nil
+	}
+	v, ok := c.Get(key)
+	if !ok {
+		return nil
+	}
+	out, ok := v.(bool)
+	if !ok {
+		return nil
+	}
+	return &out
 }
 
 // checkSkipMonitoringForUpstreamEvent checks whether the upstream error event

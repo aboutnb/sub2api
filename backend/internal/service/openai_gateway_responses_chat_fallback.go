@@ -143,6 +143,7 @@ func (s *OpenAIGatewayService) forwardResponsesViaRawChatCompletions(
 		proxyURL = account.Proxy.URL()
 	}
 	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+	SetOpsHTTPUpstreamTrace(c, upstreamReq)
 	if err != nil {
 		// Transport-level failure (proxy/DNS/TCP/TLS — no HTTP response). Convert to
 		// a failover so the handler switches to a healthy account, and temporarily

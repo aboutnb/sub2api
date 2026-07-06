@@ -3,56 +3,52 @@
     <Transition name="popup-fade">
       <div
         v-if="announcementStore.currentPopup"
-        class="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-gradient-to-br from-black/70 via-black/60 to-black/70 p-4 pt-[8vh] backdrop-blur-md"
+        class="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/55 p-4 pt-[8vh] backdrop-blur-sm sm:pt-[10vh]"
       >
         <div
-          class="w-full max-w-[680px] overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5 dark:bg-dark-800 dark:ring-white/10"
+          class="announcement-card w-full max-w-[660px] overflow-hidden rounded-[28px] bg-stone-50 shadow-[0_28px_80px_rgba(15,23,42,0.26)] ring-1 ring-slate-900/10 dark:bg-dark-800 dark:ring-white/10"
           @click.stop
         >
-          <!-- Header with warm gradient -->
-          <div class="relative overflow-hidden border-b border-amber-100/80 bg-gradient-to-br from-amber-50/80 via-orange-50/50 to-yellow-50/30 px-8 py-6 dark:border-dark-700/50 dark:from-amber-900/20 dark:via-orange-900/10 dark:to-yellow-900/5">
-            <!-- Decorative background -->
-            <div class="absolute right-0 top-0 h-full w-64 bg-gradient-to-l from-orange-100/30 to-transparent dark:from-orange-900/20"></div>
-            <div class="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-gradient-to-br from-amber-400/20 to-orange-500/20 blur-3xl"></div>
-            <div class="absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-gradient-to-tr from-yellow-400/20 to-amber-500/20 blur-2xl"></div>
+          <div class="relative overflow-hidden border-b border-slate-200/80 bg-white px-6 py-5 dark:border-dark-700/70 dark:bg-dark-800 sm:px-7 sm:py-6">
+            <div class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-700 via-cyan-500 to-emerald-400 dark:from-slate-200 dark:via-cyan-400 dark:to-emerald-300"></div>
+            <div class="pointer-events-none absolute right-0 top-0 h-36 w-36 rounded-full bg-cyan-200/30 blur-3xl dark:bg-cyan-500/10"></div>
 
-            <div class="relative z-10">
-              <!-- Icon and badge -->
-              <div class="mb-3 flex items-center gap-2">
-                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/30">
-                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                </div>
-                <span class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 px-2.5 py-1 text-xs font-medium text-white shadow-lg shadow-amber-500/30">
-                  <span class="relative flex h-2 w-2">
-                    <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75"></span>
-                    <span class="relative inline-flex h-2 w-2 rounded-full bg-white"></span>
-                  </span>
-                  {{ t('announcements.unread') }}
-                </span>
+            <div class="relative flex items-start gap-4">
+              <div class="mt-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 shadow-sm dark:border-dark-600 dark:bg-dark-700 dark:text-slate-200">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h6m-9 8l3.5-3.5H18a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14z" />
+                </svg>
               </div>
 
-              <!-- Title -->
-              <h2 class="mb-2 text-2xl font-bold leading-tight text-gray-900 dark:text-white">
-                {{ announcementStore.currentPopup.title }}
-              </h2>
+              <div class="min-w-0 flex-1">
+                <div class="mb-2 flex flex-wrap items-center gap-2">
+                  <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:border-dark-600 dark:bg-dark-700/70 dark:text-slate-300">
+                    {{ t('announcements.title') }}
+                  </span>
+                  <span class="inline-flex items-center gap-1.5 rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-medium text-cyan-700 ring-1 ring-cyan-200/80 dark:bg-cyan-500/10 dark:text-cyan-200 dark:ring-cyan-400/20">
+                    <span class="h-1.5 w-1.5 rounded-full bg-cyan-500"></span>
+                    {{ t('announcements.unread') }}
+                  </span>
+                </div>
 
-              <!-- Time -->
-              <div class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <time>{{ formatRelativeWithDateTime(announcementStore.currentPopup.created_at) }}</time>
+                <h2 class="text-2xl font-semibold leading-tight tracking-tight text-slate-950 dark:text-white">
+                  {{ announcementStore.currentPopup.title }}
+                </h2>
+
+                <div class="mt-3 flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <time>{{ formatRelativeWithDateTime(announcementStore.currentPopup.created_at) }}</time>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- Body -->
-          <div class="max-h-[50vh] overflow-y-auto bg-white px-8 py-8 dark:bg-dark-800">
-            <div class="relative">
-              <div class="absolute left-0 top-0 bottom-0 w-1 rounded-full bg-gradient-to-b from-amber-500 via-orange-500 to-yellow-500"></div>
-              <div class="pl-6">
+          <div class="announcement-scroll max-h-[52vh] overflow-y-auto bg-stone-50 px-6 py-6 dark:bg-dark-800 sm:px-7 sm:py-7">
+            <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/35 sm:p-6">
+              <div class="relative border-l border-slate-200 pl-5 dark:border-dark-600">
                 <div
                   class="markdown-body prose prose-sm max-w-none dark:prose-invert"
                   v-html="renderedContent"
@@ -62,11 +58,14 @@
           </div>
 
           <!-- Footer -->
-          <div class="border-t border-gray-100 bg-gray-50/50 px-8 py-5 dark:border-dark-700 dark:bg-dark-900/30">
-            <div class="flex items-center justify-end">
+          <div class="border-t border-slate-200/80 bg-white px-6 py-4 dark:border-dark-700 dark:bg-dark-800 sm:px-7">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                {{ t('announcements.markReadHint') }}
+              </p>
               <button
                 @click="handleDismiss"
-                class="rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-amber-500/30 transition-all hover:shadow-xl hover:scale-105"
+                class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100 dark:focus:ring-offset-dark-800"
               >
                 <span class="flex items-center gap-2">
                   <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

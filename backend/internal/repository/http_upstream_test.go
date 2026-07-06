@@ -75,6 +75,23 @@ func (s *HTTPUpstreamSuite) TestCustomResponseHeaderTimeout() {
 	require.Equal(s.T(), 7*time.Second, transport.ResponseHeaderTimeout, "ResponseHeaderTimeout mismatch")
 }
 
+func (s *HTTPUpstreamSuite) TestCustomIdleConnTimeout() {
+	s.cfg.Gateway = config.GatewayConfig{IdleConnTimeoutSeconds: 37}
+	svc := s.newService()
+	entry := mustGetOrCreateClient(s.T(), svc, "", 0, 0)
+	transport, ok := entry.client.Transport.(*http.Transport)
+	require.True(s.T(), ok, "expected *http.Transport")
+	require.Equal(s.T(), 37*time.Second, transport.IdleConnTimeout, "IdleConnTimeout mismatch")
+}
+
+func (s *HTTPUpstreamSuite) TestDefaultTransportKeepsExistingHTTP2Behavior() {
+	svc := s.newService()
+	entry := mustGetOrCreateClient(s.T(), svc, "", 0, 0)
+	transport, ok := entry.client.Transport.(*http.Transport)
+	require.True(s.T(), ok, "expected *http.Transport")
+	require.False(s.T(), transport.ForceAttemptHTTP2, "default transport should keep existing protocol behavior")
+}
+
 // TestGetOrCreateClient_InvalidURLReturnsError 测试无效代理 URL 返回错误
 // 验证解析失败时拒绝回退到直连模式
 func (s *HTTPUpstreamSuite) TestGetOrCreateClient_InvalidURLReturnsError() {
@@ -299,6 +316,43 @@ func (s *HTTPUpstreamSuite) TestDo_EmptyProxy_UsesDirect() {
 	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
 	require.Equal(s.T(), "direct-empty", string(b))
+}
+
+func (s *HTTPUpstreamSuite) TestDoRecordsHTTPTraceAndReusesConnection() {
+	upstream := newLocalTestServer(s.T(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, "ok")
+	}))
+	s.T().Cleanup(upstream.Close)
+
+	s.cfg.Gateway = config.GatewayConfig{
+		MaxIdleConns:        2,
+		MaxIdleConnsPerHost: 2,
+		MaxConnsPerHost:     2,
+	}
+	up := NewHTTPUpstream(s.cfg)
+
+	doRequest := func() service.HTTPUpstreamTraceSnapshot {
+		req, err := http.NewRequest(http.MethodGet, upstream.URL+"/trace", nil)
+		require.NoError(s.T(), err, "NewRequest")
+		resp, err := up.Do(req, "", 1, 1)
+		require.NoError(s.T(), err, "Do")
+		_, _ = io.ReadAll(resp.Body)
+		require.NoError(s.T(), resp.Body.Close())
+
+		trace, ok := service.HTTPUpstreamTraceFromContext(req.Context())
+		require.True(s.T(), ok, "expected upstream trace on request context")
+		return trace.Snapshot()
+	}
+
+	first := doRequest()
+	require.True(s.T(), first.GotConn, "expected GotConn trace")
+	require.True(s.T(), first.HasConnect, "expected Connect trace")
+	require.True(s.T(), first.WroteRequest, "expected WroteRequest trace")
+	require.True(s.T(), first.GotFirstResponse, "expected first response byte trace")
+
+	second := doRequest()
+	require.True(s.T(), second.GotConn, "expected second GotConn trace")
+	require.True(s.T(), second.ConnReused, "expected second request to reuse idle connection")
 }
 
 // TestAccountIsolation_DifferentAccounts 测试账户隔离模式
