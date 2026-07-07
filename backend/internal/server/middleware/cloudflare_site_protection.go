@@ -16,6 +16,8 @@ var (
 	defaultCloudflareProtectedPrefixes = []string{"/"}
 	defaultCloudflareBypassPaths       = []string{"/health"}
 	defaultCloudflareBypassPrefixes    = []string{
+		"/api",
+		"/setup",
 		"/v1",
 		"/v1beta",
 		"/responses",

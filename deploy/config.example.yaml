@@ -170,10 +170,10 @@ security:
       - "sk-proj-"
       - "sk-proj_"
   cloudflare_site_protection:
-    # Origin direct-access guard for the first-party website and /api/v1 site APIs.
-    # Cloudflare 站点源站直连防护：保护一方站点和 /api/v1 站点接口。
-    # This rejects site traffic that does not carry Cloudflare/reverse-proxy markers.
-    # 这会拒绝没有 Cloudflare/反代标记的站点流量。
+    # Origin direct-access guard for protected first-party website pages; APIs are bypassed below.
+    # Cloudflare 站点源站直连防护：保护前端页面流量，API 默认绕过以避免浏览器挑战过期后中断请求。
+    # This rejects protected site traffic that does not carry Cloudflare/reverse-proxy markers.
+    # 这会拒绝没有 Cloudflare/反代标记的受保护站点流量。
     # It does not replace Cloudflare WAF/rate limiting/origin firewall rules.
     # 它不能替代 Cloudflare WAF、限流或源站防火墙规则。
     enabled: false
@@ -194,17 +194,19 @@ security:
     # If your app sits behind Nginx on 127.0.0.1, enforce Cloudflare IPs in Nginx/firewall instead.
     # 如果应用在 Nginx 后且 RemoteAddr 是 127.0.0.1，应在 Nginx/防火墙层限制 Cloudflare IP。
     trusted_proxy_cidrs: []
-    # Protected site prefixes. Default "/" protects the embedded frontend and /api/v1 site APIs.
-    # 受保护的站点前缀。默认 "/" 会保护内置前端和 /api/v1 站点接口。
+    # Protected site prefixes. Default "/" protects the embedded frontend; API prefixes are bypassed below.
+    # 受保护的站点前缀。默认 "/" 会保护内置前端；API 前缀在下方绕过。
     protected_prefixes:
       - "/"
     # Exact paths that remain reachable without Cloudflare markers.
     # 不要求 Cloudflare 标记的精确路径。
     bypass_paths:
       - "/health"
-    # Gateway/client API paths are bypassed by default to avoid breaking SDK/CLI clients.
-    # 默认绕过模型网关/客户端 API，避免影响 SDK/CLI 客户端。
+    # API paths are bypassed by default so expired Cloudflare browser challenges do not break XHR/API clients.
+    # 默认绕过 API 路径，避免 Cloudflare 浏览器挑战过期后影响 XHR/API 客户端。
     bypass_prefixes:
+      - "/api"
+      - "/setup"
       - "/v1"
       - "/v1beta"
       - "/responses"

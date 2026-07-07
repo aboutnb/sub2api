@@ -803,6 +803,7 @@ export type ProjectMihomoSubscriptionFetchMode = 'mihomo' | 'backend' | 'static'
 export interface ProjectMihomoSettings {
   subscription_url: string
   subscription_urls: string[]
+  subscription_keys: string[]
   subscription_names: string[]
   subscription_fetch_modes: ProjectMihomoSubscriptionFetchMode[]
   subscription_contents: string[]

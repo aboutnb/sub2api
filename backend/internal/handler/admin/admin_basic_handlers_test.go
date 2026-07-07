@@ -52,6 +52,7 @@ func setupAdminRouter(t *testing.T) (*gin.Engine, *stubAdminService) {
 	router.PUT("/api/v1/admin/proxies/project-mihomo", proxyHandler.UpdateProjectMihomo)
 	router.POST("/api/v1/admin/proxies/project-mihomo/sync", proxyHandler.SyncProjectMihomo)
 	router.POST("/api/v1/admin/proxies/project-mihomo/test-nodes", proxyHandler.TestProjectMihomoNodes)
+	router.POST("/api/v1/admin/proxies/project-mihomo/test-selected-nodes", proxyHandler.TestProjectMihomoSelectedNodes)
 	router.POST("/api/v1/admin/proxies/project-mihomo/test-node", proxyHandler.TestProjectMihomoNode)
 	router.GET("/api/v1/admin/proxies/:id", proxyHandler.GetByID)
 	router.POST("/api/v1/admin/proxies", proxyHandler.Create)
@@ -78,6 +79,7 @@ func TestProjectMihomoSettingsFromRequestPreservesSubscriptionModesAndContents(t
 	settings := projectMihomoSettingsFromRequest(projectMihomoRequest{
 		SubscriptionURL:        " static://manual ",
 		SubscriptionURLs:       []string{"static://manual"},
+		SubscriptionKeys:       []string{"project-subscription-manual"},
 		SubscriptionNames:      []string{"Manual"},
 		SubscriptionFetchModes: []string{"static"},
 		SubscriptionContents:   []string{"proxies:\n  - name: 手动-01\n"},
@@ -92,6 +94,7 @@ func TestProjectMihomoSettingsFromRequestPreservesSubscriptionModesAndContents(t
 
 	require.Equal(t, "static://manual", settings.SubscriptionURL)
 	require.Equal(t, []string{"static://manual"}, settings.SubscriptionURLs)
+	require.Equal(t, []string{"project-subscription-manual"}, settings.SubscriptionKeys)
 	require.Equal(t, []string{"Manual"}, settings.SubscriptionNames)
 	require.Equal(t, []string{"static"}, settings.SubscriptionFetchModes)
 	require.Equal(t, []string{"proxies:\n  - name: 手动-01\n"}, settings.SubscriptionContents)
@@ -287,6 +290,23 @@ func TestProxyHandlerEndpoints(t *testing.T) {
 
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/proxies/project-mihomo/test-nodes", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.True(t, rec.Code == http.StatusOK || rec.Code >= http.StatusBadRequest)
+
+	selectedNodesBody, _ := json.Marshal(map[string]any{
+		"subscription_url": server.URL + "/sub.yaml",
+		"protocol":         "socks5h",
+		"target_host":      "mihomo-sub2api",
+		"start_port":       61000,
+		"listener_count":   2,
+		"controller_url":   "http://127.0.0.1:9097",
+		"nodes": []map[string]any{
+			{"name": "node-a"},
+		},
+	})
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/proxies/project-mihomo/test-selected-nodes", bytes.NewReader(selectedNodesBody))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 	require.True(t, rec.Code == http.StatusOK || rec.Code >= http.StatusBadRequest)

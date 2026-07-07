@@ -28,7 +28,7 @@ func TestCloudflareSiteProtection(t *testing.T) {
 		router := newCloudflareSiteProtectionTestRouter(defaultEnabledCloudflareSiteProtectionConfig())
 
 		w := httptest.NewRecorder()
-		router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/auth/config", nil))
+		router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
 
 		require.Equal(t, http.StatusForbidden, w.Code)
 		require.Contains(t, w.Body.String(), "CLOUDFLARE_SITE_PROTECTION_REQUIRED")
@@ -36,7 +36,7 @@ func TestCloudflareSiteProtection(t *testing.T) {
 
 	t.Run("enabled_allows_site_request_with_cloudflare_headers", func(t *testing.T) {
 		router := newCloudflareSiteProtectionTestRouter(defaultEnabledCloudflareSiteProtectionConfig())
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/config", nil)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.Header.Set("CF-Connecting-IP", "203.0.113.10")
 		req.Header.Set("CF-Ray", "abc123-SJC")
 
@@ -48,7 +48,7 @@ func TestCloudflareSiteProtection(t *testing.T) {
 
 	t.Run("invalid_cf_connecting_ip_is_blocked", func(t *testing.T) {
 		router := newCloudflareSiteProtectionTestRouter(defaultEnabledCloudflareSiteProtectionConfig())
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/config", nil)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.Header.Set("CF-Connecting-IP", "not-an-ip")
 		req.Header.Set("CF-Ray", "abc123-SJC")
 
@@ -58,10 +58,10 @@ func TestCloudflareSiteProtection(t *testing.T) {
 		require.Equal(t, http.StatusForbidden, w.Code)
 	})
 
-	t.Run("bypasses_health_and_gateway_prefixes", func(t *testing.T) {
+	t.Run("bypasses_health_api_setup_and_gateway_prefixes", func(t *testing.T) {
 		router := newCloudflareSiteProtectionTestRouter(defaultEnabledCloudflareSiteProtectionConfig())
 
-		for _, path := range []string{"/health", "/v1/messages", "/v1beta/models", "/responses", "/backend-api/codex/responses", "/antigravity/v1/messages"} {
+		for _, path := range []string{"/health", "/api/v1/auth/me", "/api/event_logging/batch", "/setup/status", "/v1/messages", "/v1beta/models", "/responses", "/backend-api/codex/responses", "/antigravity/v1/messages"} {
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
 			require.Equal(t, http.StatusNoContent, w.Code, path)
@@ -130,9 +130,15 @@ func defaultEnabledCloudflareSiteProtectionConfig() *config.Config {
 	cfg.Security.CloudflareSiteProtection.ProtectedPrefixes = []string{"/"}
 	cfg.Security.CloudflareSiteProtection.BypassPaths = []string{"/health"}
 	cfg.Security.CloudflareSiteProtection.BypassPrefixes = []string{
+		"/api",
+		"/setup",
 		"/v1",
 		"/v1beta",
 		"/responses",
+		"/chat/completions",
+		"/embeddings",
+		"/images",
+		"/videos",
 		"/backend-api/codex",
 		"/antigravity",
 	}

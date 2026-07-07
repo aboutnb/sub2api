@@ -88,6 +88,7 @@ var projectMihomoRegionAliases = map[string][]string{
 type ProjectMihomoSettings struct {
 	SubscriptionURL        string   `json:"subscription_url"`
 	SubscriptionURLs       []string `json:"subscription_urls"`
+	SubscriptionKeys       []string `json:"subscription_keys"`
 	SubscriptionNames      []string `json:"subscription_names"`
 	SubscriptionFetchModes []string `json:"subscription_fetch_modes"`
 	SubscriptionContents   []string `json:"subscription_contents"`
@@ -187,6 +188,7 @@ func DefaultProjectMihomoSettings() ProjectMihomoSettings {
 	return ProjectMihomoSettings{
 		SubscriptionURL:        "",
 		SubscriptionURLs:       nil,
+		SubscriptionKeys:       nil,
 		SubscriptionNames:      nil,
 		SubscriptionFetchModes: nil,
 		SubscriptionContents:   nil,
@@ -423,7 +425,62 @@ func (s *ProjectMihomoService) TestNodes(ctx context.Context, settings *ProjectM
 	if len(nodes) == 0 {
 		nodes = s.availableNodes(&normalized)
 	}
-	nodes = s.testNodeDelays(ctx, client, &normalized, nodes)
+	nodes = s.testNodeDelays(ctx, client, &normalized, nodes, false)
+
+	return &ProjectMihomoNodeTestResult{
+		Nodes:            nodes,
+		AvailableRegions: extractProjectMihomoRegions(projectMihomoNodeNames(nodes)),
+	}, nil
+}
+
+func (s *ProjectMihomoService) TestSelectedNodes(ctx context.Context, settings *ProjectMihomoSettings, targets []ProjectMihomoNode) (*ProjectMihomoNodeTestResult, error) {
+	if len(targets) == 0 {
+		return &ProjectMihomoNodeTestResult{
+			Nodes:            []ProjectMihomoNode{},
+			AvailableRegions: []string{},
+		}, nil
+	}
+	if settings == nil {
+		saved, err := s.GetSettings(ctx)
+		if err != nil {
+			return nil, err
+		}
+		settings = saved
+	}
+
+	normalized := *settings
+	s.normalize(&normalized)
+	if err := s.validate(&normalized, true); err != nil {
+		return nil, err
+	}
+	previous, err := s.GetSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.ensureProviderFiles(ctx, previous, &normalized); err != nil {
+		return nil, err
+	}
+	if _, err := s.writeConfig(&normalized); err != nil {
+		return nil, err
+	}
+
+	client, err := httpclient.GetClient(httpclient.Options{
+		Timeout: projectMihomoHTTPTimeout,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("build controller client: %w", err)
+	}
+	if err := s.reloadConfig(ctx, &normalized, projectMihomoReloadPath); err != nil {
+		return nil, err
+	}
+	_ = s.refreshProvider(ctx, client, &normalized)
+
+	availableNodes, err := s.waitProviderNodes(ctx, client, &normalized)
+	if err != nil {
+		return nil, err
+	}
+	nodes := normalizeProjectMihomoSelectedTestTargets(targets, availableNodes)
+	nodes = s.testNodeDelays(ctx, client, &normalized, nodes, true)
 
 	return &ProjectMihomoNodeTestResult{
 		Nodes:            nodes,
@@ -501,6 +558,7 @@ func (s *ProjectMihomoService) normalize(settings *ProjectMihomoSettings) {
 	defaults := DefaultProjectMihomoSettings()
 	settings.SubscriptionURL = strings.TrimSpace(settings.SubscriptionURL)
 	settings.SubscriptionURLs = normalizeProjectMihomoSubscriptionURLs(settings.SubscriptionURLs, settings.SubscriptionURL)
+	settings.SubscriptionKeys = normalizeProjectMihomoSubscriptionKeys(settings.SubscriptionKeys, len(settings.SubscriptionURLs))
 	settings.SubscriptionNames = normalizeProjectMihomoSubscriptionNames(settings.SubscriptionNames, len(settings.SubscriptionURLs))
 	settings.SubscriptionFetchModes = normalizeProjectMihomoSubscriptionFetchModes(settings.SubscriptionFetchModes, len(settings.SubscriptionURLs))
 	settings.SubscriptionContents = normalizeProjectMihomoSubscriptionContents(settings.SubscriptionContents, len(settings.SubscriptionURLs))
@@ -749,6 +807,61 @@ func normalizeProjectMihomoSubscriptionNames(names []string, count int) []string
 	return out
 }
 
+func normalizeProjectMihomoSubscriptionKeys(keys []string, count int) []string {
+	if count <= 0 {
+		return nil
+	}
+
+	out := make([]string, count)
+	seen := make(map[string]struct{}, count)
+	for i := 0; i < count; i++ {
+		key := ""
+		if i < len(keys) {
+			key = normalizeProjectMihomoSubscriptionKey(keys[i])
+		}
+		if key == "" {
+			key = defaultProjectMihomoSubscriptionKey(i, count)
+		}
+		out[i] = uniqueProjectMihomoSubscriptionKey(key, seen)
+	}
+	return out
+}
+
+func defaultProjectMihomoSubscriptionKey(index, count int) string {
+	if count <= 1 {
+		return projectMihomoProviderName
+	}
+	return fmt.Sprintf("%s-%02d", projectMihomoProviderName, index+1)
+}
+
+func normalizeProjectMihomoSubscriptionKey(raw string) string {
+	key := strings.ToLower(strings.TrimSpace(raw))
+	if key == "" {
+		return ""
+	}
+	key = regexp.MustCompile(`[^a-z0-9_-]+`).ReplaceAllString(key, "-")
+	key = strings.Trim(key, "-_")
+	if key == "" {
+		return ""
+	}
+	if key != projectMihomoProviderName && !strings.HasPrefix(key, projectMihomoProviderName+"-") {
+		key = projectMihomoProviderName + "-" + key
+	}
+	return key
+}
+
+func uniqueProjectMihomoSubscriptionKey(key string, seen map[string]struct{}) string {
+	base := key
+	for suffix := 2; ; suffix++ {
+		seenKey := strings.ToLower(key)
+		if _, ok := seen[seenKey]; !ok {
+			seen[seenKey] = struct{}{}
+			return key
+		}
+		key = fmt.Sprintf("%s-%02d", base, suffix)
+	}
+}
+
 func normalizeProjectMihomoSubscriptionFetchModes(modes []string, count int) []string {
 	if count <= 0 {
 		return nil
@@ -760,7 +873,7 @@ func normalizeProjectMihomoSubscriptionFetchModes(modes []string, count int) []s
 			out[i] = normalizeProjectMihomoSubscriptionFetchMode(modes[i])
 			continue
 		}
-		out[i] = projectMihomoFetchModeMihomo
+		out[i] = projectMihomoFetchModeBackend
 	}
 	return out
 }
@@ -781,12 +894,12 @@ func normalizeProjectMihomoSubscriptionContents(contents []string, count int) []
 
 func normalizeProjectMihomoSubscriptionFetchMode(mode string) string {
 	switch strings.ToLower(strings.TrimSpace(mode)) {
-	case projectMihomoFetchModeBackend:
+	case projectMihomoFetchModeBackend, projectMihomoFetchModeMihomo:
 		return projectMihomoFetchModeBackend
 	case projectMihomoFetchModeStatic:
 		return projectMihomoFetchModeStatic
 	default:
-		return projectMihomoFetchModeMihomo
+		return projectMihomoFetchModeBackend
 	}
 }
 
@@ -1282,24 +1395,8 @@ func (s *ProjectMihomoService) renderConfig(settings *ProjectMihomoSettings) ([]
 				"lazy":     true,
 			},
 		}
-		if item.FetchMode == projectMihomoFetchModeBackend || item.FetchMode == projectMihomoFetchModeStatic {
-			providerConfig["type"] = "file"
-			providerConfig["path"] = item.Path
-		} else {
-			updateInterval := settings.UpdateInterval
-			if updateInterval <= 0 {
-				updateInterval = DefaultProjectMihomoSettings().UpdateInterval
-			}
-			providerConfig["type"] = "http"
-			providerConfig["url"] = item.URL
-			providerConfig["path"] = item.Path
-			providerConfig["interval"] = updateInterval
-			if strings.TrimSpace(settings.SubscriptionUA) != "" {
-				providerConfig["header"] = map[string]any{
-					"User-Agent": []string{strings.TrimSpace(settings.SubscriptionUA)},
-				}
-			}
-		}
+		providerConfig["type"] = "file"
+		providerConfig["path"] = item.Path
 		if excludeFilter := projectMihomoNodeExcludeFilter(settings); excludeFilter != "" {
 			providerConfig["exclude-filter"] = excludeFilter
 		}
@@ -2020,7 +2117,50 @@ func findProjectMihomoNode(nodes []ProjectMihomoNode, value string) *ProjectMiho
 	return nil
 }
 
-func (s *ProjectMihomoService) testNodeDelays(ctx context.Context, client *http.Client, settings *ProjectMihomoSettings, nodes []ProjectMihomoNode) []ProjectMihomoNode {
+func normalizeProjectMihomoSelectedTestTargets(targets []ProjectMihomoNode, availableNodes []ProjectMihomoNode) []ProjectMihomoNode {
+	out := make([]ProjectMihomoNode, 0, len(targets))
+	seen := make(map[string]struct{}, len(targets))
+	for _, target := range targets {
+		target.Key = strings.TrimSpace(target.Key)
+		target.Provider = strings.TrimSpace(target.Provider)
+		target.Name = strings.TrimSpace(target.Name)
+		if target.Name == "" {
+			if provider, name, ok := parseProjectMihomoNodeKey(target.Key); ok {
+				if target.Provider == "" {
+					target.Provider = provider
+				}
+				target.Name = name
+			}
+		}
+		if target.Name == "" {
+			continue
+		}
+
+		lookup := firstNonEmptyString(target.Key, projectMihomoNodeKey(target.Provider, target.Name), target.Name)
+		if matched := findProjectMihomoNode(availableNodes, lookup); matched != nil {
+			target = *matched
+		}
+		if target.Key == "" {
+			target.Key = projectMihomoNodeKey(target.Provider, target.Name)
+		}
+		if target.Region == "" {
+			target.Region = extractProjectMihomoRegion(target.Name)
+		}
+
+		key := firstNonEmptyString(target.Key, projectMihomoNodeKey(target.Provider, target.Name), target.Name)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, target)
+	}
+	return out
+}
+
+func (s *ProjectMihomoService) testNodeDelays(ctx context.Context, client *http.Client, settings *ProjectMihomoSettings, nodes []ProjectMihomoNode, force bool) []ProjectMihomoNode {
 	if len(nodes) == 0 {
 		return nodes
 	}
@@ -2038,7 +2178,7 @@ func (s *ProjectMihomoService) testNodeDelays(ctx context.Context, client *http.
 		go func() {
 			defer wg.Done()
 			for index := range jobs {
-				if out[index].LatencyMS != nil {
+				if !force && out[index].LatencyMS != nil {
 					out[index].LatencyStatus = "success"
 					out[index].LatencyMessage = ""
 					continue
@@ -2144,7 +2284,6 @@ func (s *ProjectMihomoService) ensureProviderFiles(ctx context.Context, previous
 	}
 
 	var client *http.Client
-	var err error
 
 	for _, provider := range providers {
 		targetPath := s.providerCachePathFor(provider.Path)
@@ -2156,9 +2295,6 @@ func (s *ProjectMihomoService) ensureProviderFiles(ctx context.Context, previous
 			if err := os.WriteFile(targetPath, content, 0o644); err != nil {
 				return fmt.Errorf("write mihomo provider file: %w", err)
 			}
-			continue
-		}
-		if provider.FetchMode != projectMihomoFetchModeBackend {
 			continue
 		}
 		currentURL := strings.TrimSpace(provider.URL)
@@ -2178,12 +2314,7 @@ func (s *ProjectMihomoService) ensureProviderFiles(ctx context.Context, previous
 			continue
 		}
 		if client == nil {
-			client, err = httpclient.GetClient(httpclient.Options{
-				Timeout: projectMihomoHTTPTimeout,
-			})
-			if err != nil {
-				return fmt.Errorf("build subscription client: %w", err)
-			}
+			client = newProjectMihomoSubscriptionHTTPClient()
 		}
 		content, err := s.fetchProviderContent(ctx, client, current.SubscriptionUA, currentURL)
 		if err != nil {
@@ -2212,6 +2343,27 @@ func projectMihomoStaticProviderContent(content string) ([]byte, error) {
 		return nil, ErrProjectMihomoStaticTooLarge
 	}
 	return data, nil
+}
+
+func newProjectMihomoSubscriptionHTTPClient() *http.Client {
+	// Subscription refresh is a control-plane request. It must go directly to the
+	// subscription server instead of inheriting HTTP_PROXY or a project proxy node.
+	return &http.Client{
+		Transport: &http.Transport{
+			Proxy: nil,
+			DialContext: (&net.Dialer{
+				Timeout:   5 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          64,
+			MaxIdleConnsPerHost:   16,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   5 * time.Second,
+			ResponseHeaderTimeout: projectMihomoHTTPTimeout,
+		},
+		Timeout: projectMihomoHTTPTimeout,
+	}
 }
 
 func shouldKeepExistingProjectMihomoProviderFile(previousRefs []projectMihomoProviderRef, previousURL, currentURL string, targetExists bool) bool {
@@ -2488,6 +2640,7 @@ func buildProjectMihomoProviderRefs(settings *ProjectMihomoSettings) []projectMi
 	}
 	fetchModes := normalizeProjectMihomoSubscriptionFetchModes(settings.SubscriptionFetchModes, len(urls))
 	contents := normalizeProjectMihomoSubscriptionContents(settings.SubscriptionContents, len(urls))
+	keys := normalizeProjectMihomoSubscriptionKeys(settings.SubscriptionKeys, len(urls))
 
 	out := make([]projectMihomoProviderRef, 0, len(urls))
 	if len(urls) == 1 {
@@ -2496,8 +2649,8 @@ func buildProjectMihomoProviderRefs(settings *ProjectMihomoSettings) []projectMi
 			label = strings.TrimSpace(settings.SubscriptionNames[0])
 		}
 		return []projectMihomoProviderRef{{
-			Name:        projectMihomoProviderName,
-			Path:        projectMihomoProviderPath,
+			Name:        keys[0],
+			Path:        projectMihomoProviderPathForKey(keys[0]),
 			URL:         urls[0],
 			FetchMode:   fetchModes[0],
 			Content:     contents[0],
@@ -2506,14 +2659,13 @@ func buildProjectMihomoProviderRefs(settings *ProjectMihomoSettings) []projectMi
 	}
 
 	for i := range urls {
-		suffix := fmt.Sprintf("-%02d", i+1)
 		label := ""
 		if i < len(settings.SubscriptionNames) {
 			label = strings.TrimSpace(settings.SubscriptionNames[i])
 		}
 		out = append(out, projectMihomoProviderRef{
-			Name:        projectMihomoProviderName + suffix,
-			Path:        "./providers/" + projectMihomoProviderName + suffix + ".yaml",
+			Name:        keys[i],
+			Path:        projectMihomoProviderPathForKey(keys[i]),
 			URL:         urls[i],
 			FetchMode:   fetchModes[i],
 			Content:     contents[i],
@@ -2521,6 +2673,13 @@ func buildProjectMihomoProviderRefs(settings *ProjectMihomoSettings) []projectMi
 		})
 	}
 	return out
+}
+
+func projectMihomoProviderPathForKey(key string) string {
+	if key == projectMihomoProviderName {
+		return projectMihomoProviderPath
+	}
+	return "./providers/" + key + ".yaml"
 }
 
 func projectMihomoProviderDisplayName(providerRef projectMihomoProviderRef, index int, total int) string {

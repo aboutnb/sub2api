@@ -11,6 +11,7 @@ import (
 type projectMihomoRequest struct {
 	SubscriptionURL        string   `json:"subscription_url"`
 	SubscriptionURLs       []string `json:"subscription_urls"`
+	SubscriptionKeys       []string `json:"subscription_keys"`
 	SubscriptionNames      []string `json:"subscription_names"`
 	SubscriptionFetchModes []string `json:"subscription_fetch_modes"`
 	SubscriptionContents   []string `json:"subscription_contents"`
@@ -37,6 +38,11 @@ type projectMihomoRequest struct {
 type projectMihomoNodeTestRequest struct {
 	projectMihomoRequest
 	Node service.ProjectMihomoNode `json:"node" binding:"required"`
+}
+
+type projectMihomoSelectedNodesTestRequest struct {
+	projectMihomoRequest
+	Nodes []service.ProjectMihomoNode `json:"nodes"`
 }
 
 func (h *ProxyHandler) GetProjectMihomo(c *gin.Context) {
@@ -97,6 +103,21 @@ func (h *ProxyHandler) TestProjectMihomoNodes(c *gin.Context) {
 	response.Success(c, result)
 }
 
+func (h *ProxyHandler) TestProjectMihomoSelectedNodes(c *gin.Context) {
+	var req projectMihomoSelectedNodesTestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	result, err := h.projectMihomoService.TestSelectedNodes(c.Request.Context(), projectMihomoSettingsFromRequest(req.projectMihomoRequest), req.Nodes)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
 func (h *ProxyHandler) TestProjectMihomoNode(c *gin.Context) {
 	var req projectMihomoNodeTestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -116,6 +137,7 @@ func projectMihomoSettingsFromRequest(req projectMihomoRequest) *service.Project
 	return &service.ProjectMihomoSettings{
 		SubscriptionURL:        strings.TrimSpace(req.SubscriptionURL),
 		SubscriptionURLs:       req.SubscriptionURLs,
+		SubscriptionKeys:       req.SubscriptionKeys,
 		SubscriptionNames:      req.SubscriptionNames,
 		SubscriptionFetchModes: req.SubscriptionFetchModes,
 		SubscriptionContents:   req.SubscriptionContents,

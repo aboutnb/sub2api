@@ -462,7 +462,7 @@ func TestProjectMihomoRenderConfigUsesAutoRouteFilters(t *testing.T) {
 	svc := NewProjectMihomoService(&settingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
 	settings := &ProjectMihomoSettings{
 		SubscriptionURLs:       []string{"https://a.example/sub", "https://b.example/sub"},
-		SubscriptionFetchModes: []string{projectMihomoFetchModeMihomo, projectMihomoFetchModeBackend},
+		SubscriptionFetchModes: []string{projectMihomoFetchModeBackend, projectMihomoFetchModeBackend},
 		SubscriptionUA:         "sub2api/mihomo",
 		Protocol:               "socks5h",
 		TargetHost:             "127.0.0.1",
@@ -488,8 +488,9 @@ func TestProjectMihomoRenderConfigUsesAutoRouteFilters(t *testing.T) {
 		ProxyGroups    []map[string]any          `yaml:"proxy-groups"`
 	}
 	require.NoError(t, yaml.Unmarshal(content, &payload))
-	require.Equal(t, "http", payload.ProxyProviders["project-subscription-01"]["type"])
-	require.Equal(t, "https://a.example/sub", payload.ProxyProviders["project-subscription-01"]["url"])
+	require.Equal(t, "file", payload.ProxyProviders["project-subscription-01"]["type"])
+	require.Equal(t, "./providers/project-subscription-01.yaml", payload.ProxyProviders["project-subscription-01"]["path"])
+	require.NotContains(t, payload.ProxyProviders["project-subscription-01"], "url")
 	require.Equal(t, "file", payload.ProxyProviders["project-subscription-02"]["type"])
 	require.Contains(t, fmt.Sprint(payload.ProxyProviders["project-subscription-01"]["exclude-filter"]), "香港")
 	require.Len(t, payload.ProxyGroups, 2)
@@ -518,7 +519,7 @@ func TestBuildProjectMihomoProviderRefs(t *testing.T) {
 	require.Equal(t, projectMihomoFetchModeBackend, refs[0].FetchMode)
 	require.Equal(t, "project-subscription-02", refs[1].Name)
 	require.Equal(t, "./providers/project-subscription-02.yaml", refs[1].Path)
-	require.Equal(t, projectMihomoFetchModeMihomo, refs[1].FetchMode)
+	require.Equal(t, projectMihomoFetchModeBackend, refs[1].FetchMode)
 	require.Equal(t, "project-subscription-03", refs[2].Name)
 	require.Equal(t, "./providers/project-subscription-03.yaml", refs[2].Path)
 	require.Equal(t, projectMihomoFetchModeStatic, refs[2].FetchMode)
@@ -528,12 +529,34 @@ func TestBuildProjectMihomoProviderRefs(t *testing.T) {
 	require.Equal(t, "static://manual", refs[2].URL)
 }
 
-func TestProjectMihomoSetSettingsDefaultsToMihomoFetchModeWithoutPrefetch(t *testing.T) {
+func TestBuildProjectMihomoProviderRefsUsesStableSubscriptionKeys(t *testing.T) {
+	refs := buildProjectMihomoProviderRefs(&ProjectMihomoSettings{
+		SubscriptionURLs: []string{"https://a.example/sub", "https://b.example/sub", "https://c.example/sub"},
+		SubscriptionKeys: []string{"project-subscription-jp", "project-subscription-us", "project-subscription-sg"},
+	})
+
+	require.Len(t, refs, 3)
+	require.Equal(t, "project-subscription-jp", refs[0].Name)
+	require.Equal(t, "./providers/project-subscription-jp.yaml", refs[0].Path)
+	require.Equal(t, "project-subscription-us", refs[1].Name)
+	require.Equal(t, "./providers/project-subscription-us.yaml", refs[1].Path)
+	require.Equal(t, "project-subscription-sg", refs[2].Name)
+	require.Equal(t, "./providers/project-subscription-sg.yaml", refs[2].Path)
+
+	refs = buildProjectMihomoProviderRefs(&ProjectMihomoSettings{
+		SubscriptionURLs: []string{"https://a.example/sub", "https://c.example/sub"},
+		SubscriptionKeys: []string{"project-subscription-jp", "project-subscription-sg"},
+	})
+	require.Len(t, refs, 2)
+	require.Equal(t, "project-subscription-jp", refs[0].Name)
+	require.Equal(t, "project-subscription-sg", refs[1].Name)
+}
+
+func TestProjectMihomoSetSettingsDefaultsToBackendDirectFetchMode(t *testing.T) {
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests++
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte("blocked"))
+		_, _ = w.Write([]byte("proxies:\n  - name: 日本-01\n    server: jp.example.com\n"))
 	}))
 	defer server.Close()
 
@@ -551,8 +574,12 @@ func TestProjectMihomoSetSettingsDefaultsToMihomoFetchModeWithoutPrefetch(t *tes
 		ListenerRegions: []string{""},
 	})
 	require.NoError(t, err)
-	require.Zero(t, requests)
-	require.Equal(t, []string{projectMihomoFetchModeMihomo}, settings.SubscriptionFetchModes)
+	require.Equal(t, 1, requests)
+	require.Equal(t, []string{projectMihomoFetchModeBackend}, settings.SubscriptionFetchModes)
+
+	providerContent, err := os.ReadFile(svc.providerCachePath())
+	require.NoError(t, err)
+	require.Contains(t, string(providerContent), "日本-01")
 
 	content, err := svc.renderConfig(settings)
 	require.NoError(t, err)
@@ -562,13 +589,64 @@ func TestProjectMihomoSetSettingsDefaultsToMihomoFetchModeWithoutPrefetch(t *tes
 	}
 	require.NoError(t, yaml.Unmarshal(content, &payload))
 	provider := payload.ProxyProviders[projectMihomoProviderName]
-	require.Equal(t, "http", provider["type"])
-	require.Equal(t, server.URL+"/sub", provider["url"])
+	require.Equal(t, "file", provider["type"])
 	require.Equal(t, projectMihomoProviderPath, provider["path"])
-	require.Equal(t, 3600, provider["interval"])
-	header, ok := provider["header"].(map[string]any)
-	require.True(t, ok)
-	require.Equal(t, []any{"sub2api/mihomo"}, header["User-Agent"])
+	require.NotContains(t, provider, "url")
+	require.NotContains(t, provider, "interval")
+	require.NotContains(t, provider, "header")
+}
+
+func TestProjectMihomoSetSettingsMigratesLegacyMihomoModeWithoutBreakingCachedProvider(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte("blocked"))
+	}))
+	defer server.Close()
+
+	t.Setenv("DATA_DIR", t.TempDir())
+	sourceURL := server.URL + "/sub"
+	previousSettings := ProjectMihomoSettings{
+		SubscriptionURL:        sourceURL,
+		SubscriptionURLs:       []string{sourceURL},
+		SubscriptionFetchModes: []string{projectMihomoFetchModeMihomo},
+		SubscriptionUA:         "sub2api/mihomo",
+		Protocol:               "socks5h",
+		TargetHost:             "127.0.0.1",
+		StartPort:              61000,
+		ListenerCount:          1,
+		ControllerURL:          "http://127.0.0.1:9097",
+		ProxyNamePrefix:        "project-mihomo",
+	}
+	raw, err := json.Marshal(previousSettings)
+	require.NoError(t, err)
+	repo := &projectMihomoSettingRepoStub{values: map[string]string{
+		SettingKeyProjectMihomoSettings: string(raw),
+	}}
+	svc := NewProjectMihomoService(repo, &projectMihomoAdminServiceStub{})
+	require.NoError(t, os.MkdirAll(svc.providerDir(), 0o755))
+	cachedContent := "proxies:\n  - name: 日本-01\n    server: jp.example.com\n"
+	require.NoError(t, os.WriteFile(svc.providerCachePath(), []byte(cachedContent), 0o644))
+
+	settings, err := svc.SetSettings(context.Background(), &ProjectMihomoSettings{
+		SubscriptionURL:        sourceURL,
+		SubscriptionFetchModes: []string{projectMihomoFetchModeMihomo},
+		SubscriptionUA:         "sub2api/mihomo",
+		Protocol:               "socks5h",
+		TargetHost:             "127.0.0.1",
+		StartPort:              61000,
+		ListenerCount:          1,
+		ControllerURL:          "http://127.0.0.1:9097",
+		ProxyNamePrefix:        "project-mihomo",
+	})
+	require.NoError(t, err)
+	require.Zero(t, requests)
+	require.Equal(t, []string{projectMihomoFetchModeBackend}, settings.SubscriptionFetchModes)
+
+	content, err := os.ReadFile(svc.providerCachePath())
+	require.NoError(t, err)
+	require.Equal(t, cachedContent, string(content))
 }
 
 func TestProjectMihomoSetSettingsCachesAndCleansProviderFiles(t *testing.T) {
@@ -701,6 +779,64 @@ func TestProjectMihomoSetSettingsWritesStaticProviderFileWithoutFetch(t *testing
 	require.Equal(t, projectMihomoProviderPath, provider["path"])
 	require.NotContains(t, provider, "url")
 	require.NotContains(t, provider, "interval")
+}
+
+func TestProjectMihomoSetSettingsRemovesSpecificStableProviderFile(t *testing.T) {
+	t.Setenv("DATA_DIR", t.TempDir())
+	repo := &projectMihomoSettingRepoStub{values: map[string]string{}}
+	svc := NewProjectMihomoService(repo, &projectMihomoAdminServiceStub{})
+
+	firstContent := "proxies:\n  - name: 日本-01\n    server: jp.example.com\n"
+	secondContent := "proxies:\n  - name: 美国-01\n    server: us.example.com\n"
+	thirdContent := "proxies:\n  - name: 新加坡-01\n    server: sg.example.com\n"
+
+	settings, err := svc.SetSettings(context.Background(), &ProjectMihomoSettings{
+		SubscriptionURLs:       []string{"static://jp", "static://us", "static://sg"},
+		SubscriptionKeys:       []string{"project-subscription-jp", "project-subscription-us", "project-subscription-sg"},
+		SubscriptionFetchModes: []string{projectMihomoFetchModeStatic, projectMihomoFetchModeStatic, projectMihomoFetchModeStatic},
+		SubscriptionContents:   []string{firstContent, secondContent, thirdContent},
+		SubscriptionUA:         "sub2api/mihomo",
+		Protocol:               "socks5h",
+		TargetHost:             "127.0.0.1",
+		StartPort:              61000,
+		ListenerCount:          1,
+		ControllerURL:          "http://127.0.0.1:9097",
+		ProxyNamePrefix:        "project-mihomo",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"project-subscription-jp", "project-subscription-us", "project-subscription-sg"}, settings.SubscriptionKeys)
+
+	firstPath := svc.providerCachePathFor("./providers/project-subscription-jp.yaml")
+	secondPath := svc.providerCachePathFor("./providers/project-subscription-us.yaml")
+	thirdPath := svc.providerCachePathFor("./providers/project-subscription-sg.yaml")
+	require.FileExists(t, firstPath)
+	require.FileExists(t, secondPath)
+	require.FileExists(t, thirdPath)
+
+	settings, err = svc.SetSettings(context.Background(), &ProjectMihomoSettings{
+		SubscriptionURLs:       []string{"static://jp", "static://sg"},
+		SubscriptionKeys:       []string{"project-subscription-jp", "project-subscription-sg"},
+		SubscriptionFetchModes: []string{projectMihomoFetchModeStatic, projectMihomoFetchModeStatic},
+		SubscriptionContents:   []string{firstContent, thirdContent},
+		SubscriptionUA:         "sub2api/mihomo",
+		Protocol:               "socks5h",
+		TargetHost:             "127.0.0.1",
+		StartPort:              61000,
+		ListenerCount:          1,
+		ControllerURL:          "http://127.0.0.1:9097",
+		ProxyNamePrefix:        "project-mihomo",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"project-subscription-jp", "project-subscription-sg"}, settings.SubscriptionKeys)
+
+	content, err := os.ReadFile(firstPath)
+	require.NoError(t, err)
+	require.Equal(t, firstContent, string(content))
+	content, err = os.ReadFile(thirdPath)
+	require.NoError(t, err)
+	require.Equal(t, thirdContent, string(content))
+	_, err = os.Stat(secondPath)
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestProjectMihomoSetSettingsRejectsEmptyStaticProviderContent(t *testing.T) {
@@ -916,8 +1052,8 @@ func TestProjectMihomoSetSettingsAllowsEmptySubscriptions(t *testing.T) {
 func TestProjectMihomoNormalizeSubscriptionFetchModes(t *testing.T) {
 	svc := NewProjectMihomoService(&projectMihomoSettingRepoStub{values: map[string]string{}}, &projectMihomoAdminServiceStub{})
 	settings := &ProjectMihomoSettings{
-		SubscriptionURLs:       []string{" https://a.example/sub ", "https://b.example/sub", "https://c.example/sub"},
-		SubscriptionFetchModes: []string{" backend ", " static ", "unknown"},
+		SubscriptionURLs:       []string{" https://a.example/sub ", "https://b.example/sub", "https://c.example/sub", "https://d.example/sub"},
+		SubscriptionFetchModes: []string{" backend ", " static ", "unknown", "mihomo"},
 	}
 
 	svc.normalize(settings)
@@ -925,8 +1061,19 @@ func TestProjectMihomoNormalizeSubscriptionFetchModes(t *testing.T) {
 	require.Equal(t, []string{
 		projectMihomoFetchModeBackend,
 		projectMihomoFetchModeStatic,
-		projectMihomoFetchModeMihomo,
+		projectMihomoFetchModeBackend,
+		projectMihomoFetchModeBackend,
 	}, settings.SubscriptionFetchModes)
+}
+
+func TestProjectMihomoSubscriptionHTTPClientDoesNotUseProxyFromEnvironment(t *testing.T) {
+	t.Setenv("HTTP_PROXY", "http://127.0.0.1:1")
+	t.Setenv("HTTPS_PROXY", "http://127.0.0.1:1")
+
+	client := newProjectMihomoSubscriptionHTTPClient()
+	transport, ok := client.Transport.(*http.Transport)
+	require.True(t, ok)
+	require.Nil(t, transport.Proxy)
 }
 
 func TestProjectMihomoNormalizeSubscriptionNames(t *testing.T) {

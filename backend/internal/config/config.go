@@ -1680,6 +1680,8 @@ func setDefaults() {
 	viper.SetDefault("security.cloudflare_site_protection.protected_prefixes", []string{"/"})
 	viper.SetDefault("security.cloudflare_site_protection.bypass_paths", []string{"/health"})
 	viper.SetDefault("security.cloudflare_site_protection.bypass_prefixes", []string{
+		"/api",
+		"/setup",
 		"/v1",
 		"/v1beta",
 		"/responses",

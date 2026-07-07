@@ -231,6 +231,8 @@ func TestLoadDefaultCloudflareSiteProtectionConfig(t *testing.T) {
 	require.Equal(t, []string{"CF-Connecting-IP", "CF-Ray"}, guard.RequiredHeaders)
 	require.Equal(t, []string{"/"}, guard.ProtectedPrefixes)
 	require.Contains(t, guard.BypassPaths, "/health")
+	require.Contains(t, guard.BypassPrefixes, "/api")
+	require.Contains(t, guard.BypassPrefixes, "/setup")
 	require.Contains(t, guard.BypassPrefixes, "/v1")
 	require.Contains(t, guard.BypassPrefixes, "/backend-api/codex")
 }
