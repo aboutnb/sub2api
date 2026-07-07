@@ -74,6 +74,30 @@ func setupAdminRouter(t *testing.T) (*gin.Engine, *stubAdminService) {
 	return router, adminSvc
 }
 
+func TestProjectMihomoSettingsFromRequestPreservesSubscriptionModesAndContents(t *testing.T) {
+	settings := projectMihomoSettingsFromRequest(projectMihomoRequest{
+		SubscriptionURL:        " static://manual ",
+		SubscriptionURLs:       []string{"static://manual"},
+		SubscriptionNames:      []string{"Manual"},
+		SubscriptionFetchModes: []string{"static"},
+		SubscriptionContents:   []string{"proxies:\n  - name: 手动-01\n"},
+		SubscriptionUA:         " clash.meta ",
+		Protocol:               " socks5h ",
+		TargetHost:             " 127.0.0.1 ",
+		StartPort:              61000,
+		ListenerCount:          1,
+		ControllerURL:          " http://127.0.0.1:9097 ",
+		ProxyNamePrefix:        " project-mihomo ",
+	})
+
+	require.Equal(t, "static://manual", settings.SubscriptionURL)
+	require.Equal(t, []string{"static://manual"}, settings.SubscriptionURLs)
+	require.Equal(t, []string{"Manual"}, settings.SubscriptionNames)
+	require.Equal(t, []string{"static"}, settings.SubscriptionFetchModes)
+	require.Equal(t, []string{"proxies:\n  - name: 手动-01\n"}, settings.SubscriptionContents)
+	require.Equal(t, "clash.meta", settings.SubscriptionUA)
+}
+
 func TestUserHandlerEndpoints(t *testing.T) {
 	router, _ := setupAdminRouter(t)
 

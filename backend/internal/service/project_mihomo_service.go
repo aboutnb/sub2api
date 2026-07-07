@@ -32,6 +32,7 @@ const (
 	projectMihomoSubscriptionUA   = "clash.meta"
 	projectMihomoFetchModeMihomo  = "mihomo"
 	projectMihomoFetchModeBackend = "backend"
+	projectMihomoFetchModeStatic  = "static"
 	projectMihomoHTTPTimeout      = 10 * time.Second
 	projectMihomoReloadPath       = "/root/.config/mihomo/config.yaml"
 	projectMihomoDockerHost       = "mihomo-sub2api"
@@ -68,6 +69,8 @@ var (
 	ErrProjectMihomoPortDuplicate        = infraerrors.BadRequest("PROJECT_MIHOMO_PORT_DUPLICATE", "listener ports must be unique")
 	ErrProjectMihomoListenerNameInvalid  = infraerrors.BadRequest("PROJECT_MIHOMO_LISTENER_NAME_INVALID", "listener names must be unique")
 	ErrProjectMihomoSubscriptionFetch    = infraerrors.BadRequest("PROJECT_MIHOMO_SUBSCRIPTION_FETCH_FAILED", "failed to fetch project mihomo subscription")
+	ErrProjectMihomoStaticRequired       = infraerrors.BadRequest("PROJECT_MIHOMO_STATIC_SUBSCRIPTION_REQUIRED", "static subscription yaml is required")
+	ErrProjectMihomoStaticTooLarge       = infraerrors.BadRequest("PROJECT_MIHOMO_STATIC_SUBSCRIPTION_TOO_LARGE", "static subscription yaml is too large")
 	ErrProjectMihomoProxyInUse           = infraerrors.Conflict("PROJECT_MIHOMO_PROXY_IN_USE", "project mihomo proxy is in use by accounts")
 )
 
@@ -87,6 +90,7 @@ type ProjectMihomoSettings struct {
 	SubscriptionURLs       []string `json:"subscription_urls"`
 	SubscriptionNames      []string `json:"subscription_names"`
 	SubscriptionFetchModes []string `json:"subscription_fetch_modes"`
+	SubscriptionContents   []string `json:"subscription_contents"`
 	SubscriptionUA         string   `json:"subscription_user_agent"`
 	UpdateInterval         int      `json:"update_interval"`
 	Protocol               string   `json:"protocol"`
@@ -162,6 +166,7 @@ type projectMihomoProviderRef struct {
 	Path        string
 	URL         string
 	FetchMode   string
+	Content     string
 	DisplayName string
 }
 
@@ -184,6 +189,7 @@ func DefaultProjectMihomoSettings() ProjectMihomoSettings {
 		SubscriptionURLs:       nil,
 		SubscriptionNames:      nil,
 		SubscriptionFetchModes: nil,
+		SubscriptionContents:   nil,
 		SubscriptionUA:         projectMihomoSubscriptionUA,
 		UpdateInterval:         3600,
 		Protocol:               "socks5h",
@@ -497,6 +503,7 @@ func (s *ProjectMihomoService) normalize(settings *ProjectMihomoSettings) {
 	settings.SubscriptionURLs = normalizeProjectMihomoSubscriptionURLs(settings.SubscriptionURLs, settings.SubscriptionURL)
 	settings.SubscriptionNames = normalizeProjectMihomoSubscriptionNames(settings.SubscriptionNames, len(settings.SubscriptionURLs))
 	settings.SubscriptionFetchModes = normalizeProjectMihomoSubscriptionFetchModes(settings.SubscriptionFetchModes, len(settings.SubscriptionURLs))
+	settings.SubscriptionContents = normalizeProjectMihomoSubscriptionContents(settings.SubscriptionContents, len(settings.SubscriptionURLs))
 	if len(settings.SubscriptionURLs) > 0 {
 		settings.SubscriptionURL = settings.SubscriptionURLs[0]
 	} else {
@@ -758,10 +765,26 @@ func normalizeProjectMihomoSubscriptionFetchModes(modes []string, count int) []s
 	return out
 }
 
+func normalizeProjectMihomoSubscriptionContents(contents []string, count int) []string {
+	if count <= 0 {
+		return nil
+	}
+
+	out := make([]string, count)
+	for i := 0; i < count; i++ {
+		if i < len(contents) {
+			out[i] = contents[i]
+		}
+	}
+	return out
+}
+
 func normalizeProjectMihomoSubscriptionFetchMode(mode string) string {
 	switch strings.ToLower(strings.TrimSpace(mode)) {
 	case projectMihomoFetchModeBackend:
 		return projectMihomoFetchModeBackend
+	case projectMihomoFetchModeStatic:
+		return projectMihomoFetchModeStatic
 	default:
 		return projectMihomoFetchModeMihomo
 	}
@@ -1259,7 +1282,7 @@ func (s *ProjectMihomoService) renderConfig(settings *ProjectMihomoSettings) ([]
 				"lazy":     true,
 			},
 		}
-		if item.FetchMode == projectMihomoFetchModeBackend {
+		if item.FetchMode == projectMihomoFetchModeBackend || item.FetchMode == projectMihomoFetchModeStatic {
 			providerConfig["type"] = "file"
 			providerConfig["path"] = item.Path
 		} else {
@@ -2120,18 +2143,24 @@ func (s *ProjectMihomoService) ensureProviderFiles(ctx context.Context, previous
 		previousURLs[ref.Name] = strings.TrimSpace(ref.URL)
 	}
 
-	client, err := httpclient.GetClient(httpclient.Options{
-		Timeout: projectMihomoHTTPTimeout,
-	})
-	if err != nil {
-		return fmt.Errorf("build subscription client: %w", err)
-	}
+	var client *http.Client
+	var err error
 
 	for _, provider := range providers {
+		targetPath := s.providerCachePathFor(provider.Path)
+		if provider.FetchMode == projectMihomoFetchModeStatic {
+			content, err := projectMihomoStaticProviderContent(provider.Content)
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(targetPath, content, 0o644); err != nil {
+				return fmt.Errorf("write mihomo provider file: %w", err)
+			}
+			continue
+		}
 		if provider.FetchMode != projectMihomoFetchModeBackend {
 			continue
 		}
-		targetPath := s.providerCachePathFor(provider.Path)
 		currentURL := strings.TrimSpace(provider.URL)
 		previousURL := previousURLs[provider.Name]
 		targetExists := false
@@ -2148,6 +2177,14 @@ func (s *ProjectMihomoService) ensureProviderFiles(ctx context.Context, previous
 		} else if reused {
 			continue
 		}
+		if client == nil {
+			client, err = httpclient.GetClient(httpclient.Options{
+				Timeout: projectMihomoHTTPTimeout,
+			})
+			if err != nil {
+				return fmt.Errorf("build subscription client: %w", err)
+			}
+		}
 		content, err := s.fetchProviderContent(ctx, client, current.SubscriptionUA, currentURL)
 		if err != nil {
 			if shouldKeepExistingProjectMihomoProviderFile(previousRefs, previousURL, currentURL, targetExists) {
@@ -2160,6 +2197,21 @@ func (s *ProjectMihomoService) ensureProviderFiles(ctx context.Context, previous
 		}
 	}
 	return s.pruneProviderFiles(current)
+}
+
+func projectMihomoStaticProviderContent(content string) ([]byte, error) {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		return nil, ErrProjectMihomoStaticRequired
+	}
+	if !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	data := []byte(content)
+	if len(data) > projectMihomoProviderMaxSize {
+		return nil, ErrProjectMihomoStaticTooLarge
+	}
+	return data, nil
 }
 
 func shouldKeepExistingProjectMihomoProviderFile(previousRefs []projectMihomoProviderRef, previousURL, currentURL string, targetExists bool) bool {
@@ -2435,6 +2487,7 @@ func buildProjectMihomoProviderRefs(settings *ProjectMihomoSettings) []projectMi
 		return nil
 	}
 	fetchModes := normalizeProjectMihomoSubscriptionFetchModes(settings.SubscriptionFetchModes, len(urls))
+	contents := normalizeProjectMihomoSubscriptionContents(settings.SubscriptionContents, len(urls))
 
 	out := make([]projectMihomoProviderRef, 0, len(urls))
 	if len(urls) == 1 {
@@ -2447,6 +2500,7 @@ func buildProjectMihomoProviderRefs(settings *ProjectMihomoSettings) []projectMi
 			Path:        projectMihomoProviderPath,
 			URL:         urls[0],
 			FetchMode:   fetchModes[0],
+			Content:     contents[0],
 			DisplayName: label,
 		}}
 	}
@@ -2462,6 +2516,7 @@ func buildProjectMihomoProviderRefs(settings *ProjectMihomoSettings) []projectMi
 			Path:        "./providers/" + projectMihomoProviderName + suffix + ".yaml",
 			URL:         urls[i],
 			FetchMode:   fetchModes[i],
+			Content:     contents[i],
 			DisplayName: label,
 		})
 	}

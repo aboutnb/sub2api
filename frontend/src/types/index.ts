@@ -798,13 +798,14 @@ export interface ProxyQualityCheckResult {
   items: ProxyQualityCheckItem[]
 }
 
-export type ProjectMihomoSubscriptionFetchMode = 'mihomo' | 'backend'
+export type ProjectMihomoSubscriptionFetchMode = 'mihomo' | 'backend' | 'static'
 
 export interface ProjectMihomoSettings {
   subscription_url: string
   subscription_urls: string[]
   subscription_names: string[]
   subscription_fetch_modes: ProjectMihomoSubscriptionFetchMode[]
+  subscription_contents: string[]
   subscription_user_agent: string
   update_interval: number
   protocol: ProxyProtocol

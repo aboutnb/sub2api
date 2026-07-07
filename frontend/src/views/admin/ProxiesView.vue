@@ -416,7 +416,7 @@
                 </div>
               </div>
               <div class="mt-3 space-y-3">
-                <div class="grid gap-2 md:grid-cols-[160px_minmax(0,1fr)_40px]">
+                <div class="grid gap-2 md:grid-cols-[160px_minmax(0,1fr)_40px_auto]">
                   <input
                     v-model="projectMihomoNewSubscriptionName"
                     type="text"
@@ -436,12 +436,21 @@
                   <button
                     type="button"
                     class="project-mihomo-icon-btn shrink-0"
-                    :disabled="!projectMihomoNewSubscriptionUrl.trim()"
+                    :disabled="!projectMihomoNewSubscriptionUrl.trim() && !projectMihomoNewSubscriptionName.trim()"
                     :title="t('common.create')"
                     @click="addProjectMihomoSubscriptionUrl"
                   >
                     <Icon name="plus" size="sm" />
                   </button>
+                  <label class="btn btn-secondary cursor-pointer whitespace-nowrap px-3 text-sm">
+                    <input
+                      type="file"
+                      class="sr-only"
+                      accept=".yaml,.yml,application/yaml,application/x-yaml,text/yaml,text/plain"
+                      @change="uploadProjectMihomoStaticYaml"
+                    />
+                    {{ t('admin.proxies.projectMihomo.uploadYaml') }}
+                  </label>
                 </div>
                 <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   {{ t('admin.proxies.projectMihomo.subscriptionUrlsHint') }}
@@ -528,6 +537,29 @@
                 </button>
                 <div class="text-xs text-gray-500 dark:text-gray-400 md:col-span-4">
                   {{ projectMihomoSubscriptionFetchModeHint(projectMihomoForm.subscription_fetch_modes[projectMihomoActiveSubscriptionSource.index]) }}
+                </div>
+                <div
+                  v-if="normalizeProjectMihomoSubscriptionFetchMode(projectMihomoForm.subscription_fetch_modes[projectMihomoActiveSubscriptionSource.index]) === 'static'"
+                  class="md:col-span-4"
+                >
+                  <div class="mb-1 flex items-center justify-between gap-2">
+                    <label class="input-label mb-0">{{ t('admin.proxies.projectMihomo.staticYaml') }}</label>
+                    <label class="btn btn-secondary cursor-pointer whitespace-nowrap px-3 py-1 text-xs">
+                      <input
+                        type="file"
+                        class="sr-only"
+                        accept=".yaml,.yml,application/yaml,application/x-yaml,text/yaml,text/plain"
+                        @change="uploadProjectMihomoStaticYaml($event, projectMihomoActiveSubscriptionSource.index)"
+                      />
+                      {{ t('admin.proxies.projectMihomo.uploadYaml') }}
+                    </label>
+                  </div>
+                  <textarea
+                    v-model="projectMihomoForm.subscription_contents[projectMihomoActiveSubscriptionSource.index]"
+                    class="input min-h-48 font-mono text-xs leading-5"
+                    :placeholder="t('admin.proxies.projectMihomo.staticYamlPlaceholder')"
+                    spellcheck="false"
+                  />
                 </div>
               </div>
             </div>
@@ -1453,6 +1485,7 @@ const projectMihomoSubscriptionSources = computed(() => {
   const urls = projectMihomoForm.subscription_urls || []
   const names = projectMihomoForm.subscription_names || []
   const fetchModes = projectMihomoForm.subscription_fetch_modes || []
+  const contents = projectMihomoForm.subscription_contents || []
   return urls.map((url, index) => {
     const provider = urls.length > 1
       ? `project-subscription-${String(index + 1).padStart(2, '0')}`
@@ -1466,6 +1499,7 @@ const projectMihomoSubscriptionSources = computed(() => {
       provider,
       name: customName,
       fetchMode,
+      content: contents[index] || '',
       fetchModeLabel: projectMihomoSubscriptionFetchModeLabel(fetchMode),
       label: customName || sampleNode?.provider_label || projectMihomoSourceLabel(url, index, urls.length),
       nodeCount: projectMihomoVisibleNodes.value.filter((node) => node.provider === provider).length
@@ -1588,23 +1622,40 @@ const defaultProjectMihomoNodeExcludeKeywords = [
 const projectMihomoNodeExcludeKeywordsText = ref(defaultProjectMihomoNodeExcludeKeywords.join('\n'))
 const defaultProjectMihomoSubscriptionUserAgent = 'clash.meta'
 const defaultProjectMihomoSubscriptionFetchMode: ProjectMihomoSubscriptionFetchMode = 'mihomo'
+const projectMihomoProviderMaxSize = 16 * 1024 * 1024
 
-const normalizeProjectMihomoSubscriptionFetchMode = (mode?: string | null): ProjectMihomoSubscriptionFetchMode =>
-  mode === 'backend' ? 'backend' : defaultProjectMihomoSubscriptionFetchMode
+const normalizeProjectMihomoSubscriptionFetchMode = (mode?: string | null): ProjectMihomoSubscriptionFetchMode => {
+  if (mode === 'backend') return 'backend'
+  if (mode === 'static') return 'static'
+  return defaultProjectMihomoSubscriptionFetchMode
+}
 
-const projectMihomoSubscriptionFetchModeLabel = (mode?: string | null) =>
-  normalizeProjectMihomoSubscriptionFetchMode(mode) === 'backend'
-    ? t('admin.proxies.projectMihomo.fetchModeBackend')
-    : t('admin.proxies.projectMihomo.fetchModeMihomo')
+const projectMihomoSubscriptionFetchModeLabel = (mode?: string | null) => {
+  switch (normalizeProjectMihomoSubscriptionFetchMode(mode)) {
+    case 'backend':
+      return t('admin.proxies.projectMihomo.fetchModeBackend')
+    case 'static':
+      return t('admin.proxies.projectMihomo.fetchModeStatic')
+    default:
+      return t('admin.proxies.projectMihomo.fetchModeMihomo')
+  }
+}
 
-const projectMihomoSubscriptionFetchModeHint = (mode?: string | null) =>
-  normalizeProjectMihomoSubscriptionFetchMode(mode) === 'backend'
-    ? t('admin.proxies.projectMihomo.fetchModeBackendHint')
-    : t('admin.proxies.projectMihomo.fetchModeMihomoHint')
+const projectMihomoSubscriptionFetchModeHint = (mode?: string | null) => {
+  switch (normalizeProjectMihomoSubscriptionFetchMode(mode)) {
+    case 'backend':
+      return t('admin.proxies.projectMihomo.fetchModeBackendHint')
+    case 'static':
+      return t('admin.proxies.projectMihomo.fetchModeStaticHint')
+    default:
+      return t('admin.proxies.projectMihomo.fetchModeMihomoHint')
+  }
+}
 
 const projectMihomoSubscriptionFetchModeOptions = computed<SelectOption[]>(() => [
   { value: 'mihomo', label: t('admin.proxies.projectMihomo.fetchModeMihomo') },
-  { value: 'backend', label: t('admin.proxies.projectMihomo.fetchModeBackend') }
+  { value: 'backend', label: t('admin.proxies.projectMihomo.fetchModeBackend') },
+  { value: 'static', label: t('admin.proxies.projectMihomo.fetchModeStatic') }
 ])
 
 const projectMihomoForm = reactive<ProjectMihomoSettings>({
@@ -1612,6 +1663,7 @@ const projectMihomoForm = reactive<ProjectMihomoSettings>({
   subscription_urls: [],
   subscription_names: [],
   subscription_fetch_modes: [],
+  subscription_contents: [],
   subscription_user_agent: defaultProjectMihomoSubscriptionUserAgent,
   update_interval: 3600,
   protocol: 'socks5h',
@@ -1878,6 +1930,14 @@ const normalizeProjectMihomoSubscriptionFetchModes = () => {
   projectMihomoForm.subscription_fetch_modes = Array.from({ length: count }, (_, index) =>
     normalizeProjectMihomoSubscriptionFetchMode(projectMihomoForm.subscription_fetch_modes?.[index])
   )
+  normalizeProjectMihomoSubscriptionContents()
+}
+
+const normalizeProjectMihomoSubscriptionContents = () => {
+  const count = projectMihomoForm.subscription_urls?.length || 0
+  projectMihomoForm.subscription_contents = Array.from({ length: count }, (_, index) =>
+    projectMihomoForm.subscription_contents?.[index] || ''
+  )
 }
 
 const normalizeProjectMihomoSubscriptionUrls = () => {
@@ -1885,11 +1945,12 @@ const normalizeProjectMihomoSubscriptionUrls = () => {
     .map((item, index) => ({
       url: item.trim(),
       name: projectMihomoForm.subscription_names?.[index]?.trim() || '',
-      fetchMode: normalizeProjectMihomoSubscriptionFetchMode(projectMihomoForm.subscription_fetch_modes?.[index])
+      fetchMode: normalizeProjectMihomoSubscriptionFetchMode(projectMihomoForm.subscription_fetch_modes?.[index]),
+      content: projectMihomoForm.subscription_contents?.[index] || ''
     }))
     .filter((item) => item.url)
 
-  const deduped: Array<{ url: string; name: string; fetchMode: ProjectMihomoSubscriptionFetchMode }> = []
+  const deduped: Array<{ url: string; name: string; fetchMode: ProjectMihomoSubscriptionFetchMode; content: string }> = []
   const seen = new Set<string>()
   for (const item of pairs) {
     if (seen.has(item.url)) continue
@@ -1900,6 +1961,7 @@ const normalizeProjectMihomoSubscriptionUrls = () => {
   projectMihomoForm.subscription_urls = deduped.map((item) => item.url)
   projectMihomoForm.subscription_names = deduped.map((item) => item.name)
   projectMihomoForm.subscription_fetch_modes = deduped.map((item) => item.fetchMode)
+  projectMihomoForm.subscription_contents = deduped.map((item) => item.content)
   projectMihomoForm.subscription_url = projectMihomoForm.subscription_urls[0] || ''
   ensureProjectMihomoSelectedProvider()
 }
@@ -1913,22 +1975,96 @@ const syncProjectMihomoSubscriptionUrlsFromForm = () => {
   ensureProjectMihomoSelectedProvider()
 }
 
+const createProjectMihomoStaticSourceId = (name: string) => {
+  const slug = encodeURIComponent((name || 'manual').trim().replace(/\s+/g, '-'))
+  return `static://project-mihomo/${slug}-${Date.now()}`
+}
+
+const projectMihomoProviderNameForIndex = (index: number, total: number) =>
+  total > 1
+    ? `project-subscription-${String(index + 1).padStart(2, '0')}`
+    : 'project-subscription'
+
+const projectMihomoYamlFileName = (file: File) =>
+  file.name.replace(/\.(ya?ml|txt)$/i, '').trim() || 'YAML'
+
+const selectProjectMihomoSourceByIndex = (index: number) => {
+  const total = projectMihomoForm.subscription_urls.length
+  if (index < 0 || total === 0) {
+    projectMihomoSelectedProvider.value = ''
+    return
+  }
+  projectMihomoSelectedProvider.value = projectMihomoProviderNameForIndex(index, total)
+}
+
+const applyProjectMihomoStaticYamlContent = (name: string, content: string, targetIndex?: number) => {
+  const urls = projectMihomoForm.subscription_urls || []
+  if (typeof targetIndex === 'number' && targetIndex >= 0 && targetIndex < urls.length) {
+    projectMihomoForm.subscription_names[targetIndex] = projectMihomoForm.subscription_names[targetIndex]?.trim() || name
+    projectMihomoForm.subscription_urls[targetIndex] = projectMihomoForm.subscription_urls[targetIndex]?.trim() || createProjectMihomoStaticSourceId(name)
+    projectMihomoForm.subscription_fetch_modes[targetIndex] = 'static'
+    normalizeProjectMihomoSubscriptionContents()
+    projectMihomoForm.subscription_contents[targetIndex] = content
+    normalizeProjectMihomoSubscriptionUrls()
+    selectProjectMihomoSourceByIndex(Math.min(targetIndex, projectMihomoForm.subscription_urls.length - 1))
+    return
+  }
+
+  const value = createProjectMihomoStaticSourceId(name)
+  projectMihomoForm.subscription_urls = [...(projectMihomoForm.subscription_urls || []), value]
+  projectMihomoForm.subscription_names = [...(projectMihomoForm.subscription_names || []), name]
+  projectMihomoForm.subscription_fetch_modes = [...(projectMihomoForm.subscription_fetch_modes || []), 'static']
+  projectMihomoForm.subscription_contents = [...(projectMihomoForm.subscription_contents || []), content]
+  normalizeProjectMihomoSubscriptionUrls()
+  const addedIndex = Math.max(0, projectMihomoForm.subscription_urls.findIndex((item) => item === value))
+  selectProjectMihomoSourceByIndex(addedIndex)
+}
+
+const uploadProjectMihomoStaticYaml = async (event: Event, targetIndex?: number) => {
+  const input = event.target as HTMLInputElement | null
+  const file = input?.files?.[0]
+  if (!file) return
+
+  try {
+    if (file.size > projectMihomoProviderMaxSize) {
+      appStore.showError(t('admin.proxies.projectMihomo.yamlFileTooLarge'))
+      return
+    }
+    const content = await file.text()
+    if (!content.trim()) {
+      appStore.showError(t('admin.proxies.projectMihomo.yamlFileEmpty'))
+      return
+    }
+    const name = projectMihomoYamlFileName(file)
+    applyProjectMihomoStaticYamlContent(name, content, targetIndex)
+    appStore.showSuccess(t('admin.proxies.projectMihomo.yamlFileLoaded', { name: file.name }))
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.proxies.projectMihomo.yamlFileLoadFailed'))
+  } finally {
+    if (input) {
+      input.value = ''
+    }
+  }
+}
+
 const addProjectMihomoSubscriptionUrl = () => {
-  const value = projectMihomoNewSubscriptionUrl.value.trim()
-  if (!value) return
+  const inputUrl = projectMihomoNewSubscriptionUrl.value.trim()
   const name = projectMihomoNewSubscriptionName.value.trim()
+  if (!inputUrl && !name) return
+  const fetchMode: ProjectMihomoSubscriptionFetchMode = inputUrl
+    ? defaultProjectMihomoSubscriptionFetchMode
+    : 'static'
+  const value = inputUrl || createProjectMihomoStaticSourceId(name)
   projectMihomoForm.subscription_urls = [...(projectMihomoForm.subscription_urls || []), value]
   projectMihomoForm.subscription_names = [...(projectMihomoForm.subscription_names || []), name]
   projectMihomoForm.subscription_fetch_modes = [
     ...(projectMihomoForm.subscription_fetch_modes || []),
-    defaultProjectMihomoSubscriptionFetchMode
+    fetchMode
   ]
+  projectMihomoForm.subscription_contents = [...(projectMihomoForm.subscription_contents || []), '']
   normalizeProjectMihomoSubscriptionUrls()
   const addedIndex = Math.max(0, projectMihomoForm.subscription_urls.findIndex((item) => item === value))
-  const total = projectMihomoForm.subscription_urls.length
-  projectMihomoSelectedProvider.value = total > 1
-    ? `project-subscription-${String(addedIndex + 1).padStart(2, '0')}`
-    : 'project-subscription'
+  selectProjectMihomoSourceByIndex(addedIndex)
   projectMihomoNewSubscriptionName.value = ''
   projectMihomoNewSubscriptionUrl.value = ''
 }
@@ -1937,6 +2073,7 @@ const removeProjectMihomoSubscriptionUrl = (index: number) => {
   projectMihomoForm.subscription_urls = (projectMihomoForm.subscription_urls || []).filter((_, current) => current !== index)
   projectMihomoForm.subscription_names = (projectMihomoForm.subscription_names || []).filter((_, current) => current !== index)
   projectMihomoForm.subscription_fetch_modes = (projectMihomoForm.subscription_fetch_modes || []).filter((_, current) => current !== index)
+  projectMihomoForm.subscription_contents = (projectMihomoForm.subscription_contents || []).filter((_, current) => current !== index)
   normalizeProjectMihomoSubscriptionUrls()
 }
 
@@ -1945,6 +2082,7 @@ const buildProjectMihomoPayload = (forceRemoveInUse = false): ProjectMihomoSetti
   subscription_urls: [...(projectMihomoForm.subscription_urls || [])],
   subscription_names: [...(projectMihomoForm.subscription_names || [])],
   subscription_fetch_modes: [...(projectMihomoForm.subscription_fetch_modes || [])],
+  subscription_contents: [...(projectMihomoForm.subscription_contents || [])],
   listener_ports: [...(projectMihomoForm.listener_ports || [])],
   listener_names: [...(projectMihomoForm.listener_names || [])],
   listener_regions: [...(projectMihomoForm.listener_regions || [])],
@@ -2317,6 +2455,7 @@ const testProjectMihomoSourceNodes = async (source: {
   url: string
   name?: string
   fetchMode?: ProjectMihomoSubscriptionFetchMode
+  content?: string
 }) => {
   const url = source.url.trim()
   if (!url) return
@@ -2333,7 +2472,8 @@ const testProjectMihomoSourceNodes = async (source: {
       subscription_url: url,
       subscription_urls: [url],
       subscription_names: [source.name || ''],
-      subscription_fetch_modes: [normalizeProjectMihomoSubscriptionFetchMode(source.fetchMode)]
+      subscription_fetch_modes: [normalizeProjectMihomoSubscriptionFetchMode(source.fetchMode)],
+      subscription_contents: [source.content || '']
     }
     const result = await adminAPI.proxies.testProjectMihomoNodes(payload)
     const otherNodes = projectMihomoAvailableNodes.value.filter((node) => node.provider !== source.provider)
