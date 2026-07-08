@@ -53,8 +53,8 @@ jobs:
           push: true
           tags: ${{ steps.image.outputs.tags }}
           build-args: |
-            VERSION=sub2api-flowai
             COMMIT=${{ github.sha }}
             DATE=${{ steps.image.outputs.date }}
+            BUILD_TYPE=source
           cache-from: type=gha,scope=sub2api-flowai
           cache-to: type=gha,scope=sub2api-flowai,mode=max
