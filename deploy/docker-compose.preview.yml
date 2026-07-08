@@ -1,8 +1,6 @@
 services:
   sub2api:
-    build:
-      context: ..
-      dockerfile: Dockerfile
+    image: ${SUB2API_IMAGE:-ghcr.io/aboutnb/sub2api:sub2api-flowai}
     container_name: ${COMPOSE_NAME:-flowai-preview}-app
     restart: unless-stopped
     ports:

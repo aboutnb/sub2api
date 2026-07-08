@@ -15,7 +15,9 @@ This directory contains files for deploying Sub2API on Linux servers.
 |------|-------------|
 | `docker-compose.yml` | Docker Compose configuration (named volumes) |
 | `docker-compose.local.yml` | Docker Compose configuration (local directories, easy migration) |
+| `docker-compose.preview.yml` | Preview deployment compose file (pulls a prebuilt image) |
 | `docker-deploy.sh` | **One-click Docker deployment script (recommended)** |
+| `deploy-preview-image.sh` | Pull-and-restart script for preview servers |
 | `.env.example` | Docker environment variables template |
 | `DOCKER.md` | Docker Hub documentation |
 | `install.sh` | One-click binary installation script |
@@ -28,6 +30,20 @@ This directory contains files for deploying Sub2API on Linux servers.
 ---
 
 ## Docker Deployment (Recommended)
+
+### Preview Image Deployment
+
+The `sub2api-flowai` branch publishes `ghcr.io/aboutnb/sub2api:sub2api-flowai`
+from GitHub Actions. Preview servers should pull that image instead of building
+on the server:
+
+```bash
+cd /root/flowai-preview/deploy
+./deploy-preview-image.sh
+```
+
+The script runs `docker compose pull sub2api`, recreates only the app service,
+and waits for `/health`.
 
 ### Method 1: One-Click Deployment (Recommended)
 
