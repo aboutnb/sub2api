@@ -336,6 +336,7 @@ const filteredRows = computed(() => {
     case 'other':
       return rowResults.value.filter(row => row.status === 'failed' && row.failureCode === resultFilter.value)
   }
+  return rowResults.value
 })
 
 const resetRows = () => {
