@@ -339,7 +339,7 @@ func (s *defaultOpenAIAccountScheduler) Select(
 	}
 
 	if !req.StickyWeighted {
-		selection, escapedSticky, err := s.selectBySessionHash(ctx, req)
+		selection, escapedSticky, escapedAccountID, err := s.selectBySessionHash(ctx, req)
 		if err != nil {
 			return nil, decision, err
 		}
@@ -352,6 +352,7 @@ func (s *defaultOpenAIAccountScheduler) Select(
 		}
 		if escapedSticky {
 			req.PreserveStickyBinding = true
+			req.ExcludedIDs = withOpenAIExcludedAccountID(req.ExcludedIDs, escapedAccountID)
 		}
 	}
 
@@ -367,7 +368,10 @@ func (s *defaultOpenAIAccountScheduler) Select(
 		decision.SelectedAccountID = selection.Account.ID
 		decision.SelectedAccountType = selection.Account.Type
 		if req.StickyWeighted {
-			if req.StickyPreviousAccountID > 0 && selection.Account.ID == req.StickyPreviousAccountID {
+			if req.StickyPreviousAccountID > 0 &&
+				selection.Account.ID == req.StickyPreviousAccountID &&
+				req.PreviousResponseCanMove &&
+				s.service.openAIWSSchedulerWeightsForRequest(ctx).Previous > 0 {
 				decision.StickyPreviousHit = true
 			}
 			if req.StickyAccountID > 0 && selection.Account.ID == req.StickyAccountID {
@@ -381,10 +385,10 @@ func (s *defaultOpenAIAccountScheduler) Select(
 func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 	ctx context.Context,
 	req OpenAIAccountScheduleRequest,
-) (*AccountSelectionResult, bool, error) {
+) (*AccountSelectionResult, bool, int64, error) {
 	sessionHash := strings.TrimSpace(req.SessionHash)
 	if sessionHash == "" || s == nil || s.service == nil || s.service.cache == nil {
-		return nil, false, nil
+		return nil, false, 0, nil
 	}
 
 	accountID := req.StickyAccountID
@@ -392,38 +396,38 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 		var err error
 		accountID, err = s.service.getStickySessionAccountID(ctx, req.GroupID, sessionHash)
 		if err != nil || accountID <= 0 {
-			return nil, false, nil
+			return nil, false, 0, nil
 		}
 	}
 	if accountID <= 0 {
-		return nil, false, nil
+		return nil, false, 0, nil
 	}
 	if req.ExcludedIDs != nil {
 		if _, excluded := req.ExcludedIDs[accountID]; excluded {
-			return nil, false, nil
+			return nil, false, 0, nil
 		}
 	}
 
 	account, err := s.service.getSchedulableAccount(ctx, accountID)
 	if err != nil || account == nil {
 		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
-		return nil, false, nil
+		return nil, false, 0, nil
 	}
 	if shouldClearStickySession(account, req.RequestedModel) || account.Platform != normalizeOpenAICompatiblePlatform(req.Platform) || !account.IsOpenAICompatible() || !account.IsSchedulable() {
 		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
-		return nil, false, nil
+		return nil, false, 0, nil
 	}
 	if !s.isAccountRequestCompatible(ctx, account, req) {
-		return nil, false, nil
+		return nil, false, 0, nil
 	}
 	if !s.isAccountTransportCompatible(account, req.RequiredTransport) {
 		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
-		return nil, false, nil
+		return nil, false, 0, nil
 	}
 	account = s.service.recheckSelectedOpenAIAccountFromDB(ctx, account, req.Platform, req.RequestedModel, req.RequireCompact, req.RequiredCapability)
 	if account == nil || !openAIStickyAccountMatchesGroup(account, req.GroupID) || !s.isAccountTransportCompatible(account, req.RequiredTransport) {
 		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
-		return nil, false, nil
+		return nil, false, 0, nil
 	}
 	escapeCfg := s.service.openAIStickyEscapeConfig()
 	if reason, errorRate, ttft, shouldEscape := s.shouldEscapeStickyAccount(accountID, escapeCfg); shouldEscape {
@@ -433,7 +437,7 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 			"error_rate", errorRate,
 			"ttft", ttft,
 		)
-		return nil, true, nil
+		return nil, true, accountID, nil
 	}
 	result, acquireErr := s.service.tryAcquireAccountSlot(ctx, accountID, account.Concurrency)
 	if acquireErr == nil && result != nil && result.Acquired {
@@ -442,7 +446,7 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 			Account:     account,
 			Acquired:    true,
 			ReleaseFunc: result.ReleaseFunc,
-		}, false, nil
+		}, false, 0, nil
 	}
 
 	cfg := s.service.schedulingConfig()
@@ -456,7 +460,7 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 				"error_rate", errorRate,
 				"ttft", ttft,
 			)
-			return nil, true, nil
+			return nil, true, accountID, nil
 		}
 		return &AccountSelectionResult{
 			Account: account,
@@ -466,9 +470,21 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 				Timeout:        cfg.StickySessionWaitTimeout,
 				MaxWaiting:     cfg.StickySessionMaxWaiting,
 			},
-		}, false, nil
+		}, false, 0, nil
 	}
-	return nil, false, nil
+	return nil, false, 0, nil
+}
+
+func withOpenAIExcludedAccountID(excluded map[int64]struct{}, accountID int64) map[int64]struct{} {
+	if accountID <= 0 {
+		return excluded
+	}
+	next := make(map[int64]struct{}, len(excluded)+1)
+	for id := range excluded {
+		next[id] = struct{}{}
+	}
+	next[accountID] = struct{}{}
+	return next
 }
 
 func openAIStickyAccountMatchesGroup(account *Account, groupID *int64) bool {
@@ -558,7 +574,7 @@ func isOpenAIAccountCandidateBetter(left openAIAccountCandidateScore, right open
 		return left.score > right.score
 	}
 	if left.account.Priority != right.account.Priority {
-		return left.account.Priority > right.account.Priority
+		return left.account.Priority < right.account.Priority
 	}
 	if left.loadInfo.LoadRate != right.loadInfo.LoadRate {
 		return left.loadInfo.LoadRate < right.loadInfo.LoadRate
@@ -834,7 +850,7 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		item := &candidates[i]
 		priorityFactor := 1.0
 		if maxPriority > minPriority {
-			priorityFactor = float64(item.account.Priority-minPriority) / float64(maxPriority-minPriority)
+			priorityFactor = 1 - float64(item.priority-minPriority)/float64(maxPriority-minPriority)
 		}
 		loadFactor := 1 - clamp01(float64(item.loadInfo.LoadRate)/100.0)
 		queueFactor := 1 - clamp01(float64(item.loadInfo.WaitingCount)/float64(maxWaiting))
@@ -950,7 +966,7 @@ func sortOpenAICompactRetryCandidates(pool []openAIAccountCandidateScore) []open
 	sort.SliceStable(ordered, func(i, j int) bool {
 		a, b := ordered[i], ordered[j]
 		if a.account.Priority != b.account.Priority {
-			return a.account.Priority > b.account.Priority
+			return a.account.Priority < b.account.Priority
 		}
 		if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
 			return a.loadInfo.LoadRate < b.loadInfo.LoadRate
@@ -2104,7 +2120,7 @@ func buildOpenAIAccountSchedulerScoreSnapshot(
 	for _, candidate := range candidates {
 		priorityFactor := 1.0
 		if maxPriority > minPriority {
-			priorityFactor = float64(candidate.priority-minPriority) / float64(maxPriority-minPriority)
+			priorityFactor = 1 - float64(candidate.priority-minPriority)/float64(maxPriority-minPriority)
 		}
 		loadFactor := 1 - clamp01(float64(candidate.loadInfo.LoadRate)/100.0)
 		queueFactor := 1 - clamp01(float64(candidate.loadInfo.WaitingCount)/float64(maxWaiting))

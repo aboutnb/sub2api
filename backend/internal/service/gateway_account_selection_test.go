@@ -41,9 +41,9 @@ func TestSortAccountsByPriorityAndLastUsed_ByPriority(t *testing.T) {
 		{ID: 3, Priority: 3, LastUsedAt: testTimePtr(now)},
 	}
 	sortAccountsByPriorityAndLastUsed(accounts, false)
-	require.Equal(t, int64(1), accounts[0].ID, "优先级最高的排第一")
+	require.Equal(t, int64(2), accounts[0].ID, "优先级最低的排第一")
 	require.Equal(t, int64(3), accounts[1].ID)
-	require.Equal(t, int64(2), accounts[2].ID)
+	require.Equal(t, int64(1), accounts[2].ID)
 }
 
 func TestSortAccountsByPriorityAndLastUsed_SamePriorityByLastUsed(t *testing.T) {
@@ -103,31 +103,32 @@ func TestSortAccountsByPriorityAndLastUsed_MixedPriorityAndTime(t *testing.T) {
 		{ID: 4, Priority: 2, LastUsedAt: testTimePtr(now.Add(-2 * time.Hour))},
 	}
 	sortAccountsByPriorityAndLastUsed(accounts, false)
-	// 优先级2排前：nil < earlier
-	require.Equal(t, int64(1), accounts[0].ID, "优先级2 + nil")
-	require.Equal(t, int64(4), accounts[1].ID, "优先级2 + 更早")
-	// 优先级1排后：earlier < now
-	require.Equal(t, int64(3), accounts[2].ID, "优先级1 + 更早")
-	require.Equal(t, int64(2), accounts[3].ID, "优先级1 + 现在")
+	// 优先级1排前：nil < earlier
+	require.Equal(t, int64(3), accounts[0].ID, "优先级1 + 更早")
+	require.Equal(t, int64(2), accounts[1].ID, "优先级1 + 现在")
+	// 优先级2排后：nil < time
+	require.Equal(t, int64(1), accounts[2].ID, "优先级2 + nil")
+	require.Equal(t, int64(4), accounts[3].ID, "优先级2 + 有时间")
 }
 
-// --- filterByMaxPriority ---
+// --- filterByMinPriority ---
 
-func TestFilterByMaxPriority_Empty(t *testing.T) {
-	result := filterByMaxPriority(nil)
+func TestFilterByMinPriority_Empty(t *testing.T) {
+	result := filterByMinPriority(nil)
 	require.Nil(t, result)
 }
 
-func TestFilterByMaxPriority_SelectsMaxPriority(t *testing.T) {
+func TestFilterByMinPriority_SelectsMinPriority(t *testing.T) {
 	accounts := []accountWithLoad{
 		makeAccWithLoad(1, 5, 10, nil, AccountTypeAPIKey),
 		makeAccWithLoad(2, 1, 10, nil, AccountTypeAPIKey),
 		makeAccWithLoad(3, 1, 20, nil, AccountTypeAPIKey),
 		makeAccWithLoad(4, 2, 10, nil, AccountTypeAPIKey),
 	}
-	result := filterByMaxPriority(accounts)
-	require.Len(t, result, 1)
-	require.Equal(t, int64(1), result[0].account.ID)
+	result := filterByMinPriority(accounts)
+	require.Len(t, result, 2)
+	require.Equal(t, int64(2), result[0].account.ID)
+	require.Equal(t, int64(3), result[1].account.ID)
 }
 
 // --- filterByMinLoadRate ---
