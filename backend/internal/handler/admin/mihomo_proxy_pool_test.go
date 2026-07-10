@@ -105,15 +105,15 @@ func TestAccountHandlerCreate_ProjectMihomoAllocatesLeastLoadedProxy(t *testing.
 	adminSvc := newStubAdminService()
 	adminSvc.proxyCounts = []service.ProxyWithAccountCount{
 		{
-			Proxy: service.Proxy{ID: 11, Name: "project-mihomo-01", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61000, Status: service.StatusActive},
+			Proxy:        service.Proxy{ID: 11, Name: "project-mihomo-01", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61000, Status: service.StatusActive},
 			AccountCount: 5,
 		},
 		{
-			Proxy: service.Proxy{ID: 12, Name: "project-mihomo-02", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61001, Status: service.StatusActive},
+			Proxy:        service.Proxy{ID: 12, Name: "project-mihomo-02", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61001, Status: service.StatusActive},
 			AccountCount: 1,
 		},
 		{
-			Proxy: service.Proxy{ID: 13, Name: "project-mihomo-03", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61002, Status: service.StatusActive},
+			Proxy:        service.Proxy{ID: 13, Name: "project-mihomo-03", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61002, Status: service.StatusActive},
 			AccountCount: 3,
 		},
 	}
@@ -144,11 +144,11 @@ func TestAccountHandlerBatchCreate_ProjectMihomoBalancesAcrossPool(t *testing.T)
 	adminSvc := newStubAdminService()
 	adminSvc.proxyCounts = []service.ProxyWithAccountCount{
 		{
-			Proxy: service.Proxy{ID: 21, Name: "project-mihomo-01", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61000, Status: service.StatusActive},
+			Proxy:        service.Proxy{ID: 21, Name: "project-mihomo-01", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61000, Status: service.StatusActive},
 			AccountCount: 0,
 		},
 		{
-			Proxy: service.Proxy{ID: 22, Name: "project-mihomo-02", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61001, Status: service.StatusActive},
+			Proxy:        service.Proxy{ID: 22, Name: "project-mihomo-02", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61001, Status: service.StatusActive},
 			AccountCount: 0,
 		},
 	}
@@ -209,11 +209,11 @@ func TestImportData_ProjectMihomoOverridesSourceProxyKeyAndBalances(t *testing.T
 	}
 	adminSvc.proxyCounts = []service.ProxyWithAccountCount{
 		{
-			Proxy: service.Proxy{ID: 31, Name: "project-mihomo-01", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61000, Status: service.StatusActive},
+			Proxy:        service.Proxy{ID: 31, Name: "project-mihomo-01", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61000, Status: service.StatusActive},
 			AccountCount: 0,
 		},
 		{
-			Proxy: service.Proxy{ID: 32, Name: "project-mihomo-02", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61001, Status: service.StatusActive},
+			Proxy:        service.Proxy{ID: 32, Name: "project-mihomo-02", Protocol: "socks5h", Host: "mihomo-sub2api", Port: 61001, Status: service.StatusActive},
 			AccountCount: 0,
 		},
 	}

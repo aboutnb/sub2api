@@ -83,7 +83,7 @@ func (h *AccountHandler) newProjectMihomoProxyAllocator(ctx context.Context, req
 		if !isProjectMihomoManagedProxyRow(settings, &item.Proxy) {
 			continue
 		}
-		if !item.Proxy.IsActive() {
+		if !item.IsActive() {
 			continue
 		}
 		candidates = append(candidates, projectMihomoProxyCandidate{

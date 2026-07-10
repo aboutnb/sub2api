@@ -1460,17 +1460,17 @@ func notificationEmailCodeBlock() string {
 
 func notificationEmailDataTable(rows ...[2]string) string {
 	var builder strings.Builder
-	builder.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:18px 0 22px 0;border-collapse:collapse;border:2px solid #17130f;background-color:#fffaf0;">`)
+	_, _ = builder.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:18px 0 22px 0;border-collapse:collapse;border:2px solid #17130f;background-color:#fffaf0;">`)
 	for i, row := range rows {
 		border := "border-top:1px solid #17130f;"
 		if i == 0 {
 			border = ""
 		}
-		builder.WriteString(`<tr>`)
-		builder.WriteString(`<td style="width:38%;padding:11px 13px;` + border + `border-right:1px solid #17130f;background-color:#f1e7d4;color:#5f574b;font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;font-size:11px;line-height:17px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;">` + row[0] + `</td>`)
-		builder.WriteString(`<td style="padding:11px 13px;` + border + `color:#17130f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;line-height:20px;font-weight:700;">` + row[1] + `</td>`)
-		builder.WriteString(`</tr>`)
+		_, _ = builder.WriteString(`<tr>`)
+		_, _ = builder.WriteString(`<td style="width:38%;padding:11px 13px;` + border + `border-right:1px solid #17130f;background-color:#f1e7d4;color:#5f574b;font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;font-size:11px;line-height:17px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;">` + row[0] + `</td>`)
+		_, _ = builder.WriteString(`<td style="padding:11px 13px;` + border + `color:#17130f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;line-height:20px;font-weight:700;">` + row[1] + `</td>`)
+		_, _ = builder.WriteString(`</tr>`)
 	}
-	builder.WriteString(`</table>`)
+	_, _ = builder.WriteString(`</table>`)
 	return builder.String()
 }

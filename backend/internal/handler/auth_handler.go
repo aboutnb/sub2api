@@ -15,7 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
+	"github.com/redis/go-redis/v9" //nolint:depguard // registration challenge risk controls share the route Redis client.
 )
 
 // AuthHandler handles authentication-related requests

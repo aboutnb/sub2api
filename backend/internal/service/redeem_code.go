@@ -64,9 +64,9 @@ func GenerateRedeemCode() (string, error) {
 
 	for i, v := range b {
 		if i > 0 && i%redeemCodeGroupSize == 0 {
-			builder.WriteByte('-')
+			_ = builder.WriteByte('-')
 		}
-		builder.WriteByte(redeemCodeAlphabet[int(v)&31])
+		_ = builder.WriteByte(redeemCodeAlphabet[int(v)&31])
 	}
 
 	return builder.String(), nil

@@ -903,6 +903,7 @@ func normalizeProjectMihomoSubscriptionFetchMode(mode string) string {
 	}
 }
 
+//nolint:unused // Test helper retained with production resolver semantics.
 func resolveProjectMihomoListenerRegions(regions []string, availableRegions []string) []string {
 	if len(regions) == 0 {
 		return nil
@@ -1305,6 +1306,7 @@ func (s *ProjectMihomoService) configPath() string {
 	return filepath.Join(s.configDir(), projectMihomoConfigFilename)
 }
 
+//nolint:unused // Used by project-mihomo tests to validate legacy cache migration paths.
 func (s *ProjectMihomoService) providerCachePath() string {
 	return s.providerCachePathFor(projectMihomoProviderPath)
 }
@@ -1317,6 +1319,7 @@ func (s *ProjectMihomoService) providerDir() string {
 	return filepath.Join(s.configDir(), "providers")
 }
 
+//nolint:unused // Used by project-mihomo tests to verify cached region extraction.
 func (s *ProjectMihomoService) availableRegions(settings *ProjectMihomoSettings) []string {
 	return extractProjectMihomoRegions(projectMihomoNodeNames(s.availableNodes(settings)))
 }
@@ -1327,7 +1330,7 @@ func (s *ProjectMihomoService) availableNodes(settings *ProjectMihomoSettings) [
 		return nil
 	}
 
-	nodes := make([]ProjectMihomoNode, 0)
+	var nodes []ProjectMihomoNode
 	for i := range providers {
 		providerLabel := projectMihomoProviderDisplayName(providers[i], i, len(providers))
 		cachedNames, err := s.providerNodeNamesFromCachePath(s.providerCachePathFor(providers[i].Path))
@@ -1552,7 +1555,7 @@ func (s *ProjectMihomoService) assignProviderNodes(ctx context.Context, settings
 
 	_ = s.refreshProvider(ctx, client, settings)
 	deadline := time.Now().Add(projectMihomoAssignWait)
-	nodes := make([]ProjectMihomoNode, 0)
+	var nodes []ProjectMihomoNode
 	for {
 		nodes, err = s.providerNodes(ctx, client, settings)
 		if err != nil {
@@ -1725,6 +1728,7 @@ func (s *ProjectMihomoService) refreshProvider(ctx context.Context, client *http
 	return nil
 }
 
+//nolint:unused // Kept as a lightweight wrapper for controller node-name probes.
 func (s *ProjectMihomoService) providerNodeNames(ctx context.Context, client *http.Client, settings *ProjectMihomoSettings) ([]string, error) {
 	nodes, err := s.providerNodes(ctx, client, settings)
 	if err != nil {
@@ -1846,6 +1850,7 @@ func (s *ProjectMihomoService) providerNodes(ctx context.Context, client *http.C
 	return allNodes, nil
 }
 
+//nolint:unused // Used with providerCachePath for legacy single-provider cache checks.
 func (s *ProjectMihomoService) providerNodeNamesFromCache() ([]string, error) {
 	return s.providerNodeNamesFromCachePath(s.providerCachePath())
 }
