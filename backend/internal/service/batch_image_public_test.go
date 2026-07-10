@@ -52,7 +52,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		require.Equal(t, "files/gemini_api/input", batchImageDerefString(job.ProviderInputRef))
 		require.Equal(t, "files/gemini_api/output", batchImageDerefString(job.ProviderOutputRef))
 		require.NotNil(t, job.AccountID)
-		require.Equal(t, int64(202), *job.AccountID)
+		require.Equal(t, int64(101), *job.AccountID)
 		require.Equal(t, 1, job.PricingSnapshotVersion)
 		require.InDelta(t, 0.25, job.BaseUnitPrice, 1e-12)
 		require.InDelta(t, 1.0, job.GroupRateMultiplier, 1e-12)
@@ -63,12 +63,30 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		require.InDelta(t, 0.15, job.HoldUnitPrice, 1e-12)
 	})
 
+	t.Run("uses lower priority value first", func(t *testing.T) {
+		svc, repo, _, _, _ := newTestBatchImagePublicService(true)
+		accountRepo := svc.AccountRepo.(*publicBatchImageAccountRepo)
+		accountRepo.accounts = []Account{
+			testBatchImageAccount(300, AccountTypeAPIKey),
+			testBatchImageAccount(100, AccountTypeAPIKey),
+		}
+		accountRepo.accounts[0].Priority = 50
+		accountRepo.accounts[1].Priority = 1
+
+		got, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "")
+		require.NoError(t, err)
+
+		job := repo.jobs[got.ID]
+		require.NotNil(t, job.AccountID)
+		require.Equal(t, int64(100), *job.AccountID)
+	})
+
 	t.Run("combines user group image rate account rate discount and hold margin", func(t *testing.T) {
 		svc, repo, _, _, _ := newTestBatchImagePublicService(true)
 		groupID := int64(7)
 		accountMultiplier := 1.25
 		accountRepo := svc.AccountRepo.(*publicBatchImageAccountRepo)
-		accountRepo.accounts[1].RateMultiplier = &accountMultiplier
+		accountRepo.accounts[0].RateMultiplier = &accountMultiplier
 		svc.GroupRepo = &publicBatchImageGroupRepo{groups: map[int64]*Group{
 			groupID: {
 				ID:                           groupID,
