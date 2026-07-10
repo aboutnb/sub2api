@@ -5351,22 +5351,58 @@
                 </p>
               </div>
 
-              <!-- Community Group URL -->
-              <div>
-                <label
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  {{ t("admin.settings.site.communityGroupUrl") }}
-                </label>
-                <input
-                  v-model="form.community_group_url"
-                  type="url"
-                  class="input font-mono text-sm"
-                  :placeholder="t('admin.settings.site.communityGroupUrlPlaceholder')"
-                />
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.site.communityGroupUrlHint") }}
-                </p>
+              <!-- Community Group -->
+              <div class="space-y-4 border-l-2 border-primary-200 pl-4 dark:border-primary-800">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ t("admin.settings.site.communityGroupName") }}
+                    </label>
+                    <input
+                      v-model="form.community_group_name"
+                      type="text"
+                      class="input"
+                      :placeholder="t('admin.settings.site.communityGroupNamePlaceholder')"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.communityGroupNameHint") }}
+                    </p>
+                  </div>
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ t("admin.settings.site.communityGroupUrl") }}
+                    </label>
+                    <input
+                      v-model="form.community_group_url"
+                      type="url"
+                      class="input font-mono text-sm"
+                      :placeholder="t('admin.settings.site.communityGroupUrlPlaceholder')"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.communityGroupUrlHint") }}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.site.communityGroupIcon") }}
+                  </label>
+                  <ImageUpload
+                    v-model="form.community_group_icon"
+                    mode="image"
+                    size="sm"
+                    :upload-label="t('admin.settings.site.uploadImage')"
+                    :remove-label="t('admin.settings.site.remove')"
+                    :hint="t('admin.settings.site.communityGroupIconHint')"
+                    :max-size="100 * 1024"
+                  />
+                </div>
               </div>
 
               <!-- Doc URL -->
@@ -8139,6 +8175,8 @@ const form = reactive<SettingsForm>({
   site_subtitle: "Subscription to API Conversion Platform",
   api_base_url: "",
   contact_info: "",
+  community_group_name: "",
+  community_group_icon: "",
   community_group_url: "",
   doc_url: "",
   home_content: "",
@@ -9496,6 +9534,8 @@ async function saveSettings() {
       site_subtitle: form.site_subtitle,
       api_base_url: form.api_base_url,
       contact_info: form.contact_info,
+      community_group_name: form.community_group_name,
+      community_group_icon: form.community_group_icon,
       community_group_url: form.community_group_url,
       doc_url: form.doc_url,
       home_content: form.home_content,

@@ -132,6 +132,8 @@ type SystemSettings struct {
 	SiteSubtitle                string
 	APIBaseURL                  string
 	ContactInfo                 string
+	CommunityGroupName          string
+	CommunityGroupIcon          string
 	CommunityGroupURL           string
 	DocURL                      string
 	HomeContent                 string
@@ -288,6 +290,8 @@ type PublicSettings struct {
 	SiteSubtitle                     string
 	APIBaseURL                       string
 	ContactInfo                      string
+	CommunityGroupName               string
+	CommunityGroupIcon               string
 	CommunityGroupURL                string
 	DocURL                           string
 	HomeContent                      string

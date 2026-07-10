@@ -281,6 +281,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.ContactInfo != after.ContactInfo {
 		changed = append(changed, "contact_info")
 	}
+	if before.CommunityGroupName != after.CommunityGroupName {
+		changed = append(changed, "community_group_name")
+	}
+	if before.CommunityGroupIcon != after.CommunityGroupIcon {
+		changed = append(changed, "community_group_icon")
+	}
 	if before.CommunityGroupURL != after.CommunityGroupURL {
 		changed = append(changed, "community_group_url")
 	}

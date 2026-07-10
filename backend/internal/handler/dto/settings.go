@@ -132,6 +132,8 @@ type SystemSettings struct {
 	SiteSubtitle                string           `json:"site_subtitle"`
 	APIBaseURL                  string           `json:"api_base_url"`
 	ContactInfo                 string           `json:"contact_info"`
+	CommunityGroupName          string           `json:"community_group_name"`
+	CommunityGroupIcon          string           `json:"community_group_icon"`
 	CommunityGroupURL           string           `json:"community_group_url"`
 	DocURL                      string           `json:"doc_url"`
 	HomeContent                 string           `json:"home_content"`
@@ -322,6 +324,8 @@ type PublicSettings struct {
 	SiteSubtitle                     string                   `json:"site_subtitle"`
 	APIBaseURL                       string                   `json:"api_base_url"`
 	ContactInfo                      string                   `json:"contact_info"`
+	CommunityGroupName               string                   `json:"community_group_name"`
+	CommunityGroupIcon               string                   `json:"community_group_icon"`
 	CommunityGroupURL                string                   `json:"community_group_url"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`

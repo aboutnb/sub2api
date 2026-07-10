@@ -25,8 +25,20 @@ describe('community group header link', () => {
     expect(headerSource).toContain('rel="noopener noreferrer"')
   })
 
-  it('uses the configured contact icon path with theme-aware color', () => {
+  it('uses the configured name and sanitizes the optional icon', () => {
+    expect(headerSource).toContain("appStore.communityGroupName.trim() || t('nav.communityGroup')")
+    expect(headerSource).toContain('sanitizeUrl(appStore.communityGroupIcon')
+    expect(headerSource).toContain('allowDataUrl: true')
+    expect(headerSource).toContain('v-if="communityGroupIcon"')
+  })
+
+  it('keeps the supplied contact icon as the fallback', () => {
     expect(headerSource).toContain('M928 585.344c0-67.328')
     expect(headerSource).toContain('fill="currentColor"')
+  })
+
+  it('uses an emphasized header treatment while keeping mobile icon-only layout', () => {
+    expect(headerSource).toContain('border-cyan-200 bg-cyan-50')
+    expect(headerSource).toContain('class="hidden max-w-32 truncate sm:inline"')
   })
 })

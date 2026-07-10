@@ -32,17 +32,23 @@
           :href="communityGroupUrl"
           target="_blank"
           rel="noopener noreferrer"
-          :aria-label="t('nav.communityGroup')"
-          :title="t('nav.communityGroup')"
-          class="flex h-9 w-9 flex-shrink-0 items-center justify-center gap-1.5 rounded-lg text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white sm:w-auto sm:px-2.5"
+          :aria-label="communityGroupName"
+          :title="communityGroupName"
+          class="group flex h-9 w-9 flex-shrink-0 items-center justify-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 text-sm font-semibold text-cyan-800 shadow-sm transition-colors hover:border-cyan-300 hover:bg-cyan-100 hover:text-cyan-950 dark:border-cyan-800/70 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:border-cyan-700 dark:hover:bg-cyan-900/60 dark:hover:text-cyan-100 sm:w-auto sm:px-3"
         >
-          <svg class="h-4 w-4" viewBox="0 0 1024 1024" aria-hidden="true">
+          <img
+            v-if="communityGroupIcon"
+            :src="communityGroupIcon"
+            alt=""
+            class="h-5 w-5 rounded object-contain"
+          />
+          <svg v-else class="h-5 w-5" viewBox="0 0 1024 1024" aria-hidden="true">
             <path
               d="M928 585.344c0-67.328-40.832-125.024-98.592-151.456-4.8-170.752-144.288-310.24-317.408-310.24-173.152 0-312.608 137.056-317.408 310.208C136.864 460.32 96 518.016 96 585.344a166.24 166.24 0 0 0 165.92 165.92h4.8c12.032 0 24.064-12 24.064-24.032v-283.744c0-12.032-12.032-24.032-24.064-24.032h-21.632c9.6-137.056 125.024-247.68 266.912-247.68 141.92 0 257.28 110.624 269.344 250.08h-24.096c-12 0-24 12.032-24 24.032V720c-76.96 84.192-182.784 132.288-295.808 132.288-14.432 0-24.032 9.632-24.032 24.032 0 14.432 9.632 24.032 24.032 24.032 127.488 0 247.68-55.328 331.84-149.088 88.96-4.8 158.72-76.928 158.72-165.92zM240.256 700.736a116.384 116.384 0 0 1-96.16-115.392c0-57.696 40.864-105.792 98.592-115.392v230.816h-2.432z m541.088 0v-230.816c55.328 9.632 98.56 57.728 98.56 115.392 0 57.76-43.232 105.856-98.56 115.424z"
               fill="currentColor"
             />
           </svg>
-          <span class="hidden sm:inline">{{ t('nav.communityGroup') }}</span>
+          <span class="hidden max-w-32 truncate sm:inline">{{ communityGroupName }}</span>
         </a>
 
         <!-- Docs Link -->
@@ -282,6 +288,11 @@ const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
+const communityGroupName = computed(() => appStore.communityGroupName.trim() || t('nav.communityGroup'))
+const communityGroupIcon = computed(() => sanitizeUrl(appStore.communityGroupIcon, {
+  allowRelative: true,
+  allowDataUrl: true
+}))
 const communityGroupUrl = computed(() => sanitizeUrl(appStore.communityGroupUrl))
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')

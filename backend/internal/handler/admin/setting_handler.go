@@ -211,6 +211,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		SiteSubtitle:                                           settings.SiteSubtitle,
 		APIBaseURL:                                             settings.APIBaseURL,
 		ContactInfo:                                            settings.ContactInfo,
+		CommunityGroupName:                                     settings.CommunityGroupName,
+		CommunityGroupIcon:                                     settings.CommunityGroupIcon,
 		CommunityGroupURL:                                      settings.CommunityGroupURL,
 		DocURL:                                                 settings.DocURL,
 		HomeContent:                                            settings.HomeContent,

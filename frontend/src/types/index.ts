@@ -217,6 +217,8 @@ export interface PublicSettings {
   site_subtitle: string
   api_base_url: string
   contact_info: string
+  community_group_name?: string
+  community_group_icon?: string
   community_group_url?: string
   doc_url: string
   home_content: string

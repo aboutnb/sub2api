@@ -91,16 +91,20 @@ func TestSettingService_GetPublicSettings_ExposesForceEmailOnThirdPartySignup(t 
 	require.True(t, settings.ForceEmailOnThirdPartySignup)
 }
 
-func TestSettingService_GetPublicSettings_ExposesCommunityGroupURL(t *testing.T) {
+func TestSettingService_GetPublicSettings_ExposesCommunityGroupSettings(t *testing.T) {
 	repo := &settingPublicRepoStub{
 		values: map[string]string{
-			SettingKeyCommunityGroupURL: " https://example.com/community ",
+			SettingKeyCommunityGroupName: " 技术交流 ",
+			SettingKeyCommunityGroupIcon: " data:image/svg+xml;base64,PHN2Zz4= ",
+			SettingKeyCommunityGroupURL:  " https://example.com/community ",
 		},
 	}
 	svc := NewSettingService(repo, &config.Config{})
 
 	settings, err := svc.GetPublicSettings(context.Background())
 	require.NoError(t, err)
+	require.Equal(t, "技术交流", settings.CommunityGroupName)
+	require.Equal(t, "data:image/svg+xml;base64,PHN2Zz4=", settings.CommunityGroupIcon)
 	require.Equal(t, "https://example.com/community", settings.CommunityGroupURL)
 }
 

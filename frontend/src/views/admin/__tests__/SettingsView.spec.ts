@@ -323,6 +323,8 @@ const baseSettingsResponse = {
   site_subtitle: "",
   api_base_url: "",
   contact_info: "",
+  community_group_name: "",
+  community_group_icon: "",
   community_group_url: "",
   doc_url: "",
   home_content: "",
@@ -667,9 +669,11 @@ describe("admin SettingsView payment visible method controls", () => {
     );
   });
 
-  it("submits the configured community group URL", async () => {
+  it("submits the configured community group settings", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
+      community_group_name: "技术交流",
+      community_group_icon: "data:image/svg+xml;base64,PHN2Zz4=",
       community_group_url: "https://example.com/community",
     });
 
@@ -681,6 +685,8 @@ describe("admin SettingsView payment visible method controls", () => {
 
     expect(updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({
+        community_group_name: "技术交流",
+        community_group_icon: "data:image/svg+xml;base64,PHN2Zz4=",
         community_group_url: "https://example.com/community",
       }),
     );

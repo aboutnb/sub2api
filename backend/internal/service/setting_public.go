@@ -178,6 +178,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeySiteSubtitle,
 		SettingKeyAPIBaseURL,
 		SettingKeyContactInfo,
+		SettingKeyCommunityGroupName,
+		SettingKeyCommunityGroupIcon,
 		SettingKeyCommunityGroupURL,
 		SettingKeyDocURL,
 		SettingKeyHomeContent,
@@ -313,6 +315,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SiteSubtitle:                     s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
 		APIBaseURL:                       settings[SettingKeyAPIBaseURL],
 		ContactInfo:                      settings[SettingKeyContactInfo],
+		CommunityGroupName:               strings.TrimSpace(settings[SettingKeyCommunityGroupName]),
+		CommunityGroupIcon:               strings.TrimSpace(settings[SettingKeyCommunityGroupIcon]),
 		CommunityGroupURL:                strings.TrimSpace(settings[SettingKeyCommunityGroupURL]),
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
@@ -474,6 +478,8 @@ type PublicSettingsInjectionPayload struct {
 	SiteSubtitle                     string                   `json:"site_subtitle"`
 	APIBaseURL                       string                   `json:"api_base_url"`
 	ContactInfo                      string                   `json:"contact_info"`
+	CommunityGroupName               string                   `json:"community_group_name"`
+	CommunityGroupIcon               string                   `json:"community_group_icon"`
 	CommunityGroupURL                string                   `json:"community_group_url"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
@@ -547,6 +553,8 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		SiteSubtitle:                     settings.SiteSubtitle,
 		APIBaseURL:                       settings.APIBaseURL,
 		ContactInfo:                      settings.ContactInfo,
+		CommunityGroupName:               settings.CommunityGroupName,
+		CommunityGroupIcon:               settings.CommunityGroupIcon,
 		CommunityGroupURL:                settings.CommunityGroupURL,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
