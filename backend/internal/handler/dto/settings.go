@@ -132,6 +132,7 @@ type SystemSettings struct {
 	SiteSubtitle                string           `json:"site_subtitle"`
 	APIBaseURL                  string           `json:"api_base_url"`
 	ContactInfo                 string           `json:"contact_info"`
+	CommunityGroupURL           string           `json:"community_group_url"`
 	DocURL                      string           `json:"doc_url"`
 	HomeContent                 string           `json:"home_content"`
 	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
@@ -321,6 +322,7 @@ type PublicSettings struct {
 	SiteSubtitle                     string                   `json:"site_subtitle"`
 	APIBaseURL                       string                   `json:"api_base_url"`
 	ContactInfo                      string                   `json:"contact_info"`
+	CommunityGroupURL                string                   `json:"community_group_url"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`

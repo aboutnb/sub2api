@@ -323,6 +323,7 @@ const baseSettingsResponse = {
   site_subtitle: "",
   api_base_url: "",
   contact_info: "",
+  community_group_url: "",
   doc_url: "",
   home_content: "",
   hide_ccs_import_button: false,
@@ -662,6 +663,25 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         enable_anthropic_cache_ttl_1h_injection: true,
+      }),
+    );
+  });
+
+  it("submits the configured community group URL", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      community_group_url: "https://example.com/community",
+    });
+
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        community_group_url: "https://example.com/community",
       }),
     );
   });

@@ -255,6 +255,17 @@ func TestSettingService_UpdateSettings_RegistrationEmailSuffixWhitelist_Normaliz
 	require.Equal(t, `["@example.com","@foo.bar","*.edu.cn"]`, repo.updates[SettingKeyRegistrationEmailSuffixWhitelist])
 }
 
+func TestSettingService_UpdateSettings_CommunityGroupURLTrimmed(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		CommunityGroupURL: "  https://example.com/community  ",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/community", repo.updates[SettingKeyCommunityGroupURL])
+}
+
 func TestSettingService_UpdateSettings_RegistrationEmailSuffixWhitelist_Invalid(t *testing.T) {
 	repo := &settingUpdateRepoStub{}
 	svc := NewSettingService(repo, &config.Config{})
