@@ -357,6 +357,15 @@ func TestSettingService_UpdateSettings_PaymentVisibleMethodsAndAdvancedScheduler
 	require.Equal(t, "4", repo.updates[SettingKeyOpenAIAdvancedSchedulerWeightSessionSticky])
 }
 
+func TestSettingService_UpdateSettings_UserSubscriptionsEnabled(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{UserSubscriptionsEnabled: true})
+	require.NoError(t, err)
+	require.Equal(t, "true", repo.updates[SettingKeyUserSubscriptionsEnabled])
+}
+
 func TestSettingService_GetAllSettings_OpenAIAdvancedSchedulerEffectiveValuesUseConfig(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Gateway.OpenAIWS.LBTopK = 13

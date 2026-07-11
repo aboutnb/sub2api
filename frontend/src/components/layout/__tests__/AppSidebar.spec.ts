@@ -53,3 +53,14 @@ describe('AppSidebar header styles', () => {
     expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
   })
 })
+
+describe('AppSidebar user subscriptions feature flag', () => {
+  it('binds My Subscriptions to the public feature switch', () => {
+    expect(componentSource).toContain(
+      "{ path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagUserSubscriptions }",
+    )
+    expect(componentSource).toContain(
+      'const flagUserSubscriptions = makeSidebarFlag(FeatureFlags.userSubscriptions)',
+    )
+  })
+})

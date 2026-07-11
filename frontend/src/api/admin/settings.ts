@@ -648,6 +648,9 @@ export interface SystemSettings {
   // Available Channels feature switch
   available_channels_enabled: boolean;
 
+  // User-facing subscription page and sidebar entry
+  user_subscriptions_enabled: boolean;
+
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: boolean;
 
@@ -911,6 +914,9 @@ export interface UpdateSettingsRequest {
 
   // Available Channels feature switch
   available_channels_enabled?: boolean;
+
+  // User-facing subscription page and sidebar entry
+  user_subscriptions_enabled?: boolean;
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;

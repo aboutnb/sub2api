@@ -30,6 +30,13 @@ export default {
           enabled: '启用可用渠道',
           enabledHint: '关闭后用户端侧边栏入口隐藏，接口返回空数组。',
         },
+        userSubscriptions: {
+          title: '用户订阅入口',
+          description: '控制用户侧“我的订阅”菜单和页面访问，不影响管理员订阅管理、订阅计费及已有订阅数据。',
+          configureLink: '前往 订阅管理 配置用户订阅',
+          enabled: '显示“我的订阅”',
+          enabledHint: '关闭后用户侧边栏入口隐藏，直接访问订阅页面会返回仪表盘。',
+        },
         riskControl: {
           title: '风控中心',
           description: '启用内容审计菜单和全端点请求审核入口。默认关闭。',

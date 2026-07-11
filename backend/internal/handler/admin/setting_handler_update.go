@@ -302,6 +302,9 @@ type UpdateSettingsRequest struct {
 	// Available Channels feature switch (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
 
+	// User-facing subscription page and sidebar entry
+	UserSubscriptionsEnabled *bool `json:"user_subscriptions_enabled"`
+
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
 
@@ -1511,6 +1514,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AvailableChannelsEnabled
 		}(),
+		UserSubscriptionsEnabled: func() bool {
+			if req.UserSubscriptionsEnabled != nil {
+				return *req.UserSubscriptionsEnabled
+			}
+			return previousSettings.UserSubscriptionsEnabled
+		}(),
 		AffiliateEnabled: func() bool {
 			if req.AffiliateEnabled != nil {
 				return *req.AffiliateEnabled
@@ -1889,6 +1898,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: updatedSettings.ChannelMonitorDefaultIntervalSeconds,
 
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
+		UserSubscriptionsEnabled: updatedSettings.UserSubscriptionsEnabled,
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 

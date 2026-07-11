@@ -370,6 +370,10 @@ const (
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled = "available_channels_enabled"
 
+	// SettingKeyUserSubscriptionsEnabled controls the user-facing "My Subscriptions"
+	// page and sidebar entry. Admin subscription management and billing remain available.
+	SettingKeyUserSubscriptionsEnabled = "user_subscriptions_enabled"
+
 	// =========================
 	// Overload Cooldown (529)
 	// =========================

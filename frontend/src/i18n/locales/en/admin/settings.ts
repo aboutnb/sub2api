@@ -30,6 +30,13 @@ export default {
           enabled: 'Enable Available Channels',
           enabledHint: 'When off, the sidebar entry is hidden and the endpoint returns an empty list.',
         },
+        userSubscriptions: {
+          title: 'User Subscription Entry',
+          description: 'Control the user-facing My Subscriptions menu and page without affecting admin management, billing, or existing subscription data.',
+          configureLink: 'Manage user subscriptions in Subscriptions',
+          enabled: 'Show My Subscriptions',
+          enabledHint: 'When off, the user sidebar entry is hidden and direct page visits redirect to the dashboard.',
+        },
         riskControl: {
           title: 'Risk Control',
           description: 'Enable the content moderation menu and gateway audit entry point. Disabled by default.',

@@ -121,6 +121,24 @@ func TestSettingService_GetPublicSettings_ExposesAllowUserViewErrorRequests(t *t
 	require.True(t, settings.AllowUserViewErrorRequests)
 }
 
+func TestSettingService_GetPublicSettings_UserSubscriptionsDefaultEnabled(t *testing.T) {
+	svc := NewSettingService(&settingPublicRepoStub{values: map[string]string{}}, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.True(t, settings.UserSubscriptionsEnabled)
+}
+
+func TestSettingService_GetPublicSettings_UserSubscriptionsCanBeDisabled(t *testing.T) {
+	svc := NewSettingService(&settingPublicRepoStub{
+		values: map[string]string{SettingKeyUserSubscriptionsEnabled: "false"},
+	}, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.False(t, settings.UserSubscriptionsEnabled)
+}
+
 func TestSettingService_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *testing.T) {
 	svc := NewSettingService(&settingPublicRepoStub{
 		values: map[string]string{

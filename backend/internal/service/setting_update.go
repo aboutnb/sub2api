@@ -335,6 +335,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// Available channels feature switch
 	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
 
+	// User subscription page feature switch
+	updates[SettingKeyUserSubscriptionsEnabled] = strconv.FormatBool(settings.UserSubscriptionsEnabled)
+
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
 

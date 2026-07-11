@@ -180,6 +180,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
 
+		// User subscription page (default enabled; opt-out)
+		SettingKeyUserSubscriptionsEnabled: "true",
+
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",
 
@@ -716,6 +719,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Available channels feature (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"
+
+	// User subscription page (default: enabled; fail open for existing installs)
+	result.UserSubscriptionsEnabled = !isFalseSettingValue(settings[SettingKeyUserSubscriptionsEnabled])
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"

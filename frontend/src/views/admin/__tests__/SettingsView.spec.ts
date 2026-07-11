@@ -460,6 +460,7 @@ const baseSettingsResponse = {
   subscription_expiry_notify_enabled: true,
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [],
+  user_subscriptions_enabled: true,
   // 平台限额嵌套字段（新后端契约）
   default_platform_quotas: {
     anthropic:   { daily: null, weekly: null, monthly: null },
@@ -647,6 +648,22 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(payload).not.toHaveProperty("payment_visible_method_wxpay_source");
     expect(payload).not.toHaveProperty("payment_visible_method_alipay_enabled");
     expect(payload).not.toHaveProperty("payment_visible_method_wxpay_enabled");
+  });
+
+  it("submits the user subscription entry setting", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      user_subscriptions_enabled: false,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ user_subscriptions_enabled: false }),
+    );
   });
 
   it("submits Anthropic cache TTL injection gateway setting", async () => {
