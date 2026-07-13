@@ -55,7 +55,7 @@ func TestAccountRepository_ListOAuthRefreshCandidates_SQLFilter(t *testing.T) {
 		"must use IS NOT TRUE so accounts with NULL temp_unschedulable_until are not silently excluded by PG 3-valued logic")
 	require.NotContains(t, normalized, "AND NOT (",
 		"plain NOT (...) excludes NULL temp_unschedulable_until rows (the common healthy case)")
-	require.Contains(t, normalized, "ORDER BY priority DESC, id ASC")
+	require.Contains(t, normalized, "ORDER BY priority ASC, id ASC")
 	require.NotContains(t, normalized, "credentials->>'expires_at'")
 	require.NoError(t, mock.ExpectationsWereMet())
 }
@@ -87,9 +87,9 @@ func TestAccountRepository_QueryAccountsByGroup_QualifiesJoinedOrdering(t *testi
 	require.Contains(t, normalized, "a.platform = ANY($3)")
 	require.Contains(t, normalized, "a.schedulable = TRUE")
 	require.Contains(t, normalized, "(a.expires_at IS NULL OR a.expires_at > $4 OR a.auto_pause_on_expired = FALSE)")
-	require.Contains(t, normalized, "ORDER BY ag.priority ASC, a.priority DESC, a.id ASC")
+	require.Contains(t, normalized, "ORDER BY ag.priority ASC, a.priority ASC, a.id ASC")
 	require.NotContains(t, normalized, "ORDER BY id")
-	require.NotContains(t, normalized, " priority DESC, id")
+	require.NotContains(t, normalized, "a.priority DESC")
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
