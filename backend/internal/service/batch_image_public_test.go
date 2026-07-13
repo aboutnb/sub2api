@@ -63,7 +63,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		require.InDelta(t, 0.15, job.HoldUnitPrice, 1e-12)
 	})
 
-	t.Run("uses higher priority value first", func(t *testing.T) {
+	t.Run("uses lower priority value first", func(t *testing.T) {
 		svc, repo, _, _, _ := newTestBatchImagePublicService(true)
 		accountRepo := svc.AccountRepo.(*publicBatchImageAccountRepo)
 		accountRepo.accounts = []Account{
@@ -78,7 +78,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 
 		job := repo.jobs[got.ID]
 		require.NotNil(t, job.AccountID)
-		require.Equal(t, int64(300), *job.AccountID)
+		require.Equal(t, int64(100), *job.AccountID)
 	})
 
 	t.Run("combines user group image rate account rate discount and hold margin", func(t *testing.T) {
@@ -798,7 +798,7 @@ func testBatchImageAccount(id int64, accountType string) Account {
 		Type:          accountType,
 		Status:        StatusActive,
 		Schedulable:   true,
-		Priority:      50,
+		Priority:      int(id),
 		Credentials:   map[string]any{"api_key": "test-secret"},
 		Concurrency:   1,
 		RateLimitedAt: nil,

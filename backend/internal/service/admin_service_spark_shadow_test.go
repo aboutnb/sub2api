@@ -230,8 +230,8 @@ func TestCreateShadow_InheritsParentConcurrency(t *testing.T) {
 }
 
 // TestCreateShadow_InheritsParentPriorityWhenOmitted 验证外审第5轮 P1:未指定优先级时
-// 影子继承母账号 priority，而非绕过 ent 默认 50 直写 0；在大值优先的规则下，
-// 直写 0 会让影子意外落到最低调度优先级。
+// 影子继承母账号 priority,而非直写 0 抢到最高调度优先级(repo SetPriority 绕过 ent 默认 50,
+// 调度比较数值越小越优先;前端一键创建只传 name 即触发该路径)。
 func TestCreateShadow_InheritsParentPriorityWhenOmitted(t *testing.T) {
 	ctx := context.Background()
 
@@ -248,7 +248,7 @@ func TestCreateShadow_InheritsParentPriorityWhenOmitted(t *testing.T) {
 		// 模拟前端一键创建:只传 name,priority 省略=0。
 		shadow, err := svc.CreateShadow(ctx, parent.ID, ShadowOptions{Name: "prio-shadow"})
 		require.NoError(t, err)
-		require.Equal(t, 30, shadow.Priority, "未指定优先级应继承母账号(而非 0=最低优先级)")
+		require.Equal(t, 30, shadow.Priority, "未指定优先级应继承母账号(而非 0=最高优先级)")
 		require.Equal(t, 30, repo.accounts[shadow.ID].Priority)
 	})
 

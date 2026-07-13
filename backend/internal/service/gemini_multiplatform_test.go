@@ -331,7 +331,7 @@ func TestGeminiMessagesCompatService_SelectAccountForModelWithExclusions_GeminiP
 	acc, err := svc.SelectAccountForModelWithExclusions(ctx, nil, "", "gemini-2.5-flash", nil)
 	require.NoError(t, err)
 	require.NotNil(t, acc)
-	require.Equal(t, int64(2), acc.ID, "应选择优先级最高的 gemini 账户")
+	require.Equal(t, int64(1), acc.ID, "应选择优先级最高的 gemini 账户")
 	require.Equal(t, PlatformGemini, acc.Platform, "无分组时应只返回 gemini 平台账户")
 }
 
@@ -590,7 +590,7 @@ func TestGeminiMessagesCompatService_SelectAccountForModelWithExclusions_StickyS
 		require.NoError(t, err)
 		require.NotNil(t, acc)
 		// 粘性会话未命中，按优先级选择
-		require.Equal(t, int64(1), acc.ID, "粘性会话未命中，应按优先级选择")
+		require.Equal(t, int64(2), acc.ID, "粘性会话未命中，应按优先级选择")
 	})
 
 	t.Run("粘性会话不可调度-清理并回退选择", func(t *testing.T) {

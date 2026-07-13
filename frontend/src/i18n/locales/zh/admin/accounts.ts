@@ -385,7 +385,7 @@ export default {
         credentialsLabel: '凭证',
         credentialsPlaceholder: '请输入 Cookie 或 API Key',
         priorityLabel: '优先级',
-        priorityHint: '数值越大优先级越高',
+        priorityHint: '1 为最高优先级，数值越小优先级越高',
         weightLabel: '权重',
         weightHint: '用于负载均衡的权重值',
         statusLabel: '状态'
@@ -783,12 +783,12 @@ export default {
       loadFactor: '负载因子',
       loadFactorHint: '提高负载因子可以提高对账号的调度频率',
       priority: '优先级',
-      priorityHint: '优先级越大的账号优先使用',
+      priorityHint: '1 为最高优先级，数值越小的账号优先使用',
       billingRateMultiplier: '账号计费倍率',
       billingRateMultiplierHint: '0 表示不计费，仅影响账号计费',
       expiresAt: '过期时间',
       expiresAtHint: '留空表示不过期',
-      higherPriorityFirst: '数值越大优先级越高',
+      higherPriorityFirst: '1 为最高优先级，数值越小越优先',
       mixedScheduling: '在 /v1/messages 中使用',
       mixedSchedulingHint: '启用后可参与 Anthropic/Gemini 分组的调度',
       mixedSchedulingTooltip:

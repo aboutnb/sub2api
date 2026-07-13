@@ -944,7 +944,7 @@ func (s *BatchImagePublicService) selectProviderAndAccount(ctx context.Context, 
 		}
 		sort.SliceStable(accounts, func(i, j int) bool {
 			if accounts[i].Priority != accounts[j].Priority {
-				return accounts[i].Priority > accounts[j].Priority
+				return accounts[i].Priority < accounts[j].Priority
 			}
 			return accounts[i].ID < accounts[j].ID
 		})
