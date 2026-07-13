@@ -1336,7 +1336,7 @@ func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T
 			Status:      service.StatusActive,
 			Schedulable: true,
 			Concurrency: 1,
-			Priority:    1,
+			Priority:    2,
 			Credentials: map[string]any{
 				"api_key":  "sk-first",
 				"base_url": firstUpstream.URL,
@@ -1354,7 +1354,7 @@ func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T
 			Status:      service.StatusActive,
 			Schedulable: true,
 			Concurrency: 1,
-			Priority:    2,
+			Priority:    1,
 			Credentials: map[string]any{
 				"api_key":  "sk-second",
 				"base_url": secondUpstream.URL,

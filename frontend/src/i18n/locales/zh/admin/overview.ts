@@ -794,7 +794,7 @@ export default {
         accountsLabel: '指定账号',
         accountsPlaceholder: '选择账号（留空则不限制）',
         priorityLabel: '优先级',
-        priorityHint: '数值越小优先级越高，用于账号调度',
+        priorityHint: '数值越大优先级越高，用于账号调度',
         statusLabel: '状态'
       },
       exclusiveObj: {

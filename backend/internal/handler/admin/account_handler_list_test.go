@@ -59,7 +59,7 @@ func TestAccountHandlerListReturnsSchedulerScoresPerGroup(t *testing.T) {
 	adminSvc.accounts = []service.Account{
 		{
 			ID:          101,
-			Name:        "account-low-priority",
+			Name:        "account-high-priority",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeAPIKey,
 			Status:      service.StatusActive,
@@ -75,7 +75,7 @@ func TestAccountHandlerListReturnsSchedulerScoresPerGroup(t *testing.T) {
 		},
 		{
 			ID:          102,
-			Name:        "account-high-priority",
+			Name:        "account-low-priority",
 			Platform:    service.PlatformOpenAI,
 			Type:        service.AccountTypeAPIKey,
 			Status:      service.StatusActive,
@@ -115,7 +115,7 @@ func TestAccountHandlerListReturnsSchedulerScoresPerGroup(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
 	require.Len(t, payload.Data.Items, 2)
 
-	var lowPriority, highPriority *struct {
+	var high, low *struct {
 		ID             int64 `json:"id"`
 		SchedulerScore struct {
 			BaseScore float64 `json:"base_score"`
@@ -131,20 +131,20 @@ func TestAccountHandlerListReturnsSchedulerScoresPerGroup(t *testing.T) {
 		item := &payload.Data.Items[i]
 		switch item.ID {
 		case 101:
-			lowPriority = item
+			high = item
 		case 102:
-			highPriority = item
+			low = item
 		}
 	}
-	require.NotNil(t, lowPriority)
-	require.NotNil(t, highPriority)
-	require.Len(t, lowPriority.SchedulerScores, 1)
-	require.Len(t, highPriority.SchedulerScores, 1)
-	require.Equal(t, groupID, *lowPriority.SchedulerScores[0].GroupID)
-	require.Equal(t, "openai", lowPriority.SchedulerScores[0].GroupName)
-	require.Equal(t, 100, *lowPriority.SchedulerScores[0].GroupPriority)
-	require.Equal(t, 1, *highPriority.SchedulerScores[0].GroupPriority)
-	require.Greater(t, highPriority.SchedulerScores[0].BaseScore, lowPriority.SchedulerScores[0].BaseScore)
+	require.NotNil(t, high)
+	require.NotNil(t, low)
+	require.Len(t, high.SchedulerScores, 1)
+	require.Len(t, low.SchedulerScores, 1)
+	require.Equal(t, groupID, *high.SchedulerScores[0].GroupID)
+	require.Equal(t, "openai", high.SchedulerScores[0].GroupName)
+	require.Equal(t, 100, *high.SchedulerScores[0].GroupPriority)
+	require.Equal(t, 1, *low.SchedulerScores[0].GroupPriority)
+	require.Greater(t, high.SchedulerScores[0].BaseScore, low.SchedulerScores[0].BaseScore)
 }
 
 func TestAccountHandlerListSkipsSchedulerScoresByDefault(t *testing.T) {
@@ -206,13 +206,13 @@ func TestAccountHandlerListKeepsSchedulerScoreScopedToFilter(t *testing.T) {
 	}
 	hiddenGroupPeer := service.Account{
 		ID:          202,
-		Name:        "hidden-higher-priority",
+		Name:        "hidden-high-priority",
 		Platform:    service.PlatformOpenAI,
 		Type:        service.AccountTypeAPIKey,
 		Status:      service.StatusActive,
 		Schedulable: true,
 		Concurrency: 10,
-		Priority:    0,
+		Priority:    100000,
 		AccountGroups: []service.AccountGroup{
 			{AccountID: 202, GroupID: groupID, Priority: 2, Group: &service.Group{ID: groupID, Name: "openai"}},
 		},
@@ -269,13 +269,13 @@ func TestAccountHandlerListSchedulerScoreIgnoresPagination(t *testing.T) {
 	}
 	hiddenFilterPeer := service.Account{
 		ID:          302,
-		Name:        "hidden-higher-priority",
+		Name:        "hidden-high-priority",
 		Platform:    service.PlatformOpenAI,
 		Type:        service.AccountTypeAPIKey,
 		Status:      service.StatusActive,
 		Schedulable: true,
 		Concurrency: 10,
-		Priority:    0,
+		Priority:    100000,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
