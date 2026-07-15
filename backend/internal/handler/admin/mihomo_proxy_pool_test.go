@@ -70,7 +70,7 @@ func setupAccountCreateRouterWithMihomo(t *testing.T, adminSvc *stubAdminService
 	router := gin.New()
 	handler := NewAccountHandler(
 		adminSvc,
-		newProjectMihomoSettingServiceForTest(t, rawSettings),
+		nil,
 		nil,
 		nil,
 		nil,
@@ -84,6 +84,7 @@ func setupAccountCreateRouterWithMihomo(t *testing.T, adminSvc *stubAdminService
 		nil,
 		nil,
 	)
+	handler.settingService = newProjectMihomoSettingServiceForTest(t, rawSettings)
 	router.POST("/api/v1/admin/accounts", handler.Create)
 	router.POST("/api/v1/admin/accounts/batch", handler.BatchCreate)
 	router.POST("/api/v1/admin/accounts/data", handler.ImportData)
