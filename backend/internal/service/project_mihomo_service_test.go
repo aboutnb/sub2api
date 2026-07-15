@@ -204,6 +204,12 @@ func (s *projectMihomoAdminServiceStub) GetAccountsByIDs(context.Context, []int6
 func (s *projectMihomoAdminServiceStub) CreateAccount(context.Context, *CreateAccountInput) (*Account, error) {
 	panic("unexpected CreateAccount call")
 }
+func (s *projectMihomoAdminServiceStub) DuplicateAccount(context.Context, int64, string, string) (*Account, error) {
+	panic("unexpected DuplicateAccount call")
+}
+func (s *projectMihomoAdminServiceStub) RecoverDuplicateAccount(context.Context, int64, string, string) (*Account, error) {
+	panic("unexpected RecoverDuplicateAccount call")
+}
 func (s *projectMihomoAdminServiceStub) UpdateAccount(context.Context, int64, *UpdateAccountInput) (*Account, error) {
 	panic("unexpected UpdateAccount call")
 }
