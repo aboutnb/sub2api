@@ -21,7 +21,7 @@ func setupAdminRouter(t *testing.T) (*gin.Engine, *stubAdminService) {
 	adminSvc := newStubAdminService()
 	projectMihomoSvc := service.NewProjectMihomoService(&adminSettingRepoStub{values: map[string]string{}}, adminSvc)
 
-	userHandler := NewUserHandler(adminSvc, nil, nil, nil)
+	userHandler := NewUserHandler(adminSvc, nil, nil, nil, nil, nil)
 	groupHandler := NewGroupHandler(adminSvc, nil, nil)
 	proxyHandler := NewProxyHandler(adminSvc, projectMihomoSvc)
 	redeemHandler := NewRedeemHandler(adminSvc, nil)

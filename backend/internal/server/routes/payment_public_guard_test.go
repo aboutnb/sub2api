@@ -30,6 +30,7 @@ func TestPaymentPublicRoutesRequirePublicAccessKeyWhenEnabled(t *testing.T) {
 		func(c *gin.Context) { c.Next() },
 		func(c *gin.Context) { c.Next() },
 		nil,
+		nil,
 		cfg,
 		servermiddleware.RequirePublicAccessPublishKey(cfg),
 	)
