@@ -451,7 +451,61 @@ export default {
         probeUpstreamBilling: '探测上游倍率',
         resetStatusSuccess: '已成功重置 {count} 个账号状态',
         refreshTokenSuccess: '已成功刷新 {count} 个账号令牌',
-        partialSuccess: '操作部分完成：{success} 成功，{failed} 失败'
+        partialSuccess: '操作部分完成：{success} 成功，{failed} 失败',
+        batchTest: '批量测试'
+      },
+      batchTest: {
+        title: '批量测试账号',
+        menu: '批量测试账号',
+        loadingAccounts: '正在加载账号...',
+        noAccounts: '暂无可测试的账号',
+        loadFailed: '加载批量测试账号失败',
+        total: '总数',
+        success: '成功',
+        failed: '失败',
+        progress: '进度',
+        progressValue: '{done}/{total}',
+        testModel: '测试模型',
+        defaultModel: '默认模型',
+        customModel: '自定义模型',
+        customModelPlaceholder: '请输入模型 ID',
+        concurrency: '并发数',
+        concurrencyHint: '最多同时测试 50 个账号。',
+        resultFilter: '结果筛选',
+        columns: {
+          account: '账号',
+          platform: '平台',
+          status: '状态',
+          result: '结果'
+        },
+        status: {
+          pending: '等待中',
+          running: '测试中',
+          success: '成功',
+          failed: '失败',
+          stopped: '已停止'
+        },
+        noResult: '暂无结果',
+        empty: '暂无可测试的账号',
+        noFilteredResults: '没有匹配的结果',
+        stopping: '正在停止...',
+        stop: '停止',
+        retry: '重试',
+        start: '开始测试',
+        filters: {
+          all: '全部（{count}）',
+          success: '成功（{count}）',
+          failed: '失败（{count}）',
+          unauthorized: '401 未授权（{count}）',
+          rateLimited: '429 限流（{count}）',
+          otherFailed: '其他失败（{count}）'
+        },
+        stoppedResult: '测试已停止',
+        runningResult: '测试中...',
+        noResponseBody: '服务器未返回响应内容',
+        streamEndedWithModel: '模型 {model} 的响应流已结束',
+        streamEnded: '响应流结束且未返回结果',
+        successResult: '测试通过'
       },
       bulkEdit: {
         title: '批量编辑账号',
@@ -1307,6 +1361,17 @@ export default {
       imageTestMode: '模式：生图测试',
       imagePreview: '生成结果：',
       imageReceived: '已收到第 {count} 张测试图片',
+      testError: {
+        requestFailed: '请求失败（HTTP {status}）',
+        noResponseBody: '服务器未返回响应内容',
+        unknown: '未知错误',
+        line: '错误：{message}'
+      },
+      testStatus: {
+        chatCompletionsTesting: '正在通过 /v1/chat/completions 测试连接',
+        chatCompletionsVerified: '已通过 /v1/chat/completions 验证',
+        codexImageToolCalling: '正在调用 Codex /responses 生图工具...'
+      },
       // Stats Modal
       viewStats: '查看统计',
       usageStatistics: '使用统计',

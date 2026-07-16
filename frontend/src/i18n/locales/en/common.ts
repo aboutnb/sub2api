@@ -222,6 +222,11 @@ export default {
     loginFailed: 'Login failed. Please check your credentials and try again.',
     errors: {
       USER_NOT_ACTIVE: 'Account has been disabled.',
+      REGISTRATION_CHALLENGE_REQUIRED: 'Registration verification is missing. Please try again.',
+      REGISTRATION_CHALLENGE_INVALID: 'Registration verification expired. Refresh the page and try again.',
+      REGISTRATION_CHALLENGE_INIT_FAILED: 'Failed to initialize registration verification. Check your connection and try again.',
+      REGISTRATION_TOO_MANY_ATTEMPTS: 'Too many registration attempts. Please try again later.',
+      REGISTRATION_RISK_CONTROL_UNAVAILABLE: 'Registration verification is temporarily unavailable. Please try again later.',
     },
     registrationFailed: 'Registration failed. Please try again.',
     emailSuffixNotAllowed: 'This email domain is not allowed for registration.',

@@ -347,7 +347,61 @@ export default {
         probeUpstreamBilling: 'Probe Upstream Rate',
         resetStatusSuccess: 'Successfully reset {count} account(s) status',
         refreshTokenSuccess: 'Successfully refreshed {count} account(s) token',
-        partialSuccess: 'Partially completed: {success} succeeded, {failed} failed'
+        partialSuccess: 'Partially completed: {success} succeeded, {failed} failed',
+        batchTest: 'Batch Test'
+      },
+      batchTest: {
+        title: 'Batch Test Accounts',
+        menu: 'Batch Test Accounts',
+        loadingAccounts: 'Loading accounts...',
+        noAccounts: 'No accounts to test',
+        loadFailed: 'Failed to load accounts for batch testing',
+        total: 'Total',
+        success: 'Success',
+        failed: 'Failed',
+        progress: 'Progress',
+        progressValue: '{done}/{total}',
+        testModel: 'Test model',
+        defaultModel: 'Default model',
+        customModel: 'Custom model',
+        customModelPlaceholder: 'Enter a model ID',
+        concurrency: 'Concurrency',
+        concurrencyHint: 'Maximum 50 tests can run concurrently.',
+        resultFilter: 'Result filter',
+        columns: {
+          account: 'Account',
+          platform: 'Platform',
+          status: 'Status',
+          result: 'Result'
+        },
+        status: {
+          pending: 'Pending',
+          running: 'Running',
+          success: 'Success',
+          failed: 'Failed',
+          stopped: 'Stopped'
+        },
+        noResult: 'No result',
+        empty: 'No accounts to test',
+        noFilteredResults: 'No matching results',
+        stopping: 'Stopping...',
+        stop: 'Stop',
+        retry: 'Retry',
+        start: 'Start test',
+        filters: {
+          all: 'All ({count})',
+          success: 'Success ({count})',
+          failed: 'Failed ({count})',
+          unauthorized: '401 Unauthorized ({count})',
+          rateLimited: '429 Rate limited ({count})',
+          otherFailed: 'Other failures ({count})'
+        },
+        stoppedResult: 'Test stopped',
+        runningResult: 'Testing...',
+        noResponseBody: 'The server returned no response body',
+        streamEndedWithModel: 'Stream ended after model {model}',
+        streamEnded: 'Stream ended without a result',
+        successResult: 'Test passed'
       },
       bulkEdit: {
         title: 'Bulk Edit Accounts',
@@ -1227,6 +1281,17 @@ export default {
       imageTestMode: 'Mode: Image generation test',
       imagePreview: 'Generated images:',
       imageReceived: 'Received test image #{count}',
+      testError: {
+        requestFailed: 'Request failed (HTTP {status})',
+        noResponseBody: 'The server returned no response body',
+        unknown: 'Unknown error',
+        line: 'Error: {message}'
+      },
+      testStatus: {
+        chatCompletionsTesting: 'Testing connection through /v1/chat/completions',
+        chatCompletionsVerified: 'Verified through /v1/chat/completions',
+        codexImageToolCalling: 'Calling the Codex /responses image tool...'
+      },
       // Stats Modal
       viewStats: 'View Stats',
       usageStatistics: 'Usage Statistics',

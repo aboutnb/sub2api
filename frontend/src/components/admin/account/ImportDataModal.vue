@@ -132,7 +132,7 @@ interface Props {
 
 interface Emits {
   (e: 'close'): void
-  (e: 'imported'): void
+  (e: 'imported', accountIds: number[]): void
 }
 
 const props = defineProps<Props>()
@@ -146,6 +146,7 @@ const files = ref<File[]>([])
 const dragDepth = ref(0)
 const dragActive = computed(() => dragDepth.value > 0)
 const hasCreatedData = ref(false)
+const createdAccountIds = ref<number[]>([])
 const result = ref<AdminDataImportResult | null>(null)
 const useProjectMihomoPool = ref(false)
 const groups = ref<AdminGroup[]>([])
@@ -181,6 +182,7 @@ watch(
       files.value = []
       dragDepth.value = 0
       hasCreatedData.value = false
+      createdAccountIds.value = []
       result.value = null
       useProjectMihomoPool.value = false
       groupIds.value = []
@@ -212,7 +214,7 @@ const handleClose = () => {
   if (importing.value) return
   if (hasCreatedData.value) {
     hasCreatedData.value = false
-    emit('imported')
+    emit('imported', createdAccountIds.value)
   }
   emit('close')
 }
@@ -349,6 +351,7 @@ const handleImport = async () => {
     })
 
     result.value = res
+    createdAccountIds.value = Array.from(new Set(res.account_ids || []))
 
     const msgParams: Record<string, unknown> = {
       account_created: res.account_created,
@@ -365,7 +368,7 @@ const handleImport = async () => {
       appStore.showError(t('admin.accounts.dataImportCompletedWithErrors', msgParams))
     } else {
       appStore.showSuccess(t('admin.accounts.dataImportSuccess', msgParams))
-      emit('imported')
+      emit('imported', createdAccountIds.value)
     }
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.accounts.dataImportFailed'))

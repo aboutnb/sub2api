@@ -118,4 +118,5 @@ describe('BatchAccountTestModal', () => {
     expect(wrapper.text()).toContain('401-1')
     expect(wrapper.text()).toContain('429-1')
   })
+
 })

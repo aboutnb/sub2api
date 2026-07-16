@@ -85,6 +85,7 @@ type DataImportResult struct {
 	ProxyFailed    int               `json:"proxy_failed"`
 	AccountCreated int               `json:"account_created"`
 	AccountFailed  int               `json:"account_failed"`
+	AccountIDs     []int64           `json:"account_ids,omitempty"`
 	Errors         []DataImportError `json:"errors,omitempty"`
 }
 
@@ -480,6 +481,7 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 		}
 		h.scheduleGrokImportProbe(created)
 		result.AccountCreated++
+		result.AccountIDs = append(result.AccountIDs, created.ID)
 	}
 
 	// 异步设置 Antigravity 隐私，避免大量导入时阻塞请求

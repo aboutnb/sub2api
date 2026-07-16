@@ -69,6 +69,7 @@ interface RegistrationChallengeResponse {
   min_elapsed_ms: number
   trap_field: string
   salt: string
+  received_at?: number
 }
 
 interface RegistrationChallengeSubmission {
@@ -113,7 +114,9 @@ function getRegistrationChallengeAction(config: InternalAxiosRequestConfig): Reg
 }
 
 function isRegistrationChallengeFresh(challenge: RegistrationChallengeResponse | null): challenge is RegistrationChallengeResponse {
-  return !!challenge && Date.now() < challenge.expires_at - 30_000
+  if (!challenge?.received_at) return false
+  const lifetime = challenge.expires_at - challenge.issued_at
+  return lifetime > 30_000 && Date.now() - challenge.received_at < lifetime - 30_000
 }
 
 async function fetchRegistrationChallenge(): Promise<RegistrationChallengeResponse> {
@@ -135,10 +138,23 @@ async function fetchRegistrationChallenge(): Promise<RegistrationChallengeRespon
     .then(response => {
       const payload = response.data
       if (!payload || payload.code !== 0 || !payload.data?.token) {
-        throw new Error(payload?.message || 'Failed to initialize registration challenge')
+        throw {
+          reason: 'REGISTRATION_CHALLENGE_INIT_FAILED',
+          message: payload?.message || '注册验证初始化失败，请刷新页面后重试。'
+        }
       }
-      cachedRegistrationChallenge = payload.data
-      return payload.data
+      cachedRegistrationChallenge = {
+        ...payload.data,
+        received_at: Date.now()
+      }
+      return cachedRegistrationChallenge
+    })
+    .catch(error => {
+      if (error?.reason === 'REGISTRATION_CHALLENGE_INIT_FAILED') throw error
+      throw {
+        reason: 'REGISTRATION_CHALLENGE_INIT_FAILED',
+        message: '注册验证初始化失败，请检查网络后重试。'
+      }
     })
     .finally(() => {
       pendingRegistrationChallenge = null
@@ -199,12 +215,15 @@ async function buildRegistrationChallengeSubmission(
   action: RegistrationChallengeAction,
   email: string
 ): Promise<RegistrationChallengeSubmission> {
-  const waitMs = challenge.min_elapsed_ms - (Date.now() - challenge.issued_at)
+  const receivedAt = challenge.received_at ?? Date.now()
+  const waitMs = challenge.min_elapsed_ms - (Date.now() - receivedAt)
   if (waitMs > 0 && waitMs < 5_000) {
     await new Promise(resolve => setTimeout(resolve, waitMs))
   }
 
-  const completedAt = Date.now()
+  // Anchor client elapsed time to the server timestamp so incorrect device clocks
+  // do not invalidate otherwise legitimate registration requests.
+  const completedAt = challenge.issued_at + Math.max(0, Date.now() - receivedAt)
   const proofSource = registrationChallengeProofSource(
     challenge.token,
     email,
@@ -264,6 +283,13 @@ async function attachRegistrationChallenge(config: InternalAxiosRequestConfig): 
     action,
     normalizeChallengeEmail(parsed.body.email)
   )
+  config.data = parsed.stringify ? JSON.stringify(parsed.body) : parsed.body
+}
+
+function clearRegistrationChallengeSubmission(config: InternalAxiosRequestConfig): void {
+  const parsed = parseRequestBody(config.data)
+  if (!parsed) return
+  delete parsed.body.registration_challenge
   config.data = parsed.stringify ? JSON.stringify(parsed.body) : parsed.body
 }
 
@@ -375,7 +401,10 @@ apiClient.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean
+      _registrationChallengeRetry?: boolean
+    }
 
     // Handle common errors
     if (error.response) {
@@ -384,6 +413,22 @@ apiClient.interceptors.response.use(
 
       // Validate `data` shape to avoid HTML error pages breaking our error handling.
       const apiData = (typeof data === 'object' && data !== null ? data : {}) as Record<string, any>
+
+      const registrationAction = getRegistrationChallengeAction(originalRequest)
+      const registrationChallengeRejected =
+        apiData.reason === 'REGISTRATION_CHALLENGE_REQUIRED' ||
+        apiData.reason === 'REGISTRATION_CHALLENGE_INVALID'
+      if (
+        status === 400 &&
+        registrationAction &&
+        registrationChallengeRejected &&
+        !originalRequest._registrationChallengeRetry
+      ) {
+        originalRequest._registrationChallengeRetry = true
+        cachedRegistrationChallenge = null
+        clearRegistrationChallengeSubmission(originalRequest)
+        return apiClient(originalRequest)
+      }
 
       // Ops monitoring disabled: treat as feature-flagged 404, and proactively redirect away
       // from ops pages to avoid broken UI states.

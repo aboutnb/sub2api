@@ -1416,6 +1416,7 @@ export interface AdminDataImportResult {
   proxy_failed: number
   account_created: number
   account_failed: number
+  account_ids?: number[]
   errors?: AdminDataImportError[]
 }
 

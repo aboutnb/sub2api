@@ -222,6 +222,11 @@ export default {
     loginFailed: '登录失败，请检查您的凭据后重试。',
     errors: {
       USER_NOT_ACTIVE: '账号已被禁用',
+      REGISTRATION_CHALLENGE_REQUIRED: '注册验证缺失，请重试。',
+      REGISTRATION_CHALLENGE_INVALID: '注册验证已失效，请刷新页面后重试。',
+      REGISTRATION_CHALLENGE_INIT_FAILED: '注册验证初始化失败，请检查网络后重试。',
+      REGISTRATION_TOO_MANY_ATTEMPTS: '注册尝试过于频繁，请稍后再试。',
+      REGISTRATION_RISK_CONTROL_UNAVAILABLE: '注册验证服务暂时不可用，请稍后再试。',
     },
     registrationFailed: '注册失败，请重试。',
     emailSuffixNotAllowed: '该邮箱域名不在允许注册范围内。',

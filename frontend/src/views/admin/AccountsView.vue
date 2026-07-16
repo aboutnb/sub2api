@@ -467,7 +467,11 @@
     <EditAccountModal :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="showEdit = false" @updated="handleAccountUpdated" />
     <ReAuthAccountModal :show="showReAuth" :account="reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
     <AccountTestModal :show="showTest" :account="testingAcc" @close="closeTestModal" />
-    <BatchAccountTestModal :show="showBatchTest" :accounts="batchTestAccounts" @close="closeBatchTestModal" />
+    <BatchAccountTestModal
+      :show="showBatchTest"
+      :accounts="batchTestAccounts"
+      @close="closeBatchTestModal"
+    />
     <AccountStatsModal :show="showStats" :account="statsAcc" @close="closeStatsModal" />
     <ScheduledTestsPanel :show="showSchedulePanel" :account-id="scheduleAcc?.id ?? null" :model-options="scheduleModelOptions" @close="closeSchedulePanel" />
     <AccountActionMenu :show="menu.show" :account="menu.acc" :position="menu.pos" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @duplicate="handleDuplicateAccount" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" @set-privacy="handleSetPrivacy" @create-spark-shadow="handleCreateSparkShadow" />
@@ -1694,6 +1698,14 @@ const openBatchTestWithAccounts = (targetAccounts: Account[]) => {
   showBatchTest.value = true
 }
 
+const loadBatchTestAccountsByIds = async (accountIds: number[]) => {
+  const uniqueIds = Array.from(new Set(accountIds.filter(id => Number.isInteger(id) && id > 0)))
+  const currentById = new Map(accounts.value.map(account => [account.id, account]))
+  return await Promise.all(
+    uniqueIds.map(async id => currentById.get(id) ?? await adminAPI.accounts.getById(id))
+  )
+}
+
 const loadSelectedBatchTestAccounts = async () => {
   const selected = [...selIds.value]
   if (selected.length === 0) return []
@@ -1760,8 +1772,28 @@ const handleBulkUpdated = () => {
   clearSelection()
   reload()
 }
-const handleDataImported = () => { showImportData.value = false; reload() }
-const closeBatchTestModal = () => { showBatchTest.value = false; batchTestAccounts.value = [] }
+const handleDataImported = async (accountIds: number[] = []) => {
+  showImportData.value = false
+  const reloadPromise = reload().catch((error) => {
+    console.error('Failed to refresh accounts after import:', error)
+  })
+  if (accountIds.length > 0) {
+    batchTestLoading.value = true
+    try {
+      openBatchTestWithAccounts(await loadBatchTestAccountsByIds(accountIds))
+    } catch (error: any) {
+      console.error('Failed to load imported accounts for batch test:', error)
+      appStore.showError(error?.message || t('admin.accounts.batchTest.loadFailed'))
+    } finally {
+      batchTestLoading.value = false
+    }
+  }
+  await reloadPromise
+}
+const closeBatchTestModal = () => {
+  showBatchTest.value = false
+  batchTestAccounts.value = []
+}
 const ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE = 'ungrouped'
 const ACCOUNT_PRIVACY_MODE_UNSET_QUERY_VALUE = '__unset__'
 const buildAccountQueryFilters = () => ({

@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -146,6 +147,26 @@ func TestRequireRegistrationChallengeAcceptsValidSubmission(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestRequireRegistrationChallengeAcceptsSkewedClientClock(t *testing.T) {
+	handler := newRegistrationChallengeTestHandler()
+	ginCtx, _ := newRegistrationChallengeTestContext()
+	submission := buildRegistrationChallengeSubmissionForTest(t, handler, ginCtx, "user@example.com", "register", "")
+	payload, err := handler.parseRegistrationChallengeToken(submission.Token)
+	require.NoError(t, err)
+
+	submission.CompletedAt = time.Now().Add(24 * time.Hour).UnixMilli()
+	submission.Proof = registrationChallengeProof(
+		submission.Token,
+		"user@example.com",
+		"register",
+		submission.CompletedAt,
+		payload.TrapField,
+		payload.Salt,
+	)
+
+	require.NoError(t, handler.requireRegistrationChallenge(ginCtx, "register", "user@example.com", submission))
+}
+
 func TestRequireRegistrationChallengeRejectsReplay(t *testing.T) {
 	handler := newRegistrationChallengeTestHandler()
 	attachRegistrationChallengeRedis(t, handler)
@@ -175,6 +196,18 @@ func TestRequireRegistrationChallengeRateLimitsEmail(t *testing.T) {
 	require.Equal(t, "REGISTRATION_TOO_MANY_ATTEMPTS", infraerrors.Reason(err))
 }
 
+func TestRequireRegistrationChallengeAllowsSharedNetworkAndUserAgent(t *testing.T) {
+	handler := newRegistrationChallengeTestHandler()
+	attachRegistrationChallengeRedis(t, handler)
+	ginCtx, _ := newRegistrationChallengeTestContext()
+
+	for i := 0; i < 50; i++ {
+		email := fmt.Sprintf("shared-network-%d@example.com", i)
+		submission := buildRegistrationChallengeSubmissionForTest(t, handler, ginCtx, email, "send_verify_code", "")
+		require.NoError(t, handler.requireRegistrationChallenge(ginCtx, "send_verify_code", email, submission))
+	}
+}
+
 func TestRequireRegistrationChallengeRejectsMissingSubmission(t *testing.T) {
 	handler := newRegistrationChallengeTestHandler()
 	ginCtx, _ := newRegistrationChallengeTestContext()
@@ -183,6 +216,7 @@ func TestRequireRegistrationChallengeRejectsMissingSubmission(t *testing.T) {
 
 	require.Error(t, err)
 	require.Equal(t, "REGISTRATION_CHALLENGE_REQUIRED", infraerrors.Reason(err))
+	require.Equal(t, "注册验证缺失，请重试", infraerrors.Message(err))
 }
 
 func TestRequireRegistrationChallengeRejectsTrapValue(t *testing.T) {

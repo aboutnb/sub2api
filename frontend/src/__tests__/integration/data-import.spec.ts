@@ -150,7 +150,8 @@ describe('ImportDataModal', () => {
       proxy_reused: 0,
       proxy_failed: 0,
       account_created: 2,
-      account_failed: 0
+      account_failed: 0,
+      account_ids: [101, 102]
     })
 
     const wrapper = mountModal()
@@ -182,6 +183,7 @@ describe('ImportDataModal', () => {
       skip_default_group_bind: true
     }))
     expect(showSuccess).toHaveBeenCalledWith('admin.accounts.dataImportSuccess')
+    expect(wrapper.emitted('imported')).toEqual([[[101, 102]]])
   })
 
   it('部分成功时关闭弹窗仍通知父组件刷新', async () => {
@@ -191,7 +193,8 @@ describe('ImportDataModal', () => {
       proxy_reused: 0,
       proxy_failed: 0,
       account_created: 1,
-      account_failed: 1
+      account_failed: 1,
+      account_ids: [101]
     })
 
     const wrapper = mountModal()
@@ -217,7 +220,7 @@ describe('ImportDataModal', () => {
     // 第二个 btn-secondary 是 footer 的取消按钮(第一个是选择文件)
     await wrapper.findAll('button.btn-secondary')[1]!.trigger('click')
 
-    expect(wrapper.emitted('imported')).toHaveLength(1)
+    expect(wrapper.emitted('imported')).toEqual([[[101]]])
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 

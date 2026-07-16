@@ -37,7 +37,7 @@
               : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
           ]"
         >
-          {{ account.status }}
+          {{ accountStatusLabel }}
         </span>
       </div>
 
@@ -294,6 +294,21 @@ const openAITestModeOptions = computed(() => [
   { value: 'default', label: t('admin.accounts.openai.testModeDefault') },
   { value: 'compact', label: t('admin.accounts.openai.testModeCompact') }
 ])
+const accountStatusKeys: Record<string, string> = {
+  active: 'admin.accounts.status.active',
+  inactive: 'admin.accounts.status.inactive',
+  error: 'admin.accounts.status.error'
+}
+const accountStatusLabel = computed(() => {
+  const rawStatus = props.account?.status || ''
+  const key = accountStatusKeys[rawStatus]
+  return key ? t(key) : rawStatus
+})
+const testStatusKeys: Record<string, string> = {
+  chat_completions_testing: 'admin.accounts.testStatus.chatCompletionsTesting',
+  chat_completions_verified: 'admin.accounts.testStatus.chatCompletionsVerified',
+  codex_image_tool_calling: 'admin.accounts.testStatus.codexImageToolCalling'
+}
 const prioritizedGeminiModels = ['gemini-3.1-flash-image', 'gemini-2.5-flash-image', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3-flash-preview', 'gemini-3-pro-preview', 'gemini-2.0-flash']
 const supportsGeminiImageTest = computed(() => {
   const modelID = selectedModelId.value.toLowerCase()
@@ -447,12 +462,12 @@ const startTest = async () => {
     })
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(t('admin.accounts.testError.requestFailed', { status: response.status }))
     }
 
     const reader = response.body?.getReader()
     if (!reader) {
-      throw new Error('No response body')
+      throw new Error(t('admin.accounts.testError.noResponseBody'))
     }
 
     const decoder = new TextDecoder()
@@ -486,9 +501,9 @@ const startTest = async () => {
       return
     }
     status.value = 'error'
-    const msg = error instanceof Error ? error.message : 'Unknown error'
+    const msg = error instanceof Error ? error.message : t('admin.accounts.testError.unknown')
     errorMessage.value = msg
-    addLine(`Error: ${msg}`, 'text-red-400')
+    addLine(t('admin.accounts.testError.line', { message: msg }), 'text-red-400')
   }
 }
 
@@ -496,6 +511,7 @@ const handleEvent = (event: {
   type: string
   text?: string
   model?: string
+  code?: string
   success?: boolean
   error?: string
   image_url?: string
@@ -535,7 +551,9 @@ const handleEvent = (event: {
       break
 
     case 'status':
-      if (event.text) {
+      if (event.code && testStatusKeys[event.code]) {
+        addLine(t(testStatusKeys[event.code]), 'text-cyan-300')
+      } else if (event.text) {
         addLine(event.text, 'text-cyan-300')
       }
       break
@@ -550,13 +568,13 @@ const handleEvent = (event: {
         status.value = 'success'
       } else {
         status.value = 'error'
-        errorMessage.value = event.error || 'Test failed'
+        errorMessage.value = event.error || t('admin.accounts.testFailed')
       }
       break
 
     case 'error':
       status.value = 'error'
-      errorMessage.value = event.error || 'Unknown error'
+      errorMessage.value = event.error || t('admin.accounts.testError.unknown')
       if (streamingContent.value) {
         addLine(streamingContent.value, 'text-green-300')
         streamingContent.value = ''

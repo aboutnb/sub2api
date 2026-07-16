@@ -34,10 +34,10 @@ const (
 )
 
 var (
-	errRegistrationChallengeRequired = infraerrors.BadRequest("REGISTRATION_CHALLENGE_REQUIRED", "registration challenge is required")
-	errRegistrationChallengeInvalid  = infraerrors.BadRequest("REGISTRATION_CHALLENGE_INVALID", "registration challenge is invalid")
-	errRegistrationTooManyAttempts   = infraerrors.TooManyRequests("REGISTRATION_TOO_MANY_ATTEMPTS", "too many registration attempts")
-	errRegistrationRiskUnavailable   = infraerrors.ServiceUnavailable("REGISTRATION_RISK_CONTROL_UNAVAILABLE", "registration risk control is temporarily unavailable")
+	errRegistrationChallengeRequired = infraerrors.BadRequest("REGISTRATION_CHALLENGE_REQUIRED", "注册验证缺失，请重试")
+	errRegistrationChallengeInvalid  = infraerrors.BadRequest("REGISTRATION_CHALLENGE_INVALID", "注册验证已失效，请刷新页面后重试")
+	errRegistrationTooManyAttempts   = infraerrors.TooManyRequests("REGISTRATION_TOO_MANY_ATTEMPTS", "注册尝试过于频繁，请稍后再试")
+	errRegistrationRiskUnavailable   = infraerrors.ServiceUnavailable("REGISTRATION_RISK_CONTROL_UNAVAILABLE", "注册验证服务暂时不可用，请稍后再试")
 )
 
 var registrationRiskCounterScript = redis.NewScript(`
@@ -162,7 +162,7 @@ func (h *AuthHandler) validateRegistrationChallenge(c *gin.Context, action, emai
 	if payload.Fingerprint == "" || payload.Fingerprint != h.registrationChallengeFingerprint(c) {
 		return empty, errRegistrationChallengeInvalid
 	}
-	if submission.CompletedAt <= 0 || absInt64(nowMillis-submission.CompletedAt) > registrationChallengeMaxClockSkew.Milliseconds() {
+	if submission.CompletedAt <= 0 {
 		return empty, errRegistrationChallengeInvalid
 	}
 
@@ -203,8 +203,8 @@ func (h *AuthHandler) enforceRegistrationRiskLimits(c *gin.Context, action, emai
 	action = strings.TrimSpace(action)
 	email = normalizeRegistrationChallengeEmail(email)
 
-	emailLimit, ipLimit, userAgentLimit := registrationRiskLimitsForAction(action)
-	limits := make([]registrationRiskLimit, 0, 3)
+	emailLimit, ipLimit := registrationRiskLimitsForAction(action)
+	limits := make([]registrationRiskLimit, 0, 2)
 	if email != "" && emailLimit > 0 {
 		limits = append(limits, registrationRiskLimit{
 			name:   "email",
@@ -221,15 +221,6 @@ func (h *AuthHandler) enforceRegistrationRiskLimits(c *gin.Context, action, emai
 			window: registrationRiskWindow,
 		})
 	}
-	if userAgentHash := h.registrationUserAgentHash(c); userAgentHash != "" && userAgentLimit > 0 {
-		limits = append(limits, registrationRiskLimit{
-			name:   "ua",
-			value:  userAgentHash,
-			limit:  userAgentLimit,
-			window: registrationRiskWindow,
-		})
-	}
-
 	for _, limit := range limits {
 		key := registrationRiskKey("limit", action, limit.name, limit.value)
 		count, err := h.incrementRegistrationRiskCounter(c.Request.Context(), key, limit.window)
@@ -247,14 +238,14 @@ func (h *AuthHandler) enforceRegistrationRiskLimits(c *gin.Context, action, emai
 	return nil
 }
 
-func registrationRiskLimitsForAction(action string) (emailLimit int64, ipLimit int64, userAgentLimit int64) {
+func registrationRiskLimitsForAction(action string) (emailLimit int64, ipLimit int64) {
 	switch strings.TrimSpace(action) {
 	case "send_verify_code", "oauth_pending_send_verify_code":
-		return 3, 20, 30
+		return 3, 200
 	case "register", "oauth_pending_create_account":
-		return 8, 30, 40
+		return 8, 300
 	default:
-		return 8, 30, 40
+		return 8, 300
 	}
 }
 
@@ -263,36 +254,30 @@ func (h *AuthHandler) recordRegistrationChallengeFailure(c *gin.Context, action,
 		return nil
 	}
 	action = strings.TrimSpace(action)
-	limit := int64(20)
+	ipLimit := int64(100)
+	emailLimit := int64(20)
 	window := registrationRiskWindow
 	event := "challenge_failure"
 	if submission != nil && strings.TrimSpace(submission.TrapValue) != "" {
-		limit = 3
+		ipLimit = 20
+		emailLimit = 3
 		window = registrationRiskTrapWindow
 		event = "trap_hit"
 	}
 
-	for _, dimension := range []registrationRiskLimit{
-		{name: "ip", value: h.registrationClientIPHash(c), limit: limit, window: window},
-		{name: "ua", value: h.registrationUserAgentHash(c), limit: limit * 2, window: window},
-	} {
-		if dimension.value == "" {
-			continue
-		}
-		key := registrationRiskKey(event, action, dimension.name, dimension.value)
-		count, err := h.incrementRegistrationRiskCounter(c.Request.Context(), key, dimension.window)
+	if ipHash := h.registrationClientIPHash(c); ipHash != "" {
+		key := registrationRiskKey(event, action, "ip", ipHash)
+		count, err := h.incrementRegistrationRiskCounter(c.Request.Context(), key, window)
 		if err != nil {
-			slog.Warn("registration challenge failure counter redis error", "action", action, "dimension", dimension.name, "error", err)
-			continue
-		}
-		if count > dimension.limit {
-			slog.Warn("registration challenge failures exceeded", "action", action, "event", event, "dimension", dimension.name, "count", count, "limit", dimension.limit)
+			slog.Warn("registration challenge failure counter redis error", "action", action, "dimension", "ip", "error", err)
+		} else if count > ipLimit {
+			slog.Warn("registration challenge failures exceeded", "action", action, "event", event, "dimension", "ip", "count", count, "limit", ipLimit)
 			return errRegistrationTooManyAttempts
 		}
 	}
 	if email = normalizeRegistrationChallengeEmail(email); email != "" {
 		key := registrationRiskKey(event, action, "email", registrationRiskHash(email))
-		if count, err := h.incrementRegistrationRiskCounter(c.Request.Context(), key, window); err == nil && count > limit {
+		if count, err := h.incrementRegistrationRiskCounter(c.Request.Context(), key, window); err == nil && count > emailLimit {
 			return errRegistrationTooManyAttempts
 		}
 	}
@@ -537,11 +522,4 @@ func randomRegistrationChallengeID(size int) string {
 		return base64.RawURLEncoding.EncodeToString(fallback[:])[:size]
 	}
 	return base64.RawURLEncoding.EncodeToString(buf)
-}
-
-func absInt64(value int64) int64 {
-	if value < 0 {
-		return -value
-	}
-	return value
 }

@@ -153,7 +153,7 @@ describe('API Client', () => {
             token: 'challenge-token',
             issued_at: Date.now() - 2_000,
             expires_at: Date.now() + 60_000,
-            min_elapsed_ms: 900,
+            min_elapsed_ms: 0,
             trap_field: 'company_website_test',
             salt: 'challenge-salt'
           }
@@ -188,6 +188,121 @@ describe('API Client', () => {
         })
       )
       expect(body.registration_challenge.proof).toEqual(expect.any(String))
+    })
+
+    it('设备时间不准确时仍按服务器时间生成注册挑战', async () => {
+      vi.useFakeTimers()
+      try {
+        const deviceNow = Date.parse('2035-01-01T00:00:00Z')
+        const serverIssuedAt = Date.parse('2026-07-12T00:00:00Z')
+        vi.setSystemTime(deviceNow)
+        vi.spyOn(axios, 'get').mockResolvedValue({
+          data: {
+            code: 0,
+            data: {
+              token: 'clock-safe-token',
+              issued_at: serverIssuedAt,
+              expires_at: serverIssuedAt + 15 * 60_000,
+              min_elapsed_ms: 900,
+              trap_field: 'company_website_clock',
+              salt: 'clock-safe-salt'
+            }
+          }
+        })
+
+        const adapter = vi.fn().mockResolvedValue({
+          status: 200,
+          data: { code: 0, data: {} },
+          headers: {},
+          config: {},
+          statusText: 'OK',
+        })
+        apiClient.defaults.adapter = adapter
+
+        const request = apiClient.post('/auth/register', {
+          email: 'user@example.com',
+          password: 'secret-123'
+        })
+        await vi.advanceTimersByTimeAsync(900)
+        await request
+
+        const config = adapter.mock.calls[0][0]
+        const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
+        expect(body.registration_challenge.completed_at).toBe(serverIssuedAt + 900)
+        expect(body.registration_challenge.completed_at).not.toBe(deviceNow + 900)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('注册挑战失效时自动获取新挑战并重试一次', async () => {
+      const now = Date.now()
+      vi.spyOn(axios, 'get')
+        .mockResolvedValueOnce({
+          data: {
+            code: 0,
+            data: {
+              token: 'expired-token',
+              issued_at: now,
+              expires_at: now + 15 * 60_000,
+              min_elapsed_ms: 0,
+              trap_field: 'company_website_expired',
+              salt: 'expired-salt'
+            }
+          }
+        })
+        .mockResolvedValueOnce({
+          data: {
+            code: 0,
+            data: {
+              token: 'fresh-token',
+              issued_at: now,
+              expires_at: now + 15 * 60_000,
+              min_elapsed_ms: 0,
+              trap_field: 'company_website_fresh',
+              salt: 'fresh-salt'
+            }
+          }
+        })
+
+      let attempts = 0
+      const submittedTokens: string[] = []
+      const adapter = vi.fn().mockImplementation(async config => {
+        attempts += 1
+        const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
+        submittedTokens.push(body.registration_challenge.token)
+        if (attempts === 1) {
+          return Promise.reject({
+            response: {
+              status: 400,
+              data: {
+                code: 400,
+                reason: 'REGISTRATION_CHALLENGE_INVALID',
+                message: '注册验证已失效'
+              }
+            },
+            config,
+            code: 'ERR_BAD_REQUEST'
+          })
+        }
+        return {
+          status: 200,
+          data: { code: 0, data: {} },
+          headers: {},
+          config,
+          statusText: 'OK',
+        }
+      })
+      apiClient.defaults.adapter = adapter
+
+      await apiClient.post('/auth/register', {
+        email: 'user@example.com',
+        password: 'secret-123'
+      })
+
+      expect(adapter).toHaveBeenCalledTimes(2)
+      expect(axios.get).toHaveBeenCalledTimes(2)
+      expect(submittedTokens).toEqual(['expired-token', 'fresh-token'])
     })
 
     it('注册相关接口不会复用已提交的注册挑战', async () => {

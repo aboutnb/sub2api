@@ -476,7 +476,7 @@ const testSingleAccount = async (account: Account): Promise<SingleAccountResult>
     })
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(t('admin.accounts.testError.requestFailed', { status: response.status }))
     }
 
     const reader = response.body?.getReader()
