@@ -153,6 +153,12 @@ func (s *projectMihomoAdminServiceStub) GetGroupModelsListCandidates(context.Con
 func (s *projectMihomoAdminServiceStub) CreateGroup(context.Context, *CreateGroupInput) (*Group, error) {
 	panic("unexpected CreateGroup call")
 }
+func (s *projectMihomoAdminServiceStub) DuplicateGroup(context.Context, int64, string, string) (*Group, error) {
+	panic("unexpected DuplicateGroup call")
+}
+func (s *projectMihomoAdminServiceStub) RecoverDuplicateGroup(context.Context, int64, string, string) (*Group, error) {
+	panic("unexpected RecoverDuplicateGroup call")
+}
 func (s *projectMihomoAdminServiceStub) UpdateGroup(context.Context, int64, *UpdateGroupInput) (*Group, error) {
 	panic("unexpected UpdateGroup call")
 }
