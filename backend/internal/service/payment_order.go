@@ -58,8 +58,6 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if plan != nil {
 		orderAmount = plan.Price
 		limitAmount = plan.Price
-	} else if req.OrderType == payment.OrderTypeBalance {
-		orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
 	}
 	feeRate := cfg.RechargeFeeRate
 	methodCurrency := payment.DefaultPaymentCurrency
@@ -90,6 +88,14 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 			return nil, err
 		}
 	}
+	if req.OrderType == payment.OrderTypeBalance {
+		orderAmount = calculateBalanceCreditedAmount(
+			req.Amount,
+			payAmount,
+			cfg.BalanceRechargeMultiplier,
+			cfg.RechargeFeeCredited,
+		)
+	}
 	if err := validateSelectedCreateOrderAmountCurrency(payAmountStr, sel); err != nil {
 		return nil, err
 	}
@@ -112,6 +118,14 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		return nil, err
 	}
 	return resp, nil
+}
+
+func calculateBalanceCreditedAmount(requestAmount, payAmount, multiplier float64, feeCredited bool) float64 {
+	creditBase := requestAmount
+	if feeCredited {
+		creditBase = payAmount
+	}
+	return calculateCreditedBalance(creditBase, multiplier)
 }
 
 func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig) (*dbent.SubscriptionPlan, error) {

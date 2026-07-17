@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, shallowMount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import PaymentView from '../PaymentView.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 import { formatPaymentAmount } from '@/components/payment/currency'
@@ -107,6 +108,7 @@ function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
     balance_recharge_multiplier: 1,
     subscription_usd_to_cny_rate: 0,
     recharge_fee_rate: 0,
+    recharge_fee_credited: false,
     help_text: '',
     help_image_url: '',
     stripe_publishable_key: '',
@@ -116,6 +118,54 @@ function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
     data: { ...data, ...overrides },
   }
 }
+
+async function mountRecharge(checkout: Partial<CheckoutInfoResponse> = {}) {
+  vi.useRealTimers()
+  routeState.path = '/purchase'
+  routeState.query = { tab: 'recharge' }
+  getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture(checkout))
+  window.localStorage.clear()
+
+  const wrapper = shallowMount(PaymentView, {
+    global: {
+      stubs: {
+        AppLayout: { template: '<div><slot /></div>' },
+        Teleport: true,
+        Transition: false,
+      },
+    },
+  })
+  await flushPromises()
+  const amountInput = wrapper.findComponent({ name: 'AmountInput' })
+  amountInput.vm.$emit('update:modelValue', 100)
+  await nextTick()
+  return wrapper
+}
+
+describe('PaymentView balance recharge credited fee', () => {
+  it('shows the full paid amount as credited balance when enabled', async () => {
+    const wrapper = await mountRecharge({
+      recharge_fee_rate: 2,
+      recharge_fee_credited: true,
+    })
+
+    expect(wrapper.text()).toContain('payment.creditedBalance')
+    expect(wrapper.text()).toContain('payment.feeCreditedNotice')
+    expect(wrapper.text()).toContain('$102.00')
+    expect(wrapper.text()).toContain(formatPaymentAmount(102, 'CNY'))
+  })
+
+  it('keeps the fee outside credited balance when disabled', async () => {
+    const wrapper = await mountRecharge({
+      recharge_fee_rate: 2,
+      recharge_fee_credited: false,
+    })
+
+    expect(wrapper.text()).not.toContain('payment.creditedBalance')
+    expect(wrapper.text()).not.toContain('payment.feeCreditedNotice')
+    expect(wrapper.text()).toContain(formatPaymentAmount(102, 'CNY'))
+  })
+})
 
 function checkoutInfoWithPlansFixture(options: {
   checkout?: Partial<CheckoutInfoResponse>

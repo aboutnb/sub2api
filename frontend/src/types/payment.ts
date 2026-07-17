@@ -71,6 +71,7 @@ export interface CheckoutInfoResponse {
   /** Subscription CNY conversion rate (1 USD = X CNY); 0 = disabled, plan price is charged as-is */
   subscription_usd_to_cny_rate: number
   recharge_fee_rate: number
+  recharge_fee_credited: boolean
   help_text: string
   help_image_url: string
   stripe_publishable_key: string

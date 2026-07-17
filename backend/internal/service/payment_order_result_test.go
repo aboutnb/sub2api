@@ -238,6 +238,20 @@ func TestCalculateCreditedBalanceStillUsesRechargeMultiplier(t *testing.T) {
 	}
 }
 
+func TestCalculateBalanceCreditedAmountOptionallyIncludesRechargeFee(t *testing.T) {
+	t.Parallel()
+
+	if got := calculateBalanceCreditedAmount(100, 102, 1, false); got != 100 {
+		t.Fatalf("fee excluded credited amount = %v, want 100", got)
+	}
+	if got := calculateBalanceCreditedAmount(100, 102, 1, true); got != 102 {
+		t.Fatalf("fee included credited amount = %v, want 102", got)
+	}
+	if got := calculateBalanceCreditedAmount(100, 102, 0.14, true); got != 14.28 {
+		t.Fatalf("fee included credited amount with multiplier = %v, want 14.28", got)
+	}
+}
+
 func TestCalculateCreateOrderPayAmountRejectsFractionalZeroDecimal(t *testing.T) {
 	t.Parallel()
 

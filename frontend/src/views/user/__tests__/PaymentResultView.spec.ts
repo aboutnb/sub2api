@@ -196,6 +196,30 @@ describe('PaymentResultView', () => {
     expect(window.localStorage.getItem(PAYMENT_RECOVERY_STORAGE_KEY)).toBeNull()
   })
 
+  it('shows the credited balance when the recharge fee is credited', async () => {
+    routeState.query = { resume_token: 'resume-fee-credited' }
+    window.localStorage.setItem(
+      PAYMENT_RECOVERY_STORAGE_KEY,
+      JSON.stringify(recoverySnapshotFactory('resume-fee-credited')),
+    )
+    resolveOrderPublicByResumeToken.mockResolvedValue({
+      data: {
+        ...orderFactory('COMPLETED'),
+        amount: 102,
+        pay_amount: 102,
+        fee_rate: 2,
+      },
+    })
+
+    const wrapper = mount(PaymentResultView, {
+      global: { stubs: { OrderStatusBadge: true } },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('payment.orders.creditedAmount')
+    expect(wrapper.text()).toContain('$102.00')
+  })
+
   it('refreshes a pending resume-token result until the order becomes paid', async () => {
     vi.useFakeTimers()
     routeState.query = {

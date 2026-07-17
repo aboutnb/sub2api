@@ -61,6 +61,8 @@ Configure the following in Admin Dashboard **Settings → Payment Settings**:
 | **Minimum Amount** | Minimum single top-up amount | 1 |
 | **Maximum Amount** | Maximum single top-up amount (empty = unlimited) | - |
 | **Daily Limit** | Per-user daily cumulative limit (empty = unlimited) | - |
+| **Recharge Fee Rate** | Site fee added to balance top-ups and subscription payments | 0% |
+| **Credit Fee to Balance** | Balance top-ups only; when enabled, the credited amount includes the site fee (top up 100 with a 2% fee, pay and receive 102) | Off |
 | **Order Timeout** | Order timeout in minutes (minimum 1) | 30 |
 | **Max Pending Orders** | Maximum concurrent pending orders per user | 3 |
 | **Load Balance Strategy** | Strategy for selecting provider instances | Round Robin |
