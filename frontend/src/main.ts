@@ -5,6 +5,7 @@ import router from './router'
 import i18n, { initI18n } from './i18n'
 import { initThemeMode } from '@/composables/useThemeMode'
 import { useAppStore } from '@/stores/app'
+import { updateFavicon } from '@/utils/branding'
 import './style.css'
 
 function initThemeClass() {
@@ -33,6 +34,7 @@ async function bootstrap() {
   if (appStore.siteName && appStore.siteName !== 'Sub2API') {
     document.title = `${appStore.siteName} - AI API Gateway`
   }
+  updateFavicon(appStore.siteLogo)
 
   await initI18n()
 
