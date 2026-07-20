@@ -51,6 +51,31 @@ var (
 	notificationEmailPlaceholderPattern = regexp.MustCompile(`{{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*}}`)
 	notificationEmailLocales            = []string{notificationEmailDefaultLocale, notificationEmailLocaleChinese}
 	notificationEmailCommonPlaceholders = []string{"site_name", "recipient_name", "recipient_email"}
+	// Keep summary values separate so admins can rearrange or omit individual metrics in the template.
+	notificationEmailOpsSummaryPlaceholders = []string{
+		"report_summary_display",
+		"report_total_requests",
+		"report_success_count",
+		"report_sla_error_count",
+		"report_business_limited_count",
+		"report_sla",
+		"report_error_rate",
+		"report_upstream_error_rate",
+		"report_upstream_error_count_excl_429_529",
+		"report_upstream_429_count",
+		"report_upstream_529_count",
+		"report_latency_p50",
+		"report_latency_p99",
+		"report_ttft_p50",
+		"report_ttft_p99",
+		"report_tokens",
+		"report_qps_current",
+		"report_qps_peak",
+		"report_qps_avg",
+		"report_tps_current",
+		"report_tps_peak",
+		"report_tps_avg",
+	}
 )
 
 type NotificationEmailService struct {
@@ -504,6 +529,34 @@ func (s *NotificationEmailService) runtimeVariables(ctx context.Context, event, 
 	for key, value := range input.Variables {
 		variables[key] = value
 	}
+	if event == NotificationEmailEventOpsScheduledReport {
+		// Scheduled reports may be sent by integrations that only provide report_html.
+		// Do not let preview sample values appear in a live email in that case.
+		if _, ok := input.Variables["report_html"]; !ok {
+			variables["report_html"] = ""
+		}
+		if _, ok := input.Variables["report_detail_display"]; !ok {
+			// Keep legacy/custom templates useful when they only render report_html.
+			variables["report_detail_display"] = "block"
+		}
+		hasSummaryValues := false
+		for _, placeholder := range notificationEmailOpsSummaryPlaceholders {
+			if _, ok := input.Variables[placeholder]; ok {
+				if placeholder != "report_summary_display" {
+					hasSummaryValues = true
+				}
+				continue
+			}
+			variables[placeholder] = "-"
+		}
+		if _, ok := input.Variables["report_summary_display"]; !ok {
+			if hasSummaryValues {
+				variables["report_summary_display"] = "block"
+			} else {
+				variables["report_summary_display"] = "none"
+			}
+		}
+	}
 	variables["site_name"] = s.siteName(ctx)
 	variables["recipient_email"] = input.RecipientEmail
 	if strings.TrimSpace(input.RecipientName) != "" {
@@ -844,7 +897,7 @@ func isSafeNotificationEmailURL(raw string) bool {
 
 func notificationEmailSampleVariables(locale string) map[string]string {
 	if normalizeNotificationLocale(locale) == notificationEmailLocaleChinese {
-		return map[string]string{
+		variables := map[string]string{
 			"site_name":           defaultSiteName,
 			"recipient_name":      "张三",
 			"recipient_email":     "user@example.com",
@@ -885,12 +938,14 @@ func notificationEmailSampleVariables(locale string) map[string]string {
 			"alert_description":   "最近 10 分钟错误率超过阈值",
 			"report_name":         "日报",
 			"report_type":         "daily_summary",
-			"report_start_time":   "2026-05-19 12:00",
-			"report_end_time":     "2026-05-20 12:00",
-			"report_html":         "<h2>日报</h2><p>请求量：1024</p>",
+			"report_start_time":   "2026-07-18T01:00:26Z",
+			"report_end_time":     "2026-07-19T01:00:26Z",
+			"report_html":         "<h2>日报</h2><p>请求量：2,374</p>",
 		}
+		addNotificationEmailOpsSummarySampleVariables(variables)
+		return variables
 	}
-	return map[string]string{
+	variables := map[string]string{
 		"site_name":           defaultSiteName,
 		"recipient_name":      "Alex",
 		"recipient_email":     "user@example.com",
@@ -931,10 +986,38 @@ func notificationEmailSampleVariables(locale string) map[string]string {
 		"alert_description":   "Error rate exceeded threshold in the last 10 minutes.",
 		"report_name":         "Daily summary",
 		"report_type":         "daily_summary",
-		"report_start_time":   "2026-05-19 12:00",
-		"report_end_time":     "2026-05-20 12:00",
-		"report_html":         "<h2>Daily summary</h2><p>Requests: 1024</p>",
+		"report_start_time":   "2026-07-18T01:00:26Z",
+		"report_end_time":     "2026-07-19T01:00:26Z",
+		"report_html":         "<h2>Daily summary</h2><p>Requests: 2,374</p>",
 	}
+	addNotificationEmailOpsSummarySampleVariables(variables)
+	return variables
+}
+
+func addNotificationEmailOpsSummarySampleVariables(variables map[string]string) {
+	variables["report_summary_display"] = "block"
+	variables["report_detail_display"] = "none"
+	variables["report_total_requests"] = "2,374"
+	variables["report_success_count"] = "1,451"
+	variables["report_sla_error_count"] = "2"
+	variables["report_business_limited_count"] = "921"
+	variables["report_sla"] = "99.86%"
+	variables["report_error_rate"] = "0.14%"
+	variables["report_upstream_error_rate"] = "0.28%"
+	variables["report_upstream_error_count_excl_429_529"] = "4"
+	variables["report_upstream_429_count"] = "0"
+	variables["report_upstream_529_count"] = "0"
+	variables["report_latency_p50"] = "8,231 ms"
+	variables["report_latency_p99"] = "151,260 ms"
+	variables["report_ttft_p50"] = "1,674 ms"
+	variables["report_ttft_p99"] = "11,222 ms"
+	variables["report_tokens"] = "121,550,190"
+	variables["report_qps_current"] = "0.0"
+	variables["report_qps_peak"] = "1.2"
+	variables["report_qps_avg"] = "0.0"
+	variables["report_tps_current"] = "0.0"
+	variables["report_tps_peak"] = "133421.2"
+	variables["report_tps_avg"] = "1406.8"
 }
 
 var notificationEmailEventOrder = []string{
@@ -1061,8 +1144,13 @@ var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
 		Description: "Sent to configured operations recipients for scheduled daily/weekly/error/account-health reports.",
 		Category:    "ops",
 		Optional:    false,
-		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...),
-			"report_name", "report_type", "report_start_time", "report_end_time", "report_html"),
+		Placeholders: append(
+			append(
+				append([]string{}, notificationEmailCommonPlaceholders...),
+				"report_name", "report_type", "report_start_time", "report_end_time",
+			),
+			append(append([]string{}, notificationEmailOpsSummaryPlaceholders...), "report_detail_display", "report_html")...,
+		),
 	},
 }
 
@@ -1334,18 +1422,32 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
 		notificationEmailDefaultLocale: {
 			Subject: "[Ops Report] {{report_name}}",
 			HTML: notificationEmailCard("Ops report", `
-<p><strong>Report</strong>: {{report_name}}</p>
-<p><strong>Type</strong>: {{report_type}}</p>
-<p><strong>Range</strong>: {{report_start_time}} - {{report_end_time}}</p>
-<div>{{report_html}}</div>`),
+	<p><strong>Report</strong>: {{report_name}}</p>
+	<p><strong>Type</strong>: {{report_type}}</p>
+	<p><strong>Range</strong>: {{report_start_time}} - {{report_end_time}}</p>
+	<div style="display: {{report_summary_display}};">
+	<p><strong>Request summary</strong>: {{report_total_requests}} total / {{report_success_count}} successful / {{report_sla_error_count}} SLA errors / {{report_business_limited_count}} business limited</p>
+	<p><strong>Reliability</strong>: SLA {{report_sla}}, error rate {{report_error_rate}}, upstream error rate {{report_upstream_error_rate}}</p>
+	<p><strong>Upstream errors</strong>: {{report_upstream_error_count_excl_429_529}} excluding 429/529, 429 {{report_upstream_429_count}}, 529 {{report_upstream_529_count}}</p>
+	<p><strong>Latency</strong>: p50 {{report_latency_p50}}, p99 {{report_latency_p99}}; TTFT p50 {{report_ttft_p50}}, p99 {{report_ttft_p99}}</p>
+	<p><strong>Tokens</strong>: {{report_tokens}}; QPS current/peak/avg {{report_qps_current}} / {{report_qps_peak}} / {{report_qps_avg}}; TPS current/peak/avg {{report_tps_current}} / {{report_tps_peak}} / {{report_tps_avg}}</p>
+	</div>
+	<div style="display: {{report_detail_display}};">{{report_html}}</div>`),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[运维报表] {{report_name}}",
 			HTML: notificationEmailCardZH("运维报表", `
-	<p><strong>报表</strong>：{{report_name}}</p>
-	<p><strong>类型</strong>：{{report_type}}</p>
-	<p><strong>时间范围</strong>：{{report_start_time}} - {{report_end_time}}</p>
-<div>{{report_html}}</div>`),
+		<p><strong>报表</strong>：{{report_name}}</p>
+		<p><strong>类型</strong>：{{report_type}}</p>
+		<p><strong>时间范围</strong>：{{report_start_time}} - {{report_end_time}}</p>
+	<div style="display: {{report_summary_display}};">
+	<p><strong>请求概览</strong>：{{report_total_requests}} 总请求 / {{report_success_count}} 成功 / {{report_sla_error_count}} SLA 错误 / {{report_business_limited_count}} 业务限流</p>
+	<p><strong>可靠性</strong>：SLA {{report_sla}}，错误率 {{report_error_rate}}，上游错误率 {{report_upstream_error_rate}}</p>
+	<p><strong>上游错误</strong>：{{report_upstream_error_count_excl_429_529}}（不含 429/529），429 {{report_upstream_429_count}}，529 {{report_upstream_529_count}}</p>
+	<p><strong>延迟</strong>：p50 {{report_latency_p50}}，p99 {{report_latency_p99}}；TTFT p50 {{report_ttft_p50}}，p99 {{report_ttft_p99}}</p>
+	<p><strong>Token</strong>：{{report_tokens}}；QPS 当前/峰值/平均 {{report_qps_current}} / {{report_qps_peak}} / {{report_qps_avg}}；TPS 当前/峰值/平均 {{report_tps_current}} / {{report_tps_peak}} / {{report_tps_avg}}</p>
+	</div>
+	<div style="display: {{report_detail_display}};">{{report_html}}</div>`),
 		},
 	},
 }
@@ -1460,7 +1562,7 @@ func notificationEmailCodeBlock() string {
 
 func notificationEmailDataTable(rows ...[2]string) string {
 	var builder strings.Builder
-	_, _ = builder.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:18px 0 22px 0;border-collapse:collapse;border:2px solid #17130f;background-color:#fffaf0;">`)
+	_, _ = builder.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:18px 0 22px 0;border-collapse:collapse;table-layout:fixed;border:2px solid #17130f;background-color:#fffaf0;">`)
 	for i, row := range rows {
 		border := "border-top:1px solid #17130f;"
 		if i == 0 {
@@ -1468,7 +1570,7 @@ func notificationEmailDataTable(rows ...[2]string) string {
 		}
 		_, _ = builder.WriteString(`<tr>`)
 		_, _ = builder.WriteString(`<td style="width:38%;padding:11px 13px;` + border + `border-right:1px solid #17130f;background-color:#f1e7d4;color:#5f574b;font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;font-size:11px;line-height:17px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;">` + row[0] + `</td>`)
-		_, _ = builder.WriteString(`<td style="padding:11px 13px;` + border + `color:#17130f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;line-height:20px;font-weight:700;">` + row[1] + `</td>`)
+		_, _ = builder.WriteString(`<td style="padding:11px 13px;` + border + `color:#17130f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;line-height:20px;font-weight:700;overflow-wrap:anywhere;word-break:break-all;">` + row[1] + `</td>`)
 		_, _ = builder.WriteString(`</tr>`)
 	}
 	_, _ = builder.WriteString(`</table>`)

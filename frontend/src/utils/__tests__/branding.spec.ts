@@ -27,7 +27,7 @@ describe('resolveBrandLogo', () => {
 
 describe('updateFavicon', () => {
   beforeEach(() => {
-    document.head.innerHTML = '<link rel="icon" href="/logo.png">'
+    document.head.innerHTML = '<link rel="icon" href="/logo.svg">'
   })
 
   it('replaces the default favicon with the configured logo', () => {
@@ -41,6 +41,6 @@ describe('updateFavicon', () => {
     updateFavicon('javascript:alert(1)')
 
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
-    expect(link?.getAttribute('href')).toBe('/logo.png')
+    expect(link?.getAttribute('href')).toBe('/logo.svg')
   })
 })
