@@ -116,6 +116,18 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+
+		// 登录来源自动封禁
+		registerAuthIPBanRoutes(admin, h)
+	}
+}
+
+func registerAuthIPBanRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	bans := admin.Group("/auth-ip-bans")
+	{
+		bans.GET("", h.Admin.AuthIPBan.List)
+		bans.GET("/policy", h.Admin.AuthIPBan.Policy)
+		bans.POST("/:id/release", h.Admin.AuthIPBan.Release)
 	}
 }
 

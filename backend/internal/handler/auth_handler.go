@@ -241,24 +241,33 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware2.SetAuthAttemptFailureReason(c, "invalid_login_request")
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	middleware2.SetAuthAttemptTarget(c, req.Email)
 
 	// Turnstile 验证
 	if err := h.authService.VerifyTurnstile(c.Request.Context(), req.TurnstileToken, ip.GetClientIP(c)); err != nil {
+		if strings.TrimSpace(req.TurnstileToken) == "" {
+			middleware2.SetAuthAttemptFailureReason(c, "turnstile_token_missing")
+		} else {
+			middleware2.SetAuthAttemptFailureReason(c, "turnstile_verification_failed")
+		}
 		response.ErrorFrom(c, err)
 		return
 	}
 
 	token, user, err := h.authService.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
+		middleware2.SetAuthAttemptFailureReason(c, "credentials_rejected")
 		response.ErrorFrom(c, err)
 		return
 	}
 	_ = token // token 由 authService.Login 返回但此处由 respondWithTokenPair 重新生成
 
 	if err := h.ensureBackendModeAllowsUser(c.Request.Context(), user); err != nil {
+		middleware2.SetAuthAttemptFailureReason(c, "login_policy_rejected")
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -303,6 +312,7 @@ type Login2FARequest struct {
 func (h *AuthHandler) Login2FA(c *gin.Context) {
 	var req Login2FARequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware2.SetAuthAttemptFailureReason(c, "invalid_2fa_request")
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
@@ -314,6 +324,7 @@ func (h *AuthHandler) Login2FA(c *gin.Context) {
 	// Get the login session
 	session, err := h.totpService.GetLoginSession(c.Request.Context(), req.TempToken)
 	if err != nil || session == nil {
+		middleware2.SetAuthAttemptFailureReason(c, "two_factor_session_rejected")
 		tokenPrefix := ""
 		if len(req.TempToken) >= 8 {
 			tokenPrefix = req.TempToken[:8]
@@ -324,6 +335,7 @@ func (h *AuthHandler) Login2FA(c *gin.Context) {
 		response.BadRequest(c, "Invalid or expired 2FA session")
 		return
 	}
+	middleware2.SetAuthAttemptTarget(c, session.Email)
 
 	slog.Debug("login_2fa_session_found",
 		"user_id", session.UserID,
@@ -331,6 +343,7 @@ func (h *AuthHandler) Login2FA(c *gin.Context) {
 
 	// Verify the TOTP code
 	if err := h.totpService.VerifyCode(c.Request.Context(), session.UserID, req.TotpCode); err != nil {
+		middleware2.SetAuthAttemptFailureReason(c, "two_factor_code_rejected")
 		slog.Debug("login_2fa_verify_failed",
 			"user_id", session.UserID,
 			"error", err)

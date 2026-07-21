@@ -40,6 +40,7 @@ func newAuthRoutesTestRouterWithConfig(redisClient *redis.Client, cfg *config.Co
 		nil,
 		cfg,
 		publicAccessGuard,
+		nil,
 	)
 
 	return router

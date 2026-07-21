@@ -429,6 +429,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/auth-ip-bans',
+    name: 'AdminAuthIPBans',
+    component: () => import('@/views/admin/AuthIPBanView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Login Protection',
+      titleKey: 'admin.authIPBan.title',
+      descriptionKey: 'admin.authIPBan.description'
+    }
+  },
+  {
     path: '/admin/users',
     name: 'AdminUsers',
     component: () => import('@/views/admin/UsersView.vue'),

@@ -197,6 +197,7 @@ export default {
     securityAudit: 'Security Audit',
     contentModeration: 'Content Moderation',
     promptAudit: 'Prompt Audit',
+    loginProtection: 'Login Protection',
     auditLogs: 'Audit Logs',
   },
 
