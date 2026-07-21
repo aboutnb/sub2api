@@ -59,7 +59,7 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		orderAmount = plan.Price
 		limitAmount = plan.Price
 	}
-	feeRate := cfg.RechargeFeeRate
+	feeRate := effectiveOrderFeeRate(cfg, req.OrderType)
 	methodCurrency := payment.DefaultPaymentCurrency
 	if s.configService != nil {
 		methodCurrency, err = s.configService.ValidateMethodCurrencyConsistency(ctx, req.PaymentType)
@@ -118,6 +118,16 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		return nil, err
 	}
 	return resp, nil
+}
+
+func effectiveOrderFeeRate(cfg *PaymentConfig, orderType string) float64 {
+	if cfg == nil {
+		return 0
+	}
+	if orderType == payment.OrderTypeSubscription && !cfg.SubscriptionFeeEnabled {
+		return 0
+	}
+	return cfg.RechargeFeeRate
 }
 
 func calculateBalanceCreditedAmount(requestAmount, payAmount, multiplier float64, feeCredited bool) float64 {

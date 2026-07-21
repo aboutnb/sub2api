@@ -576,6 +576,8 @@ export default {
         rechargeFeeRate: '充值手续费率',
         rechargeFeeRateHint: '用户充值时额外收取的手续费百分比，0 表示不收取手续费',
         rechargeFeePreview: '预览：充值 100 元，手续费 {fee} 元',
+        subscriptionFeeEnabled: '订阅支付手续费',
+        subscriptionFeeEnabledHint: '开启后订阅购买叠加上述手续费率；关闭后订阅仅支付套餐金额，余额充值不受影响。',
         rechargeFeeCredited: '手续费计入到账额度',
         rechargeFeeCreditedHint: '仅作用于余额充值。开启后实付金额全部计入余额；例如充值 100、手续费 2%，支付并到账 102。订阅购买不受影响。',
         orderTimeout: '订单超时时间',

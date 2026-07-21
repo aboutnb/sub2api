@@ -580,6 +580,8 @@ export default {
         subscriptionUsdToCnyRateDisabled: 'Disabled (price charged as-is)',
         rechargeFeeRate: 'Recharge Fee Rate',
         rechargeFeeRateHint: 'Percentage of service fee charged on top of recharge amount, 0 means no fee',
+        subscriptionFeeEnabled: 'Charge fee on subscriptions',
+        subscriptionFeeEnabledHint: 'When enabled, subscription purchases include the fee rate above. When disabled, subscriptions charge only the plan amount; balance top-ups are unchanged.',
         rechargeFeeCredited: 'Credit the fee to balance',
         rechargeFeeCreditedHint: 'Balance top-ups only. When enabled, the full paid amount is credited; for example, top up 100 with a 2% fee, pay and receive 102. Subscription purchases are unchanged.',
         rechargeFeePreview: 'Preview: Recharge 100, fee {fee}',

@@ -27,6 +27,7 @@ const (
 	// SettingSubscriptionUSDToCNYRate 是订阅 CNY 换算汇率（1 USD = X CNY）。
 	// 0/未配置 = 关闭换算（订阅按 price 数值直付），显式配置后 CNY 通道订阅按 price × rate 收款。
 	SettingSubscriptionUSDToCNYRate = "SUBSCRIPTION_USD_TO_CNY_RATE"
+	SettingSubscriptionFeeEnabled   = "SUBSCRIPTION_FEE_ENABLED"
 	SettingRechargeFeeRate          = "RECHARGE_FEE_RATE"
 	SettingRechargeFeeCredited      = "RECHARGE_FEE_CREDITED"
 	SettingProductNamePrefix        = "PRODUCT_NAME_PREFIX"
@@ -60,6 +61,7 @@ type PaymentConfig struct {
 	BalanceRechargeMultiplier float64  `json:"balance_recharge_multiplier"`
 	// SubscriptionUSDToCNYRate 为 0 时订阅换算关闭（兼容存量行为）。
 	SubscriptionUSDToCNYRate float64 `json:"subscription_usd_to_cny_rate"`
+	SubscriptionFeeEnabled   bool    `json:"subscription_fee_enabled"`
 	RechargeFeeRate          float64 `json:"recharge_fee_rate"`
 	RechargeFeeCredited      bool    `json:"recharge_fee_credited"`
 	LoadBalanceStrategy      string  `json:"load_balance_strategy"`
@@ -92,6 +94,7 @@ type UpdatePaymentConfigRequest struct {
 	BalanceDisabled           *bool    `json:"balance_disabled"`
 	BalanceRechargeMultiplier *float64 `json:"balance_recharge_multiplier"`
 	SubscriptionUSDToCNYRate  *float64 `json:"subscription_usd_to_cny_rate"`
+	SubscriptionFeeEnabled    *bool    `json:"subscription_fee_enabled"`
 	RechargeFeeRate           *float64 `json:"recharge_fee_rate"`
 	RechargeFeeCredited       *bool    `json:"recharge_fee_credited"`
 	LoadBalanceStrategy       *string  `json:"load_balance_strategy"`
@@ -216,7 +219,7 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 	keys := []string{
 		SettingPaymentEnabled, SettingMinRechargeAmount, SettingMaxRechargeAmount,
 		SettingDailyRechargeLimit, SettingOrderTimeoutMinutes, SettingMaxPendingOrders,
-		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingRechargeFeeCredited, SettingLoadBalanceStrategy,
+		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingSubscriptionUSDToCNYRate, SettingSubscriptionFeeEnabled, SettingRechargeFeeRate, SettingRechargeFeeCredited, SettingLoadBalanceStrategy,
 		SettingProductNamePrefix, SettingProductNameSuffix,
 		SettingHelpImageURL, SettingHelpText,
 		SettingCancelRateLimitOn, SettingCancelRateLimitMax,
@@ -246,6 +249,7 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 		BalanceDisabled:           vals[SettingBalancePayDisabled] == "true",
 		BalanceRechargeMultiplier: normalizeBalanceRechargeMultiplier(pcParseFloat(vals[SettingBalanceRechargeMult], defaultBalanceRechargeMultiplier)),
 		SubscriptionUSDToCNYRate:  normalizeSubscriptionUSDToCNYRate(pcParseFloat(vals[SettingSubscriptionUSDToCNYRate], 0)),
+		SubscriptionFeeEnabled:    pcParseBool(vals[SettingSubscriptionFeeEnabled], true),
 		RechargeFeeRate:           pcParseFloat(vals[SettingRechargeFeeRate], 0),
 		RechargeFeeCredited:       vals[SettingRechargeFeeCredited] == "true",
 		LoadBalanceStrategy:       vals[SettingLoadBalanceStrategy],
@@ -334,6 +338,7 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 		SettingBalancePayDisabled:                formatBoolOrEmpty(req.BalanceDisabled),
 		SettingBalanceRechargeMult:               formatPositiveFloat(req.BalanceRechargeMultiplier),
 		SettingSubscriptionUSDToCNYRate:          formatPositiveFloatExact(req.SubscriptionUSDToCNYRate),
+		SettingSubscriptionFeeEnabled:            formatBoolOrEmpty(req.SubscriptionFeeEnabled),
 		SettingRechargeFeeRate:                   formatNonNegativeFloat(req.RechargeFeeRate),
 		SettingRechargeFeeCredited:               formatBoolOrEmpty(req.RechargeFeeCredited),
 		SettingLoadBalanceStrategy:               derefStr(req.LoadBalanceStrategy),
@@ -365,6 +370,14 @@ func formatBoolOrEmpty(v *bool) string {
 		return ""
 	}
 	return strconv.FormatBool(*v)
+}
+
+func pcParseBool(v string, defaultValue bool) bool {
+	parsed, err := strconv.ParseBool(v)
+	if err != nil {
+		return defaultValue
+	}
+	return parsed
 }
 
 func formatPositiveFloat(v *float64) string {

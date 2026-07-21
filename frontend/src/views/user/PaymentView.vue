@@ -162,14 +162,14 @@
                   @select="selectedMethod = $event"
                 />
               </div>
-              <div v-if="feeRate > 0 && selectedPlan.price > 0" class="card p-6">
+              <div v-if="subscriptionFeeRate > 0 && selectedPlan.price > 0" class="card p-6">
                 <div class="space-y-2 text-sm">
                   <div class="flex justify-between">
                     <span class="text-gray-500 dark:text-gray-400">{{ t('payment.amountLabel') }}</span>
                     <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(subPaymentAmount) }}</span>
                   </div>
                   <div class="flex justify-between">
-                    <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</span>
+                    <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ subscriptionFeeRate }}%)</span>
                     <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(subFeeAmount) }}</span>
                   </div>
                   <div class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
@@ -504,7 +504,7 @@ function onPaymentSettled() {
 // All checkout data from single API call
 const checkout = ref<CheckoutInfoResponse>({
   methods: {}, global_min: 0, global_max: 0,
-  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, recharge_fee_credited: false, help_text: '', help_image_url: '', stripe_publishable_key: '',
+  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, subscription_usd_to_cny_rate: 0, subscription_fee_enabled: true, recharge_fee_rate: 0, recharge_fee_credited: false, help_text: '', help_image_url: '', stripe_publishable_key: '',
 })
 
 const tabs = computed(() => {
@@ -620,6 +620,9 @@ const methodOptions = computed<PaymentMethodOption[]>(() =>
 )
 
 const feeRate = computed(() => checkout.value?.recharge_fee_rate ?? 0)
+const subscriptionFeeRate = computed(() =>
+  checkout.value.subscription_fee_enabled !== false ? feeRate.value : 0
+)
 const feeAmount = computed(() =>
   feeRate.value > 0 && validAmount.value > 0
     ? Math.ceil(((validAmount.value * feeRate.value) / 100) * 100) / 100
@@ -665,19 +668,19 @@ const subPaymentAmount = computed(() => {
 })
 
 const subFeeAmount = computed(() => {
-  if (feeRate.value <= 0 || subPaymentAmount.value <= 0) return 0
-  return ceilPaymentAmount((subPaymentAmount.value * feeRate.value) / 100, selectedCurrency.value)
+  if (subscriptionFeeRate.value <= 0 || subPaymentAmount.value <= 0) return 0
+  return ceilPaymentAmount((subPaymentAmount.value * subscriptionFeeRate.value) / 100, selectedCurrency.value)
 })
 
 const subTotalAmount = computed(() => {
-  if (feeRate.value <= 0 || subPaymentAmount.value <= 0) return subPaymentAmount.value
+  if (subscriptionFeeRate.value <= 0 || subPaymentAmount.value <= 0) return subPaymentAmount.value
   return roundPaymentAmount(subPaymentAmount.value + subFeeAmount.value, selectedCurrency.value)
 })
 
 function subscriptionTotalAmountForCurrency(value: number, currency: string): number {
   const paymentAmount = subscriptionPaymentAmountForCurrency(value, currency)
-  if (feeRate.value <= 0 || paymentAmount <= 0) return paymentAmount
-  const fee = ceilPaymentAmount((paymentAmount * feeRate.value) / 100, currency)
+  if (subscriptionFeeRate.value <= 0 || paymentAmount <= 0) return paymentAmount
+  const fee = ceilPaymentAmount((paymentAmount * subscriptionFeeRate.value) / 100, currency)
   return roundPaymentAmount(paymentAmount + fee, currency)
 }
 

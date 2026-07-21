@@ -107,6 +107,7 @@ function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
     balance_disabled: false,
     balance_recharge_multiplier: 1,
     subscription_usd_to_cny_rate: 0,
+    subscription_fee_enabled: true,
     recharge_fee_rate: 0,
     recharge_fee_credited: false,
     help_text: '',
@@ -145,6 +146,7 @@ async function mountRecharge(checkout: Partial<CheckoutInfoResponse> = {}) {
 describe('PaymentView balance recharge credited fee', () => {
   it('shows the full paid amount as credited balance when enabled', async () => {
     const wrapper = await mountRecharge({
+      subscription_fee_enabled: false,
       recharge_fee_rate: 2,
       recharge_fee_credited: true,
     })
@@ -354,6 +356,7 @@ describe('PaymentView subscription confirmation amounts', () => {
     const wrapper = await mountSubscriptionConfirm({
       checkout: {
         subscription_usd_to_cny_rate: 7.15,
+        subscription_fee_enabled: true,
         recharge_fee_rate: 2.5,
       },
       method: {
@@ -373,6 +376,31 @@ describe('PaymentView subscription confirmation amounts', () => {
     expect(text).toContain(fee)
     expect(text).toContain(total)
     expect(wrapper.findAll('button').some(button => button.text().includes(total))).toBe(true)
+  })
+
+  it('does not add the recharge fee when subscription fees are disabled', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: {
+        subscription_usd_to_cny_rate: 7.15,
+        subscription_fee_enabled: false,
+        recharge_fee_rate: 2.5,
+      },
+      method: {
+        currency: 'CNY',
+      },
+      plan: {
+        price: 9.99,
+      },
+    })
+
+    const text = wrapper.text()
+    const convertedPrice = formatPaymentAmount(71.43, 'CNY')
+    const totalWithFee = formatPaymentAmount(73.22, 'CNY')
+
+    expect(text).toContain(convertedPrice)
+    expect(text).not.toContain(totalWithFee)
+    expect(text).not.toContain('payment.fee')
+    expect(wrapper.findAll('button').some(button => button.text().includes(convertedPrice))).toBe(true)
   })
 })
 

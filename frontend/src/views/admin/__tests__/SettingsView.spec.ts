@@ -443,6 +443,7 @@ const baseSettingsResponse = {
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
   payment_subscription_usd_to_cny_rate: 0,
+  payment_subscription_fee_enabled: true,
   payment_recharge_fee_rate: 0,
   payment_recharge_fee_credited: false,
   payment_load_balance_strategy: "round-robin",
@@ -771,6 +772,23 @@ describe("admin SettingsView payment visible method controls", () => {
 
     expect(updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({ payment_recharge_fee_credited: true }),
+    );
+  });
+
+  it("submits the subscription fee setting", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      payment_recharge_fee_rate: 2,
+      payment_subscription_fee_enabled: false,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_subscription_fee_enabled: false }),
     );
   });
 

@@ -161,6 +161,23 @@ func TestCalculateCreateOrderPayAmountUsesCurrencyPrecision(t *testing.T) {
 	}
 }
 
+func TestEffectiveOrderFeeRateHonorsSubscriptionSetting(t *testing.T) {
+	t.Parallel()
+
+	cfg := &PaymentConfig{RechargeFeeRate: 2.5, SubscriptionFeeEnabled: true}
+	if got := effectiveOrderFeeRate(cfg, payment.OrderTypeSubscription); got != 2.5 {
+		t.Fatalf("enabled subscription fee rate = %v, want 2.5", got)
+	}
+
+	cfg.SubscriptionFeeEnabled = false
+	if got := effectiveOrderFeeRate(cfg, payment.OrderTypeSubscription); got != 0 {
+		t.Fatalf("disabled subscription fee rate = %v, want 0", got)
+	}
+	if got := effectiveOrderFeeRate(cfg, payment.OrderTypeBalance); got != 2.5 {
+		t.Fatalf("balance fee rate = %v, want 2.5", got)
+	}
+}
+
 func TestCalculateCreateOrderPayAmountForSubscriptionConvertsCNYPriceWhenRateConfigured(t *testing.T) {
 	t.Parallel()
 

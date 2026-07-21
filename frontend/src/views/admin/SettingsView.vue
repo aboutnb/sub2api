@@ -6971,6 +6971,17 @@
                       </div>
                       <Toggle v-model="form.payment_recharge_fee_credited" />
                     </div>
+                    <div class="mt-3 flex items-center justify-between gap-4 border-t border-gray-200 pt-3 dark:border-dark-600">
+                      <div>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {{ t("admin.settings.payment.subscriptionFeeEnabled") }}
+                        </label>
+                        <p class="mt-0.5 text-xs text-gray-400">
+                          {{ t("admin.settings.payment.subscriptionFeeEnabledHint") }}
+                        </p>
+                      </div>
+                      <Toggle v-model="form.payment_subscription_fee_enabled" />
+                    </div>
                   </div>
                   <div>
                     <label class="input-label"
@@ -8513,6 +8524,7 @@ const form = reactive<SettingsForm>({
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
   payment_subscription_usd_to_cny_rate: 0,
+  payment_subscription_fee_enabled: true,
   payment_recharge_fee_rate: 0,
   payment_recharge_fee_credited: false,
   payment_enabled_types: [],
@@ -10188,6 +10200,7 @@ async function saveSettings() {
         Number(form.payment_balance_recharge_multiplier) || 1,
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,
+      payment_subscription_fee_enabled: form.payment_subscription_fee_enabled,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,
       payment_recharge_fee_credited: form.payment_recharge_fee_credited,
       payment_enabled_types: form.payment_enabled_types,

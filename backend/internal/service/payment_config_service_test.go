@@ -105,23 +105,27 @@ func TestParsePaymentConfig(t *testing.T) {
 		if cfg.RechargeFeeCredited {
 			t.Fatal("expected RechargeFeeCredited=false by default")
 		}
+		if !cfg.SubscriptionFeeEnabled {
+			t.Fatal("expected SubscriptionFeeEnabled=true by default")
+		}
 	})
 
 	t.Run("all values populated", func(t *testing.T) {
 		t.Parallel()
 		vals := map[string]string{
-			SettingPaymentEnabled:      "true",
-			SettingMinRechargeAmount:   "5.00",
-			SettingMaxRechargeAmount:   "1000.00",
-			SettingDailyRechargeLimit:  "5000.00",
-			SettingOrderTimeoutMinutes: "15",
-			SettingMaxPendingOrders:    "5",
-			SettingEnabledPaymentTypes: "alipay,wxpay,stripe",
-			SettingBalancePayDisabled:  "true",
-			SettingRechargeFeeCredited: "true",
-			SettingLoadBalanceStrategy: "least_amount",
-			SettingProductNamePrefix:   "PRE",
-			SettingProductNameSuffix:   "SUF",
+			SettingPaymentEnabled:         "true",
+			SettingMinRechargeAmount:      "5.00",
+			SettingMaxRechargeAmount:      "1000.00",
+			SettingDailyRechargeLimit:     "5000.00",
+			SettingOrderTimeoutMinutes:    "15",
+			SettingMaxPendingOrders:       "5",
+			SettingEnabledPaymentTypes:    "alipay,wxpay,stripe",
+			SettingBalancePayDisabled:     "true",
+			SettingSubscriptionFeeEnabled: "false",
+			SettingRechargeFeeCredited:    "true",
+			SettingLoadBalanceStrategy:    "least_amount",
+			SettingProductNamePrefix:      "PRE",
+			SettingProductNameSuffix:      "SUF",
 		}
 		cfg := svc.parsePaymentConfig(vals)
 
@@ -154,6 +158,9 @@ func TestParsePaymentConfig(t *testing.T) {
 		}
 		if !cfg.RechargeFeeCredited {
 			t.Fatal("expected RechargeFeeCredited=true")
+		}
+		if cfg.SubscriptionFeeEnabled {
+			t.Fatal("expected SubscriptionFeeEnabled=false")
 		}
 		if cfg.LoadBalanceStrategy != "least_amount" {
 			t.Fatalf("LoadBalanceStrategy = %q, want %q", cfg.LoadBalanceStrategy, "least_amount")
@@ -469,6 +476,22 @@ func TestUpdatePaymentConfig_PersistsRechargeFeeCredited(t *testing.T) {
 	}
 	if repo.values[SettingRechargeFeeCredited] != "true" {
 		t.Fatalf("recharge fee credited = %q, want true", repo.values[SettingRechargeFeeCredited])
+	}
+}
+
+func TestUpdatePaymentConfig_PersistsSubscriptionFeeEnabled(t *testing.T) {
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{}}
+	svc := &PaymentConfigService{settingRepo: repo}
+	enabled := false
+
+	err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{
+		SubscriptionFeeEnabled: &enabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdatePaymentConfig returned error: %v", err)
+	}
+	if repo.values[SettingSubscriptionFeeEnabled] != "false" {
+		t.Fatalf("subscription fee enabled = %q, want false", repo.values[SettingSubscriptionFeeEnabled])
 	}
 }
 

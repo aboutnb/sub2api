@@ -121,7 +121,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		paymentCfg, _ = h.paymentConfigService.GetPaymentConfig(c.Request.Context())
 	}
 	if paymentCfg == nil {
-		paymentCfg = &service.PaymentConfig{}
+		paymentCfg = &service.PaymentConfig{SubscriptionFeeEnabled: true}
 	}
 
 	payload := dto.SystemSettings{
@@ -330,6 +330,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PaymentBalanceDisabled:                                 paymentCfg.BalanceDisabled,
 		PaymentBalanceRechargeMultiplier:                       paymentCfg.BalanceRechargeMultiplier,
 		PaymentSubscriptionUSDToCNYRate:                        paymentCfg.SubscriptionUSDToCNYRate,
+		PaymentSubscriptionFeeEnabled:                          paymentCfg.SubscriptionFeeEnabled,
 		PaymentRechargeFeeRate:                                 paymentCfg.RechargeFeeRate,
 		PaymentRechargeFeeCredited:                             paymentCfg.RechargeFeeCredited,
 		PaymentLoadBalanceStrat:                                paymentCfg.LoadBalanceStrategy,
