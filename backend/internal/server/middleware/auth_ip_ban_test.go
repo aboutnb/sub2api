@@ -9,15 +9,30 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
-	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
 type authIPBanMiddlewareRepo struct {
 	active      *service.AuthIPBan
 	activations int
+}
+
+type authIPBanMiddlewareCounter struct {
+	counts map[string]int64
+}
+
+func (c *authIPBanMiddlewareCounter) Increment(_ context.Context, key string, window time.Duration) (int64, time.Duration, error) {
+	if c.counts == nil {
+		c.counts = make(map[string]int64)
+	}
+	c.counts[key]++
+	return c.counts[key], window, nil
+}
+
+func (c *authIPBanMiddlewareCounter) Delete(_ context.Context, key string) error {
+	delete(c.counts, key)
+	return nil
 }
 
 func (r *authIPBanMiddlewareRepo) FindActive(context.Context, string, string, time.Time) (*service.AuthIPBan, error) {
@@ -53,11 +68,8 @@ func (r *authIPBanMiddlewareRepo) Release(context.Context, int64, int64, string,
 func newAuthIPBanMiddlewareRouter(t *testing.T, status int) (*gin.Engine, *authIPBanMiddlewareRepo) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	mr := miniredis.RunT(t)
-	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { _ = rdb.Close() })
 	repo := &authIPBanMiddlewareRepo{}
-	banService := service.NewAuthIPBanService(repo, rdb)
+	banService := service.NewAuthIPBanService(repo, &authIPBanMiddlewareCounter{})
 	router := gin.New()
 	require.NoError(t, router.SetTrustedProxies(nil))
 	router.POST("/api/v1/auth/login", AuthIPBan(banService), func(c *gin.Context) {

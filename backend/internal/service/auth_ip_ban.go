@@ -4,15 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"log/slog"
 	"net/netip"
 	"strings"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-
-	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -92,6 +89,11 @@ type AuthIPBanRepository interface {
 	Release(ctx context.Context, id, releasedByUserID int64, note string, now time.Time) (*AuthIPBan, error)
 }
 
+type AuthIPBanCounter interface {
+	Increment(ctx context.Context, key string, window time.Duration) (count int64, ttl time.Duration, err error)
+	Delete(ctx context.Context, key string) error
+}
+
 type AuthIPBanPolicy struct {
 	UACategory string        `json:"ua_category"`
 	BanScope   string        `json:"ban_scope"`
@@ -141,27 +143,14 @@ var authIPBanPolicies = map[string]AuthIPBanPolicy{
 	},
 }
 
-var authIPBanCounterScript = redis.NewScript(`
-local current = redis.call('INCR', KEYS[1])
-if current == 1 then
-  redis.call('PEXPIRE', KEYS[1], ARGV[1])
-end
-local ttl = redis.call('PTTL', KEYS[1])
-if ttl < 0 then
-  redis.call('PEXPIRE', KEYS[1], ARGV[1])
-  ttl = tonumber(ARGV[1])
-end
-return {current, ttl}
-`)
-
 type AuthIPBanService struct {
-	repo  AuthIPBanRepository
-	redis *redis.Client
-	now   func() time.Time
+	repo    AuthIPBanRepository
+	counter AuthIPBanCounter
+	now     func() time.Time
 }
 
-func NewAuthIPBanService(repo AuthIPBanRepository, redisClient *redis.Client) *AuthIPBanService {
-	return &AuthIPBanService{repo: repo, redis: redisClient, now: time.Now}
+func NewAuthIPBanService(repo AuthIPBanRepository, counter AuthIPBanCounter) *AuthIPBanService {
+	return &AuthIPBanService{repo: repo, counter: counter, now: time.Now}
 }
 
 func (s *AuthIPBanService) Policies() []AuthIPBanPolicy {
@@ -188,7 +177,7 @@ func (s *AuthIPBanService) RecordFailure(
 	ctx context.Context,
 	ipAddress, userAgent, targetIdentifier, triggerPath, reason string,
 ) (*AuthIPBan, error) {
-	if s == nil || s.repo == nil || s.redis == nil {
+	if s == nil || s.repo == nil || s.counter == nil {
 		return nil, nil
 	}
 	ipAddress, ok := normalizePublicAuthIP(ipAddress)
@@ -205,33 +194,17 @@ func (s *AuthIPBanService) RecordFailure(
 	uaHash := authUserAgentHash(userAgent)
 	key := authIPBanCounterKey(ipAddress, uaHash, targetIdentifier, policy)
 
-	values, err := authIPBanCounterScript.Run(
-		ctx,
-		s.redis,
-		[]string{key},
-		policy.Window.Milliseconds(),
-	).Slice()
+	count, ttl, err := s.counter.Increment(ctx, key, policy.Window)
 	if err != nil {
 		slog.Warn("auth_ip_ban.counter_failed", "ip", ipAddress, "ua_category", category, "error", err)
 		return nil, nil
-	}
-	if len(values) < 2 {
-		return nil, fmt.Errorf("auth IP ban counter returned %d values", len(values))
-	}
-	count, err := authIPBanInt64(values[0])
-	if err != nil {
-		return nil, err
-	}
-	ttlMillis, err := authIPBanInt64(values[1])
-	if err != nil {
-		return nil, err
 	}
 	if count < int64(policy.Threshold) {
 		return nil, nil
 	}
 
 	now := s.currentTime()
-	elapsed := policy.Window - time.Duration(ttlMillis)*time.Millisecond
+	elapsed := policy.Window - ttl
 	if elapsed < 0 || elapsed > policy.Window {
 		elapsed = 0
 	}
@@ -270,7 +243,7 @@ func (s *AuthIPBanService) RecordFailure(
 }
 
 func (s *AuthIPBanService) ClearFailures(ctx context.Context, ipAddress, userAgent, targetIdentifier string) {
-	if s == nil || s.redis == nil {
+	if s == nil || s.counter == nil {
 		return
 	}
 	ipAddress, ok := normalizePublicAuthIP(ipAddress)
@@ -285,7 +258,7 @@ func (s *AuthIPBanService) ClearFailures(ctx context.Context, ipAddress, userAge
 		strings.ToLower(truncateAuthBanText(targetIdentifier, 255)),
 		policy,
 	)
-	if err := s.redis.Del(ctx, key).Err(); err != nil {
+	if err := s.counter.Delete(ctx, key); err != nil {
 		slog.Warn("auth_ip_ban.clear_counter_failed", "ip", ipAddress, "error", err)
 	}
 }
@@ -305,7 +278,7 @@ func (s *AuthIPBanService) Release(ctx context.Context, id, releasedByUserID int
 	if err != nil {
 		return nil, err
 	}
-	if s.redis != nil && record != nil {
+	if s.counter != nil && record != nil {
 		category := record.UACategory
 		policy, ok := authIPBanPolicies[category]
 		if ok {
@@ -314,7 +287,7 @@ func (s *AuthIPBanService) Release(ctx context.Context, id, releasedByUserID int
 				uaHash = authUserAgentHash(record.UserAgent)
 			}
 			key := authIPBanCounterKey(record.IPAddress, uaHash, record.TargetIdentifier, policy)
-			if err := s.redis.Del(ctx, key).Err(); err != nil {
+			if err := s.counter.Delete(ctx, key); err != nil {
 				slog.Warn("auth_ip_ban.release_counter_failed", "id", id, "ip", record.IPAddress, "error", err)
 			}
 		}
@@ -395,19 +368,4 @@ func truncateAuthBanText(value string, max int) string {
 		return value
 	}
 	return string(runes[:max])
-}
-
-func authIPBanInt64(value any) (int64, error) {
-	switch v := value.(type) {
-	case int64:
-		return v, nil
-	case int:
-		return int64(v), nil
-	case string:
-		var parsed int64
-		_, err := fmt.Sscan(v, &parsed)
-		return parsed, err
-	default:
-		return 0, fmt.Errorf("unexpected auth IP ban counter value %T", value)
-	}
 }
