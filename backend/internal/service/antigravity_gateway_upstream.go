@@ -97,7 +97,7 @@ func (s *AntigravityGatewayService) ForwardUpstream(ctx context.Context, c *gin.
 		// 透传上游错误
 		c.Header("Content-Type", resp.Header.Get("Content-Type"))
 		c.Status(resp.StatusCode)
-		_, _ = c.Writer.Write(respBody)
+		_, _ = c.Writer.Write(SanitizeUpstreamErrorBodyForClient(c, respBody))
 
 		return &ForwardResult{
 			Model: originalModel,
@@ -246,7 +246,7 @@ func (s *AntigravityGatewayService) streamUpstreamResponse(c *gin.Context, resp 
 
 			lastDataAt = time.Now()
 
-			line := ev.line
+			line := SanitizeUpstreamErrorSSELineForClient(c, ev.line)
 
 			// 记录首 token 时间
 			if firstTokenMs == nil && len(line) > 0 {

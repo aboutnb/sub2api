@@ -280,6 +280,7 @@ func (s *OpenAIGatewayService) buildInputTokensUpstreamRequest(
 }
 
 func writeAnthropicCountTokensError(c *gin.Context, status int, errType, message string) {
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(status, gin.H{
 		"type": "error",
 		"error": gin.H{

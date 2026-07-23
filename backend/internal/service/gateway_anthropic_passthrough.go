@@ -524,6 +524,11 @@ func (s *GatewayService) handleStreamingResponseAnthropicAPIKeyPassthrough(
 			line := ev.line
 			if data, ok := extractAnthropicSSEDataLine(line); ok {
 				trimmed := strings.TrimSpace(data)
+				line = SanitizeUpstreamErrorSSELineForClient(c, line)
+				if sanitizedData, ok := extractAnthropicSSEDataLine(line); ok {
+					data = sanitizedData
+					trimmed = strings.TrimSpace(data)
+				}
 				if anthropicStreamEventIsTerminal("", trimmed) {
 					sawTerminalEvent = true
 				}

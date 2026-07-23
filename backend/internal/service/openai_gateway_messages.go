@@ -903,6 +903,7 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 						if clientMsg == "" {
 							clientMsg = "Request blocked by upstream cyber-security policy"
 						}
+						clientMsg = SanitizeUpstreamErrorMessageForClient(c, clientMsg)
 						if _, err := fmt.Fprint(c.Writer, buildAnthropicStreamErrorSSE("invalid_request_error", clientMsg)); err == nil {
 							c.Writer.Flush()
 						}
@@ -932,12 +933,13 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 					MarkResponseCommitted(c)
 				}
 				if !clientDisconnected {
+					clientErrMsg := SanitizeUpstreamErrorMessageForClient(c, errMsg)
 					if !clientOutputStarted {
-						writeAnthropicError(c, errStatus, errType, errMsg)
+						writeAnthropicError(c, errStatus, errType, clientErrMsg)
 						clientOutputStarted = true
 					} else {
 						writeStreamHeaders()
-						if _, err := fmt.Fprint(c.Writer, buildAnthropicStreamErrorSSE(errType, errMsg)); err == nil {
+						if _, err := fmt.Fprint(c.Writer, buildAnthropicStreamErrorSSE(errType, clientErrMsg)); err == nil {
 							c.Writer.Flush()
 						}
 					}
@@ -1185,6 +1187,7 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 
 // writeAnthropicError writes an error response in Anthropic Messages API format.
 func writeAnthropicError(c *gin.Context, statusCode int, errType, message string) {
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(statusCode, gin.H{
 		"type": "error",
 		"error": gin.H{

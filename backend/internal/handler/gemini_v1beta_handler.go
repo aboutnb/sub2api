@@ -605,6 +605,7 @@ func (h *GatewayHandler) handleGeminiFailoverExhausted(c *gin.Context, failoverE
 			if !rule.PassthroughBody && rule.CustomMessage != nil {
 				msg = *rule.CustomMessage
 			}
+			msg = service.SanitizeUpstreamErrorMessageForClient(c, msg)
 
 			if rule.SkipMonitoring {
 				c.Set(service.OpsSkipPassthroughKey, true)
@@ -646,6 +647,7 @@ type pathParseError struct{ msg string }
 func (e *pathParseError) Error() string { return e.msg }
 
 func googleError(c *gin.Context, status int, message string) {
+	message = service.SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(status, gin.H{
 		"error": gin.H{
 			"code":    status,

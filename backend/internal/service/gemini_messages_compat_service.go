@@ -1573,7 +1573,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 			contentType = "application/json"
 		}
 		MarkResponseCommitted(c)
-		c.Data(resp.StatusCode, contentType, respBody)
+		c.Data(resp.StatusCode, contentType, SanitizeUpstreamErrorBodyForClient(c, respBody))
 		if upstreamMsg == "" {
 			return nil, fmt.Errorf("gemini upstream error: %d", resp.StatusCode)
 		}
@@ -1700,16 +1700,8 @@ func sleepGeminiBackoff(attempt int) {
 }
 
 var (
-	sensitiveQueryParamRegex = regexp.MustCompile(`(?i)([?&](?:key|client_secret|access_token|refresh_token)=)[^&"\s]+`)
-	retryInRegex             = regexp.MustCompile(`Please retry in ([0-9.]+)s`)
+	retryInRegex = regexp.MustCompile(`Please retry in ([0-9.]+)s`)
 )
-
-func sanitizeUpstreamErrorMessage(msg string) string {
-	if msg == "" {
-		return msg
-	}
-	return sensitiveQueryParamRegex.ReplaceAllString(msg, `$1***`)
-}
 
 func (s *GeminiMessagesCompatService) writeGeminiMappedError(c *gin.Context, account *Account, upstreamStatus int, upstreamRequestID string, body []byte) error {
 	MarkResponseCommitted(c)
@@ -2257,6 +2249,7 @@ func randomHex(nBytes int) string {
 
 func (s *GeminiMessagesCompatService) writeClaudeError(c *gin.Context, status int, errType, message string) error {
 	MarkResponseCommitted(c)
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(status, gin.H{
 		"type":  "error",
 		"error": gin.H{"type": errType, "message": message},
@@ -2266,6 +2259,7 @@ func (s *GeminiMessagesCompatService) writeClaudeError(c *gin.Context, status in
 
 func (s *GeminiMessagesCompatService) writeGoogleError(c *gin.Context, status int, message string) error {
 	MarkResponseCommitted(c)
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(status, gin.H{
 		"error": gin.H{
 			"code":    status,
@@ -2603,6 +2597,11 @@ func (s *GeminiMessagesCompatService) handleNativeStreamingResponse(c *gin.Conte
 					} else {
 						rawBytes = []byte(payload)
 					}
+					sanitizedBytes := sanitizeUpstreamErrorSSEDataForClient(c, rawBytes)
+					if !bytes.Equal(sanitizedBytes, rawBytes) {
+						rawBytes = sanitizedBytes
+						rawToWrite = string(sanitizedBytes)
+					}
 
 					if u := extractGeminiUsage(rawBytes); u != nil {
 						usage = u
@@ -2613,7 +2612,7 @@ func (s *GeminiMessagesCompatService) handleNativeStreamingResponse(c *gin.Conte
 						firstTokenMs = &ms
 					}
 
-					if isOAuth {
+					if isOAuth || rawToWrite != payload {
 						// SSE format requires double newline (\n\n) to separate events
 						_, _ = fmt.Fprintf(c.Writer, "data: %s\n\n", rawToWrite)
 					} else {

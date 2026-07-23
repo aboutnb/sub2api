@@ -112,6 +112,7 @@ func writeOpenAICompactSSEFailureMessage(c *gin.Context, statusCode int, errType
 		return
 	}
 	MarkOpsStreamError(c, errType, message, statusCode)
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	payload, err := json.Marshal(map[string]any{
 		"type": "response.failed",
 		"response": map[string]any{

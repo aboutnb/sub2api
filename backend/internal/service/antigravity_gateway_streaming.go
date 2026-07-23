@@ -221,6 +221,7 @@ func (s *AntigravityGatewayService) handleGeminiStreamingResponse(c *gin.Context
 				if parseErr == nil && inner != nil {
 					payload = string(inner)
 				}
+				payload = string(sanitizeUpstreamErrorSSEDataForClient(c, []byte(payload)))
 
 				// 解析 usage
 				if u := extractGeminiUsage(inner); u != nil {
@@ -635,6 +636,7 @@ func mergeTextPartsToResponse(response map[string]any, textParts []string) map[s
 
 func (s *AntigravityGatewayService) writeClaudeError(c *gin.Context, status int, errType, message string) error {
 	MarkResponseCommitted(c)
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(status, gin.H{
 		"type":  "error",
 		"error": gin.H{"type": errType, "message": message},
@@ -727,6 +729,7 @@ func (s *AntigravityGatewayService) writeMappedClaudeError(c *gin.Context, accou
 
 func (s *AntigravityGatewayService) writeGoogleError(c *gin.Context, status int, message string) error {
 	MarkResponseCommitted(c)
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	statusStr := "UNKNOWN"
 	switch status {
 	case 400:

@@ -41,6 +41,17 @@ var hopByHopHeaders = map[string]struct{}{
 	"connection":        {},
 }
 
+// errorAddressHeaders are allowed for some successful proxy flows, but may
+// disclose an upstream URL or authentication challenge when copied from an
+// upstream error response.
+var errorAddressHeaders = map[string]struct{}{
+	"location":         {},
+	"content-location": {},
+	"link":             {},
+	"refresh":          {},
+	"www-authenticate": {},
+}
+
 type CompiledHeaderFilter struct {
 	allowed     map[string]struct{}
 	forceRemove map[string]struct{}
@@ -110,6 +121,23 @@ func FilterHeaders(src http.Header, filter *CompiledHeaderFilter) http.Header {
 func WriteFilteredHeaders(dst http.Header, src http.Header, filter *CompiledHeaderFilter) {
 	filtered := FilterHeaders(src, filter)
 	for key, values := range filtered {
+		for _, value := range values {
+			dst.Add(key, value)
+		}
+	}
+}
+
+// WriteFilteredErrorHeaders applies the normal allowlist and additionally
+// removes headers whose values commonly contain upstream addresses.
+func WriteFilteredErrorHeaders(dst http.Header, src http.Header, filter *CompiledHeaderFilter) {
+	if dst == nil || src == nil {
+		return
+	}
+	filtered := FilterHeaders(src, filter)
+	for key, values := range filtered {
+		if _, blocked := errorAddressHeaders[strings.ToLower(key)]; blocked {
+			continue
+		}
 		for _, value := range values {
 			dst.Add(key, value)
 		}

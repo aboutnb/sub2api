@@ -596,6 +596,7 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 					if clientMsg == "" {
 						clientMsg = "Request blocked by upstream cyber-security policy"
 					}
+					clientMsg = SanitizeUpstreamErrorMessageForClient(c, clientMsg)
 					if _, err := fmt.Fprint(c.Writer, buildChatStreamErrorSSE(code, clientMsg)); err == nil {
 						_, _ = fmt.Fprint(c.Writer, "data: [DONE]\n\n")
 						if fl, ok := c.Writer.(http.Flusher); ok {
@@ -625,6 +626,7 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 				defaultStatus, defaultErrType, defaultMsg = status, errType, errMsg
 				MarkResponseCommitted(c)
 			}
+			defaultMsg = SanitizeUpstreamErrorMessageForClient(c, defaultMsg)
 			errorPayload, _ := json.Marshal(gin.H{
 				"error": gin.H{
 					"type":    defaultErrType,
@@ -958,6 +960,7 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 // writeChatCompletionsError writes an error response in OpenAI Chat Completions format.
 func writeChatCompletionsError(c *gin.Context, statusCode int, errType, message string) {
 	MarkResponseCommitted(c)
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(statusCode, gin.H{
 		"error": gin.H{
 			"type":    errType,

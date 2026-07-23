@@ -384,7 +384,7 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 		})
 		logger.LegacyPrintf("service.antigravity_gateway", "[antigravity-Forward] upstream error status=%d body=%s", resp.StatusCode, truncateForLog(unwrappedForOps, 500))
 		MarkResponseCommitted(c)
-		c.Data(resp.StatusCode, contentType, unwrappedForOps)
+		c.Data(resp.StatusCode, contentType, SanitizeUpstreamErrorBodyForClient(c, unwrappedForOps))
 		return nil, fmt.Errorf("antigravity upstream error: %d", resp.StatusCode)
 	}
 

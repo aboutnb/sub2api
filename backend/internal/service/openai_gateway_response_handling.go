@@ -494,6 +494,7 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 				eventType = strings.TrimSpace(gjson.GetBytes(dataBytes, "type").String())
 			}
 			if sanitizedData, sanitized := sanitizeOpenAIResponseFailedEventForClient(
+				c,
 				dataBytes,
 				eventType,
 				openAIStreamClientOutputStarted(c, clientOutputStarted),
@@ -1301,11 +1302,14 @@ func extractOpenAISSEErrorMessage(payload []byte) string {
 	return sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(payload)))
 }
 
-func sanitizeOpenAIResponseFailedEventForClient(payload []byte, eventType string, clientOutputStarted bool) ([]byte, bool) {
+func sanitizeOpenAIResponseFailedEventForClient(c *gin.Context, payload []byte, eventType string, clientOutputStarted bool) ([]byte, bool) {
 	if eventType != "response.failed" || len(payload) == 0 || !gjson.ValidBytes(payload) {
 		return payload, false
 	}
 	updated := payload
+	if sanitized := SanitizeUpstreamErrorBodyForClient(c, updated); !bytes.Equal(sanitized, updated) {
+		updated = sanitized
+	}
 	if clientOutputStarted && isOpenAIContextWindowError(extractOpenAISSEErrorMessage(payload), payload) {
 		errorPath := ""
 		switch {
@@ -1365,7 +1369,8 @@ func (s *OpenAIGatewayService) writeOpenAINonStreamingProtocolError(resp *http.R
 		writeOpenAICompactSSEFailureMessage(c, http.StatusBadGateway, "upstream_error", message)
 		return fmt.Errorf("non-streaming openai protocol error: %s", message)
 	}
-	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
+	responseheaders.WriteFilteredErrorHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 	c.JSON(http.StatusBadGateway, gin.H{
 		"error": gin.H{

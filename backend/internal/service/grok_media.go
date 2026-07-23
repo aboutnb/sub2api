@@ -943,6 +943,7 @@ func writeGrokMediaErrorResponse(c *gin.Context, statusCode int, errType, messag
 	if c == nil || c.Writer == nil || c.Writer.Written() {
 		return
 	}
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(statusCode, gin.H{
 		"error": gin.H{
 			"type":    strings.TrimSpace(errType),

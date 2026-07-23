@@ -65,3 +65,25 @@ func TestFilterHeadersEnabledUsesAllowlist(t *testing.T) {
 		t.Fatalf("expected X-Blocked removed, got %q", filtered.Get("X-Blocked"))
 	}
 }
+
+func TestWriteFilteredErrorHeadersRemovesAddressBearingHeaders(t *testing.T) {
+	src := http.Header{
+		"Content-Type":     []string{"application/json"},
+		"Location":         []string{"https://upstream.example/reauth"},
+		"WWW-Authenticate": []string{"Bearer realm=https://upstream.example"},
+		"Retry-After":      []string{"30"},
+	}
+	dst := http.Header{}
+
+	WriteFilteredErrorHeaders(dst, src, CompileHeaderFilter(config.ResponseHeaderConfig{}))
+
+	if dst.Get("Content-Type") != "application/json" {
+		t.Fatalf("expected content type to remain, got %q", dst.Get("Content-Type"))
+	}
+	if dst.Get("Location") != "" || dst.Get("WWW-Authenticate") != "" {
+		t.Fatalf("address-bearing error headers must be removed: %#v", dst)
+	}
+	if dst.Get("Retry-After") != "30" {
+		t.Fatalf("expected Retry-After to remain, got %q", dst.Get("Retry-After"))
+	}
+}

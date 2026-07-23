@@ -504,6 +504,7 @@ func (s *GatewayService) handleCCStreamingFromAnthropic(
 // the Anthropic-upstream CC forwarding path.
 func writeGatewayCCError(c *gin.Context, statusCode int, errType, message string) {
 	MarkResponseCommitted(c)
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(statusCode, gin.H{
 		"error": gin.H{
 			"type":    errType,
