@@ -165,6 +165,21 @@ func (s *projectMihomoAdminServiceStub) UpdateGroup(context.Context, int64, *Upd
 func (s *projectMihomoAdminServiceStub) DeleteGroup(context.Context, int64) error {
 	panic("unexpected DeleteGroup call")
 }
+func (s *projectMihomoAdminServiceStub) ListCompositeRoutes(context.Context, int64) ([]CompositeModelRoute, error) {
+	panic("unexpected ListCompositeRoutes call")
+}
+func (s *projectMihomoAdminServiceStub) CreateCompositeRoute(context.Context, int64, CompositeRouteInput) (*CompositeModelRoute, error) {
+	panic("unexpected CreateCompositeRoute call")
+}
+func (s *projectMihomoAdminServiceStub) UpdateCompositeRoute(context.Context, int64, int64, CompositeRouteInput) (*CompositeModelRoute, error) {
+	panic("unexpected UpdateCompositeRoute call")
+}
+func (s *projectMihomoAdminServiceStub) DeleteCompositeRoute(context.Context, int64, int64) error {
+	panic("unexpected DeleteCompositeRoute call")
+}
+func (s *projectMihomoAdminServiceStub) PreviewCompositeRoute(context.Context, int64, CompositeRoutePreviewRequest) (*CompositeRouteDecision, error) {
+	panic("unexpected PreviewCompositeRoute call")
+}
 func (s *projectMihomoAdminServiceStub) GetGroupAPIKeys(context.Context, int64, int, int) ([]APIKey, int64, error) {
 	panic("unexpected GetGroupAPIKeys call")
 }
