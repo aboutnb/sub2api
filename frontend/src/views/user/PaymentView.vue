@@ -62,6 +62,16 @@
               />
             </div>
             <div v-if="validAmount > 0" class="card p-6">
+              <p
+                v-if="rechargeFeeCredited && feeRate > 0"
+                role="status"
+                class="mb-4 rounded-lg border-2 border-amber-300 bg-amber-50 px-3 py-2.5 text-sm font-medium leading-5 text-amber-900 shadow-sm dark:border-amber-700 dark:bg-amber-900/25 dark:text-amber-100"
+              >
+                {{ t('payment.feeCreditedNotice', {
+                  pay: formatSelectedPaymentAmount(totalAmount),
+                  credited: `$${creditedAmount.toFixed(2)}`,
+                }) }}
+              </p>
               <div class="space-y-2 text-sm">
                 <div class="flex justify-between">
                   <span class="text-gray-500 dark:text-gray-400">{{ t('payment.paymentAmount') }}</span>
@@ -79,16 +89,6 @@
                   <span class="text-gray-500 dark:text-gray-400">{{ t('payment.creditedBalance') }}</span>
                   <span class="text-gray-900 dark:text-white">${{ creditedAmount.toFixed(2) }}</span>
                 </div>
-                <p
-                  v-if="rechargeFeeCredited && feeRate > 0"
-                  role="status"
-                  class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-800 dark:border-emerald-800/70 dark:bg-emerald-900/20 dark:text-emerald-200"
-                >
-                  {{ t('payment.feeCreditedNotice', {
-                    pay: formatSelectedPaymentAmount(totalAmount),
-                    credited: `$${creditedAmount.toFixed(2)}`,
-                  }) }}
-                </p>
                 <p v-if="balanceRechargeMultiplier !== 1" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
                   {{ t('payment.rechargeRatePreview', { usd: balanceRechargeMultiplier.toFixed(2) }) }}
                 </p>

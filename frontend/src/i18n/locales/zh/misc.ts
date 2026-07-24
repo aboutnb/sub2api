@@ -319,7 +319,7 @@ export default {
     paymentMethod: '支付方式',
     fee: '手续费',
     actualPay: '实付金额',
-    feeCreditedNotice: '站点手续费将计入到账余额，本次支付 {pay}，到账 {credited}。',
+    feeCreditedNotice: '手续费将计入到账余额，本次支付 {pay}，到账 {credited}。',
     createOrder: '确认支付',
     methods: {
       easypay: '易支付',

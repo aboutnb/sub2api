@@ -295,7 +295,7 @@ export default {
     paymentMethod: 'Payment Method',
     fee: 'Fee',
     actualPay: 'Actual Payment',
-    feeCreditedNotice: 'The site fee will be credited to your balance. You will pay {pay} and receive {credited}.',
+    feeCreditedNotice: 'The fee will be credited to your balance. You will pay {pay} and receive {credited}.',
     createOrder: 'Confirm Payment',
     methods: {
       easypay: 'EasyPay',
