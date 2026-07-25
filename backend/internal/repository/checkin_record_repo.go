@@ -60,7 +60,7 @@ func (r *checkinRepository) List(ctx context.Context, userID int64, page, pageSi
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	items := make([]service.CheckinRecord, 0, pageSize)
 	for rows.Next() {
 		item, err := scanCheckinRecordFromRows(rows)
@@ -123,7 +123,7 @@ func (r *checkinRepository) AdminList(ctx context.Context, filter service.AdminC
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	items := make([]service.AdminCheckinRecord, 0, filter.PageSize)
 	for rows.Next() {
 		var item service.AdminCheckinRecord
