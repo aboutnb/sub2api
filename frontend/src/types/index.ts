@@ -101,6 +101,33 @@ export interface User {
   deleted_at?: string | null
 }
 
+export interface CheckinRecord {
+  id: number
+  user_id: number
+  checkin_date: string
+  mode: 'normal' | 'lucky'
+  random_value: number
+  reward_amount: number
+  balance_before: number
+  balance_after: number
+  checked_in_at: string
+}
+
+export interface CheckinStatus {
+  enabled: boolean
+  eligible: boolean
+  can_check_in: boolean
+  unavailable_reason: string
+  business_date: string
+  timezone: string
+  server_time: string
+  next_reset_at: string
+  checked_in_today: boolean
+  today_record?: CheckinRecord | null
+  days_in_month: number
+  first_weekday: number
+}
+
 export interface AdminUser extends User {
   // 管理员备注（普通用户接口不返回）
   notes: string

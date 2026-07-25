@@ -35,6 +35,7 @@ import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
 import authIPBansAPI from './authIPBans'
+import checkinAdminAPI from './checkin'
 
 /**
  * Unified admin API object for convenient access
@@ -71,7 +72,8 @@ export const adminAPI = {
   riskControl: riskControlAPI,
   compliance: adminComplianceAPI,
   audit: auditAPI,
-  authIPBans: authIPBansAPI
+  authIPBans: authIPBansAPI,
+  checkin: checkinAdminAPI
 }
 
 export {
@@ -106,7 +108,8 @@ export {
   riskControlAPI,
   adminComplianceAPI,
   auditAPI,
-  authIPBansAPI
+  authIPBansAPI,
+  checkinAdminAPI
 }
 
 export default adminAPI

@@ -66,6 +66,9 @@ func RegisterAdminRoutes(
 		// 系统设置
 		registerSettingsRoutes(admin, h)
 
+		// 每日签到
+		registerAdminCheckinRoutes(admin, h, stepUpAuth)
+
 		// 数据管理
 		registerDataManagementRoutes(admin, h, stepUpAuth)
 
@@ -119,6 +122,16 @@ func RegisterAdminRoutes(
 
 		// 登录来源自动封禁
 		registerAuthIPBanRoutes(admin, h)
+	}
+}
+
+func registerAdminCheckinRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
+	checkin := admin.Group("/checkin")
+	{
+		checkin.GET("/config", h.Admin.Checkin.GetConfig)
+		checkin.PUT("/config", gin.HandlerFunc(stepUpAuth), h.Admin.Checkin.UpdateConfig)
+		checkin.GET("/overview", h.Admin.Checkin.GetOverview)
+		checkin.GET("/records", h.Admin.Checkin.GetRecords)
 	}
 }
 

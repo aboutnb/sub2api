@@ -194,6 +194,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/checkin',
+    name: 'Checkin',
+    component: () => import('@/views/user/CheckinView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Daily Check-in',
+      titleKey: 'checkin.title',
+      descriptionKey: 'checkin.description'
+    }
+  },
+  {
     path: '/keys',
     name: 'Keys',
     component: () => import('@/views/user/KeysView.vue'),
@@ -588,6 +600,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/checkin',
+    name: 'AdminCheckin',
+    component: () => import('@/views/admin/CheckinView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Daily Check-in',
+      titleKey: 'admin.checkin.title',
+      descriptionKey: 'admin.checkin.description'
+    }
+  },
+  {
     path: '/admin/risk-control',
     name: 'AdminRiskControl',
     component: () => import('@/views/admin/RiskControlView.vue'),
@@ -849,6 +873,12 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
+  // Daily check-in is a regular-user page; administrators use the admin check-in page.
+  if (to.path === '/checkin' && authStore.isAdmin) {
+    next('/admin/dashboard')
+    return
+  }
+
   if (requiresAdmin && authStore.isAdmin) {
     const adminComplianceStore = useAdminComplianceStore()
     if (!adminComplianceStore.initialized) {
@@ -914,7 +944,8 @@ router.beforeEach(async (to, _from, next) => {
       '/admin/subscriptions',
       '/admin/redeem',
       '/subscriptions',
-      '/redeem'
+      '/redeem',
+      '/checkin'
     ]
 
     if (restrictedPaths.some((path) => to.path.startsWith(path))) {

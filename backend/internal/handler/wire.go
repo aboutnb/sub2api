@@ -27,6 +27,7 @@ func ProvideAdminHandlers(
 	redeemHandler *admin.RedeemHandler,
 	promoHandler *admin.PromoHandler,
 	settingHandler *admin.SettingHandler,
+	checkinHandler *admin.CheckinHandler,
 	opsHandler *admin.OpsHandler,
 	systemHandler *admin.SystemHandler,
 	subscriptionHandler *admin.SubscriptionHandler,
@@ -87,6 +88,7 @@ func ProvideAdminHandlers(
 		Compliance:             complianceHandler,
 		AuditLog:               auditLogHandler,
 		AuthIPBan:              authIPBanHandler,
+		Checkin:                checkinHandler,
 	}
 }
 
@@ -186,6 +188,7 @@ func ProvideHandlers(
 	availableChannelHandler *AvailableChannelHandler,
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
+	checkinHandler *CheckinHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -208,6 +211,7 @@ func ProvideHandlers(
 		AvailableChannel: availableChannelHandler,
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
+		Checkin:          checkinHandler,
 	}
 }
 
@@ -231,6 +235,7 @@ var ProviderSet = wire.NewSet(
 	NewAvailableChannelHandler,
 	NewAsyncImageHandler,
 	ProvideBatchImageHandler,
+	NewCheckinHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -267,6 +272,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewComplianceHandler,
 	admin.NewAuditLogHandler,
 	admin.NewAuthIPBanHandler,
+	admin.NewCheckinHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,
