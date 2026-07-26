@@ -67,6 +67,7 @@ type checkinRepoStub struct {
 	calculateCalls int
 	reward         float64
 	randomValue    float64
+	rewardType     string
 }
 
 type checkinAbuseGuardStub struct {
@@ -118,22 +119,24 @@ func (s *checkinRepoStub) List(context.Context, int64, int, int) ([]CheckinRecor
 	return nil, 0, nil
 }
 
-func (s *checkinRepoStub) Apply(_ context.Context, userID int64, date, mode string, calculate func(float64) (float64, float64, error)) (*CheckinRecord, bool, error) {
+func (s *checkinRepoStub) Apply(_ context.Context, userID int64, date, mode string, calculate func(float64) (float64, float64, string, error)) (*CheckinRecord, bool, error) {
 	s.applyCalls++
 	if s.existing != nil {
 		return s.existing, false, nil
 	}
-	reward, randomValue, err := calculate(s.state.Balance)
+	reward, randomValue, rewardType, err := calculate(s.state.Balance)
 	s.calculateCalls++
 	if err != nil {
 		return nil, false, err
 	}
 	s.reward = reward
 	s.randomValue = randomValue
+	s.rewardType = rewardType
 	return &CheckinRecord{
 		UserID:        userID,
 		CheckinDate:   time.Date(2026, 7, 25, 0, 0, 0, 0, time.Local),
 		Mode:          mode,
+		RewardType:    rewardType,
 		RandomValue:   randomValue,
 		RewardAmount:  reward,
 		BalanceBefore: s.state.Balance,
@@ -144,10 +147,15 @@ func (s *checkinRepoStub) Apply(_ context.Context, userID int64, date, mode stri
 func checkinSettings(values map[string]string) *checkinSettingRepoStub {
 	defaults := map[string]string{
 		SettingKeyCheckinEnabled:          "true",
+		SettingKeyCheckinNormalEnabled:    "true",
+		SettingKeyCheckinLuckyEnabled:     "true",
 		SettingKeyCheckinNormalMin:        "0.01",
 		SettingKeyCheckinNormalMax:        "0.05",
+		SettingKeyCheckinLuckyRewardType:  CheckinRewardTypeMultiplier,
 		SettingKeyCheckinLuckyMinMultiply: "-0.05",
 		SettingKeyCheckinLuckyMaxMultiply: "0.10",
+		SettingKeyCheckinLuckyAmountMin:   "-0.05",
+		SettingKeyCheckinLuckyAmountMax:   "0.10",
 		SettingKeyCheckinRiskEnabled:      "false",
 		SettingKeyCheckinMinAccountAge:    "0",
 		SettingKeyCheckinIPWindow:         "10",
@@ -175,6 +183,7 @@ func TestCheckinServiceNormalRewardUsesConfiguredRange(t *testing.T) {
 	require.GreaterOrEqual(t, repo.reward, 0.01)
 	require.LessOrEqual(t, repo.reward, 0.05)
 	require.Equal(t, repo.reward, repo.randomValue)
+	require.Equal(t, CheckinRewardTypeAmount, record.RewardType)
 }
 
 func TestCheckinServiceLuckyRewardCannotMakeBalanceNegative(t *testing.T) {
@@ -191,6 +200,25 @@ func TestCheckinServiceLuckyRewardCannotMakeBalanceNegative(t *testing.T) {
 	require.Equal(t, -2.0, record.RewardAmount)
 	require.Equal(t, 0.0, record.BalanceAfter)
 	require.Equal(t, -1.0, record.RandomValue)
+	require.Equal(t, CheckinRewardTypeMultiplier, record.RewardType)
+}
+
+func TestCheckinServiceLuckyFixedAmountUsesIndependentRangeAndClampsLoss(t *testing.T) {
+	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 2}}
+	settings := checkinSettings(map[string]string{
+		SettingKeyCheckinLuckyRewardType: CheckinRewardTypeAmount,
+		SettingKeyCheckinLuckyAmountMin:  "-3",
+		SettingKeyCheckinLuckyAmountMax:  "-3",
+	})
+	svc := newCheckinServiceForTest(repo, settings)
+
+	record, _, err := svc.CheckIn(context.Background(), 7, "lucky", "127.0.0.1")
+
+	require.NoError(t, err)
+	require.Equal(t, -3.0, record.RandomValue)
+	require.Equal(t, -2.0, record.RewardAmount)
+	require.Equal(t, 0.0, record.BalanceAfter)
+	require.Equal(t, CheckinRewardTypeAmount, record.RewardType)
 }
 
 func TestCheckinServiceLuckyRewardHandlesLargeBalance(t *testing.T) {
@@ -208,8 +236,8 @@ func TestCheckinServiceLuckyRewardHandlesLargeBalance(t *testing.T) {
 	require.InDelta(t, 39636851382.392, record.RewardAmount, 0.001)
 }
 
-func TestCheckinServiceRejectsIneligibleUserBeforeLoadingConfig(t *testing.T) {
-	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleAdmin, Status: StatusActive}}
+func TestCheckinServiceRejectsInactiveUserBeforeLoadingConfig(t *testing.T) {
+	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusDisabled}}
 	settings := checkinSettings(map[string]string{SettingKeyCheckinNormalMin: "invalid"})
 	svc := newCheckinServiceForTest(repo, settings)
 
@@ -217,6 +245,82 @@ func TestCheckinServiceRejectsIneligibleUserBeforeLoadingConfig(t *testing.T) {
 
 	require.ErrorIs(t, err, ErrCheckinNotEligible)
 	require.Zero(t, repo.applyCalls)
+}
+
+func TestCheckinServiceAllowsActiveAdminAccount(t *testing.T) {
+	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleAdmin, Status: StatusActive, Balance: 10}}
+	svc := newCheckinServiceForTest(repo, checkinSettings(nil))
+
+	status, err := svc.Status(context.Background(), 7)
+	require.NoError(t, err)
+	require.True(t, status.Eligible)
+	require.True(t, status.CanCheckIn)
+
+	record, newlyCheckedIn, err := svc.CheckIn(context.Background(), 7, "normal", "127.0.0.1")
+	require.NoError(t, err)
+	require.True(t, newlyCheckedIn)
+	require.Equal(t, int64(7), record.UserID)
+	require.Equal(t, 1, repo.applyCalls)
+}
+
+func TestCheckinStatusReturnsEnabledModesAndLuckyMultiplierRange(t *testing.T) {
+	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 10}}
+	settings := checkinSettings(map[string]string{
+		SettingKeyCheckinNormalEnabled:    "false",
+		SettingKeyCheckinLuckyEnabled:     "true",
+		SettingKeyCheckinLuckyMinMultiply: "-0.25",
+		SettingKeyCheckinLuckyMaxMultiply: "0.50",
+	})
+	svc := newCheckinServiceForTest(repo, settings)
+
+	status, err := svc.Status(context.Background(), 7)
+
+	require.NoError(t, err)
+	require.True(t, status.Enabled)
+	require.False(t, status.NormalEnabled)
+	require.True(t, status.LuckyEnabled)
+	require.True(t, status.CanCheckIn)
+	require.Equal(t, CheckinRewardTypeMultiplier, status.LuckyRewardType)
+	require.Equal(t, -0.25, status.LuckyMinMultiplier)
+	require.Equal(t, 0.50, status.LuckyMaxMultiplier)
+}
+
+func TestCheckinStatusDisablesCheckinWhenNoModeIsEnabled(t *testing.T) {
+	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 10}}
+	settings := checkinSettings(map[string]string{
+		SettingKeyCheckinNormalEnabled: "false",
+		SettingKeyCheckinLuckyEnabled:  "false",
+	})
+	svc := newCheckinServiceForTest(repo, settings)
+
+	status, err := svc.Status(context.Background(), 7)
+
+	require.NoError(t, err)
+	require.True(t, status.Enabled)
+	require.True(t, status.Eligible)
+	require.False(t, status.CanCheckIn)
+	require.Equal(t, "no_modes_enabled", status.UnavailableReason)
+}
+
+func TestCheckinServiceRejectsDisabledModeBeforeSettlement(t *testing.T) {
+	testCases := []struct {
+		mode     string
+		settings map[string]string
+	}{
+		{mode: "normal", settings: map[string]string{SettingKeyCheckinNormalEnabled: "false"}},
+		{mode: "lucky", settings: map[string]string{SettingKeyCheckinLuckyEnabled: "false"}},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.mode, func(t *testing.T) {
+			repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 10}}
+			svc := newCheckinServiceForTest(repo, checkinSettings(testCase.settings))
+
+			_, _, err := svc.CheckIn(context.Background(), 7, testCase.mode, "127.0.0.1")
+
+			require.ErrorIs(t, err, ErrCheckinModeDisabled)
+			require.Zero(t, repo.applyCalls)
+		})
+	}
 }
 
 func TestCheckinServiceRateLimitsNegativeBalanceBeforeSettlement(t *testing.T) {
@@ -271,7 +375,7 @@ func TestCheckinDecimalRejectsNonFiniteAndOverPrecisionValues(t *testing.T) {
 		_, err := parseCheckinDecimal(value)
 		require.Error(t, err, value)
 	}
-	require.NoError(t, validateCheckinConfigValues("0.00000001", "1", "-0.05", "0.10", 24, 10, 20))
+	require.NoError(t, validateCheckinConfigValues("0.00000001", "1", CheckinRewardTypeMultiplier, "-0.05", "0.10", "-0.05", "0.10", 24, 10, 20))
 }
 
 func TestCheckinServiceRejectsNewAccountBeforeRiskGuard(t *testing.T) {
@@ -466,7 +570,39 @@ func TestCheckinConfigRejectsInvalidRiskRanges(t *testing.T) {
 		{age: 24, window: 10, users: 0},
 		{age: 24, window: 10, users: 10001},
 	} {
-		require.ErrorIs(t, validateCheckinConfigValues("0.01", "0.05", "-0.05", "0.10", testCase.age, testCase.window, testCase.users), ErrCheckinConfigInput)
+		require.ErrorIs(t, validateCheckinConfigValues("0.01", "0.05", CheckinRewardTypeMultiplier, "-0.05", "0.10", "-0.05", "0.10", testCase.age, testCase.window, testCase.users), ErrCheckinConfigInput)
+	}
+}
+
+func TestCheckinConfigRejectsInvalidLuckyRewardSettings(t *testing.T) {
+	testCases := []struct {
+		name          string
+		rewardType    string
+		multiplierMin string
+		multiplierMax string
+		amountMin     string
+		amountMax     string
+	}{
+		{name: "unknown reward type", rewardType: "credits", multiplierMin: "-0.05", multiplierMax: "0.10", amountMin: "-0.05", amountMax: "0.10"},
+		{name: "multiplier below lower bound", rewardType: CheckinRewardTypeMultiplier, multiplierMin: "-1.00000001", multiplierMax: "0.10", amountMin: "-0.05", amountMax: "0.10"},
+		{name: "multiplier above upper bound", rewardType: CheckinRewardTypeMultiplier, multiplierMin: "0", multiplierMax: "10.00000001", amountMin: "-0.05", amountMax: "0.10"},
+		{name: "multiplier range reversed", rewardType: CheckinRewardTypeMultiplier, multiplierMin: "0.20", multiplierMax: "0.10", amountMin: "-0.05", amountMax: "0.10"},
+		{name: "amount below lower bound", rewardType: CheckinRewardTypeAmount, multiplierMin: "-0.05", multiplierMax: "0.10", amountMin: "-100.00000001", amountMax: "0.10"},
+		{name: "amount above upper bound", rewardType: CheckinRewardTypeAmount, multiplierMin: "-0.05", multiplierMax: "0.10", amountMin: "0", amountMax: "100.00000001"},
+		{name: "amount range reversed", rewardType: CheckinRewardTypeAmount, multiplierMin: "-0.05", multiplierMax: "0.10", amountMin: "0.20", amountMax: "0.10"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := validateCheckinConfigValues(
+				"0.01", "0.05",
+				testCase.rewardType,
+				testCase.multiplierMin, testCase.multiplierMax,
+				testCase.amountMin, testCase.amountMax,
+				24, 10, 20,
+			)
+			require.ErrorIs(t, err, ErrCheckinConfigInput)
+		})
 	}
 }
 
@@ -509,10 +645,15 @@ func TestAdminCheckinConfigRequiresReasonAndMatchingVersion(t *testing.T) {
 	svc := NewAdminCheckinService(adminCheckinRepoStub{}, settings)
 	input := AdminCheckinConfigUpdate{
 		Enabled:            true,
+		NormalEnabled:      true,
+		LuckyEnabled:       true,
 		NormalMin:          "0.01",
 		NormalMax:          "0.05",
+		LuckyRewardType:    CheckinRewardTypeMultiplier,
 		LuckyMinMultiply:   "-0.05",
 		LuckyMaxMultiply:   "0.10",
+		LuckyAmountMin:     "-0.05",
+		LuckyAmountMax:     "0.10",
 		RiskEnabled:        true,
 		MinAccountAgeHours: 24,
 		IPWindowMinutes:    10,
@@ -541,10 +682,15 @@ func TestAdminCheckinConfigUpdateIncrementsVersion(t *testing.T) {
 
 	result, err := svc.UpdateConfig(context.Background(), AdminCheckinConfigUpdate{
 		Enabled:            false,
+		NormalEnabled:      true,
+		LuckyEnabled:       false,
 		NormalMin:          "0.02",
 		NormalMax:          "0.08",
+		LuckyRewardType:    CheckinRewardTypeAmount,
 		LuckyMinMultiply:   "-0.10",
 		LuckyMaxMultiply:   "0.20",
+		LuckyAmountMin:     "-0.50",
+		LuckyAmountMax:     "1.00",
 		RiskEnabled:        true,
 		MinAccountAgeHours: 24,
 		IPWindowMinutes:    10,
@@ -556,6 +702,11 @@ func TestAdminCheckinConfigUpdateIncrementsVersion(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(4), result.ConfigVersion)
 	require.Equal(t, "0.02", settings.values[SettingKeyCheckinNormalMin])
+	require.Equal(t, "true", settings.values[SettingKeyCheckinNormalEnabled])
+	require.Equal(t, "false", settings.values[SettingKeyCheckinLuckyEnabled])
+	require.False(t, result.LuckyEnabled)
+	require.Equal(t, CheckinRewardTypeAmount, settings.values[SettingKeyCheckinLuckyRewardType])
+	require.Equal(t, "1.00", settings.values[SettingKeyCheckinLuckyAmountMax])
 	require.Equal(t, "4", settings.values[SettingKeyCheckinConfigVersion])
 }
 
@@ -565,10 +716,15 @@ func TestAdminCheckinConfigRejectsConcurrentVersionChange(t *testing.T) {
 
 	_, err := svc.UpdateConfig(context.Background(), AdminCheckinConfigUpdate{
 		Enabled:            true,
+		NormalEnabled:      true,
+		LuckyEnabled:       true,
 		NormalMin:          "0.01",
 		NormalMax:          "0.05",
+		LuckyRewardType:    CheckinRewardTypeMultiplier,
 		LuckyMinMultiply:   "-0.05",
 		LuckyMaxMultiply:   "0.10",
+		LuckyAmountMin:     "-0.05",
+		LuckyAmountMax:     "0.10",
 		RiskEnabled:        true,
 		MinAccountAgeHours: 24,
 		IPWindowMinutes:    10,

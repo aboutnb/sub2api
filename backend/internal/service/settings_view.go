@@ -308,6 +308,7 @@ type PublicSettings struct {
 	DocURL                           string
 	HomeContent                      string
 	HideCcsImportButton              bool
+	CheckinEnabled                   bool
 
 	PurchaseSubscriptionEnabled bool
 	PurchaseSubscriptionURL     string

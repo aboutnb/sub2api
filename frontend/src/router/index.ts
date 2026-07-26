@@ -200,7 +200,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'Daily Check-in',
+      title: 'Check-in Center',
       titleKey: 'checkin.title',
       descriptionKey: 'checkin.description'
     }
@@ -606,7 +606,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
-      title: 'Daily Check-in',
+      title: 'Check-in Center',
       titleKey: 'admin.checkin.title',
       descriptionKey: 'admin.checkin.description'
     }
@@ -870,12 +870,6 @@ router.beforeEach(async (to, _from, next) => {
   if (requiresAdmin && !authStore.isAdmin) {
     // User is authenticated but not admin, redirect to user dashboard
     next('/dashboard')
-    return
-  }
-
-  // Daily check-in is a regular-user page; administrators use the admin check-in page.
-  if (to.path === '/checkin' && authStore.isAdmin) {
-    next('/admin/dashboard')
     return
   }
 

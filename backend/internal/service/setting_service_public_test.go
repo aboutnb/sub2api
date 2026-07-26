@@ -139,6 +139,16 @@ func TestSettingService_GetPublicSettings_UserSubscriptionsCanBeDisabled(t *test
 	require.False(t, settings.UserSubscriptionsEnabled)
 }
 
+func TestSettingService_GetPublicSettings_ExposesCheckinEnabled(t *testing.T) {
+	svc := NewSettingService(&settingPublicRepoStub{
+		values: map[string]string{SettingKeyCheckinEnabled: "true"},
+	}, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.True(t, settings.CheckinEnabled)
+}
+
 func TestSettingService_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *testing.T) {
 	svc := NewSettingService(&settingPublicRepoStub{
 		values: map[string]string{

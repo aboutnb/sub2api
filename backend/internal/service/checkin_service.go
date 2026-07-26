@@ -20,10 +20,15 @@ import (
 
 const (
 	SettingKeyCheckinEnabled          = "checkin_enabled"
+	SettingKeyCheckinNormalEnabled    = "checkin_normal_enabled"
+	SettingKeyCheckinLuckyEnabled     = "checkin_lucky_enabled"
 	SettingKeyCheckinNormalMin        = "checkin_normal_min"
 	SettingKeyCheckinNormalMax        = "checkin_normal_max"
+	SettingKeyCheckinLuckyRewardType  = "checkin_lucky_reward_type"
 	SettingKeyCheckinLuckyMinMultiply = "checkin_lucky_min_multiplier"
 	SettingKeyCheckinLuckyMaxMultiply = "checkin_lucky_max_multiplier"
+	SettingKeyCheckinLuckyAmountMin   = "checkin_lucky_amount_min"
+	SettingKeyCheckinLuckyAmountMax   = "checkin_lucky_amount_max"
 	SettingKeyCheckinRiskEnabled      = "checkin_risk_control_enabled"
 	SettingKeyCheckinMinAccountAge    = "checkin_min_account_age_hours"
 	SettingKeyCheckinIPWindow         = "checkin_ip_window_minutes"
@@ -36,10 +41,14 @@ const (
 	CheckinRequestWindow      = time.Minute
 	CheckinUserRequestLimit   = 10
 	CheckinSourceRequestLimit = 60
+
+	CheckinRewardTypeAmount     = "amount"
+	CheckinRewardTypeMultiplier = "multiplier"
 )
 
 var (
 	ErrCheckinDisabled            = infraerrors.Forbidden("CHECKIN_DISABLED", "daily check-in is currently unavailable")
+	ErrCheckinModeDisabled        = infraerrors.Forbidden("CHECKIN_MODE_DISABLED", "this check-in mode is currently unavailable")
 	ErrCheckinNotEligible         = infraerrors.Forbidden("CHECKIN_NOT_ELIGIBLE", "this account cannot use daily check-in")
 	ErrCheckinInvalidMode         = infraerrors.BadRequest("CHECKIN_INVALID_MODE", "mode must be normal or lucky")
 	ErrCheckinConfigInvalid       = infraerrors.InternalServer("CHECKIN_CONFIG_INVALID", "daily check-in configuration is invalid")
@@ -64,6 +73,7 @@ type CheckinRecord struct {
 	UserID        int64     `json:"user_id"`
 	CheckinDate   time.Time `json:"checkin_date"`
 	Mode          string    `json:"mode"`
+	RewardType    string    `json:"reward_type"`
 	RandomValue   float64   `json:"random_value"`
 	RewardAmount  float64   `json:"reward_amount"`
 	BalanceBefore float64   `json:"balance_before"`
@@ -87,15 +97,20 @@ type CheckinRepository interface {
 	GetUserState(context.Context, int64) (*CheckinUserState, error)
 	GetByDate(context.Context, int64, string) (*CheckinRecord, error)
 	List(context.Context, int64, int, int) ([]CheckinRecord, int64, error)
-	Apply(context.Context, int64, string, string, func(float64) (float64, float64, error)) (*CheckinRecord, bool, error)
+	Apply(context.Context, int64, string, string, func(float64) (float64, float64, string, error)) (*CheckinRecord, bool, error)
 }
 
 type CheckinConfig struct {
 	Enabled          bool
+	NormalEnabled    bool
+	LuckyEnabled     bool
 	NormalMin        float64
 	NormalMax        float64
+	LuckyRewardType  string
 	LuckyMinMultiply float64
 	LuckyMaxMultiply float64
+	LuckyAmountMin   float64
+	LuckyAmountMax   float64
 	RiskEnabled      bool
 	MinAccountAge    time.Duration
 	IPWindow         time.Duration
@@ -106,10 +121,15 @@ type CheckinConfig struct {
 // Monetary values remain strings at this boundary so the UI does not round them.
 type AdminCheckinConfig struct {
 	Enabled            bool      `json:"enabled"`
+	NormalEnabled      bool      `json:"normal_enabled"`
+	LuckyEnabled       bool      `json:"lucky_enabled"`
 	NormalMin          string    `json:"normal_min"`
 	NormalMax          string    `json:"normal_max"`
+	LuckyRewardType    string    `json:"lucky_reward_type"`
 	LuckyMinMultiply   string    `json:"lucky_min_multiplier"`
 	LuckyMaxMultiply   string    `json:"lucky_max_multiplier"`
+	LuckyAmountMin     string    `json:"lucky_amount_min"`
+	LuckyAmountMax     string    `json:"lucky_amount_max"`
 	RiskEnabled        bool      `json:"risk_control_enabled"`
 	MinAccountAgeHours int       `json:"min_account_age_hours"`
 	IPWindowMinutes    int       `json:"ip_window_minutes"`
@@ -120,10 +140,15 @@ type AdminCheckinConfig struct {
 
 type AdminCheckinConfigUpdate struct {
 	Enabled            bool
+	NormalEnabled      bool
+	LuckyEnabled       bool
 	NormalMin          string
 	NormalMax          string
+	LuckyRewardType    string
 	LuckyMinMultiply   string
 	LuckyMaxMultiply   string
+	LuckyAmountMin     string
+	LuckyAmountMax     string
 	RiskEnabled        bool
 	MinAccountAgeHours int
 	IPWindowMinutes    int
@@ -181,7 +206,7 @@ func (s *CheckinService) Status(ctx context.Context, userID int64) (*CheckinStat
 	}
 	result := buildCheckinStatus(now, date)
 	result.Timezone = timezone.Name()
-	result.Eligible = state.Role != RoleAdmin && state.Status == StatusActive && s.cfg != nil && s.cfg.RunMode != config.RunModeSimple
+	result.Eligible = state.Status == StatusActive && s.cfg != nil && s.cfg.RunMode != config.RunModeSimple
 	if !result.Eligible {
 		result.UnavailableReason = "not_eligible"
 	} else if state.Balance < 0 {
@@ -196,8 +221,15 @@ func (s *CheckinService) Status(ctx context.Context, userID int64) (*CheckinStat
 		}
 	} else {
 		result.Enabled = checkinConfig.Enabled
+		result.NormalEnabled = checkinConfig.NormalEnabled
+		result.LuckyEnabled = checkinConfig.LuckyEnabled
+		result.LuckyRewardType = checkinConfig.LuckyRewardType
+		result.LuckyMinMultiplier = checkinConfig.LuckyMinMultiply
+		result.LuckyMaxMultiplier = checkinConfig.LuckyMaxMultiply
 		if result.Eligible && !result.Enabled {
 			result.UnavailableReason = "disabled"
+		} else if result.Eligible && !result.NormalEnabled && !result.LuckyEnabled {
+			result.UnavailableReason = "no_modes_enabled"
 		}
 	}
 	if result.Eligible {
@@ -213,8 +245,13 @@ func (s *CheckinService) Status(ctx context.Context, userID int64) (*CheckinStat
 			result.Eligible = false
 			result.CanCheckIn = false
 			result.UnavailableReason = "account_too_new"
-		} else if !result.Enabled && result.UnavailableReason == "" {
-			result.UnavailableReason = "disabled"
+		} else if !result.Enabled {
+			if result.UnavailableReason == "" {
+				result.UnavailableReason = "disabled"
+			}
+		} else if !result.NormalEnabled && !result.LuckyEnabled {
+			result.CanCheckIn = false
+			result.UnavailableReason = "no_modes_enabled"
 		} else {
 			result.CanCheckIn = result.Enabled
 		}
@@ -223,18 +260,23 @@ func (s *CheckinService) Status(ctx context.Context, userID int64) (*CheckinStat
 }
 
 type CheckinStatus struct {
-	Enabled           bool           `json:"enabled"`
-	Eligible          bool           `json:"eligible"`
-	CanCheckIn        bool           `json:"can_check_in"`
-	UnavailableReason string         `json:"unavailable_reason"`
-	BusinessDate      string         `json:"business_date"`
-	Timezone          string         `json:"timezone"`
-	ServerTime        time.Time      `json:"server_time"`
-	NextResetAt       time.Time      `json:"next_reset_at"`
-	CheckedInToday    bool           `json:"checked_in_today"`
-	TodayRecord       *CheckinRecord `json:"today_record,omitempty"`
-	DaysInMonth       int            `json:"days_in_month"`
-	FirstWeekday      int            `json:"first_weekday"`
+	Enabled            bool           `json:"enabled"`
+	NormalEnabled      bool           `json:"normal_enabled"`
+	LuckyEnabled       bool           `json:"lucky_enabled"`
+	LuckyRewardType    string         `json:"lucky_reward_type"`
+	LuckyMinMultiplier float64        `json:"lucky_min_multiplier"`
+	LuckyMaxMultiplier float64        `json:"lucky_max_multiplier"`
+	Eligible           bool           `json:"eligible"`
+	CanCheckIn         bool           `json:"can_check_in"`
+	UnavailableReason  string         `json:"unavailable_reason"`
+	BusinessDate       string         `json:"business_date"`
+	Timezone           string         `json:"timezone"`
+	ServerTime         time.Time      `json:"server_time"`
+	NextResetAt        time.Time      `json:"next_reset_at"`
+	CheckedInToday     bool           `json:"checked_in_today"`
+	TodayRecord        *CheckinRecord `json:"today_record,omitempty"`
+	DaysInMonth        int            `json:"days_in_month"`
+	FirstWeekday       int            `json:"first_weekday"`
 }
 
 func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source string) (*CheckinRecord, bool, error) {
@@ -263,7 +305,7 @@ func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source
 	if err != nil {
 		return nil, false, err
 	}
-	if state.Role == RoleAdmin || state.Status != StatusActive || s.cfg == nil || s.cfg.RunMode == config.RunModeSimple {
+	if state.Status != StatusActive || s.cfg == nil || s.cfg.RunMode == config.RunModeSimple {
 		return nil, false, ErrCheckinNotEligible
 	}
 	if state.Balance < 0 {
@@ -284,6 +326,9 @@ func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source
 	if !checkinConfig.Enabled {
 		return nil, false, ErrCheckinDisabled
 	}
+	if (mode == "normal" && !checkinConfig.NormalEnabled) || (mode == "lucky" && !checkinConfig.LuckyEnabled) {
+		return nil, false, ErrCheckinModeDisabled.WithMetadata(map[string]string{"mode": mode})
+	}
 	if checkinConfig.RiskEnabled && accountTooNew(state.CreatedAt, timezone.Now(), checkinConfig.MinAccountAge) {
 		return nil, false, ErrCheckinAccountTooNew
 	}
@@ -296,25 +341,37 @@ func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source
 			return nil, false, ErrCheckinSourceLimited
 		}
 	}
-	record, newlyCheckedIn, err := s.repo.Apply(ctx, userID, businessDate, mode, func(balance float64) (float64, float64, error) {
+	record, newlyCheckedIn, err := s.repo.Apply(ctx, userID, businessDate, mode, func(balance float64) (float64, float64, string, error) {
 		if mode == "normal" {
 			value, randomErr := secureRandomBetween(checkinConfig.NormalMin, checkinConfig.NormalMax)
 			if randomErr != nil {
-				return 0, 0, ErrCheckinEntropyUnavailable.WithCause(randomErr)
+				return 0, 0, "", ErrCheckinEntropyUnavailable.WithCause(randomErr)
 			}
 			value = round8(value)
-			return value, value, nil
+			return value, value, CheckinRewardTypeAmount, nil
+		}
+		if checkinConfig.LuckyRewardType == CheckinRewardTypeAmount {
+			value, randomErr := secureRandomBetween(checkinConfig.LuckyAmountMin, checkinConfig.LuckyAmountMax)
+			if randomErr != nil {
+				return 0, 0, "", ErrCheckinEntropyUnavailable.WithCause(randomErr)
+			}
+			value = round8(value)
+			reward := value
+			if balance+reward < 0 {
+				reward = -balance
+			}
+			return reward, value, CheckinRewardTypeAmount, nil
 		}
 		multiplier, randomErr := secureRandomBetween(checkinConfig.LuckyMinMultiply, checkinConfig.LuckyMaxMultiply)
 		if randomErr != nil {
-			return 0, 0, ErrCheckinEntropyUnavailable.WithCause(randomErr)
+			return 0, 0, "", ErrCheckinEntropyUnavailable.WithCause(randomErr)
 		}
 		multiplier = round8(multiplier)
 		reward := round8(balance * multiplier)
 		if balance+reward < 0 {
 			reward = -balance
 		}
-		return reward, multiplier, nil
+		return reward, multiplier, CheckinRewardTypeMultiplier, nil
 	})
 	if err != nil {
 		return nil, false, err
@@ -346,10 +403,15 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 	}
 	values, err := s.settings.GetMultiple(ctx, []string{
 		SettingKeyCheckinEnabled,
+		SettingKeyCheckinNormalEnabled,
+		SettingKeyCheckinLuckyEnabled,
 		SettingKeyCheckinNormalMin,
 		SettingKeyCheckinNormalMax,
+		SettingKeyCheckinLuckyRewardType,
 		SettingKeyCheckinLuckyMinMultiply,
 		SettingKeyCheckinLuckyMaxMultiply,
+		SettingKeyCheckinLuckyAmountMin,
+		SettingKeyCheckinLuckyAmountMax,
 		SettingKeyCheckinRiskEnabled,
 		SettingKeyCheckinMinAccountAge,
 		SettingKeyCheckinIPWindow,
@@ -359,6 +421,8 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 		return CheckinConfig{}, ErrCheckinConfigInvalid
 	}
 	enabled, enabledErr := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinEnabled]))
+	normalEnabled, normalEnabledErr := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinNormalEnabled]))
+	luckyEnabled, luckyEnabledErr := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinLuckyEnabled]))
 	riskEnabled, riskEnabledErr := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinRiskEnabled]))
 	parse := func(key string) (float64, error) {
 		value, err := parseCheckinDecimal(values[key])
@@ -371,25 +435,38 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 	normalMax, err2 := parse(SettingKeyCheckinNormalMax)
 	luckyMin, err3 := parse(SettingKeyCheckinLuckyMinMultiply)
 	luckyMax, err4 := parse(SettingKeyCheckinLuckyMaxMultiply)
-	minAccountAgeHours, err5 := parseCheckinInt(values[SettingKeyCheckinMinAccountAge])
-	ipWindowMinutes, err6 := parseCheckinInt(values[SettingKeyCheckinIPWindow])
-	ipMaxUsers, err7 := parseCheckinInt(values[SettingKeyCheckinIPMaxUsers])
-	if enabledErr != nil || riskEnabledErr != nil || err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil ||
-		normalMin < 0 || normalMax < normalMin || normalMax > 100 || luckyMin < -1 || luckyMax < luckyMin || luckyMax > 1 ||
+	luckyAmountMin, err5 := parse(SettingKeyCheckinLuckyAmountMin)
+	luckyAmountMax, err6 := parse(SettingKeyCheckinLuckyAmountMax)
+	luckyRewardType := strings.TrimSpace(values[SettingKeyCheckinLuckyRewardType])
+	minAccountAgeHours, err7 := parseCheckinInt(values[SettingKeyCheckinMinAccountAge])
+	ipWindowMinutes, err8 := parseCheckinInt(values[SettingKeyCheckinIPWindow])
+	ipMaxUsers, err9 := parseCheckinInt(values[SettingKeyCheckinIPMaxUsers])
+	if enabledErr != nil || normalEnabledErr != nil || luckyEnabledErr != nil || riskEnabledErr != nil || err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || err9 != nil ||
+		normalMin < 0 || normalMax < normalMin || normalMax > 100 || !validCheckinLuckyRewardType(luckyRewardType) ||
+		luckyMin < -1 || luckyMax < luckyMin || luckyMax > 10 || luckyAmountMin < -100 || luckyAmountMax < luckyAmountMin || luckyAmountMax > 100 ||
 		minAccountAgeHours < 0 || minAccountAgeHours > 720 || ipWindowMinutes < 1 || ipWindowMinutes > 1440 || ipMaxUsers < 1 || ipMaxUsers > 10000 {
 		return CheckinConfig{}, ErrCheckinConfigInvalid
 	}
 	return CheckinConfig{
 		Enabled:          enabled,
+		NormalEnabled:    normalEnabled,
+		LuckyEnabled:     luckyEnabled,
 		NormalMin:        normalMin,
 		NormalMax:        normalMax,
+		LuckyRewardType:  luckyRewardType,
 		LuckyMinMultiply: luckyMin,
 		LuckyMaxMultiply: luckyMax,
+		LuckyAmountMin:   luckyAmountMin,
+		LuckyAmountMax:   luckyAmountMax,
 		RiskEnabled:      riskEnabled,
 		MinAccountAge:    time.Duration(minAccountAgeHours) * time.Hour,
 		IPWindow:         time.Duration(ipWindowMinutes) * time.Minute,
 		IPMaxUsers:       ipMaxUsers,
 	}, nil
+}
+
+func validCheckinLuckyRewardType(value string) bool {
+	return value == CheckinRewardTypeAmount || value == CheckinRewardTypeMultiplier
 }
 
 func parseCheckinInt(raw string) (int, error) {

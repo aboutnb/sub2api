@@ -116,7 +116,7 @@ func (r *checkinRepository) AdminList(ctx context.Context, filter service.AdminC
 	limitArg := arg(filter.PageSize)
 	offsetArg := arg((filter.Page - 1) * filter.PageSize)
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT r.id, r.user_id, r.checkin_date, r.mode, r.random_value, r.reward_amount,
+		SELECT r.id, r.user_id, r.checkin_date, r.mode, r.reward_type, r.random_value, r.reward_amount,
 		       r.balance_before, r.balance_after, r.checked_in_at, COALESCE(u.email, '')
 		FROM checkin_records r LEFT JOIN users u ON u.id = r.user_id
 		WHERE `+where+` ORDER BY r.checkin_date DESC, r.id DESC LIMIT `+limitArg+` OFFSET `+offsetArg, args...)
@@ -127,7 +127,7 @@ func (r *checkinRepository) AdminList(ctx context.Context, filter service.AdminC
 	items := make([]service.AdminCheckinRecord, 0, filter.PageSize)
 	for rows.Next() {
 		var item service.AdminCheckinRecord
-		if err := rows.Scan(&item.ID, &item.UserID, &item.CheckinDate, &item.Mode, &item.RandomValue, &item.RewardAmount, &item.BalanceBefore, &item.BalanceAfter, &item.CheckedInAt, &item.UserEmail); err != nil {
+		if err := rows.Scan(&item.ID, &item.UserID, &item.CheckinDate, &item.Mode, &item.RewardType, &item.RandomValue, &item.RewardAmount, &item.BalanceBefore, &item.BalanceAfter, &item.CheckedInAt, &item.UserEmail); err != nil {
 			return nil, 0, err
 		}
 		items = append(items, item)
@@ -172,7 +172,7 @@ func (r *checkinRepository) UpdateConfigIfVersion(ctx context.Context, expectedV
 	return true, nil
 }
 
-func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDate, mode string, calculate func(float64) (float64, float64, error)) (*service.CheckinRecord, bool, error) {
+func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDate, mode string, calculate func(float64) (float64, float64, string, error)) (*service.CheckinRecord, bool, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, false, err
@@ -191,7 +191,7 @@ func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDat
 		}
 		return nil, false, err
 	}
-	if role == service.RoleAdmin || status != service.StatusActive {
+	if status != service.StatusActive {
 		return nil, false, service.ErrCheckinNotEligible
 	}
 	if balance < 0 {
@@ -207,7 +207,7 @@ func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDat
 		return nil, false, err
 	}
 
-	reward, randomValue, err := calculate(balance)
+	reward, randomValue, rewardType, err := calculate(balance)
 	if err != nil {
 		return nil, false, err
 	}
@@ -222,11 +222,11 @@ func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDat
 	var record service.CheckinRecord
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO checkin_records
-			(user_id, checkin_date, mode, random_value, reward_amount, balance_before, balance_after, checked_in_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-		RETURNING id, checkin_date, mode, random_value, reward_amount, balance_before, balance_after, checked_in_at`,
-		userID, businessDate, mode, randomValue, reward, balance, balanceAfter).Scan(
-		&record.ID, &record.CheckinDate, &record.Mode, &record.RandomValue, &record.RewardAmount,
+			(user_id, checkin_date, mode, reward_type, random_value, reward_amount, balance_before, balance_after, checked_in_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+		RETURNING id, checkin_date, mode, reward_type, random_value, reward_amount, balance_before, balance_after, checked_in_at`,
+		userID, businessDate, mode, rewardType, randomValue, reward, balance, balanceAfter).Scan(
+		&record.ID, &record.CheckinDate, &record.Mode, &record.RewardType, &record.RandomValue, &record.RewardAmount,
 		&record.BalanceBefore, &record.BalanceAfter, &record.CheckedInAt)
 	if err != nil {
 		return nil, false, err
@@ -239,7 +239,7 @@ func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDat
 }
 
 const checkinRecordQuery = `
-	SELECT id, user_id, checkin_date, mode, random_value, reward_amount,
+	SELECT id, user_id, checkin_date, mode, reward_type, random_value, reward_amount,
 	       balance_before, balance_after, checked_in_at
 	FROM checkin_records`
 
@@ -249,7 +249,7 @@ type checkinRowScanner interface {
 
 func scanCheckinRecord(row checkinRowScanner) (*service.CheckinRecord, error) {
 	var record service.CheckinRecord
-	err := row.Scan(&record.ID, &record.UserID, &record.CheckinDate, &record.Mode, &record.RandomValue,
+	err := row.Scan(&record.ID, &record.UserID, &record.CheckinDate, &record.Mode, &record.RewardType, &record.RandomValue,
 		&record.RewardAmount, &record.BalanceBefore, &record.BalanceAfter, &record.CheckedInAt)
 	if err != nil {
 		return nil, err

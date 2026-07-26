@@ -70,18 +70,7 @@
         <SubscriptionProgressMini v-if="user" />
 
         <!-- Daily check-in shortcut sits immediately before the balance amount. -->
-        <router-link
-          v-if="showCheckinShortcut"
-          to="/checkin"
-          class="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors sm:text-sm"
-          :class="checkinStatus?.checked_in_today
-            ? 'border-gray-200 bg-gray-50 text-gray-500 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-400'
-            : 'border-primary-200 bg-primary-50 text-primary-700 hover:border-primary-300 hover:bg-primary-100 dark:border-primary-800/60 dark:bg-primary-900/20 dark:text-primary-300'"
-          :aria-label="checkinShortcutLabel"
-        >
-          <Icon name="gift" size="sm" />
-          <span class="hidden sm:inline">{{ checkinShortcutLabel }}</span>
-        </router-link>
+        <CheckinShortcut v-if="user && !authStore.isSimpleMode" />
 
         <!-- Balance Display -->
         <div
@@ -279,7 +268,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
@@ -287,10 +276,9 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
+import CheckinShortcut from '@/components/checkin/CheckinShortcut.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
-import { checkinAPI } from '@/api/checkin'
-import type { CheckinStatus } from '@/types'
 
 const router = useRouter()
 const route = useRoute()
@@ -319,9 +307,6 @@ const balanceAvailableText = computed(() => t('common.availableBalance') === 'co
 const balanceFrozenText = computed(() => t('common.frozenBalance') === 'common.frozenBalance' ? '冻结金额' : t('common.frozenBalance'))
 const balanceTotalText = computed(() => t('common.totalBalance') === 'common.totalBalance' ? '总余额' : t('common.totalBalance'))
 const balanceFrozenLabel = computed(() => `${balanceFrozenText.value} ${formatHeaderMoney(frozenBalance.value)}`)
-const checkinStatus = ref<CheckinStatus | null>(null)
-const showCheckinShortcut = computed(() => Boolean(user.value && !authStore.isAdmin && !authStore.isSimpleMode && checkinStatus.value?.enabled && checkinStatus.value?.eligible))
-const checkinShortcutLabel = computed(() => checkinStatus.value?.checked_in_today ? t('checkin.checkedToday') : t('checkin.notCheckedToday'))
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {
@@ -410,34 +395,12 @@ function handleClickOutside(event: MouseEvent) {
   }
 }
 
-async function loadCheckinStatus() {
-  if (!user.value || authStore.isAdmin || authStore.isSimpleMode) {
-    checkinStatus.value = null
-    return
-  }
-  try {
-    checkinStatus.value = await checkinAPI.getStatus()
-  } catch {
-    checkinStatus.value = null
-  }
-}
-
-function handleCheckinUpdated() {
-  void loadCheckinStatus()
-}
-
-watch(() => [user.value?.id, authStore.isAdmin, authStore.isSimpleMode], () => {
-  void loadCheckinStatus()
-}, { immediate: true })
-
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-  window.addEventListener('checkin:updated', handleCheckinUpdated)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
-  window.removeEventListener('checkin:updated', handleCheckinUpdated)
 })
 </script>
 

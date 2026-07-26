@@ -3,10 +3,15 @@ import type { PaginatedResponse } from '@/types'
 
 export interface AdminCheckinConfig {
   enabled: boolean
+  normal_enabled: boolean
+  lucky_enabled: boolean
   normal_min: string
   normal_max: string
+  lucky_reward_type: 'multiplier' | 'amount'
   lucky_min_multiplier: string
   lucky_max_multiplier: string
+  lucky_amount_min: string
+  lucky_amount_max: string
   risk_control_enabled: boolean
   min_account_age_hours: number
   ip_window_minutes: number
@@ -17,10 +22,15 @@ export interface AdminCheckinConfig {
 
 export interface AdminCheckinConfigUpdate {
   enabled: boolean
+  normal_enabled: boolean
+  lucky_enabled: boolean
   normal_min: string
   normal_max: string
+  lucky_reward_type: 'multiplier' | 'amount'
   lucky_min_multiplier: string
   lucky_max_multiplier: string
+  lucky_amount_min: string
+  lucky_amount_max: string
   risk_control_enabled: boolean
   min_account_age_hours: number
   ip_window_minutes: number
@@ -44,6 +54,7 @@ export interface AdminCheckinRecord {
   user_email: string
   checkin_date: string
   mode: 'normal' | 'lucky'
+  reward_type: 'multiplier' | 'amount'
   random_value: number
   reward_amount: number
   balance_before: number

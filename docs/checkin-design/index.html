@@ -1483,6 +1483,45 @@
       left: 3px;
     }
 
+    .mode-switches {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .mode-switch-item {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-soft);
+    }
+
+    .mode-switch-copy {
+      min-width: 0;
+    }
+
+    .mode-switch-copy strong,
+    .mode-switch-copy span {
+      display: block;
+    }
+
+    .mode-switch-copy strong {
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .mode-switch-copy span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
     .alert {
       display: none;
       align-items: flex-start;
@@ -1615,6 +1654,60 @@
 
     .field-wide {
       grid-column: 1 / -1;
+    }
+
+    .reward-type-field {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-soft);
+    }
+
+    .reward-type-copy strong,
+    .reward-type-copy span {
+      display: block;
+    }
+
+    .reward-type-copy strong {
+      color: var(--ink-secondary);
+      font-size: 12px;
+    }
+
+    .reward-type-copy span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .segmented-control {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: repeat(2, minmax(88px, 1fr));
+      gap: 3px;
+      padding: 3px;
+      border-radius: 9px;
+      background: #e8edef;
+    }
+
+    .segmented-button {
+      min-height: 32px;
+      padding: 0 11px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 680;
+    }
+
+    .segmented-button.active {
+      background: white;
+      color: var(--ink);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
     }
 
     .field label {
@@ -1844,7 +1937,8 @@
       backdrop-filter: blur(4px);
     }
 
-    body[data-admin-state="confirm"] .modal-backdrop {
+    body[data-admin-state="confirm"] #confirm-modal,
+    body[data-lucky-confirm="true"] #lucky-confirm-modal {
       display: flex;
     }
 
@@ -1884,6 +1978,50 @@
 
     .modal-body {
       padding: 20px;
+    }
+
+    .lucky-confirm-modal {
+      width: min(470px, 100%);
+    }
+
+    .lucky-risk-copy {
+      margin: 0;
+      color: var(--ink-secondary);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .lucky-range {
+      margin-top: 16px;
+      padding: 13px 14px;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      background: #fffbeb;
+    }
+
+    .lucky-range small,
+    .lucky-range strong {
+      display: block;
+    }
+
+    .lucky-range small {
+      color: #b45309;
+      font-size: 11px;
+      font-weight: 680;
+    }
+
+    .lucky-range strong {
+      margin-top: 5px;
+      color: #78350f;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 20px;
+    }
+
+    .lucky-confirm-note {
+      margin: 13px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.55;
     }
 
     .diff-grid {
@@ -2153,6 +2291,10 @@
         grid-template-columns: 1fr;
       }
 
+      .mode-switches {
+        grid-template-columns: 1fr;
+      }
+
       .mode-card {
         min-height: 190px;
         padding: 20px;
@@ -2370,6 +2512,15 @@
 
       .field-wide {
         grid-column: auto;
+      }
+
+      .reward-type-field {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .segmented-control {
+        width: 100%;
       }
 
       .form-footer {
@@ -2633,25 +2784,36 @@
           <section class="card section-card">
             <header class="section-header">
               <div class="section-title"><h2>签到配置</h2><p>开关与奖励参数保存后立即用于新的签到请求</p></div>
-              <div class="toggle-wrap"><span id="toggle-label">已启用</span><button class="toggle" id="enable-toggle" role="switch" aria-checked="true" aria-label="启用每日签到"></button></div>
+              <div class="toggle-wrap"><span id="toggle-label">全局已启用</span><button class="toggle" id="enable-toggle" role="switch" aria-checked="true" aria-label="启用每日签到"></button></div>
             </header>
 
             <div class="alert alert-danger invalid-alert"><svg class="icon"><use href="#i-alert" /></svg><div><strong>配置读取失败，签到已安全关闭</strong>请修复配置后重新保存，保存成功后立即生效。</div></div>
             <div class="alert alert-info conflict-alert"><svg class="icon"><use href="#i-refresh" /></svg><div><strong>配置已被其他管理员更新</strong>请重新加载并确认最新值。系统不会自动覆盖其他管理员的修改。</div></div>
 
             <div class="current-config">
-              <div class="current-label"><p class="current-kicker">当前配置</p><p class="current-value">版本 v4</p></div>
+              <div class="current-label"><p class="current-kicker">当前配置</p><p class="current-value">版本 v5</p></div>
               <div class="current-item"><p class="current-kicker">普通签到</p><p class="current-value">0.01 - 0.05 余额</p></div>
-              <div class="current-item"><p class="current-kicker">幸运签到</p><p class="current-value">-5% - +10% 倍率</p></div>
+              <div class="current-item"><p class="current-kicker">幸运签到</p><p class="current-value" id="lucky-current-value">-5% - +10% 余额比例</p></div>
             </div>
 
             <div class="config-form">
               <div class="form-heading"><div class="inline" style="gap:9px"><strong>编辑配置</strong><span class="effective-badge">保存后立即生效</span></div><button class="text-button"><svg class="icon icon-sm"><use href="#i-refresh" /></svg>恢复当前值</button></div>
+              <div class="mode-switches" aria-label="签到模式开关">
+                <div class="mode-switch-item">
+                  <div class="mode-switch-copy"><strong>普通签到</strong><span>关闭后仅隐藏并拒绝普通签到</span></div>
+                  <div class="toggle-wrap"><span id="normal-toggle-label">已启用</span><button class="toggle" id="normal-toggle" role="switch" aria-checked="true" aria-label="启用普通签到"></button></div>
+                </div>
+                <div class="mode-switch-item">
+                  <div class="mode-switch-copy"><strong>幸运签到</strong><span>关闭后仅隐藏并拒绝幸运签到</span></div>
+                  <div class="toggle-wrap"><span id="lucky-toggle-label">已启用</span><button class="toggle" id="lucky-toggle" role="switch" aria-checked="true" aria-label="启用幸运签到"></button></div>
+                </div>
+              </div>
               <div class="form-grid">
                 <div class="field"><label for="normal-min">普通下限 <small>0 - 100</small></label><div class="input-wrap"><input id="normal-min" value="0.01" inputmode="decimal" /><span class="input-suffix">余额</span></div></div>
                 <div class="field"><label for="normal-max">普通上限 <small>不小于下限</small></label><div class="input-wrap"><input id="normal-max" value="0.08" inputmode="decimal" /><span class="input-suffix">余额</span></div></div>
-                <div class="field"><label for="lucky-min">幸运最小倍率 <small>-1 至 1</small></label><div class="input-wrap"><input id="lucky-min" value="-0.05" inputmode="decimal" /><span class="input-suffix">倍率</span></div></div>
-                <div class="field"><label for="lucky-max">幸运最大倍率 <small>-1 至 1</small></label><div class="input-wrap"><input id="lucky-max" value="0.12" inputmode="decimal" /><span class="input-suffix">倍率</span></div></div>
+                <div class="reward-type-field field-wide"><div class="reward-type-copy"><strong>幸运结算方式</strong><span>按活动需要切换，不影响历史记录</span></div><div class="segmented-control" role="group" aria-label="幸运结算方式"><button type="button" class="segmented-button active" data-reward-type="multiplier">余额比例</button><button type="button" class="segmented-button" data-reward-type="amount">固定金额</button></div></div>
+                <div class="field"><label for="lucky-min" id="lucky-min-label">幸运最小倍率 <small>-1 至 10</small></label><div class="input-wrap"><input id="lucky-min" value="-0.05" inputmode="decimal" /><span class="input-suffix" id="lucky-min-suffix">倍率</span></div></div>
+                <div class="field"><label for="lucky-max" id="lucky-max-label">幸运最大倍率 <small>-1 至 10</small></label><div class="input-wrap"><input id="lucky-max" value="0.12" inputmode="decimal" /><span class="input-suffix" id="lucky-max-suffix">倍率</span></div></div>
                 <div class="field field-wide"><label for="reason">变更原因 <small>必填，1-500 字</small></label><textarea id="reason">调整普通与幸运签到参数</textarea></div>
               </div>
               <div class="form-footer"><span class="form-note">服务端使用安全随机数结算，客户端不提交金额或倍率。幸运模式可能产生负向余额调整；保存前会展示完整配置差异，敏感操作可能需要 TOTP 二次验证。</span><button class="primary-button" id="save-config"><svg class="icon icon-sm"><use href="#i-check" /></svg>审核并保存</button></div>
@@ -2679,11 +2841,11 @@
             </div>
             <div class="table-scroll">
               <table>
-                <thead><tr><th>签到时间</th><th>用户</th><th>模式</th><th>随机值</th><th>发放前余额</th><th>余额变动</th><th>发放后余额</th><th>配置版本</th></tr></thead>
+                <thead><tr><th>签到时间</th><th>用户</th><th>模式</th><th>结算参数</th><th>发放前余额</th><th>余额变动</th><th>发放后余额</th><th>配置版本</th></tr></thead>
                 <tbody>
-                  <tr><td data-label="签到时间"><strong>16:21:03</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">XL</span><span><strong>xiaolin@example.com</strong><br><span class="stat-note">ID 2841</span></span></div></td><td data-label="模式"><span class="mode-chip">普通</span></td><td data-label="随机值">0.37</td><td data-label="发放前余额">18.25</td><td data-label="余额变动" class="money-positive">+0.37</td><td data-label="发放后余额"><strong>18.62</strong></td><td data-label="配置版本">v4</td></tr>
-                  <tr><td data-label="签到时间"><strong>16:18:44</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">CY</span><span><strong>chenyu@example.com</strong><br><span class="stat-note">ID 1726</span></span></div></td><td data-label="模式"><span class="mode-chip lucky">幸运</span></td><td data-label="随机值">-0.04</td><td data-label="发放前余额">3.12</td><td data-label="余额变动" class="money-negative">-0.12</td><td data-label="发放后余额"><strong>3.00</strong></td><td data-label="配置版本">v4</td></tr>
-                  <tr><td data-label="签到时间"><strong>16:09:27</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">WK</span><span><strong>wangkai@example.com</strong><br><span class="stat-note">ID 946</span></span></div></td><td data-label="模式"><span class="mode-chip">普通</span></td><td data-label="随机值">0.44</td><td data-label="发放前余额">0.20</td><td data-label="余额变动" class="money-positive">+0.44</td><td data-label="发放后余额"><strong>0.64</strong></td><td data-label="配置版本">v4</td></tr>
+                  <tr><td data-label="签到时间"><strong>16:21:03</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">XL</span><span><strong>xiaolin@example.com</strong><br><span class="stat-note">ID 2841</span></span></div></td><td data-label="模式"><span class="mode-chip">普通</span></td><td data-label="结算参数">+0.37</td><td data-label="发放前余额">18.25</td><td data-label="余额变动" class="money-positive">+0.37</td><td data-label="发放后余额"><strong>18.62</strong></td><td data-label="配置版本">v4</td></tr>
+                  <tr><td data-label="签到时间"><strong>16:18:44</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">CY</span><span><strong>chenyu@example.com</strong><br><span class="stat-note">ID 1726</span></span></div></td><td data-label="模式"><span class="mode-chip lucky">幸运</span></td><td data-label="结算参数">-4.00%</td><td data-label="发放前余额">3.12</td><td data-label="余额变动" class="money-negative">-0.12</td><td data-label="发放后余额"><strong>3.00</strong></td><td data-label="配置版本">v4</td></tr>
+                  <tr><td data-label="签到时间"><strong>16:09:27</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">WK</span><span><strong>wangkai@example.com</strong><br><span class="stat-note">ID 946</span></span></div></td><td data-label="模式"><span class="mode-chip">普通</span></td><td data-label="结算参数">+0.44</td><td data-label="发放前余额">0.20</td><td data-label="余额变动" class="money-positive">+0.44</td><td data-label="发放后余额"><strong>0.64</strong></td><td data-label="配置版本">v4</td></tr>
                 </tbody>
               </table>
             </div>
@@ -2699,13 +2861,25 @@
       <header class="modal-header"><span class="stat-icon amber"><svg class="icon icon-lg"><use href="#i-alert" /></svg></span><div><h2 id="confirm-title">确认更新签到配置</h2><p>开关与两种签到模式参数将在保存后立即生效。</p></div></header>
       <div class="modal-body">
         <div class="diff-grid">
-          <div class="diff-side"><small>当前配置 · 正在使用</small><strong>普通 0.01 - 0.05 余额</strong><strong>幸运 -5% - +10% 倍率</strong></div>
+          <div class="diff-side"><small>当前配置 · 正在使用</small><strong>普通 0.01 - 0.05 余额</strong><strong>幸运 -5% - +10% 余额比例</strong></div>
           <svg class="icon diff-arrow"><use href="#i-arrow" /></svg>
-          <div class="diff-side"><small>新配置 · 保存后生效</small><strong>普通 0.01 - 0.08 余额</strong><strong>幸运 -5% - +12% 倍率</strong></div>
+          <div class="diff-side"><small>新配置 · 保存后生效</small><strong>普通 0.01 - 0.08 余额</strong><strong>幸运 -5% - +12% 余额比例</strong></div>
         </div>
         <div class="reason-box"><strong>变更原因</strong>调整普通与幸运签到参数</div>
       </div>
       <footer class="modal-footer"><button class="secondary-button" id="cancel-confirm">返回修改</button><button class="primary-button"><svg class="icon icon-sm"><use href="#i-check" /></svg>确认保存</button></footer>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="lucky-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="lucky-confirm-title">
+    <div class="modal lucky-confirm-modal">
+      <header class="modal-header"><span class="stat-icon amber"><svg class="icon icon-lg"><use href="#i-sparkles" /></svg></span><div><h2 id="lucky-confirm-title">确认幸运签到</h2><p>请确认可能的余额变化后再继续。</p></div></header>
+      <div class="modal-body">
+        <p class="lucky-risk-copy">幸运签到会按当前余额结算，结果可能增加或扣减余额，最终余额不会低于 0。</p>
+        <div class="lucky-range"><small>可能所得倍率</small><strong>-0.05x ~ +0.10x</strong></div>
+        <p class="lucky-confirm-note">每天只能完成一次签到，确认后不能再改用普通签到。</p>
+      </div>
+      <footer class="modal-footer"><button class="secondary-button" id="cancel-lucky-confirm">取消</button><button class="primary-button" id="confirm-lucky-checkin"><svg class="icon icon-sm"><use href="#i-sparkles" /></svg>确认幸运签到</button></footer>
     </div>
   </div>
 
@@ -2714,6 +2888,7 @@
     <button id="show-admin">管理端</button>
     <select id="user-state" aria-label="用户端状态">
       <option value="ready">可签到</option>
+      <option value="luckyConfirm">幸运签到确认</option>
       <option value="loading">页面加载</option>
       <option value="disabled">功能关闭</option>
       <option value="checking">提交中</option>
@@ -2845,6 +3020,7 @@
 
     const params = new URLSearchParams(location.search);
     const initialScreen = params.get('screen') === 'admin' ? 'admin' : 'user';
+    const initialLuckyConfirm = params.get('state') === 'luckyConfirm';
     const initialUserState = userStates[params.get('state')] ? params.get('state') : 'ready';
     const validAdminStates = ['default', 'confirm', 'conflict', 'invalid'];
     const initialAdminState = validAdminStates.includes(params.get('state')) ? params.get('state') : 'default';
@@ -2991,8 +3167,11 @@
       content.querySelectorAll('.mode-card').forEach((button) => {
         button.addEventListener('click', () => {
           selectedMode = button.dataset.mode;
-          renderUserState('checking', selectedMode);
-          window.setTimeout(() => renderUserState('success', selectedMode), 850);
+          if (selectedMode === 'lucky') {
+            openLuckyConfirm();
+            return;
+          }
+          submitDemoCheckin(selectedMode);
         });
       });
       const checkinButton = document.getElementById('checkin-button');
@@ -3007,6 +3186,22 @@
       shortcut.style.display = ['disabled', 'loading'].includes(name) ? 'none' : '';
       shortcut.classList.toggle('success', checked);
       shortcutLabel.textContent = checked ? '已签到' : '未签到';
+    }
+
+    function submitDemoCheckin(mode) {
+      renderUserState('checking', mode);
+      window.setTimeout(() => renderUserState('success', mode), 850);
+    }
+
+    function openLuckyConfirm() {
+      selectedMode = 'lucky';
+      document.body.dataset.luckyConfirm = 'true';
+      userSelect.value = 'luckyConfirm';
+    }
+
+    function closeLuckyConfirm() {
+      document.body.dataset.luckyConfirm = 'false';
+      userSelect.value = document.body.dataset.userState || 'ready';
     }
 
     function renderAdminState(name) {
@@ -3030,24 +3225,61 @@
     });
     userButton.addEventListener('click', () => setScreen('user'));
     adminButton.addEventListener('click', () => setScreen('admin'));
-    userSelect.addEventListener('change', (event) => renderUserState(event.target.value));
+    userSelect.addEventListener('change', (event) => {
+      if (event.target.value === 'luckyConfirm') {
+        renderUserState('ready', 'lucky');
+        openLuckyConfirm();
+        return;
+      }
+      closeLuckyConfirm();
+      renderUserState(event.target.value);
+    });
     adminSelect.addEventListener('change', (event) => renderAdminState(event.target.value));
     document.getElementById('save-config').addEventListener('click', () => renderAdminState('confirm'));
     document.getElementById('cancel-confirm').addEventListener('click', () => renderAdminState('default'));
     document.getElementById('confirm-modal').addEventListener('click', (event) => {
       if (event.target.id === 'confirm-modal') renderAdminState('default');
     });
+    document.getElementById('cancel-lucky-confirm').addEventListener('click', closeLuckyConfirm);
+    document.getElementById('confirm-lucky-checkin').addEventListener('click', () => {
+      closeLuckyConfirm();
+      submitDemoCheckin('lucky');
+    });
+    document.getElementById('lucky-confirm-modal').addEventListener('click', (event) => {
+      if (event.target.id === 'lucky-confirm-modal') closeLuckyConfirm();
+    });
     document.getElementById('enable-toggle').addEventListener('click', (event) => {
       const button = event.currentTarget;
       const enabled = button.getAttribute('aria-checked') !== 'true';
       button.setAttribute('aria-checked', String(enabled));
       button.classList.toggle('off', !enabled);
-      document.getElementById('toggle-label').textContent = enabled ? '已启用' : '已关闭';
+      document.getElementById('toggle-label').textContent = enabled ? '全局已启用' : '全局已关闭';
+    });
+    [['normal-toggle', 'normal-toggle-label'], ['lucky-toggle', 'lucky-toggle-label']].forEach(([toggleId, labelId]) => {
+      document.getElementById(toggleId).addEventListener('click', (event) => {
+        const button = event.currentTarget;
+        const enabled = button.getAttribute('aria-checked') !== 'true';
+        button.setAttribute('aria-checked', String(enabled));
+        button.classList.toggle('off', !enabled);
+        document.getElementById(labelId).textContent = enabled ? '已启用' : '已关闭';
+      });
+    });
+    document.querySelectorAll('[data-reward-type]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const amountMode = button.dataset.rewardType === 'amount';
+        document.querySelectorAll('[data-reward-type]').forEach((item) => item.classList.toggle('active', item === button));
+        document.getElementById('lucky-min-label').innerHTML = amountMode ? '幸运最小金额 <small>-100 至 100</small>' : '幸运最小倍率 <small>-1 至 10</small>';
+        document.getElementById('lucky-max-label').innerHTML = amountMode ? '幸运最大金额 <small>-100 至 100</small>' : '幸运最大倍率 <small>-1 至 10</small>';
+        document.getElementById('lucky-min-suffix').textContent = amountMode ? '余额' : '倍率';
+        document.getElementById('lucky-max-suffix').textContent = amountMode ? '余额' : '倍率';
+        document.getElementById('lucky-current-value').textContent = amountMode ? '-0.05 - +0.10 固定金额' : '-5% - +10% 余额比例';
+      });
     });
 
     renderUserState(initialUserState);
     renderAdminState(initialAdminState);
     setScreen(initialScreen);
+    if (initialLuckyConfirm && initialScreen === 'user') openLuckyConfirm();
   </script>
 </body>
 </html>

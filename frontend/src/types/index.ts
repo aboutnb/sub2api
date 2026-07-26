@@ -106,6 +106,7 @@ export interface CheckinRecord {
   user_id: number
   checkin_date: string
   mode: 'normal' | 'lucky'
+  reward_type: 'multiplier' | 'amount'
   random_value: number
   reward_amount: number
   balance_before: number
@@ -115,6 +116,11 @@ export interface CheckinRecord {
 
 export interface CheckinStatus {
   enabled: boolean
+  normal_enabled: boolean
+  lucky_enabled: boolean
+  lucky_reward_type: 'multiplier' | 'amount'
+  lucky_min_multiplier: number
+  lucky_max_multiplier: number
   eligible: boolean
   can_check_in: boolean
   unavailable_reason: string
@@ -250,6 +256,7 @@ export interface PublicSettings {
   doc_url: string
   home_content: string
   hide_ccs_import_button: boolean
+  checkin_enabled?: boolean
   payment_enabled: boolean
   risk_control_enabled: boolean
   table_default_page_size: number
