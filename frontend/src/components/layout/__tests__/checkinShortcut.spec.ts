@@ -137,6 +137,32 @@ describe('check-in header shortcut', () => {
     expect(wrapper.get('[data-testid="quick-checkin-lucky"]').text()).toContain('checkin.lucky')
   })
 
+  it('uses the compact borderless header treatment in every state', async () => {
+    const wrapper = mountShortcut()
+    await flushPromises()
+
+    for (const testId of ['quick-checkin-normal', 'quick-checkin-lucky', 'checkin-shortcut']) {
+      const classes = wrapper.get(`[data-testid="${testId}"]`).classes()
+      expect(classes).toContain('h-8')
+      expect(classes).toContain('rounded-xl')
+      expect(classes).not.toContain('border')
+    }
+
+    getStatus.mockResolvedValue({
+      ...status,
+      checked_in_today: true,
+      can_check_in: false,
+      today_record: { ...record },
+    })
+    window.dispatchEvent(new Event('focus'))
+    await flushPromises()
+
+    const checkedClasses = wrapper.get('[data-testid="checkin-shortcut"]').classes()
+    expect(checkedClasses).toContain('h-8')
+    expect(checkedClasses).toContain('rounded-xl')
+    expect(checkedClasses).not.toContain('border')
+  })
+
   it.each(['normal', 'lucky'] as const)('submits the selected %s mode', async (mode) => {
     const wrapper = mountShortcut()
     await flushPromises()

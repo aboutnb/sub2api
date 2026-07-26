@@ -10,7 +10,7 @@
           <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex min-w-0 items-center gap-3.5">
               <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                <Icon name="calendar" size="md" />
+                <CheckinCenterIcon class="h-5 w-5" />
               </div>
               <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
@@ -288,6 +288,7 @@ import { checkinAPI } from '@/api/checkin'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import LuckyCheckinConfirmDialog from '@/components/checkin/LuckyCheckinConfirmDialog.vue'
+import CheckinCenterIcon from '@/components/icons/CheckinCenterIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 import type { CheckinRecord, CheckinStatus } from '@/types'
 import { checkinErrorMessage } from '@/utils/checkinError'

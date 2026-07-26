@@ -5,7 +5,7 @@
         <div>
           <div class="mb-2 flex items-center gap-3">
             <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-              <Icon name="calendar" size="md" />
+              <CheckinCenterIcon class="h-5 w-5" />
             </span>
             <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{{ t('admin.checkin.title') }}</h1>
           </div>
@@ -163,6 +163,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import CheckinCenterIcon from '@/components/icons/CheckinCenterIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Pagination from '@/components/common/Pagination.vue'

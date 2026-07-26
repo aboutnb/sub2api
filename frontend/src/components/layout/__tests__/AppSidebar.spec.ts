@@ -68,7 +68,7 @@ describe('AppSidebar user subscriptions feature flag', () => {
 describe('AppSidebar check-in access', () => {
   it('keeps check-in in the shared personal menu for users and administrators', () => {
     expect(componentSource).toContain(
-      "{ path: '/checkin', label: t('nav.checkin'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagCheckin }",
+      "{ path: '/checkin', label: t('nav.checkin'), icon: CheckinCenterIcon, hideInSimpleMode: true, featureFlag: flagCheckin }",
     )
     expect(componentSource).not.toContain('featureFlag: () => withDashboard && flagCheckin()')
   })
