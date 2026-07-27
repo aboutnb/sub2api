@@ -127,11 +127,11 @@ describe('user CheckinView', () => {
 
     const luckyDay = wrapper.get('[data-testid="calendar-day-26"]')
     const normalDay = wrapper.get('[data-testid="calendar-day-25"]')
-    expect(luckyDay.text()).toContain('-$0.4661')
-    expect(luckyDay.text()).toContain('-0.0466x')
+    expect(luckyDay.text()).toContain('-$0.47')
+    expect(luckyDay.text()).toContain('-0.05x')
     expect(luckyDay.attributes('data-mode')).toBe('lucky')
     expect(luckyDay.find('[data-icon="sparkles"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="history-multiplier-1"]').text()).toBe('-0.0466x')
+    expect(wrapper.get('[data-testid="history-multiplier-1"]').text()).toBe('-0.05x')
     expect(normalDay.text()).toContain('+$0.03')
     expect(normalDay.attributes('data-mode')).toBe('normal')
     expect(normalDay.find('[data-icon="gift"]').exists()).toBe(true)
@@ -144,9 +144,9 @@ describe('user CheckinView', () => {
 
     const summary = wrapper.get('[data-testid="calendar-month-summary"]')
     expect(summary.text()).toContain('checkin.daysCount')
-    expect(summary.text()).toContain('-$0.4361')
-    expect(summary.text()).toContain('+$0.0300')
-    expect(summary.text()).toContain('-$0.4661')
+    expect(summary.text()).toContain('-$0.44')
+    expect(summary.text()).toContain('+$0.03')
+    expect(summary.text()).toContain('-$0.47')
   })
 
   it('compacts large calendar amounts so they cannot overflow a day cell', async () => {
@@ -200,7 +200,7 @@ describe('user CheckinView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('checkin.success')
-    expect(wrapper.text()).toContain('-0.0466x')
+    expect(wrapper.text()).toContain('-0.05x')
   })
 
   it('does not label fixed lucky rewards as multipliers', async () => {

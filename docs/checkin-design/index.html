@@ -2793,7 +2793,7 @@
             <div class="current-config">
               <div class="current-label"><p class="current-kicker">当前配置</p><p class="current-value">版本 v5</p></div>
               <div class="current-item"><p class="current-kicker">普通签到</p><p class="current-value">0.01 - 0.05 余额</p></div>
-              <div class="current-item"><p class="current-kicker">幸运签到</p><p class="current-value" id="lucky-current-value">-5% - +10% 余额比例</p></div>
+              <div class="current-item"><p class="current-kicker">运气签到</p><p class="current-value" id="lucky-current-value">70% 正向 · -5% 至 +10%</p></div>
             </div>
 
             <div class="config-form">
@@ -2804,19 +2804,20 @@
                   <div class="toggle-wrap"><span id="normal-toggle-label">已启用</span><button class="toggle" id="normal-toggle" role="switch" aria-checked="true" aria-label="启用普通签到"></button></div>
                 </div>
                 <div class="mode-switch-item">
-                  <div class="mode-switch-copy"><strong>幸运签到</strong><span>关闭后仅隐藏并拒绝幸运签到</span></div>
-                  <div class="toggle-wrap"><span id="lucky-toggle-label">已启用</span><button class="toggle" id="lucky-toggle" role="switch" aria-checked="true" aria-label="启用幸运签到"></button></div>
+                  <div class="mode-switch-copy"><strong>运气签到</strong><span>关闭后仅隐藏并拒绝运气签到</span></div>
+                  <div class="toggle-wrap"><span id="lucky-toggle-label">已启用</span><button class="toggle" id="lucky-toggle" role="switch" aria-checked="true" aria-label="启用运气签到"></button></div>
                 </div>
               </div>
               <div class="form-grid">
                 <div class="field"><label for="normal-min">普通下限 <small>0 - 100</small></label><div class="input-wrap"><input id="normal-min" value="0.01" inputmode="decimal" /><span class="input-suffix">余额</span></div></div>
                 <div class="field"><label for="normal-max">普通上限 <small>不小于下限</small></label><div class="input-wrap"><input id="normal-max" value="0.08" inputmode="decimal" /><span class="input-suffix">余额</span></div></div>
-                <div class="reward-type-field field-wide"><div class="reward-type-copy"><strong>幸运结算方式</strong><span>按活动需要切换，不影响历史记录</span></div><div class="segmented-control" role="group" aria-label="幸运结算方式"><button type="button" class="segmented-button active" data-reward-type="multiplier">余额比例</button><button type="button" class="segmented-button" data-reward-type="amount">固定金额</button></div></div>
-                <div class="field"><label for="lucky-min" id="lucky-min-label">幸运最小倍率 <small>-1 至 10</small></label><div class="input-wrap"><input id="lucky-min" value="-0.05" inputmode="decimal" /><span class="input-suffix" id="lucky-min-suffix">倍率</span></div></div>
-                <div class="field"><label for="lucky-max" id="lucky-max-label">幸运最大倍率 <small>-1 至 10</small></label><div class="input-wrap"><input id="lucky-max" value="0.12" inputmode="decimal" /><span class="input-suffix" id="lucky-max-suffix">倍率</span></div></div>
-                <div class="field field-wide"><label for="reason">变更原因 <small>必填，1-500 字</small></label><textarea id="reason">调整普通与幸运签到参数</textarea></div>
+                <div class="reward-type-field field-wide"><div class="reward-type-copy"><strong>运气结算方式</strong><span>按活动需要切换，不影响历史记录</span></div><div class="segmented-control" role="group" aria-label="运气结算方式"><button type="button" class="segmented-button active" data-reward-type="multiplier">余额比例</button><button type="button" class="segmented-button" data-reward-type="amount">固定金额</button></div></div>
+                <div class="field field-wide"><label for="lucky-positive-probability">正向结果概率 <small>独立于倍率或金额范围</small></label><div class="input-wrap"><input id="lucky-positive-probability" value="70" inputmode="decimal" /><span class="input-suffix">%</span></div></div>
+                <div class="field"><label for="lucky-min" id="lucky-min-label">负向最低倍率 <small>-1 至 0</small></label><div class="input-wrap"><input id="lucky-min" value="-0.05" inputmode="decimal" /><span class="input-suffix" id="lucky-min-suffix">倍率</span></div></div>
+                <div class="field"><label for="lucky-max" id="lucky-max-label">正向最高倍率 <small>0 至 10</small></label><div class="input-wrap"><input id="lucky-max" value="0.12" inputmode="decimal" /><span class="input-suffix" id="lucky-max-suffix">倍率</span></div></div>
+                <div class="field field-wide"><label for="reason">变更原因 <small>必填，1-500 字</small></label><textarea id="reason">调整普通与运气签到参数</textarea></div>
               </div>
-              <div class="form-footer"><span class="form-note">服务端使用安全随机数结算，客户端不提交金额或倍率。幸运模式可能产生负向余额调整；保存前会展示完整配置差异，敏感操作可能需要 TOTP 二次验证。</span><button class="primary-button" id="save-config"><svg class="icon icon-sm"><use href="#i-check" /></svg>审核并保存</button></div>
+              <div class="form-footer"><span class="form-note">服务端使用安全随机数结算，客户端不提交金额或倍率。运气模式可能产生负向余额调整；保存前会展示完整配置差异，敏感操作可能需要 TOTP 二次验证。</span><button class="primary-button" id="save-config"><svg class="icon icon-sm"><use href="#i-check" /></svg>审核并保存</button></div>
             </div>
           </section>
 
@@ -2825,9 +2826,9 @@
             <div class="overview-grid">
               <article class="card overview-card"><p class="stat-label">签到人数</p><p class="stat-value">128</p><p class="stat-note">每日一次</p></article>
               <article class="card overview-card"><p class="stat-label">普通签到</p><p class="stat-value">94</p><p class="stat-note">73.4% 的签到</p></article>
-              <article class="card overview-card"><p class="stat-label">幸运签到</p><p class="stat-value">34</p><p class="stat-note">26.6% 的签到</p></article>
+              <article class="card overview-card"><p class="stat-label">运气签到</p><p class="stat-value">34</p><p class="stat-note">26.6% 的签到</p></article>
               <article class="card overview-card"><p class="stat-label">正向发放</p><p class="stat-value emerald">+51.42</p><p class="stat-note">余额增加合计</p></article>
-              <article class="card overview-card"><p class="stat-label">负向调整</p><p class="stat-value">-2.18</p><p class="stat-note">幸运模式产生</p></article>
+              <article class="card overview-card"><p class="stat-label">负向调整</p><p class="stat-value">-2.18</p><p class="stat-note">运气模式产生</p></article>
             </div>
           </section>
 
@@ -2844,7 +2845,7 @@
                 <thead><tr><th>签到时间</th><th>用户</th><th>模式</th><th>结算参数</th><th>发放前余额</th><th>余额变动</th><th>发放后余额</th><th>配置版本</th></tr></thead>
                 <tbody>
                   <tr><td data-label="签到时间"><strong>16:21:03</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">XL</span><span><strong>xiaolin@example.com</strong><br><span class="stat-note">ID 2841</span></span></div></td><td data-label="模式"><span class="mode-chip">普通</span></td><td data-label="结算参数">+0.37</td><td data-label="发放前余额">18.25</td><td data-label="余额变动" class="money-positive">+0.37</td><td data-label="发放后余额"><strong>18.62</strong></td><td data-label="配置版本">v4</td></tr>
-                  <tr><td data-label="签到时间"><strong>16:18:44</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">CY</span><span><strong>chenyu@example.com</strong><br><span class="stat-note">ID 1726</span></span></div></td><td data-label="模式"><span class="mode-chip lucky">幸运</span></td><td data-label="结算参数">-4.00%</td><td data-label="发放前余额">3.12</td><td data-label="余额变动" class="money-negative">-0.12</td><td data-label="发放后余额"><strong>3.00</strong></td><td data-label="配置版本">v4</td></tr>
+                  <tr><td data-label="签到时间"><strong>16:18:44</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">CY</span><span><strong>chenyu@example.com</strong><br><span class="stat-note">ID 1726</span></span></div></td><td data-label="模式"><span class="mode-chip lucky">运气</span></td><td data-label="结算参数">-4.00%</td><td data-label="发放前余额">3.12</td><td data-label="余额变动" class="money-negative">-0.12</td><td data-label="发放后余额"><strong>3.00</strong></td><td data-label="配置版本">v4</td></tr>
                   <tr><td data-label="签到时间"><strong>16:09:27</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">WK</span><span><strong>wangkai@example.com</strong><br><span class="stat-note">ID 946</span></span></div></td><td data-label="模式"><span class="mode-chip">普通</span></td><td data-label="结算参数">+0.44</td><td data-label="发放前余额">0.20</td><td data-label="余额变动" class="money-positive">+0.44</td><td data-label="发放后余额"><strong>0.64</strong></td><td data-label="配置版本">v4</td></tr>
                 </tbody>
               </table>
@@ -2861,11 +2862,11 @@
       <header class="modal-header"><span class="stat-icon amber"><svg class="icon icon-lg"><use href="#i-alert" /></svg></span><div><h2 id="confirm-title">确认更新签到配置</h2><p>开关与两种签到模式参数将在保存后立即生效。</p></div></header>
       <div class="modal-body">
         <div class="diff-grid">
-          <div class="diff-side"><small>当前配置 · 正在使用</small><strong>普通 0.01 - 0.05 余额</strong><strong>幸运 -5% - +10% 余额比例</strong></div>
+          <div class="diff-side"><small>当前配置 · 正在使用</small><strong>普通 0.01 - 0.05 余额</strong><strong>运气 -5% - +10% 余额比例</strong></div>
           <svg class="icon diff-arrow"><use href="#i-arrow" /></svg>
-          <div class="diff-side"><small>新配置 · 保存后生效</small><strong>普通 0.01 - 0.08 余额</strong><strong>幸运 -5% - +12% 余额比例</strong></div>
+          <div class="diff-side"><small>新配置 · 保存后生效</small><strong>普通 0.01 - 0.08 余额</strong><strong>运气 -5% - +12% 余额比例</strong></div>
         </div>
-        <div class="reason-box"><strong>变更原因</strong>调整普通与幸运签到参数</div>
+        <div class="reason-box"><strong>变更原因</strong>调整普通与运气签到参数</div>
       </div>
       <footer class="modal-footer"><button class="secondary-button" id="cancel-confirm">返回修改</button><button class="primary-button"><svg class="icon icon-sm"><use href="#i-check" /></svg>确认保存</button></footer>
     </div>
@@ -2873,13 +2874,13 @@
 
   <div class="modal-backdrop" id="lucky-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="lucky-confirm-title">
     <div class="modal lucky-confirm-modal">
-      <header class="modal-header"><span class="stat-icon amber"><svg class="icon icon-lg"><use href="#i-sparkles" /></svg></span><div><h2 id="lucky-confirm-title">确认幸运签到</h2><p>请确认可能的余额变化后再继续。</p></div></header>
+      <header class="modal-header"><span class="stat-icon amber"><svg class="icon icon-lg"><use href="#i-sparkles" /></svg></span><div><h2 id="lucky-confirm-title">确认运气签到</h2><p>请确认可能的余额变化后再继续。</p></div></header>
       <div class="modal-body">
-        <p class="lucky-risk-copy">幸运签到会按当前余额结算，结果可能增加或扣减余额，最终余额不会低于 0。</p>
+        <p class="lucky-risk-copy">运气签到会按当前余额结算，结果可能增加或扣减余额，最终余额不会低于 0。</p>
         <div class="lucky-range"><small>可能所得倍率</small><strong>-0.05x ~ +0.10x</strong></div>
         <p class="lucky-confirm-note">每天只能完成一次签到，确认后不能再改用普通签到。</p>
       </div>
-      <footer class="modal-footer"><button class="secondary-button" id="cancel-lucky-confirm">取消</button><button class="primary-button" id="confirm-lucky-checkin"><svg class="icon icon-sm"><use href="#i-sparkles" /></svg>确认幸运签到</button></footer>
+      <footer class="modal-footer"><button class="secondary-button" id="cancel-lucky-confirm">取消</button><button class="primary-button" id="confirm-lucky-checkin"><svg class="icon icon-sm"><use href="#i-sparkles" /></svg>确认运气签到</button></footer>
     </div>
   </div>
 
@@ -2888,7 +2889,7 @@
     <button id="show-admin">管理端</button>
     <select id="user-state" aria-label="用户端状态">
       <option value="ready">可签到</option>
-      <option value="luckyConfirm">幸运签到确认</option>
+      <option value="luckyConfirm">运气签到确认</option>
       <option value="loading">页面加载</option>
       <option value="disabled">功能关闭</option>
       <option value="checking">提交中</option>
@@ -3095,7 +3096,7 @@
 
     function recordRow(mode, date, time, amount, before, after) {
       const isLucky = mode === 'lucky';
-      const modeLabel = isLucky ? '幸运签到' : '普通签到';
+      const modeLabel = isLucky ? '运气签到' : '普通签到';
       const amountClass = Number(amount) < 0 ? 'negative' : '';
       return `<div class="record-row">
         <span class="record-mode-icon ${isLucky ? 'lucky' : ''}">${icon(isLucky ? 'i-sparkles' : 'i-gift', 'icon-sm')}</span>
@@ -3132,7 +3133,7 @@
       const state = userStates[name] || userStates.ready;
       const checked = name === 'success' || name === 'disabledChecked';
       if (modeOverride) selectedMode = modeOverride;
-      const modeLabel = selectedMode === 'lucky' ? '幸运签到' : '普通签到';
+      const modeLabel = selectedMode === 'lucky' ? '运气签到' : '普通签到';
       const reward = checked ? (selectedMode === 'lucky' ? '-0.18' : '+0.37') : state.reward;
       const balance = checked ? (selectedMode === 'lucky' ? '18.07' : '18.62') : '18.25';
       const rewardNote = checked ? `最新余额 ${balance} · 16:21 到账` : state.rewardNote;
@@ -3149,7 +3150,7 @@
           </button>
           <button class="mode-card lucky" type="button" data-mode="lucky">
             <div class="mode-card-top"><span class="mode-card-icon">${icon('i-sparkles', 'icon-lg')}</span><span class="status-badge">未签到</span></div>
-            <h2>幸运签到</h2>
+            <h2>运气签到</h2>
             <p>按当前余额结算，结果可能增加或减少余额，余额不会低于 0。</p>
             <p class="mode-card-warning">结果以提交后的实际结算为准。</p>
             <span class="mode-card-action">立即签到 ${icon('i-arrow', 'icon-sm')}</span>
@@ -3268,11 +3269,11 @@
       button.addEventListener('click', () => {
         const amountMode = button.dataset.rewardType === 'amount';
         document.querySelectorAll('[data-reward-type]').forEach((item) => item.classList.toggle('active', item === button));
-        document.getElementById('lucky-min-label').innerHTML = amountMode ? '幸运最小金额 <small>-100 至 100</small>' : '幸运最小倍率 <small>-1 至 10</small>';
-        document.getElementById('lucky-max-label').innerHTML = amountMode ? '幸运最大金额 <small>-100 至 100</small>' : '幸运最大倍率 <small>-1 至 10</small>';
+        document.getElementById('lucky-min-label').innerHTML = amountMode ? '负向最低金额 <small>-100 至 0</small>' : '负向最低倍率 <small>-1 至 0</small>';
+        document.getElementById('lucky-max-label').innerHTML = amountMode ? '正向最高金额 <small>0 至 100</small>' : '正向最高倍率 <small>0 至 10</small>';
         document.getElementById('lucky-min-suffix').textContent = amountMode ? '余额' : '倍率';
         document.getElementById('lucky-max-suffix').textContent = amountMode ? '余额' : '倍率';
-        document.getElementById('lucky-current-value').textContent = amountMode ? '-0.05 - +0.10 固定金额' : '-5% - +10% 余额比例';
+        document.getElementById('lucky-current-value').textContent = amountMode ? '70% 正向 · -0.05 至 +0.10' : '70% 正向 · -5% 至 +10%';
       });
     });
 

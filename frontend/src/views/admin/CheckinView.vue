@@ -52,8 +52,8 @@
                 </div>
               </div>
               <div class="mt-4 grid grid-cols-2 gap-3" :class="{ 'opacity-50': !form.normal_enabled }">
-                <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.normalMin') }}<input v-model="form.normal_min" class="input mt-2" type="number" min="0" max="100" step="0.00000001" :disabled="!form.normal_enabled" /></label>
-                <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.normalMax') }}<input v-model="form.normal_max" class="input mt-2" type="number" min="0" max="100" step="0.00000001" :disabled="!form.normal_enabled" /></label>
+                <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.normalMin') }}<input v-model="form.normal_min" class="input mt-2" type="number" min="0" max="100" step="0.01" :disabled="!form.normal_enabled" /></label>
+                <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.normalMax') }}<input v-model="form.normal_max" class="input mt-2" type="number" min="0" max="100" step="0.01" :disabled="!form.normal_enabled" /></label>
               </div>
             </div>
             <div class="rounded-xl border border-gray-200 p-4 dark:border-dark-700">
@@ -72,13 +72,23 @@
                   <button type="button" class="min-h-8 px-3 text-xs font-medium" :class="form.lucky_reward_type === 'multiplier' ? 'rounded-md bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white' : 'text-gray-500 dark:text-dark-400'" :aria-pressed="form.lucky_reward_type === 'multiplier'" :disabled="!form.lucky_enabled" @click="form.lucky_reward_type = 'multiplier'">{{ t('admin.checkin.luckyMultiplier') }}</button>
                   <button type="button" class="min-h-8 px-3 text-xs font-medium" :class="form.lucky_reward_type === 'amount' ? 'rounded-md bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white' : 'text-gray-500 dark:text-dark-400'" :aria-pressed="form.lucky_reward_type === 'amount'" :disabled="!form.lucky_enabled" @click="form.lucky_reward_type = 'amount'">{{ t('admin.checkin.luckyAmount') }}</button>
                 </div>
+                <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <label for="lucky-positive-probability" class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('admin.checkin.luckyPositiveProbability') }}</label>
+                    <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t('admin.checkin.luckyPositiveProbabilityHint') }}</p>
+                  </div>
+                  <div class="relative w-full shrink-0 sm:w-32">
+                    <input id="lucky-positive-probability" v-model="form.lucky_positive_probability" data-testid="lucky-positive-probability" class="input pr-8" type="number" min="0" max="100" step="0.01" :disabled="!form.lucky_enabled" />
+                    <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-gray-400">%</span>
+                  </div>
+                </div>
                 <div v-if="form.lucky_reward_type === 'multiplier'" class="mt-4 grid grid-cols-2 gap-3">
-                  <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyMin') }}<input v-model="form.lucky_min_multiplier" class="input mt-2" type="number" min="-1" max="10" step="0.00000001" :disabled="!form.lucky_enabled" /></label>
-                  <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyMax') }}<input v-model="form.lucky_max_multiplier" class="input mt-2" type="number" min="-1" max="10" step="0.00000001" :disabled="!form.lucky_enabled" /></label>
+                  <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyMin') }}<input v-model="form.lucky_min_multiplier" data-testid="lucky-min-multiplier" class="input mt-2" type="number" min="-1" max="-0.01" step="0.01" :disabled="!form.lucky_enabled" /></label>
+                  <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyMax') }}<input v-model="form.lucky_max_multiplier" data-testid="lucky-max-multiplier" class="input mt-2" type="number" min="0.01" max="10" step="0.01" :disabled="!form.lucky_enabled" /></label>
                 </div>
                 <div v-else class="mt-4 grid grid-cols-2 gap-3">
-                  <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyAmountMin') }}<input v-model="form.lucky_amount_min" class="input mt-2" type="number" min="-100" max="100" step="0.00000001" :disabled="!form.lucky_enabled" /></label>
-                  <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyAmountMax') }}<input v-model="form.lucky_amount_max" class="input mt-2" type="number" min="-100" max="100" step="0.00000001" :disabled="!form.lucky_enabled" /></label>
+                  <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyAmountMin') }}<input v-model="form.lucky_amount_min" data-testid="lucky-amount-min" class="input mt-2" type="number" min="-100" max="-0.01" step="0.01" :disabled="!form.lucky_enabled" /></label>
+                  <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyAmountMax') }}<input v-model="form.lucky_amount_max" data-testid="lucky-amount-max" class="input mt-2" type="number" min="0.01" max="100" step="0.01" :disabled="!form.lucky_enabled" /></label>
                 </div>
               </div>
             </div>
@@ -194,6 +204,7 @@ const form = reactive({
   normal_min: '0.01',
   normal_max: '0.05',
   lucky_reward_type: 'multiplier' as 'multiplier' | 'amount',
+  lucky_positive_probability: '70',
   lucky_min_multiplier: '-0.05',
   lucky_max_multiplier: '0.10',
   lucky_amount_min: '-0.05',
@@ -214,8 +225,8 @@ const overviewCards = computed(() => [
   { label: t('admin.checkin.negativeTotal'), value: money(overview.value.negative_total), tone: 'text-rose-600 dark:text-rose-400' }
 ])
 
-function money(value: number) { return `$${Number(value || 0).toFixed(4)}` }
-function signedMoney(value: number) { const amount = Number(value || 0); return `${amount >= 0 ? '+' : '-'}$${Math.abs(amount).toFixed(4)}` }
+function money(value: number) { return `$${Number(value || 0).toFixed(2)}` }
+function signedMoney(value: number) { const amount = Number(value || 0); return `${amount >= 0 ? '+' : '-'}$${Math.abs(amount).toFixed(2)}` }
 function randomValue(record: AdminCheckinRecord) { return record.reward_type === 'multiplier' ? `${(record.random_value * 100).toFixed(2)}%` : signedMoney(record.random_value) }
 function formatDate(value: string) { return new Intl.DateTimeFormat(locale.value === 'zh' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) }
 function applyConfig(value: AdminCheckinConfig) {
@@ -226,6 +237,7 @@ function applyConfig(value: AdminCheckinConfig) {
   form.normal_min = value.normal_min
   form.normal_max = value.normal_max
   form.lucky_reward_type = value.lucky_reward_type
+  form.lucky_positive_probability = value.lucky_positive_probability
   form.lucky_min_multiplier = value.lucky_min_multiplier
   form.lucky_max_multiplier = value.lucky_max_multiplier
   form.lucky_amount_min = value.lucky_amount_min
@@ -268,6 +280,7 @@ async function saveConfig() {
       normal_max: decimalString(form.normal_max),
       lucky_min_multiplier: decimalString(form.lucky_min_multiplier),
       lucky_max_multiplier: decimalString(form.lucky_max_multiplier),
+      lucky_positive_probability: decimalString(form.lucky_positive_probability),
       lucky_amount_min: decimalString(form.lucky_amount_min),
       lucky_amount_max: decimalString(form.lucky_amount_max),
       change_reason: changeReason,

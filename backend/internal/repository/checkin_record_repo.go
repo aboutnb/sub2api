@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/shopspring/decimal"
 )
 
 type checkinRepository struct {
@@ -172,20 +173,19 @@ func (r *checkinRepository) UpdateConfigIfVersion(ctx context.Context, expectedV
 	return true, nil
 }
 
-func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDate, mode string, calculate func(float64) (float64, float64, string, error)) (*service.CheckinRecord, bool, error) {
+func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDate, mode string, calculate func(decimal.Decimal) (decimal.Decimal, decimal.Decimal, string, error)) (*service.CheckinRecord, bool, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, false, err
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	var role, status string
-	var balance float64
+	var role, status, balanceText string
 	if err := tx.QueryRowContext(ctx, `
-		SELECT role, status, balance
+		SELECT role, status, balance::text
 		FROM users
 		WHERE id = $1 AND deleted_at IS NULL
-		FOR UPDATE`, userID).Scan(&role, &status, &balance); err != nil {
+		FOR UPDATE`, userID).Scan(&role, &status, &balanceText); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, false, service.ErrCheckinUserNotFound
 		}
@@ -194,7 +194,11 @@ func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDat
 	if status != service.StatusActive {
 		return nil, false, service.ErrCheckinNotEligible
 	}
-	if balance < 0 {
+	balance, err := decimal.NewFromString(balanceText)
+	if err != nil {
+		return nil, false, err
+	}
+	if balance.IsNegative() {
 		return nil, false, service.ErrCheckinNegativeBalance
 	}
 
@@ -211,21 +215,23 @@ func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDat
 	if err != nil {
 		return nil, false, err
 	}
-	var balanceAfter float64
+	var balanceAfterText string
 	if err := tx.QueryRowContext(ctx, `
 		UPDATE users
 		SET balance = GREATEST(balance + $1, 0), updated_at = NOW()
 		WHERE id = $2
-		RETURNING balance`, reward, userID).Scan(&balanceAfter); err != nil {
+		RETURNING balance::text`, reward.StringFixed(service.CheckinCalculationScale), userID).Scan(&balanceAfterText); err != nil {
 		return nil, false, err
 	}
 	var record service.CheckinRecord
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO checkin_records
-			(user_id, checkin_date, mode, reward_type, random_value, reward_amount, balance_before, balance_after, checked_in_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+			(user_id, checkin_date, mode, reward_type, random_value, reward_amount, balance_before, balance_after, calculation_scale, checked_in_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
 		RETURNING id, checkin_date, mode, reward_type, random_value, reward_amount, balance_before, balance_after, checked_in_at`,
-		userID, businessDate, mode, rewardType, randomValue, reward, balance, balanceAfter).Scan(
+		userID, businessDate, mode, rewardType,
+		randomValue.StringFixed(service.CheckinCalculationScale), reward.StringFixed(service.CheckinCalculationScale),
+		balanceText, balanceAfterText, service.CheckinCalculationScale).Scan(
 		&record.ID, &record.CheckinDate, &record.Mode, &record.RewardType, &record.RandomValue, &record.RewardAmount,
 		&record.BalanceBefore, &record.BalanceAfter, &record.CheckedInAt)
 	if err != nil {

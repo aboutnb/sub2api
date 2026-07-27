@@ -63,6 +63,7 @@ const config = {
   normal_min: '0.01',
   normal_max: '0.05',
   lucky_reward_type: 'multiplier' as const,
+  lucky_positive_probability: '70',
   lucky_min_multiplier: '-0.05',
   lucky_max_multiplier: '0.10',
   lucky_amount_min: '-0.05',
@@ -104,9 +105,9 @@ describe('CheckinView configuration errors', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    const decimalInputs = wrapper.findAll<HTMLInputElement>('input[type="number"]')
-    await decimalInputs[2].setValue('0.5')
-    await decimalInputs[3].setValue('2')
+    await wrapper.get('[data-testid="lucky-positive-probability"]').setValue('65')
+    await wrapper.get('[data-testid="lucky-min-multiplier"]').setValue('-0.5')
+    await wrapper.get('[data-testid="lucky-max-multiplier"]').setValue('2')
     await wrapper.get('textarea').setValue(' test change ')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -116,7 +117,8 @@ describe('CheckinView configuration errors', () => {
       lucky_enabled: true,
       normal_min: '0.01',
       normal_max: '0.05',
-      lucky_min_multiplier: '0.5',
+      lucky_positive_probability: '65',
+      lucky_min_multiplier: '-0.5',
       lucky_max_multiplier: '2',
       lucky_amount_min: '-0.05',
       lucky_amount_max: '0.10',
@@ -134,8 +136,9 @@ describe('CheckinView configuration errors', () => {
     const decimalInputs = wrapper.findAll<HTMLInputElement>('input[type="number"]')
     expect(decimalInputs[0].attributes('disabled')).toBeDefined()
     expect(decimalInputs[1].attributes('disabled')).toBeDefined()
-    expect(decimalInputs[2].attributes('disabled')).toBeUndefined()
-    expect(decimalInputs[3].attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('[data-testid="lucky-positive-probability"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('[data-testid="lucky-min-multiplier"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('[data-testid="lucky-max-multiplier"]').attributes('disabled')).toBeUndefined()
     wrapper.unmount()
   })
 

@@ -38,6 +38,7 @@ describe('LuckyCheckinConfirmDialog', () => {
     const wrapper = mountDialog('multiplier')
 
     expect(wrapper.get('[data-testid="lucky-multiplier-range"]').text()).toContain('-0.05x ~ +0.10x')
+    expect(wrapper.find('[data-testid="lucky-positive-probability"]').exists()).toBe(false)
     await wrapper.get('[data-testid="confirm-lucky-checkin"]').trigger('click')
     expect(wrapper.emitted('confirm')).toHaveLength(1)
   })
@@ -46,6 +47,7 @@ describe('LuckyCheckinConfirmDialog', () => {
     const wrapper = mountDialog('amount')
 
     expect(wrapper.find('[data-testid="lucky-multiplier-range"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="lucky-positive-probability"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('checkin.luckyAmountRisk')
   })
 })

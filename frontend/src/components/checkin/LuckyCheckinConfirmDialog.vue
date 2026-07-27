@@ -74,7 +74,7 @@ const { t } = useI18n()
 
 function formatMultiplier(value: number) {
   const amount = Number(value || 0)
-  const compact = Math.abs(amount).toFixed(8).replace(/0+$/, '').replace(/\.$/, '') || '0'
+  const compact = Math.abs(amount).toFixed(2).replace(/0+$/, '').replace(/\.$/, '') || '0'
   const [integer, decimal = ''] = compact.split('.')
   const formatted = `${integer}.${decimal.padEnd(2, '0')}`
   return `${amount > 0 ? '+' : amount < 0 ? '-' : ''}${formatted}x`

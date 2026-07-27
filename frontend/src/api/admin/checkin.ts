@@ -8,6 +8,7 @@ export interface AdminCheckinConfig {
   normal_min: string
   normal_max: string
   lucky_reward_type: 'multiplier' | 'amount'
+  lucky_positive_probability: string
   lucky_min_multiplier: string
   lucky_max_multiplier: string
   lucky_amount_min: string
@@ -27,6 +28,7 @@ export interface AdminCheckinConfigUpdate {
   normal_min: string
   normal_max: string
   lucky_reward_type: 'multiplier' | 'amount'
+  lucky_positive_probability: string
   lucky_min_multiplier: string
   lucky_max_multiplier: string
   lucky_amount_min: string

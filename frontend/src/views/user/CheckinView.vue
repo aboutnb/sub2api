@@ -367,15 +367,15 @@ const monthSummary = computed(() => {
 })
 
 function formatMoney(value: number) {
-  return `$${Number(value || 0).toFixed(4)}`
+  return `$${Number(value || 0).toFixed(2)}`
 }
 
 function signedMoney(value: number) {
   const amount = Number(value || 0)
-  return `${amount >= 0 ? '+' : '-'}$${Math.abs(amount).toFixed(4)}`
+  return `${amount >= 0 ? '+' : '-'}$${Math.abs(amount).toFixed(2)}`
 }
 
-function calendarMoney(value: number, precision = 4) {
+function calendarMoney(value: number, precision = 2) {
   const amount = Number(value || 0)
   if (Math.abs(amount) >= 10000) return compactSignedMoney(amount)
   const compact = Math.abs(amount).toFixed(precision).replace(/0+$/, '').replace(/\.$/, '') || '0'
@@ -407,7 +407,7 @@ function modeLabel(mode?: CheckinRecord['mode']) {
 function recordMultiplier(record?: CheckinRecord | null) {
   if (record?.mode !== 'lucky' || record.reward_type !== 'multiplier') return ''
   const value = Number(record.random_value || 0)
-  return `${value >= 0 ? '+' : ''}${value.toFixed(4)}x`
+  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}x`
 }
 
 function calendarCellTitle(cell: CalendarCell) {
