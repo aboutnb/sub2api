@@ -12,21 +12,8 @@
 flowai.cyou {
 	# This deployment is behind Cloudflare. The backend trusts the explicit
 	# Cloudflare headers configured in its proxy settings.
-	# =========================================================================
-	# 静态资源长期缓存（高优先级，放在最前面）
-	# 带 hash 的文件可以永久缓存，浏览器和 CDN 都会缓存
-	# =========================================================================
-	@static {
-		path /assets/*
-		path /logo.png
-		path /favicon.ico
-	}
-	header @static {
-		Cache-Control "public, max-age=31536000, immutable"
-		# 移除可能干扰缓存的头
-		-Pragma
-		-Expires
-	}
+	# Static asset cache headers are emitted by the backend so application
+	# deploys can update cache policy without changing the edge configuration.
 
 	# =========================================================================
 	# TLS 安全配置
@@ -82,7 +69,14 @@ flowai.cyou {
 		gzip 6
 		minimum_length 256
 		match {
-			header Content-Type text/*
+			# 不使用 text/*，否则 text/event-stream 会被压缩并缓冲到流结束
+			header Content-Type text/css*
+			header Content-Type text/csv*
+			header Content-Type text/html*
+			header Content-Type text/javascript*
+			header Content-Type text/markdown*
+			header Content-Type text/plain*
+			header Content-Type text/xml*
 			header Content-Type application/json*
 			header Content-Type application/javascript*
 			header Content-Type application/xml*

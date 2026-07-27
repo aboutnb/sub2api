@@ -33,6 +33,7 @@ func TestPaymentPublicRoutesRequirePublicAccessKeyWhenEnabled(t *testing.T) {
 		nil,
 		cfg,
 		servermiddleware.RequirePublicAccessPublishKey(cfg),
+		nil,
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/payment/public/orders/verify", strings.NewReader(`{}`))
