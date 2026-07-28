@@ -16,6 +16,11 @@ func TestUpdateCheckinConfigRequestAcceptsDecimalStringsAndNumbers(t *testing.T)
 		"normal_max":0.05,
 		"lucky_reward_type":"multiplier",
 		"lucky_positive_probability":70,
+		"lucky_multiplier_positive_tiers":[
+			{"min":"0.01","max":"0.10","weight":"70"},
+			{"min":"0.11","max":"0.20","weight":"30"}
+		],
+		"lucky_amount_positive_tiers":[{"min":"0.01","max":"0.10","weight":"100"}],
 		"lucky_min_multiplier":0.5,
 		"lucky_max_multiplier":2,
 		"lucky_amount_min":"-0.05",
@@ -32,6 +37,9 @@ func TestUpdateCheckinConfigRequestAcceptsDecimalStringsAndNumbers(t *testing.T)
 	require.Equal(t, "0.05", string(request.NormalMax))
 	require.Equal(t, "0.5", string(request.LuckyMinMultiply))
 	require.Equal(t, "70", string(request.LuckyPositiveProbability))
+	require.Len(t, request.LuckyMultiplierPositiveTiers, 2)
+	require.Equal(t, "70", request.LuckyMultiplierPositiveTiers[0].Weight)
+	require.Len(t, request.LuckyAmountPositiveTiers, 1)
 	require.Equal(t, "2", string(request.LuckyMaxMultiply))
 	require.Equal(t, "-0.05", string(request.LuckyAmountMin))
 	require.Equal(t, "0.10", string(request.LuckyAmountMax))

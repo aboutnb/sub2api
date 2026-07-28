@@ -92,12 +92,20 @@
                   <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">{{ t('checkin.success') }}</h3>
                   <p class="mt-1 text-sm text-emerald-700 dark:text-emerald-400">
                     {{ modeLabel(result.mode) }}
-                    <template v-if="recordMultiplier(result)"> · <span class="font-semibold">{{ recordMultiplier(result) }}</span></template>
                     · {{ formatDate(result.checked_in_at) }}
                   </p>
                 </div>
               </div>
-              <div class="flex items-end gap-8 sm:text-right">
+              <div class="grid w-full grid-cols-2 gap-x-6 gap-y-4 sm:flex sm:w-auto sm:items-end sm:gap-8 sm:text-right">
+                <div v-if="recordMultiplier(result)" data-testid="checkin-result-multiplier">
+                  <p class="text-xs text-emerald-700/70 dark:text-emerald-400/70">{{ t('checkin.resultMultiplier') }}</p>
+                  <p
+                    class="mt-1 text-xl font-bold"
+                    :class="result.random_value >= 0 ? 'text-cyan-700 dark:text-cyan-300' : 'text-rose-600 dark:text-rose-400'"
+                  >
+                    {{ recordMultiplier(result) }}
+                  </p>
+                </div>
                 <div>
                   <p class="text-xs text-emerald-700/70 dark:text-emerald-400/70">{{ t('checkin.change') }}</p>
                   <p class="mt-1 text-xl font-bold" :class="result.reward_amount >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400'">{{ signedMoney(result.reward_amount) }}</p>

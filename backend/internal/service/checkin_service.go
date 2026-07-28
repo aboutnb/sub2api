@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -20,22 +21,24 @@ import (
 )
 
 const (
-	SettingKeyCheckinEnabled                  = "checkin_enabled"
-	SettingKeyCheckinNormalEnabled            = "checkin_normal_enabled"
-	SettingKeyCheckinLuckyEnabled             = "checkin_lucky_enabled"
-	SettingKeyCheckinNormalMin                = "checkin_normal_min"
-	SettingKeyCheckinNormalMax                = "checkin_normal_max"
-	SettingKeyCheckinLuckyRewardType          = "checkin_lucky_reward_type"
-	SettingKeyCheckinLuckyPositiveProbability = "checkin_lucky_positive_probability"
-	SettingKeyCheckinLuckyMinMultiply         = "checkin_lucky_min_multiplier"
-	SettingKeyCheckinLuckyMaxMultiply         = "checkin_lucky_max_multiplier"
-	SettingKeyCheckinLuckyAmountMin           = "checkin_lucky_amount_min"
-	SettingKeyCheckinLuckyAmountMax           = "checkin_lucky_amount_max"
-	SettingKeyCheckinRiskEnabled              = "checkin_risk_control_enabled"
-	SettingKeyCheckinMinAccountAge            = "checkin_min_account_age_hours"
-	SettingKeyCheckinIPWindow                 = "checkin_ip_window_minutes"
-	SettingKeyCheckinIPMaxUsers               = "checkin_ip_max_users"
-	SettingKeyCheckinConfigVersion            = "checkin_config_version"
+	SettingKeyCheckinEnabled                      = "checkin_enabled"
+	SettingKeyCheckinNormalEnabled                = "checkin_normal_enabled"
+	SettingKeyCheckinLuckyEnabled                 = "checkin_lucky_enabled"
+	SettingKeyCheckinNormalMin                    = "checkin_normal_min"
+	SettingKeyCheckinNormalMax                    = "checkin_normal_max"
+	SettingKeyCheckinLuckyRewardType              = "checkin_lucky_reward_type"
+	SettingKeyCheckinLuckyPositiveProbability     = "checkin_lucky_positive_probability"
+	SettingKeyCheckinLuckyMultiplierPositiveTiers = "checkin_lucky_multiplier_positive_tiers"
+	SettingKeyCheckinLuckyAmountPositiveTiers     = "checkin_lucky_amount_positive_tiers"
+	SettingKeyCheckinLuckyMinMultiply             = "checkin_lucky_min_multiplier"
+	SettingKeyCheckinLuckyMaxMultiply             = "checkin_lucky_max_multiplier"
+	SettingKeyCheckinLuckyAmountMin               = "checkin_lucky_amount_min"
+	SettingKeyCheckinLuckyAmountMax               = "checkin_lucky_amount_max"
+	SettingKeyCheckinRiskEnabled                  = "checkin_risk_control_enabled"
+	SettingKeyCheckinMinAccountAge                = "checkin_min_account_age_hours"
+	SettingKeyCheckinIPWindow                     = "checkin_ip_window_minutes"
+	SettingKeyCheckinIPMaxUsers                   = "checkin_ip_max_users"
+	SettingKeyCheckinConfigVersion                = "checkin_config_version"
 
 	// These hard safety ceilings are intentionally separate from the editable
 	// business-risk settings so disabling campaign risk controls cannot disable
@@ -47,6 +50,7 @@ const (
 	CheckinRewardTypeAmount     = "amount"
 	CheckinRewardTypeMultiplier = "multiplier"
 	CheckinCalculationScale     = 2
+	MaxCheckinPositiveTiers     = 10
 )
 
 var (
@@ -104,63 +108,81 @@ type CheckinRepository interface {
 }
 
 type CheckinConfig struct {
-	Enabled                  bool
-	NormalEnabled            bool
-	LuckyEnabled             bool
-	NormalMin                float64
-	NormalMax                float64
-	LuckyRewardType          string
-	LuckyPositiveProbability float64
-	LuckyMinMultiply         float64
-	LuckyMaxMultiply         float64
-	LuckyAmountMin           float64
-	LuckyAmountMax           float64
-	RiskEnabled              bool
-	MinAccountAge            time.Duration
-	IPWindow                 time.Duration
-	IPMaxUsers               int
+	Enabled                      bool
+	NormalEnabled                bool
+	LuckyEnabled                 bool
+	NormalMin                    float64
+	NormalMax                    float64
+	LuckyRewardType              string
+	LuckyPositiveProbability     float64
+	LuckyMultiplierPositiveTiers []CheckinPositiveTier
+	LuckyAmountPositiveTiers     []CheckinPositiveTier
+	LuckyMinMultiply             float64
+	LuckyMaxMultiply             float64
+	LuckyAmountMin               float64
+	LuckyAmountMax               float64
+	RiskEnabled                  bool
+	MinAccountAge                time.Duration
+	IPWindow                     time.Duration
+	IPMaxUsers                   int
+}
+
+type CheckinPositiveTier struct {
+	MinStep     int64
+	MaxStep     int64
+	WeightUnits int64
+}
+
+type AdminCheckinPositiveTier struct {
+	Min    string `json:"min"`
+	Max    string `json:"max"`
+	Weight string `json:"weight"`
 }
 
 // AdminCheckinConfig is the editable configuration exposed on the admin page.
 // Monetary values remain strings at this boundary so the UI does not round them.
 type AdminCheckinConfig struct {
-	Enabled                  bool      `json:"enabled"`
-	NormalEnabled            bool      `json:"normal_enabled"`
-	LuckyEnabled             bool      `json:"lucky_enabled"`
-	NormalMin                string    `json:"normal_min"`
-	NormalMax                string    `json:"normal_max"`
-	LuckyRewardType          string    `json:"lucky_reward_type"`
-	LuckyPositiveProbability string    `json:"lucky_positive_probability"`
-	LuckyMinMultiply         string    `json:"lucky_min_multiplier"`
-	LuckyMaxMultiply         string    `json:"lucky_max_multiplier"`
-	LuckyAmountMin           string    `json:"lucky_amount_min"`
-	LuckyAmountMax           string    `json:"lucky_amount_max"`
-	RiskEnabled              bool      `json:"risk_control_enabled"`
-	MinAccountAgeHours       int       `json:"min_account_age_hours"`
-	IPWindowMinutes          int       `json:"ip_window_minutes"`
-	IPMaxUsers               int       `json:"ip_max_users"`
-	ConfigVersion            int64     `json:"config_version"`
-	UpdatedAt                time.Time `json:"updated_at"`
+	Enabled                      bool                       `json:"enabled"`
+	NormalEnabled                bool                       `json:"normal_enabled"`
+	LuckyEnabled                 bool                       `json:"lucky_enabled"`
+	NormalMin                    string                     `json:"normal_min"`
+	NormalMax                    string                     `json:"normal_max"`
+	LuckyRewardType              string                     `json:"lucky_reward_type"`
+	LuckyPositiveProbability     string                     `json:"lucky_positive_probability"`
+	LuckyMultiplierPositiveTiers []AdminCheckinPositiveTier `json:"lucky_multiplier_positive_tiers"`
+	LuckyAmountPositiveTiers     []AdminCheckinPositiveTier `json:"lucky_amount_positive_tiers"`
+	LuckyMinMultiply             string                     `json:"lucky_min_multiplier"`
+	LuckyMaxMultiply             string                     `json:"lucky_max_multiplier"`
+	LuckyAmountMin               string                     `json:"lucky_amount_min"`
+	LuckyAmountMax               string                     `json:"lucky_amount_max"`
+	RiskEnabled                  bool                       `json:"risk_control_enabled"`
+	MinAccountAgeHours           int                        `json:"min_account_age_hours"`
+	IPWindowMinutes              int                        `json:"ip_window_minutes"`
+	IPMaxUsers                   int                        `json:"ip_max_users"`
+	ConfigVersion                int64                      `json:"config_version"`
+	UpdatedAt                    time.Time                  `json:"updated_at"`
 }
 
 type AdminCheckinConfigUpdate struct {
-	Enabled                  bool
-	NormalEnabled            bool
-	LuckyEnabled             bool
-	NormalMin                string
-	NormalMax                string
-	LuckyRewardType          string
-	LuckyPositiveProbability string
-	LuckyMinMultiply         string
-	LuckyMaxMultiply         string
-	LuckyAmountMin           string
-	LuckyAmountMax           string
-	RiskEnabled              bool
-	MinAccountAgeHours       int
-	IPWindowMinutes          int
-	IPMaxUsers               int
-	ExpectedVersion          int64
-	ChangeReason             string
+	Enabled                      bool
+	NormalEnabled                bool
+	LuckyEnabled                 bool
+	NormalMin                    string
+	NormalMax                    string
+	LuckyRewardType              string
+	LuckyPositiveProbability     string
+	LuckyMultiplierPositiveTiers []AdminCheckinPositiveTier
+	LuckyAmountPositiveTiers     []AdminCheckinPositiveTier
+	LuckyMinMultiply             string
+	LuckyMaxMultiply             string
+	LuckyAmountMin               string
+	LuckyAmountMax               string
+	RiskEnabled                  bool
+	MinAccountAgeHours           int
+	IPWindowMinutes              int
+	IPMaxUsers                   int
+	ExpectedVersion              int64
+	ChangeReason                 string
 }
 
 type AdminCheckinRecord struct {
@@ -358,7 +380,7 @@ func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source
 			return reward, reward, CheckinRewardTypeAmount, nil
 		}
 		if checkinConfig.LuckyRewardType == CheckinRewardTypeAmount {
-			value, randomErr := secureRandomSignedBetween(checkinConfig.LuckyAmountMin, checkinConfig.LuckyAmountMax, checkinConfig.LuckyPositiveProbability)
+			value, randomErr := secureRandomTieredSignedBetween(checkinConfig.LuckyAmountMin, checkinConfig.LuckyAmountPositiveTiers, checkinConfig.LuckyPositiveProbability)
 			if randomErr != nil {
 				return decimal.Zero, decimal.Zero, "", ErrCheckinEntropyUnavailable.WithCause(randomErr)
 			}
@@ -367,7 +389,7 @@ func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source
 			reward := clampCheckinReward(balance, randomValue)
 			return reward, randomValue, CheckinRewardTypeAmount, nil
 		}
-		multiplier, randomErr := secureRandomSignedBetween(checkinConfig.LuckyMinMultiply, checkinConfig.LuckyMaxMultiply, checkinConfig.LuckyPositiveProbability)
+		multiplier, randomErr := secureRandomTieredSignedBetween(checkinConfig.LuckyMinMultiply, checkinConfig.LuckyMultiplierPositiveTiers, checkinConfig.LuckyPositiveProbability)
 		if randomErr != nil {
 			return decimal.Zero, decimal.Zero, "", ErrCheckinEntropyUnavailable.WithCause(randomErr)
 		}
@@ -413,6 +435,8 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 		SettingKeyCheckinNormalMax,
 		SettingKeyCheckinLuckyRewardType,
 		SettingKeyCheckinLuckyPositiveProbability,
+		SettingKeyCheckinLuckyMultiplierPositiveTiers,
+		SettingKeyCheckinLuckyAmountPositiveTiers,
 		SettingKeyCheckinLuckyMinMultiply,
 		SettingKeyCheckinLuckyMaxMultiply,
 		SettingKeyCheckinLuckyAmountMin,
@@ -447,29 +471,33 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 	minAccountAgeHours, err8 := parseCheckinInt(values[SettingKeyCheckinMinAccountAge])
 	ipWindowMinutes, err9 := parseCheckinInt(values[SettingKeyCheckinIPWindow])
 	ipMaxUsers, err10 := parseCheckinInt(values[SettingKeyCheckinIPMaxUsers])
+	multiplierPositiveTiers, _, err11 := parseStoredCheckinPositiveTiers(values[SettingKeyCheckinLuckyMultiplierPositiveTiers], luckyMax)
+	amountPositiveTiers, _, err12 := parseStoredCheckinPositiveTiers(values[SettingKeyCheckinLuckyAmountPositiveTiers], luckyAmountMax)
 	if enabledErr != nil || normalEnabledErr != nil || luckyEnabledErr != nil || riskEnabledErr != nil || err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || err9 != nil ||
-		err10 != nil || normalMin < 0 || normalMax < normalMin || normalMax > 100 || !validCheckinLuckyRewardType(luckyRewardType) ||
+		err10 != nil || err11 != nil || err12 != nil || normalMin < 0 || normalMax < normalMin || normalMax > 100 || !validCheckinLuckyRewardType(luckyRewardType) ||
 		luckyPositive < 0 || luckyPositive > 100 || luckyMin < -1 || luckyMin >= 0 || luckyMax <= 0 || luckyMax > 10 ||
 		luckyAmountMin < -100 || luckyAmountMin >= 0 || luckyAmountMax <= 0 || luckyAmountMax > 100 ||
 		minAccountAgeHours < 0 || minAccountAgeHours > 720 || ipWindowMinutes < 1 || ipWindowMinutes > 1440 || ipMaxUsers < 1 || ipMaxUsers > 10000 {
 		return CheckinConfig{}, ErrCheckinConfigInvalid
 	}
 	return CheckinConfig{
-		Enabled:                  enabled,
-		NormalEnabled:            normalEnabled,
-		LuckyEnabled:             luckyEnabled,
-		NormalMin:                normalMin,
-		NormalMax:                normalMax,
-		LuckyRewardType:          luckyRewardType,
-		LuckyPositiveProbability: luckyPositive,
-		LuckyMinMultiply:         luckyMin,
-		LuckyMaxMultiply:         luckyMax,
-		LuckyAmountMin:           luckyAmountMin,
-		LuckyAmountMax:           luckyAmountMax,
-		RiskEnabled:              riskEnabled,
-		MinAccountAge:            time.Duration(minAccountAgeHours) * time.Hour,
-		IPWindow:                 time.Duration(ipWindowMinutes) * time.Minute,
-		IPMaxUsers:               ipMaxUsers,
+		Enabled:                      enabled,
+		NormalEnabled:                normalEnabled,
+		LuckyEnabled:                 luckyEnabled,
+		NormalMin:                    normalMin,
+		NormalMax:                    normalMax,
+		LuckyRewardType:              luckyRewardType,
+		LuckyPositiveProbability:     luckyPositive,
+		LuckyMultiplierPositiveTiers: multiplierPositiveTiers,
+		LuckyAmountPositiveTiers:     amountPositiveTiers,
+		LuckyMinMultiply:             luckyMin,
+		LuckyMaxMultiply:             luckyMax,
+		LuckyAmountMin:               luckyAmountMin,
+		LuckyAmountMax:               luckyAmountMax,
+		RiskEnabled:                  riskEnabled,
+		MinAccountAge:                time.Duration(minAccountAgeHours) * time.Hour,
+		IPWindow:                     time.Duration(ipWindowMinutes) * time.Minute,
+		IPMaxUsers:                   ipMaxUsers,
 	}, nil
 }
 
@@ -501,6 +529,61 @@ func parseCheckinDecimal(raw string) (float64, error) {
 	return parsed, nil
 }
 
+func parseStoredCheckinPositiveTiers(raw string, positiveMax float64) ([]CheckinPositiveTier, []AdminCheckinPositiveTier, error) {
+	var tiers []AdminCheckinPositiveTier
+	value := strings.TrimSpace(raw)
+	if value != "" && value != "[]" {
+		if err := json.Unmarshal([]byte(value), &tiers); err != nil {
+			return nil, nil, err
+		}
+	}
+	return normalizeCheckinPositiveTiers(tiers, positiveMax)
+}
+
+func normalizeCheckinPositiveTiers(input []AdminCheckinPositiveTier, positiveMax float64) ([]CheckinPositiveTier, []AdminCheckinPositiveTier, error) {
+	maxStep := int64(math.Round(positiveMax * 100))
+	if maxStep < 1 || len(input) > MaxCheckinPositiveTiers {
+		return nil, nil, errors.New("invalid positive check-in tier range")
+	}
+	if len(input) == 0 {
+		input = []AdminCheckinPositiveTier{{Min: "0.01", Max: formatCheckinStep(maxStep), Weight: "100"}}
+	}
+
+	tiers := make([]CheckinPositiveTier, 0, len(input))
+	normalized := make([]AdminCheckinPositiveTier, 0, len(input))
+	var previousMax int64
+	for index, item := range input {
+		minValue, minErr := parseCheckinDecimal(item.Min)
+		maxValue, maxErr := parseCheckinDecimal(item.Max)
+		weightValue, weightErr := parseCheckinDecimal(item.Weight)
+		minStep := int64(math.Round(minValue * 100))
+		itemMaxStep := int64(math.Round(maxValue * 100))
+		weightUnits := int64(math.Round(weightValue * 100))
+		expectedMin := int64(1)
+		if index > 0 {
+			expectedMin = previousMax + 1
+		}
+		if minErr != nil || maxErr != nil || weightErr != nil || minStep != expectedMin || itemMaxStep < minStep || itemMaxStep > maxStep || weightUnits < 1 || weightValue > 10000 {
+			return nil, nil, errors.New("invalid positive check-in tier")
+		}
+		tiers = append(tiers, CheckinPositiveTier{MinStep: minStep, MaxStep: itemMaxStep, WeightUnits: weightUnits})
+		normalized = append(normalized, AdminCheckinPositiveTier{Min: formatCheckinStep(minStep), Max: formatCheckinStep(itemMaxStep), Weight: formatCheckinWeight(weightUnits)})
+		previousMax = itemMaxStep
+	}
+	if previousMax != maxStep {
+		return nil, nil, errors.New("positive check-in tiers must cover the configured range")
+	}
+	return tiers, normalized, nil
+}
+
+func formatCheckinStep(step int64) string {
+	return fmt.Sprintf("%.2f", float64(step)/100)
+}
+
+func formatCheckinWeight(units int64) string {
+	return strconv.FormatFloat(float64(units)/100, 'f', -1, 64)
+}
+
 func buildCheckinStatus(now time.Time, date string) *CheckinStatus {
 	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	next := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location())
@@ -522,34 +605,72 @@ func secureRandomBetween(min, max float64) (float64, error) {
 	return min + (max-min)*float64(n.Int64())/100000000, nil
 }
 
-func secureRandomSignedBetween(min, max, positiveProbability float64) (float64, error) {
+func secureRandomTieredSignedBetween(min float64, positiveTiers []CheckinPositiveTier, positiveProbability float64) (float64, error) {
+	positive, err := secureRandomPositiveDirection(positiveProbability)
+	if err != nil {
+		return 0, err
+	}
+	if positive {
+		return secureRandomPositiveTierStep(positiveTiers)
+	}
+	value, randomErr := secureRandomHundredthStep(math.Abs(min))
+	return -value, randomErr
+}
+
+func secureRandomPositiveDirection(positiveProbability float64) (bool, error) {
 	const probabilityScale int64 = 100000000
 	threshold := int64(math.Round(positiveProbability * float64(probabilityScale)))
 	n, err := checkinRandInt(rand.Reader, big.NewInt(100*probabilityScale))
 	if err != nil {
+		return false, fmt.Errorf("read cryptographic randomness: %w", err)
+	}
+	return n.Int64() < threshold, nil
+}
+
+func secureRandomPositiveTierStep(tiers []CheckinPositiveTier) (float64, error) {
+	var totalWeight int64
+	for _, tier := range tiers {
+		if tier.MinStep < 1 || tier.MaxStep < tier.MinStep || tier.WeightUnits < 1 {
+			return 0, fmt.Errorf("invalid positive check-in tier")
+		}
+		totalWeight += tier.WeightUnits
+	}
+	if totalWeight < 1 {
+		return 0, fmt.Errorf("positive check-in tiers are empty")
+	}
+
+	pick, err := checkinRandInt(rand.Reader, big.NewInt(totalWeight))
+	if err != nil {
 		return 0, fmt.Errorf("read cryptographic randomness: %w", err)
 	}
-	positive := n.Int64() < threshold
-	if positive {
-		value, randomErr := secureRandomBetween(0, max)
-		if randomErr != nil {
-			return 0, randomErr
+	selected := tiers[len(tiers)-1]
+	remaining := pick.Int64()
+	for _, tier := range tiers {
+		if remaining < tier.WeightUnits {
+			selected = tier
+			break
 		}
-		value = roundCheckinValue(value)
-		if value <= 0 {
-			return 0.01, nil
-		}
-		return value, nil
+		remaining -= tier.WeightUnits
 	}
-	value, randomErr := secureRandomBetween(min, 0)
-	if randomErr != nil {
-		return 0, randomErr
+
+	stepCount := selected.MaxStep - selected.MinStep + 1
+	step, err := checkinRandInt(rand.Reader, big.NewInt(stepCount))
+	if err != nil {
+		return 0, fmt.Errorf("read cryptographic randomness: %w", err)
 	}
-	value = roundCheckinValue(value)
-	if value >= 0 {
-		return -0.01, nil
+	return float64(selected.MinStep+step.Int64()) / 100, nil
+}
+
+func secureRandomHundredthStep(maxMagnitude float64) (float64, error) {
+	steps := int64(math.Round(maxMagnitude * 100))
+	if steps < 1 {
+		return 0, fmt.Errorf("check-in range must contain a non-zero hundredth step")
 	}
-	return value, nil
+	n, err := checkinRandInt(rand.Reader, big.NewInt(steps))
+	if err != nil {
+		return 0, fmt.Errorf("read cryptographic randomness: %w", err)
+	}
+	return float64(n.Int64()+1) / 100, nil
 }
 
 func clampCheckinReward(balance, reward decimal.Decimal) decimal.Decimal {

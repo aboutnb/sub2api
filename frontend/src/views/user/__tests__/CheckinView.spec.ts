@@ -200,22 +200,41 @@ describe('user CheckinView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('checkin.success')
-    expect(wrapper.text()).toContain('-0.05x')
+    const multiplier = wrapper.get('[data-testid="checkin-result-multiplier"]')
+    expect(multiplier.text()).toContain('checkin.resultMultiplier')
+    expect(multiplier.text()).toContain('-0.05x')
   })
 
   it('does not label fixed lucky rewards as multipliers', async () => {
     const fixedLuckyRecord: CheckinRecord = {
       ...negativeRecord,
-      reward_type: 'fixed',
+      reward_type: 'amount',
       random_value: 0.08,
       reward_amount: 0.08,
     }
+    getStatus.mockResolvedValue({ ...status, lucky_reward_type: 'amount' })
     getRecords.mockResolvedValue({ items: [fixedLuckyRecord], total: 1, page: 1, page_size: 100, pages: 1 })
+    checkIn.mockResolvedValue({ newly_checked_in: true, record: fixedLuckyRecord })
     const wrapper = mountView()
     await flushPromises()
 
     expect(wrapper.get('[data-testid="calendar-day-26"]').text()).not.toContain('x')
     expect(wrapper.find('[data-testid="history-multiplier-1"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="checkin-mode-lucky"]').trigger('click')
+    await flushPromises()
+    getStatus.mockResolvedValue({
+      ...status,
+      lucky_reward_type: 'amount',
+      can_check_in: false,
+      checked_in_today: true,
+      today_record: fixedLuckyRecord,
+    })
+    wrapper.getComponent(LuckyCheckinConfirmDialog).vm.$emit('confirm')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('checkin.success')
+    expect(wrapper.find('[data-testid="checkin-result-multiplier"]').exists()).toBe(false)
   })
 
   it('renders only the enabled mode and uses a single-column action layout', async () => {

@@ -63,9 +63,15 @@ const config = {
   normal_min: '0.01',
   normal_max: '0.05',
   lucky_reward_type: 'multiplier' as const,
-  lucky_positive_probability: '70',
-  lucky_min_multiplier: '-0.05',
-  lucky_max_multiplier: '0.10',
+  lucky_positive_probability: '65',
+  lucky_multiplier_positive_tiers: [
+    { min: '0.01', max: '0.10', weight: '70' },
+    { min: '0.11', max: '0.15', weight: '20' },
+    { min: '0.16', max: '0.20', weight: '10' },
+  ],
+  lucky_amount_positive_tiers: [{ min: '0.01', max: '0.10', weight: '100' }],
+  lucky_min_multiplier: '-0.08',
+  lucky_max_multiplier: '0.20',
   lucky_amount_min: '-0.05',
   lucky_amount_max: '0.10',
   risk_control_enabled: true,
@@ -108,6 +114,7 @@ describe('CheckinView configuration errors', () => {
     await wrapper.get('[data-testid="lucky-positive-probability"]').setValue('65')
     await wrapper.get('[data-testid="lucky-min-multiplier"]').setValue('-0.5')
     await wrapper.get('[data-testid="lucky-max-multiplier"]').setValue('2')
+    await wrapper.get('[data-testid="positive-tier-2"]').findAll('input')[1].setValue('2')
     await wrapper.get('textarea').setValue(' test change ')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -118,6 +125,12 @@ describe('CheckinView configuration errors', () => {
       normal_min: '0.01',
       normal_max: '0.05',
       lucky_positive_probability: '65',
+      lucky_multiplier_positive_tiers: [
+        { min: '0.01', max: '0.10', weight: '70' },
+        { min: '0.11', max: '0.15', weight: '20' },
+        { min: '0.16', max: '2', weight: '10' },
+      ],
+      lucky_amount_positive_tiers: [{ min: '0.01', max: '0.10', weight: '100' }],
       lucky_min_multiplier: '-0.5',
       lucky_max_multiplier: '2',
       lucky_amount_min: '-0.05',
@@ -125,6 +138,17 @@ describe('CheckinView configuration errors', () => {
       change_reason: 'test change',
       expected_config_version: 1,
     }))
+    wrapper.unmount()
+  })
+
+  it('calculates effective tier probabilities from the positive total', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="positive-tier-probability-0"]').text()).toBe('45.5%')
+    expect(wrapper.get('[data-testid="positive-tier-probability-1"]').text()).toBe('13%')
+    expect(wrapper.get('[data-testid="positive-tier-probability-2"]').text()).toBe('6.5%')
+    expect(wrapper.get('[data-testid="positive-tier-total"]').text()).toBe('65%')
     wrapper.unmount()
   })
 

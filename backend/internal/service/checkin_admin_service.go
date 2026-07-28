@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
@@ -37,6 +38,8 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 		SettingKeyCheckinNormalMax,
 		SettingKeyCheckinLuckyRewardType,
 		SettingKeyCheckinLuckyPositiveProbability,
+		SettingKeyCheckinLuckyMultiplierPositiveTiers,
+		SettingKeyCheckinLuckyAmountPositiveTiers,
 		SettingKeyCheckinLuckyMinMultiply,
 		SettingKeyCheckinLuckyMaxMultiply,
 		SettingKeyCheckinLuckyAmountMin,
@@ -78,24 +81,33 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 		) != nil {
 		return nil, ErrCheckinConfigInvalid
 	}
+	luckyMax, _ := parseCheckinDecimal(values[SettingKeyCheckinLuckyMaxMultiply])
+	luckyAmountMax, _ := parseCheckinDecimal(values[SettingKeyCheckinLuckyAmountMax])
+	_, multiplierPositiveTiers, multiplierTiersErr := parseStoredCheckinPositiveTiers(values[SettingKeyCheckinLuckyMultiplierPositiveTiers], luckyMax)
+	_, amountPositiveTiers, amountTiersErr := parseStoredCheckinPositiveTiers(values[SettingKeyCheckinLuckyAmountPositiveTiers], luckyAmountMax)
+	if multiplierTiersErr != nil || amountTiersErr != nil {
+		return nil, ErrCheckinConfigInvalid
+	}
 	return &AdminCheckinConfig{
-		Enabled:                  enabled,
-		NormalEnabled:            normalEnabled,
-		LuckyEnabled:             luckyEnabled,
-		NormalMin:                values[SettingKeyCheckinNormalMin],
-		NormalMax:                values[SettingKeyCheckinNormalMax],
-		LuckyRewardType:          values[SettingKeyCheckinLuckyRewardType],
-		LuckyPositiveProbability: values[SettingKeyCheckinLuckyPositiveProbability],
-		LuckyMinMultiply:         values[SettingKeyCheckinLuckyMinMultiply],
-		LuckyMaxMultiply:         values[SettingKeyCheckinLuckyMaxMultiply],
-		LuckyAmountMin:           values[SettingKeyCheckinLuckyAmountMin],
-		LuckyAmountMax:           values[SettingKeyCheckinLuckyAmountMax],
-		RiskEnabled:              riskEnabled,
-		MinAccountAgeHours:       minAccountAgeHours,
-		IPWindowMinutes:          ipWindowMinutes,
-		IPMaxUsers:               ipMaxUsers,
-		ConfigVersion:            version,
-		UpdatedAt:                updatedAt,
+		Enabled:                      enabled,
+		NormalEnabled:                normalEnabled,
+		LuckyEnabled:                 luckyEnabled,
+		NormalMin:                    values[SettingKeyCheckinNormalMin],
+		NormalMax:                    values[SettingKeyCheckinNormalMax],
+		LuckyRewardType:              values[SettingKeyCheckinLuckyRewardType],
+		LuckyPositiveProbability:     values[SettingKeyCheckinLuckyPositiveProbability],
+		LuckyMultiplierPositiveTiers: multiplierPositiveTiers,
+		LuckyAmountPositiveTiers:     amountPositiveTiers,
+		LuckyMinMultiply:             values[SettingKeyCheckinLuckyMinMultiply],
+		LuckyMaxMultiply:             values[SettingKeyCheckinLuckyMaxMultiply],
+		LuckyAmountMin:               values[SettingKeyCheckinLuckyAmountMin],
+		LuckyAmountMax:               values[SettingKeyCheckinLuckyAmountMax],
+		RiskEnabled:                  riskEnabled,
+		MinAccountAgeHours:           minAccountAgeHours,
+		IPWindowMinutes:              ipWindowMinutes,
+		IPMaxUsers:                   ipMaxUsers,
+		ConfigVersion:                version,
+		UpdatedAt:                    updatedAt,
 	}, nil
 }
 
@@ -124,6 +136,21 @@ func (s *AdminCheckinService) UpdateConfig(ctx context.Context, input AdminCheck
 	); err != nil {
 		return nil, err
 	}
+	luckyMax, _ := parseCheckinDecimal(input.LuckyMaxMultiply)
+	luckyAmountMax, _ := parseCheckinDecimal(input.LuckyAmountMax)
+	_, multiplierPositiveTiers, multiplierTiersErr := normalizeCheckinPositiveTiers(input.LuckyMultiplierPositiveTiers, luckyMax)
+	_, amountPositiveTiers, amountTiersErr := normalizeCheckinPositiveTiers(input.LuckyAmountPositiveTiers, luckyAmountMax)
+	if multiplierTiersErr != nil || amountTiersErr != nil {
+		return nil, ErrCheckinConfigInput
+	}
+	multiplierPositiveTiersJSON, err := json.Marshal(multiplierPositiveTiers)
+	if err != nil {
+		return nil, ErrCheckinConfigInput
+	}
+	amountPositiveTiersJSON, err := json.Marshal(amountPositiveTiers)
+	if err != nil {
+		return nil, ErrCheckinConfigInput
+	}
 	current, err := s.Config(ctx)
 	if err != nil {
 		return nil, err
@@ -132,21 +159,23 @@ func (s *AdminCheckinService) UpdateConfig(ctx context.Context, input AdminCheck
 		return nil, ErrCheckinConfigVersion
 	}
 	updated, err := s.repo.UpdateConfigIfVersion(ctx, current.ConfigVersion, map[string]string{
-		SettingKeyCheckinEnabled:                  strconv.FormatBool(input.Enabled),
-		SettingKeyCheckinNormalEnabled:            strconv.FormatBool(input.NormalEnabled),
-		SettingKeyCheckinLuckyEnabled:             strconv.FormatBool(input.LuckyEnabled),
-		SettingKeyCheckinNormalMin:                strings.TrimSpace(input.NormalMin),
-		SettingKeyCheckinNormalMax:                strings.TrimSpace(input.NormalMax),
-		SettingKeyCheckinLuckyRewardType:          strings.TrimSpace(input.LuckyRewardType),
-		SettingKeyCheckinLuckyPositiveProbability: strings.TrimSpace(input.LuckyPositiveProbability),
-		SettingKeyCheckinLuckyMinMultiply:         strings.TrimSpace(input.LuckyMinMultiply),
-		SettingKeyCheckinLuckyMaxMultiply:         strings.TrimSpace(input.LuckyMaxMultiply),
-		SettingKeyCheckinLuckyAmountMin:           strings.TrimSpace(input.LuckyAmountMin),
-		SettingKeyCheckinLuckyAmountMax:           strings.TrimSpace(input.LuckyAmountMax),
-		SettingKeyCheckinRiskEnabled:              strconv.FormatBool(input.RiskEnabled),
-		SettingKeyCheckinMinAccountAge:            strconv.Itoa(input.MinAccountAgeHours),
-		SettingKeyCheckinIPWindow:                 strconv.Itoa(input.IPWindowMinutes),
-		SettingKeyCheckinIPMaxUsers:               strconv.Itoa(input.IPMaxUsers),
+		SettingKeyCheckinEnabled:                      strconv.FormatBool(input.Enabled),
+		SettingKeyCheckinNormalEnabled:                strconv.FormatBool(input.NormalEnabled),
+		SettingKeyCheckinLuckyEnabled:                 strconv.FormatBool(input.LuckyEnabled),
+		SettingKeyCheckinNormalMin:                    strings.TrimSpace(input.NormalMin),
+		SettingKeyCheckinNormalMax:                    strings.TrimSpace(input.NormalMax),
+		SettingKeyCheckinLuckyRewardType:              strings.TrimSpace(input.LuckyRewardType),
+		SettingKeyCheckinLuckyPositiveProbability:     strings.TrimSpace(input.LuckyPositiveProbability),
+		SettingKeyCheckinLuckyMultiplierPositiveTiers: string(multiplierPositiveTiersJSON),
+		SettingKeyCheckinLuckyAmountPositiveTiers:     string(amountPositiveTiersJSON),
+		SettingKeyCheckinLuckyMinMultiply:             strings.TrimSpace(input.LuckyMinMultiply),
+		SettingKeyCheckinLuckyMaxMultiply:             strings.TrimSpace(input.LuckyMaxMultiply),
+		SettingKeyCheckinLuckyAmountMin:               strings.TrimSpace(input.LuckyAmountMin),
+		SettingKeyCheckinLuckyAmountMax:               strings.TrimSpace(input.LuckyAmountMax),
+		SettingKeyCheckinRiskEnabled:                  strconv.FormatBool(input.RiskEnabled),
+		SettingKeyCheckinMinAccountAge:                strconv.Itoa(input.MinAccountAgeHours),
+		SettingKeyCheckinIPWindow:                     strconv.Itoa(input.IPWindowMinutes),
+		SettingKeyCheckinIPMaxUsers:                   strconv.Itoa(input.IPMaxUsers),
 	})
 	if err != nil {
 		return nil, err

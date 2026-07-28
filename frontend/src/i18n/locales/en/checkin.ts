@@ -24,6 +24,7 @@ export default {
     failedDescription: 'Check-in failed. Please try again later.',
     change: 'Balance change',
     mode: 'Mode',
+    resultMultiplier: 'Check-in multiplier',
     balanceAfter: 'Balance after',
     multiplierResult: 'Multiplier {value}',
     calendarTitle: 'Check-in calendar',

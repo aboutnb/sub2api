@@ -90,6 +90,35 @@
                   <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyAmountMin') }}<input v-model="form.lucky_amount_min" data-testid="lucky-amount-min" class="input mt-2" type="number" min="-100" max="-0.01" step="0.01" :disabled="!form.lucky_enabled" /></label>
                   <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyAmountMax') }}<input v-model="form.lucky_amount_max" data-testid="lucky-amount-max" class="input mt-2" type="number" min="0.01" max="100" step="0.01" :disabled="!form.lucky_enabled" /></label>
                 </div>
+                <div data-testid="positive-tier-editor" class="mt-5 border-t border-gray-100 pt-4 dark:border-dark-700">
+                  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h4 class="text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.checkin.positiveTiers') }}</h4>
+                      <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t('admin.checkin.positiveTiersHint') }}</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm shrink-0" :disabled="!form.lucky_enabled || !canSplitPositiveTier || activePositiveTiers.length >= 10" @click="addPositiveTier">
+                      <Icon name="plus" size="sm" class="mr-1.5" />{{ t('admin.checkin.addTier') }}
+                    </button>
+                  </div>
+                  <div class="mt-3 space-y-2">
+                    <div v-for="(tier, index) in activePositiveTiers" :key="index" class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2rem] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,.9fr)_5.25rem_2rem]" :data-testid="`positive-tier-${index}`">
+                      <label class="col-start-1 row-start-1 min-w-0 text-xs text-gray-500 dark:text-dark-400 sm:col-auto sm:row-auto">{{ t('admin.checkin.tierMin') }}<input v-model="tier.min" class="input mt-1 h-9 px-2 text-sm" type="number" min="0.01" :max="activePositiveMax" step="0.01" :disabled="!form.lucky_enabled" /></label>
+                      <label class="col-start-2 row-start-1 min-w-0 text-xs text-gray-500 dark:text-dark-400 sm:col-auto sm:row-auto">{{ t('admin.checkin.tierMax') }}<input v-model="tier.max" class="input mt-1 h-9 px-2 text-sm" type="number" min="0.01" :max="activePositiveMax" step="0.01" :disabled="!form.lucky_enabled" /></label>
+                      <label class="col-start-1 row-start-2 min-w-0 text-xs text-gray-500 dark:text-dark-400 sm:col-auto sm:row-auto">{{ t('admin.checkin.tierWeight') }}<input v-model="tier.weight" class="input mt-1 h-9 px-2 text-sm" type="number" min="0.01" max="10000" step="0.01" :disabled="!form.lucky_enabled" /></label>
+                      <div class="col-start-2 row-start-2 pb-2 text-right sm:col-auto sm:row-auto" :title="t('admin.checkin.effectiveProbability')">
+                        <p class="text-[10px] text-gray-400">{{ t('admin.checkin.effective') }}</p>
+                        <p class="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400" :data-testid="`positive-tier-probability-${index}`">{{ effectiveTierProbability(tier) }}%</p>
+                      </div>
+                      <button type="button" class="col-start-3 row-span-2 row-start-1 mb-0.5 flex h-9 w-8 self-center items-center justify-center text-gray-400 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 sm:col-auto sm:row-auto sm:self-auto" :title="t('admin.checkin.removeTier')" :aria-label="t('admin.checkin.removeTier')" :disabled="!form.lucky_enabled || activePositiveTiers.length <= 1" @click="removePositiveTier(index)">
+                        <Icon name="trash" size="sm" />
+                      </button>
+                    </div>
+                  </div>
+                  <div class="mt-3 flex items-center justify-between border-t border-dashed border-gray-200 pt-3 text-xs dark:border-dark-700">
+                    <span class="text-gray-500 dark:text-dark-400">{{ t('admin.checkin.positiveProbabilityTotal') }}</span>
+                    <span class="font-mono font-semibold text-gray-900 dark:text-white" data-testid="positive-tier-total">{{ positiveProbabilityTotal }}%</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -183,7 +212,7 @@ import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
 import { useStepUp, isStepUpBlocked, isStepUpCancelled, stepUpBlockReason } from '@/composables/useStepUp'
 import { extractApiErrorMessage } from '@/utils/apiError'
-import type { AdminCheckinConfig, AdminCheckinOverview, AdminCheckinRecord } from '@/api/admin/checkin'
+import type { AdminCheckinConfig, AdminCheckinOverview, AdminCheckinPositiveTier, AdminCheckinRecord } from '@/api/admin/checkin'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
@@ -204,9 +233,15 @@ const form = reactive({
   normal_min: '0.01',
   normal_max: '0.05',
   lucky_reward_type: 'multiplier' as 'multiplier' | 'amount',
-  lucky_positive_probability: '70',
-  lucky_min_multiplier: '-0.05',
-  lucky_max_multiplier: '0.10',
+  lucky_positive_probability: '65',
+  lucky_multiplier_positive_tiers: [
+    { min: '0.01', max: '0.10', weight: '70' },
+    { min: '0.11', max: '0.15', weight: '20' },
+    { min: '0.16', max: '0.20', weight: '10' },
+  ] as AdminCheckinPositiveTier[],
+  lucky_amount_positive_tiers: [{ min: '0.01', max: '0.10', weight: '100' }] as AdminCheckinPositiveTier[],
+  lucky_min_multiplier: '-0.08',
+  lucky_max_multiplier: '0.20',
   lucky_amount_min: '-0.05',
   lucky_amount_max: '0.10',
   risk_control_enabled: true,
@@ -224,11 +259,61 @@ const overviewCards = computed(() => [
   { label: t('admin.checkin.positiveTotal'), value: money(overview.value.positive_total), tone: 'text-emerald-600 dark:text-emerald-400' },
   { label: t('admin.checkin.negativeTotal'), value: money(overview.value.negative_total), tone: 'text-rose-600 dark:text-rose-400' }
 ])
+const activePositiveTiers = computed(() => form.lucky_reward_type === 'multiplier' ? form.lucky_multiplier_positive_tiers : form.lucky_amount_positive_tiers)
+const activePositiveMax = computed(() => form.lucky_reward_type === 'multiplier' ? form.lucky_max_multiplier : form.lucky_amount_max)
+const positiveTierWeightTotal = computed(() => activePositiveTiers.value.reduce((total, tier) => total + positiveNumber(tier.weight), 0))
+const positiveProbabilityTotal = computed(() => formatPercent(positiveTierWeightTotal.value > 0 ? positiveNumber(form.lucky_positive_probability) : 0))
+const canSplitPositiveTier = computed(() => {
+  const last = activePositiveTiers.value.at(-1)
+  return Boolean(last && toCents(last.max) > toCents(last.min) && positiveNumber(last.weight) >= 0.02)
+})
 
 function money(value: number) { return `$${Number(value || 0).toFixed(2)}` }
 function signedMoney(value: number) { const amount = Number(value || 0); return `${amount >= 0 ? '+' : '-'}$${Math.abs(amount).toFixed(2)}` }
 function randomValue(record: AdminCheckinRecord) { return record.reward_type === 'multiplier' ? `${(record.random_value * 100).toFixed(2)}%` : signedMoney(record.random_value) }
 function formatDate(value: string) { return new Intl.DateTimeFormat(locale.value === 'zh' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) }
+function positiveNumber(value: string | number) { const parsed = Number(value); return Number.isFinite(parsed) && parsed > 0 ? parsed : 0 }
+function toCents(value: string | number) { const parsed = Number(value); return Number.isFinite(parsed) ? Math.round(parsed * 100) : 0 }
+function formatStep(value: number) { return (value / 100).toFixed(2) }
+function formatWeight(value: number) { return Number(Math.max(0.01, value).toFixed(2)).toString() }
+function formatPercent(value: number) { return Number(Math.max(0, value).toFixed(2)).toString() }
+function clonePositiveTiers(tiers: AdminCheckinPositiveTier[] | undefined, max: string) {
+  if (!tiers?.length) return [{ min: '0.01', max, weight: '100' }]
+  return tiers.map(tier => ({ min: tier.min, max: tier.max, weight: tier.weight }))
+}
+function effectiveTierProbability(tier: AdminCheckinPositiveTier) {
+  const totalWeight = positiveTierWeightTotal.value
+  if (!totalWeight) return '0'
+  return formatPercent(positiveNumber(form.lucky_positive_probability) * positiveNumber(tier.weight) / totalWeight)
+}
+function addPositiveTier() {
+  const tiers = activePositiveTiers.value
+  const last = tiers.at(-1)
+  if (!last || tiers.length >= 10) return
+  const min = toCents(last.min)
+  const max = toCents(last.max)
+  const weight = positiveNumber(last.weight)
+  if (max <= min || weight < 0.02) return
+  const split = Math.floor((min + max) / 2)
+  const firstWeight = Number((weight / 2).toFixed(2))
+  const secondWeight = Number((weight - firstWeight).toFixed(2))
+  last.max = formatStep(split)
+  last.weight = formatWeight(firstWeight)
+  tiers.push({ min: formatStep(split + 1), max: formatStep(max), weight: formatWeight(secondWeight) })
+}
+function removePositiveTier(index: number) {
+  const tiers = activePositiveTiers.value
+  if (tiers.length <= 1 || index < 0 || index >= tiers.length) return
+  const removed = tiers[index]
+  if (index > 0) {
+    tiers[index - 1].max = removed.max
+    tiers[index - 1].weight = formatWeight(positiveNumber(tiers[index - 1].weight) + positiveNumber(removed.weight))
+  } else {
+    tiers[1].min = removed.min
+    tiers[1].weight = formatWeight(positiveNumber(tiers[1].weight) + positiveNumber(removed.weight))
+  }
+  tiers.splice(index, 1)
+}
 function applyConfig(value: AdminCheckinConfig) {
   config.value = value
   form.enabled = value.enabled
@@ -238,6 +323,8 @@ function applyConfig(value: AdminCheckinConfig) {
   form.normal_max = value.normal_max
   form.lucky_reward_type = value.lucky_reward_type
   form.lucky_positive_probability = value.lucky_positive_probability
+  form.lucky_multiplier_positive_tiers = clonePositiveTiers(value.lucky_multiplier_positive_tiers, value.lucky_max_multiplier)
+  form.lucky_amount_positive_tiers = clonePositiveTiers(value.lucky_amount_positive_tiers, value.lucky_amount_max)
   form.lucky_min_multiplier = value.lucky_min_multiplier
   form.lucky_max_multiplier = value.lucky_max_multiplier
   form.lucky_amount_min = value.lucky_amount_min
@@ -281,6 +368,8 @@ async function saveConfig() {
       lucky_min_multiplier: decimalString(form.lucky_min_multiplier),
       lucky_max_multiplier: decimalString(form.lucky_max_multiplier),
       lucky_positive_probability: decimalString(form.lucky_positive_probability),
+      lucky_multiplier_positive_tiers: form.lucky_multiplier_positive_tiers.map(tier => ({ min: decimalString(tier.min), max: decimalString(tier.max), weight: decimalString(tier.weight) })),
+      lucky_amount_positive_tiers: form.lucky_amount_positive_tiers.map(tier => ({ min: decimalString(tier.min), max: decimalString(tier.max), weight: decimalString(tier.weight) })),
       lucky_amount_min: decimalString(form.lucky_amount_min),
       lucky_amount_max: decimalString(form.lucky_amount_max),
       change_reason: changeReason,

@@ -24,6 +24,7 @@ export default {
     failedDescription: '签到操作失败，请稍后重试。',
     change: '余额变动',
     mode: '签到方式',
+    resultMultiplier: '本次签到倍率',
     balanceAfter: '签到后余额',
     multiplierResult: '倍率 {value}',
     calendarTitle: '签到日历',

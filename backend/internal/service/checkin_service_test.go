@@ -208,7 +208,7 @@ func TestCheckinServiceNormalRewardUsesConfiguredRange(t *testing.T) {
 }
 
 func TestCheckinServiceLuckyRewardCannotMakeBalanceNegative(t *testing.T) {
-	stubCheckinRandom(t, 7_000_000_000, 0)
+	stubCheckinRandom(t, 7_000_000_000, 99)
 	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 2}}
 	settings := checkinSettings(map[string]string{
 		SettingKeyCheckinLuckyMinMultiply: "-1",
@@ -226,7 +226,7 @@ func TestCheckinServiceLuckyRewardCannotMakeBalanceNegative(t *testing.T) {
 }
 
 func TestCheckinServiceLuckyLossKeepsTwoDecimalsWhenBalanceHasFractionalCents(t *testing.T) {
-	stubCheckinRandom(t, 7_000_000_000, 0)
+	stubCheckinRandom(t, 7_000_000_000, 99)
 	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 2.009}}
 	settings := checkinSettings(map[string]string{
 		SettingKeyCheckinLuckyMinMultiply: "-1",
@@ -242,7 +242,7 @@ func TestCheckinServiceLuckyLossKeepsTwoDecimalsWhenBalanceHasFractionalCents(t 
 }
 
 func TestCheckinServiceLuckyFixedAmountUsesIndependentRangeAndClampsLoss(t *testing.T) {
-	stubCheckinRandom(t, 7_000_000_000, 0)
+	stubCheckinRandom(t, 7_000_000_000, 299)
 	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 2}}
 	settings := checkinSettings(map[string]string{
 		SettingKeyCheckinLuckyRewardType: CheckinRewardTypeAmount,
@@ -261,7 +261,7 @@ func TestCheckinServiceLuckyFixedAmountUsesIndependentRangeAndClampsLoss(t *test
 }
 
 func TestCheckinServiceLuckyRewardHandlesLargeBalance(t *testing.T) {
-	stubCheckinRandom(t, 0, 100_000_000)
+	stubCheckinRandom(t, 0, 0, 9)
 	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 396368513823.92}}
 	settings := checkinSettings(map[string]string{
 		SettingKeyCheckinLuckyMinMultiply: "-0.1",
@@ -278,7 +278,7 @@ func TestCheckinServiceLuckyRewardHandlesLargeBalance(t *testing.T) {
 
 func TestCheckinServiceLuckyDirectionUsesConfiguredProbabilityInsteadOfRangeWidth(t *testing.T) {
 	t.Run("positive", func(t *testing.T) {
-		stubCheckinRandom(t, 6_999_999_999, 100_000_000)
+		stubCheckinRandom(t, 6_999_999_999, 0, 0)
 		repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 10}}
 		settings := checkinSettings(map[string]string{
 			SettingKeyCheckinLuckyPositiveProbability: "70",
@@ -310,7 +310,7 @@ func TestCheckinServiceLuckyDirectionUsesConfiguredProbabilityInsteadOfRangeWidt
 	})
 
 	t.Run("two decimal probability precision", func(t *testing.T) {
-		stubCheckinRandom(t, 7_000_000_000, 100_000_000)
+		stubCheckinRandom(t, 7_000_000_000, 0, 0)
 		repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 10}}
 		settings := checkinSettings(map[string]string{
 			SettingKeyCheckinLuckyPositiveProbability: "70.01",
@@ -322,6 +322,91 @@ func TestCheckinServiceLuckyDirectionUsesConfiguredProbabilityInsteadOfRangeWidt
 		require.Positive(t, record.RandomValue)
 		require.Positive(t, record.RewardAmount)
 	})
+}
+
+func TestSecureRandomTieredSignedBetweenUsesConfiguredDirectionAndTiers(t *testing.T) {
+	tiers := []CheckinPositiveTier{
+		{MinStep: 1, MaxStep: 10, WeightUnits: 7000},
+		{MinStep: 11, MaxStep: 15, WeightUnits: 2000},
+		{MinStep: 16, MaxStep: 20, WeightUnits: 1000},
+	}
+	tests := []struct {
+		name     string
+		random   []int64
+		expected float64
+	}{
+		{name: "positive first tier minimum", random: []int64{5_999_999_999, 0, 0}, expected: 0.01},
+		{name: "positive third tier maximum", random: []int64{5_999_999_999, 9999, 4}, expected: 0.20},
+		{name: "negative nearest zero", random: []int64{6_000_000_000, 0}, expected: -0.01},
+		{name: "negative minimum", random: []int64{6_000_000_000, 7}, expected: -0.08},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stubCheckinRandom(t, tt.random...)
+
+			value, err := secureRandomTieredSignedBetween(-0.08, tiers, 60)
+
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, value)
+		})
+	}
+}
+
+func TestSecureRandomPositiveTierStepUsesNormalizedWeightsAndInclusiveRanges(t *testing.T) {
+	tiers := []CheckinPositiveTier{
+		{MinStep: 1, MaxStep: 10, WeightUnits: 7000},
+		{MinStep: 11, MaxStep: 15, WeightUnits: 2000},
+		{MinStep: 16, MaxStep: 20, WeightUnits: 1000},
+	}
+	tests := []struct {
+		name     string
+		random   []int64
+		expected float64
+	}{
+		{name: "first tier lower bound", random: []int64{0, 0}, expected: 0.01},
+		{name: "first tier upper bound", random: []int64{6999, 9}, expected: 0.10},
+		{name: "second tier lower bound", random: []int64{7000, 0}, expected: 0.11},
+		{name: "second tier upper bound", random: []int64{8999, 4}, expected: 0.15},
+		{name: "third tier lower bound", random: []int64{9000, 0}, expected: 0.16},
+		{name: "third tier upper bound", random: []int64{9999, 4}, expected: 0.20},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stubCheckinRandom(t, tt.random...)
+
+			value, err := secureRandomPositiveTierStep(tiers)
+
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, value)
+		})
+	}
+}
+
+func TestNormalizeCheckinPositiveTiersRequiresContinuousCoverage(t *testing.T) {
+	valid := []AdminCheckinPositiveTier{
+		{Min: "0.01", Max: "0.10", Weight: "70"},
+		{Min: "0.11", Max: "0.15", Weight: "20"},
+		{Min: "0.16", Max: "0.20", Weight: "10"},
+	}
+
+	parsed, normalized, err := normalizeCheckinPositiveTiers(valid, 0.20)
+	require.NoError(t, err)
+	require.Len(t, parsed, 3)
+	require.Equal(t, int64(7000), parsed[0].WeightUnits)
+	require.Equal(t, valid, normalized)
+
+	_, _, err = normalizeCheckinPositiveTiers([]AdminCheckinPositiveTier{
+		{Min: "0.01", Max: "0.10", Weight: "70"},
+		{Min: "0.12", Max: "0.20", Weight: "30"},
+	}, 0.20)
+	require.Error(t, err)
+
+	_, _, err = normalizeCheckinPositiveTiers([]AdminCheckinPositiveTier{
+		{Min: "0.01", Max: "0.19", Weight: "100"},
+	}, 0.20)
+	require.Error(t, err)
 }
 
 func TestCheckinServiceRejectsInactiveUserBeforeLoadingConfig(t *testing.T) {
@@ -792,6 +877,12 @@ func TestAdminCheckinConfigUpdateIncrementsVersion(t *testing.T) {
 		NormalMax:                "0.08",
 		LuckyRewardType:          CheckinRewardTypeAmount,
 		LuckyPositiveProbability: "65",
+		LuckyMultiplierPositiveTiers: []AdminCheckinPositiveTier{
+			{Min: "0.01", Max: "0.10", Weight: "70"},
+			{Min: "0.11", Max: "0.15", Weight: "20"},
+			{Min: "0.16", Max: "0.20", Weight: "10"},
+		},
+		LuckyAmountPositiveTiers: []AdminCheckinPositiveTier{{Min: "0.01", Max: "1.00", Weight: "100"}},
 		LuckyMinMultiply:         "-0.10",
 		LuckyMaxMultiply:         "0.20",
 		LuckyAmountMin:           "-0.50",
@@ -812,6 +903,8 @@ func TestAdminCheckinConfigUpdateIncrementsVersion(t *testing.T) {
 	require.False(t, result.LuckyEnabled)
 	require.Equal(t, CheckinRewardTypeAmount, settings.values[SettingKeyCheckinLuckyRewardType])
 	require.Equal(t, "65", settings.values[SettingKeyCheckinLuckyPositiveProbability])
+	require.JSONEq(t, `[{"min":"0.01","max":"0.10","weight":"70"},{"min":"0.11","max":"0.15","weight":"20"},{"min":"0.16","max":"0.20","weight":"10"}]`, settings.values[SettingKeyCheckinLuckyMultiplierPositiveTiers])
+	require.Len(t, result.LuckyMultiplierPositiveTiers, 3)
 	require.Equal(t, "1.00", settings.values[SettingKeyCheckinLuckyAmountMax])
 	require.Equal(t, "4", settings.values[SettingKeyCheckinConfigVersion])
 }
