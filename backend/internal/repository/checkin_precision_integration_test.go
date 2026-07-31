@@ -47,6 +47,16 @@ func TestCheckinApplySettlesHighBalanceAtTwoDecimals(t *testing.T) {
 		WHERE id = $1`, record.ID).Scan(&calculationScale, &storedReward))
 	require.Equal(t, service.CheckinCalculationScale, calculationScale)
 	require.Equal(t, "-15999987.14000000", storedReward)
+
+	var historyType, historyValue string
+	var historyUserID int64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `
+		SELECT type, value::text, used_by
+		FROM redeem_codes
+		WHERE code = $1`, fmt.Sprintf("SYS-CHECKIN-%d", record.ID)).Scan(&historyType, &historyValue, &historyUserID))
+	require.Equal(t, service.RedeemTypeCheckin, historyType)
+	require.Equal(t, "-15999987.14000000", historyValue)
+	require.Equal(t, userID, historyUserID)
 }
 
 func TestCheckinPrecisionMigrationNormalizesLegacySettings(t *testing.T) {

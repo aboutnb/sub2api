@@ -94,7 +94,10 @@ func (r *redeemCodeRepository) GetByCode(ctx context.Context, code string) (*ser
 }
 
 func (r *redeemCodeRepository) Delete(ctx context.Context, id int64) error {
-	_, err := r.client.RedeemCode.Delete().Where(redeemcode.IDEQ(id)).Exec(ctx)
+	_, err := r.client.RedeemCode.Delete().Where(
+		redeemcode.IDEQ(id),
+		redeemcode.TypeNEQ(service.RedeemTypeCheckin),
+	).Exec(ctx)
 	return err
 }
 
@@ -103,7 +106,8 @@ func (r *redeemCodeRepository) List(ctx context.Context, params pagination.Pagin
 }
 
 func (r *redeemCodeRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, codeType, status, search string) ([]service.RedeemCode, *pagination.PaginationResult, error) {
-	q := r.client.RedeemCode.Query()
+	// Check-in entries are immutable balance history, not redeemable inventory.
+	q := r.client.RedeemCode.Query().Where(redeemcode.TypeNEQ(service.RedeemTypeCheckin))
 
 	if codeType != "" {
 		q = q.Where(redeemcode.TypeEQ(codeType))
@@ -196,6 +200,17 @@ func redeemCodeListOrder(params pagination.PaginationParams) []func(*entsql.Sele
 }
 
 func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemCode) error {
+	exists, err := r.client.RedeemCode.Query().Where(
+		redeemcode.IDEQ(code.ID),
+		redeemcode.TypeNEQ(service.RedeemTypeCheckin),
+	).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return service.ErrRedeemCodeNotFound
+	}
+
 	up := r.client.RedeemCode.UpdateOneID(code.ID).
 		SetCode(code.Code).
 		SetType(code.Type).
@@ -273,7 +288,10 @@ func (r *redeemCodeRepository) BatchUpdate(ctx context.Context, ids []int64, fie
 
 func (r *redeemCodeRepository) batchUpdate(ctx context.Context, client *dbent.Client, ids []int64, fields service.RedeemCodeBatchUpdateFields) (int64, error) {
 	existing, err := client.RedeemCode.Query().
-		Where(redeemcode.IDIn(ids...)).
+		Where(
+			redeemcode.IDIn(ids...),
+			redeemcode.TypeNEQ(service.RedeemTypeCheckin),
+		).
 		All(ctx)
 	if err != nil {
 		return 0, err
@@ -325,7 +343,11 @@ func (r *redeemCodeRepository) Use(ctx context.Context, id, userID int64) error 
 	now := time.Now()
 	client := clientFromContext(ctx, r.client)
 	affected, err := client.RedeemCode.Update().
-		Where(redeemcode.IDEQ(id), redeemcode.StatusEQ(service.StatusUnused)).
+		Where(
+			redeemcode.IDEQ(id),
+			redeemcode.StatusEQ(service.StatusUnused),
+			redeemcode.TypeNEQ(service.RedeemTypeCheckin),
+		).
 		SetStatus(service.StatusUsed).
 		SetUsedBy(userID).
 		SetUsedAt(now).
@@ -358,7 +380,7 @@ func (r *redeemCodeRepository) ListByUser(ctx context.Context, userID int64, lim
 }
 
 // ListByUserPaginated returns paginated balance/concurrency history for a user.
-// Supports optional type filter (e.g. "balance", "admin_balance", "concurrency", "admin_concurrency", "subscription").
+// Supports optional type filters including check-in balance changes.
 func (r *redeemCodeRepository) ListByUserPaginated(ctx context.Context, userID int64, params pagination.PaginationParams, codeType string) ([]service.RedeemCode, *pagination.PaginationResult, error) {
 	q := r.client.RedeemCode.Query().
 		Where(redeemcode.UsedByEQ(userID))
