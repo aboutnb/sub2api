@@ -287,8 +287,15 @@
                   />
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-gray-900 dark:text-white">
-                    {{ getHistoryItemTitle(item) }}
+                  <p class="flex flex-wrap items-center gap-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                    <span>{{ getHistoryItemTitle(item) }}</span>
+                    <span
+                      v-if="isLuckyCheckin(item)"
+                      data-testid="lucky-checkin-tag"
+                      class="rounded bg-cyan-50 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300"
+                    >
+                      {{ t('checkin.lucky') }}
+                    </span>
                   </p>
                   <p class="text-xs text-gray-500 dark:text-dark-400">
                     {{ formatDateTime(item.used_at) }}
@@ -326,7 +333,7 @@
                 </p>
                 <!-- Display notes for admin adjustments -->
                 <p
-                  v-if="item.notes"
+                  v-if="item.notes && !isCheckinType(item.type)"
                   class="mt-1 text-xs text-gray-500 dark:text-dark-400 italic max-w-[200px] truncate"
                   :title="item.notes"
                 >
@@ -403,6 +410,7 @@ const isAdminAdjustment = (type: string) => {
 }
 
 const isCheckinType = (type: string) => type === 'checkin'
+const isLuckyCheckin = (item: RedeemHistoryItem) => isCheckinType(item.type) && item.checkin_mode === 'lucky'
 
 const getHistoryItemTitle = (item: RedeemHistoryItem) => {
   if (item.type === 'balance') {

@@ -265,6 +265,7 @@ export interface BalanceHistoryItem {
   group_id: number | null
   validity_days: number
   notes: string
+  checkin_mode?: 'normal' | 'lucky'
   user?: { id: number; email: string } | null
   group?: { id: number; name: string } | null
 }

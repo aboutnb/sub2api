@@ -162,6 +162,7 @@ func (s *RedeemCodeRepoSuite) TestCheckinEntriesAppearOnlyInUserBalanceHistory()
 		Status: service.StatusUsed,
 		UsedBy: &userID,
 		UsedAt: &usedAt,
+		Notes:  service.CheckinHistoryModeNote("lucky"),
 	}))
 
 	inventory, page, err := s.repo.List(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10})
@@ -184,6 +185,7 @@ func (s *RedeemCodeRepoSuite) TestCheckinEntriesAppearOnlyInUserBalanceHistory()
 	s.Require().Len(history, 1)
 	s.Require().Equal(service.RedeemTypeCheckin, history[0].Type)
 	s.Require().Equal(-0.08, history[0].Value)
+	s.Require().Equal("lucky", history[0].CheckinMode())
 
 	filtered, filteredPage, err := s.repo.ListByUserPaginated(s.ctx, userID, pagination.PaginationParams{Page: 1, PageSize: 10}, service.RedeemTypeCheckin)
 	s.Require().NoError(err)
@@ -199,7 +201,7 @@ func (s *RedeemCodeRepoSuite) TestCheckinEntriesAppearOnlyInUserBalanceHistory()
 	s.Require().NoError(s.repo.Delete(s.ctx, historyEntry.ID))
 	persisted, err := s.repo.GetByID(s.ctx, historyEntry.ID)
 	s.Require().NoError(err)
-	s.Require().Empty(persisted.Notes)
+	s.Require().Equal(service.CheckinHistoryModeNote("lucky"), persisted.Notes)
 }
 
 func (s *RedeemCodeRepoSuite) TestListWithFilters_Type() {

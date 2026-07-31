@@ -239,10 +239,10 @@ func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDat
 	}
 	record.UserID = userID
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO redeem_codes (code, type, value, status, used_by, used_at, created_at)
-		VALUES ('SYS-CHECKIN-' || $1, $2, $3, $4, $5, $6, $6)`,
+		INSERT INTO redeem_codes (code, type, value, status, used_by, used_at, created_at, notes)
+		VALUES ('SYS-CHECKIN-' || $1, $2, $3, $4, $5, $6, $6, $7)`,
 		record.ID, service.RedeemTypeCheckin, reward.StringFixed(service.CheckinCalculationScale),
-		service.StatusUsed, userID, record.CheckedInAt); err != nil {
+		service.StatusUsed, userID, record.CheckedInAt, service.CheckinHistoryModeNote(record.Mode)); err != nil {
 		return nil, false, err
 	}
 	if err := tx.Commit(); err != nil {

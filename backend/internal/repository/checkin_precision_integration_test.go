@@ -48,15 +48,16 @@ func TestCheckinApplySettlesHighBalanceAtTwoDecimals(t *testing.T) {
 	require.Equal(t, service.CheckinCalculationScale, calculationScale)
 	require.Equal(t, "-15999987.14000000", storedReward)
 
-	var historyType, historyValue string
+	var historyType, historyValue, historyNotes string
 	var historyUserID int64
 	require.NoError(t, integrationDB.QueryRowContext(ctx, `
-		SELECT type, value::text, used_by
+		SELECT type, value::text, used_by, notes
 		FROM redeem_codes
-		WHERE code = $1`, fmt.Sprintf("SYS-CHECKIN-%d", record.ID)).Scan(&historyType, &historyValue, &historyUserID))
+		WHERE code = $1`, fmt.Sprintf("SYS-CHECKIN-%d", record.ID)).Scan(&historyType, &historyValue, &historyUserID, &historyNotes))
 	require.Equal(t, service.RedeemTypeCheckin, historyType)
 	require.Equal(t, "-15999987.14000000", historyValue)
 	require.Equal(t, userID, historyUserID)
+	require.Equal(t, service.CheckinHistoryModeNote("lucky"), historyNotes)
 }
 
 func TestCheckinPrecisionMigrationNormalizesLegacySettings(t *testing.T) {
@@ -92,6 +93,43 @@ func TestCheckinPrecisionMigrationNormalizesLegacySettings(t *testing.T) {
 	require.NoError(t, rows.Err())
 	require.Equal(t, "0.12", values["checkin_normal_max"])
 	require.Equal(t, "-0.01", values["checkin_lucky_min_multiplier"])
+}
+
+func TestCheckinBalanceHistoryModeMigrationBackfillsExistingRecords(t *testing.T) {
+	ctx := context.Background()
+	tx := testTx(t)
+	email := fmt.Sprintf("checkin-history-mode-%d@example.com", time.Now().UnixNano())
+	var userID int64
+	require.NoError(t, tx.QueryRowContext(ctx, `
+		INSERT INTO users (email, password_hash, role, status, balance, concurrency)
+		VALUES ($1, 'hash', 'user', 'active', 10, 1)
+		RETURNING id`, email).Scan(&userID))
+
+	checkedInAt := time.Date(2026, 7, 31, 8, 30, 0, 0, time.UTC)
+	var recordID int64
+	require.NoError(t, tx.QueryRowContext(ctx, `
+		INSERT INTO checkin_records
+			(user_id, checkin_date, mode, reward_type, random_value, reward_amount,
+			 balance_before, balance_after, calculation_scale, checked_in_at)
+		VALUES ($1, '2026-07-31', 'lucky', 'multiplier', 0.02, 0.20, 10, 10.20, 2, $2)
+		RETURNING id`, userID, checkedInAt).Scan(&recordID))
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO redeem_codes (code, type, value, status, used_by, used_at, created_at)
+		VALUES ('SYS-CHECKIN-' || $1, 'checkin', 0.20, 'used', $2, $3, $3)`,
+		recordID, userID, checkedInAt)
+	require.NoError(t, err)
+
+	migrationSQL, err := migrations.FS.ReadFile("201_checkin_balance_history_mode.sql")
+	require.NoError(t, err)
+	_, err = tx.ExecContext(ctx, string(migrationSQL))
+	require.NoError(t, err)
+	_, err = tx.ExecContext(ctx, string(migrationSQL))
+	require.NoError(t, err)
+
+	var notes string
+	require.NoError(t, tx.QueryRowContext(ctx, `
+		SELECT notes FROM redeem_codes WHERE code = 'SYS-CHECKIN-' || $1`, recordID).Scan(&notes))
+	require.Equal(t, service.CheckinHistoryModeNote("lucky"), notes)
 }
 
 func TestCheckinDefaultDistributionMigrationUpgradesOnlyLegacyDefaults(t *testing.T) {

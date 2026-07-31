@@ -570,9 +570,13 @@ func RedeemCodeFromServiceAdmin(rc *service.RedeemCode) *AdminRedeemCode {
 	if rc == nil {
 		return nil
 	}
+	notes := rc.Notes
+	if rc.CheckinMode() != "" {
+		notes = ""
+	}
 	return &AdminRedeemCode{
 		RedeemCode: redeemCodeFromServiceBase(rc),
-		Notes:      rc.Notes,
+		Notes:      notes,
 	}
 }
 
@@ -600,6 +604,9 @@ func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 	// why they were charged or credited by admin
 	if (rc.Type == "admin_balance" || rc.Type == "admin_concurrency") && rc.Notes != "" {
 		out.Notes = &rc.Notes
+	}
+	if mode := rc.CheckinMode(); mode != "" {
+		out.CheckinMode = &mode
 	}
 
 	return out

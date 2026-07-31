@@ -38,7 +38,7 @@ func TestCheckinApplyAllowsActiveAdminAccount(t *testing.T) {
 			"balance_before", "balance_after", "checked_in_at",
 		}).AddRow(9, checkedInAt, "normal", service.CheckinRewardTypeAmount, 0.02, 0.02, 10.0, 10.02, checkedInAt))
 	mock.ExpectExec("INSERT INTO redeem_codes").
-		WithArgs(int64(9), service.RedeemTypeCheckin, "0.02", service.StatusUsed, int64(7), checkedInAt).
+		WithArgs(int64(9), service.RedeemTypeCheckin, "0.02", service.StatusUsed, int64(7), checkedInAt, service.CheckinHistoryModeNote("normal")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
@@ -112,7 +112,7 @@ func TestCheckinApplyPreservesExactHighBalanceDecimals(t *testing.T) {
 			199999839.31129506, 183999852.17129506, checkedInAt,
 		))
 	mock.ExpectExec("INSERT INTO redeem_codes").
-		WithArgs(int64(19), service.RedeemTypeCheckin, "-15999987.14", service.StatusUsed, int64(6), checkedInAt).
+		WithArgs(int64(19), service.RedeemTypeCheckin, "-15999987.14", service.StatusUsed, int64(6), checkedInAt, service.CheckinHistoryModeNote("lucky")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 

@@ -109,12 +109,19 @@
                 <Icon :name="getIconName(item)" size="sm" :class="getIconColor(item)" />
               </div>
               <div>
-                <p class="text-sm font-medium text-gray-900 dark:text-white">
-                  {{ getItemTitle(item) }}
+                <p class="flex flex-wrap items-center gap-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                  <span>{{ getItemTitle(item) }}</span>
+                  <span
+                    v-if="isLuckyCheckin(item)"
+                    data-testid="lucky-checkin-tag"
+                    class="rounded bg-cyan-50 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300"
+                  >
+                    {{ t('checkin.lucky') }}
+                  </span>
                 </p>
                 <!-- Notes (admin adjustment reason) -->
                 <p
-                  v-if="item.notes"
+                  v-if="item.notes && !isCheckinType(item.type)"
                   class="mt-0.5 text-xs text-gray-500 dark:text-dark-400"
                   :title="item.notes"
                 >
@@ -245,6 +252,7 @@ const loadHistory = async (page: number) => {
 // Helper: check if admin type
 const isAdminType = (type: string) => type === 'admin_balance' || type === 'admin_concurrency'
 const isCheckinType = (type: string) => type === 'checkin'
+const isLuckyCheckin = (item: BalanceHistoryItem) => isCheckinType(item.type) && item.checkin_mode === 'lucky'
 
 // Helper: check if balance type (includes admin_balance)
 const isBalanceType = (type: string) => type === 'balance' || type === 'admin_balance' || type === 'affiliate_balance' || type === 'checkin'
