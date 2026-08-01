@@ -18,10 +18,10 @@ func TestCheckinApplyAllowsActiveAdminAccount(t *testing.T) {
 
 	checkedInAt := time.Date(2026, 7, 26, 9, 30, 0, 0, time.UTC)
 	mock.ExpectBegin()
-	mock.ExpectQuery("SELECT role, status, balance").
+	mock.ExpectQuery("SELECT u\\.role, u\\.status, u\\.balance::text").
 		WithArgs(int64(7)).
-		WillReturnRows(sqlmock.NewRows([]string{"role", "status", "balance"}).
-			AddRow(service.RoleAdmin, service.StatusActive, "10.00000000"))
+		WillReturnRows(sqlmock.NewRows([]string{"role", "status", "balance", "checkin_count", "has_recharge"}).
+			AddRow(service.RoleAdmin, service.StatusActive, "10.00000000", 0, false))
 	mock.ExpectQuery("SELECT id, user_id, checkin_date, mode, reward_type, random_value, reward_amount").
 		WithArgs(int64(7), "2026-07-26").
 		WillReturnRows(sqlmock.NewRows([]string{
@@ -43,7 +43,7 @@ func TestCheckinApplyAllowsActiveAdminAccount(t *testing.T) {
 	mock.ExpectCommit()
 
 	repo := &checkinRepository{db: db}
-	record, newlyCheckedIn, err := repo.Apply(context.Background(), 7, "2026-07-26", "normal", func(decimal.Decimal) (decimal.Decimal, decimal.Decimal, string, error) {
+	record, newlyCheckedIn, err := repo.Apply(context.Background(), 7, "2026-07-26", "normal", func(service.CheckinSettlementState) (decimal.Decimal, decimal.Decimal, string, error) {
 		return decimal.RequireFromString("0.02"), decimal.RequireFromString("0.02"), service.CheckinRewardTypeAmount, nil
 	})
 
@@ -60,15 +60,15 @@ func TestCheckinApplyRejectsBalanceThatTurnedNegativeInsideTransaction(t *testin
 	t.Cleanup(func() { _ = db.Close() })
 
 	mock.ExpectBegin()
-	mock.ExpectQuery("SELECT role, status, balance").
+	mock.ExpectQuery("SELECT u\\.role, u\\.status, u\\.balance::text").
 		WithArgs(int64(7)).
-		WillReturnRows(sqlmock.NewRows([]string{"role", "status", "balance"}).
-			AddRow(service.RoleUser, service.StatusActive, "-50.00000000"))
+		WillReturnRows(sqlmock.NewRows([]string{"role", "status", "balance", "checkin_count", "has_recharge"}).
+			AddRow(service.RoleUser, service.StatusActive, "-50.00000000", 0, false))
 	mock.ExpectRollback()
 
 	repo := &checkinRepository{db: db}
 	calculated := false
-	_, newlyCheckedIn, err := repo.Apply(context.Background(), 7, "2026-07-26", "normal", func(decimal.Decimal) (decimal.Decimal, decimal.Decimal, string, error) {
+	_, newlyCheckedIn, err := repo.Apply(context.Background(), 7, "2026-07-26", "normal", func(service.CheckinSettlementState) (decimal.Decimal, decimal.Decimal, string, error) {
 		calculated = true
 		return decimal.RequireFromString("0.01"), decimal.RequireFromString("0.01"), service.CheckinRewardTypeAmount, nil
 	})
@@ -86,10 +86,10 @@ func TestCheckinApplyPreservesExactHighBalanceDecimals(t *testing.T) {
 
 	checkedInAt := time.Date(2026, 7, 27, 7, 39, 7, 0, time.UTC)
 	mock.ExpectBegin()
-	mock.ExpectQuery("SELECT role, status, balance::text").
+	mock.ExpectQuery("SELECT u\\.role, u\\.status, u\\.balance::text").
 		WithArgs(int64(6)).
-		WillReturnRows(sqlmock.NewRows([]string{"role", "status", "balance"}).
-			AddRow(service.RoleUser, service.StatusActive, "199999839.31129506"))
+		WillReturnRows(sqlmock.NewRows([]string{"role", "status", "balance", "checkin_count", "has_recharge"}).
+			AddRow(service.RoleUser, service.StatusActive, "199999839.31129506", 0, false))
 	mock.ExpectQuery("SELECT id, user_id, checkin_date, mode, reward_type, random_value, reward_amount").
 		WithArgs(int64(6), "2026-07-27").
 		WillReturnRows(sqlmock.NewRows([]string{
@@ -117,8 +117,8 @@ func TestCheckinApplyPreservesExactHighBalanceDecimals(t *testing.T) {
 	mock.ExpectCommit()
 
 	repo := &checkinRepository{db: db}
-	record, newlyCheckedIn, err := repo.Apply(context.Background(), 6, "2026-07-27", "lucky", func(balance decimal.Decimal) (decimal.Decimal, decimal.Decimal, string, error) {
-		require.Equal(t, "199999839.31129506", balance.StringFixed(8))
+	record, newlyCheckedIn, err := repo.Apply(context.Background(), 6, "2026-07-27", "lucky", func(state service.CheckinSettlementState) (decimal.Decimal, decimal.Decimal, string, error) {
+		require.Equal(t, "199999839.31129506", state.Balance.StringFixed(8))
 		return decimal.RequireFromString("-15999987.14"), decimal.RequireFromString("-0.08"), service.CheckinRewardTypeMultiplier, nil
 	})
 

@@ -70,6 +70,9 @@ type updateCheckinConfigRequest struct {
 	MinAccountAgeHours           int                                `json:"min_account_age_hours"`
 	IPWindowMinutes              int                                `json:"ip_window_minutes"`
 	IPMaxUsers                   int                                `json:"ip_max_users"`
+	UnrechargedEnabled           bool                               `json:"unrecharged_reduction_enabled"`
+	UnrechargedCheckinThreshold  int                                `json:"unrecharged_checkin_threshold"`
+	UnrechargedNormalPercent     checkinDecimalString               `json:"unrecharged_normal_reward_percent"`
 	ExpectedVersion              int64                              `json:"expected_config_version"`
 	ChangeReason                 string                             `json:"change_reason"`
 }
@@ -102,6 +105,9 @@ func (h *CheckinHandler) UpdateConfig(c *gin.Context) {
 		MinAccountAgeHours:           req.MinAccountAgeHours,
 		IPWindowMinutes:              req.IPWindowMinutes,
 		IPMaxUsers:                   req.IPMaxUsers,
+		UnrechargedEnabled:           req.UnrechargedEnabled,
+		UnrechargedCheckinThreshold:  req.UnrechargedCheckinThreshold,
+		UnrechargedNormalPercent:     string(req.UnrechargedNormalPercent),
 		ExpectedVersion:              req.ExpectedVersion,
 		ChangeReason:                 req.ChangeReason,
 	})
@@ -114,11 +120,14 @@ func (h *CheckinHandler) UpdateConfig(c *gin.Context) {
 		return
 	}
 	servermiddleware.SetAuditExtra(c, map[string]any{
-		"result":         "accepted",
-		"enabled":        config.Enabled,
-		"normal_enabled": config.NormalEnabled,
-		"lucky_enabled":  config.LuckyEnabled,
-		"config_version": config.ConfigVersion,
+		"result":                            "accepted",
+		"enabled":                           config.Enabled,
+		"normal_enabled":                    config.NormalEnabled,
+		"lucky_enabled":                     config.LuckyEnabled,
+		"unrecharged_reduction_enabled":     config.UnrechargedEnabled,
+		"unrecharged_checkin_threshold":     config.UnrechargedCheckinThreshold,
+		"unrecharged_normal_reward_percent": config.UnrechargedNormalPercent,
+		"config_version":                    config.ConfigVersion,
 	})
 	response.Success(c, config)
 }

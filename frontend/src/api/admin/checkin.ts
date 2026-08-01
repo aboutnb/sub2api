@@ -25,6 +25,9 @@ export interface AdminCheckinConfig {
   min_account_age_hours: number
   ip_window_minutes: number
   ip_max_users: number
+  unrecharged_reduction_enabled: boolean
+  unrecharged_checkin_threshold: number
+  unrecharged_normal_reward_percent: string
   config_version: number
   updated_at: string
 }
@@ -47,6 +50,9 @@ export interface AdminCheckinConfigUpdate {
   min_account_age_hours: number
   ip_window_minutes: number
   ip_max_users: number
+  unrecharged_reduction_enabled: boolean
+  unrecharged_checkin_threshold: number
+  unrecharged_normal_reward_percent: string
   expected_config_version: number
   change_reason: string
 }

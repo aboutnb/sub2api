@@ -38,6 +38,9 @@ const (
 	SettingKeyCheckinMinAccountAge                = "checkin_min_account_age_hours"
 	SettingKeyCheckinIPWindow                     = "checkin_ip_window_minutes"
 	SettingKeyCheckinIPMaxUsers                   = "checkin_ip_max_users"
+	SettingKeyCheckinUnrechargedEnabled           = "checkin_unrecharged_reduction_enabled"
+	SettingKeyCheckinUnrechargedThreshold         = "checkin_unrecharged_checkin_threshold"
+	SettingKeyCheckinUnrechargedNormalPercent     = "checkin_unrecharged_normal_reward_percent"
 	SettingKeyCheckinConfigVersion                = "checkin_config_version"
 
 	// These hard safety ceilings are intentionally separate from the editable
@@ -95,6 +98,12 @@ type CheckinUserState struct {
 	CreatedAt time.Time
 }
 
+type CheckinSettlementState struct {
+	Balance      decimal.Decimal
+	CheckinCount int64
+	HasRecharge  bool
+}
+
 type CheckinAbuseGuard interface {
 	CheckRequest(context.Context, string, int64, time.Duration, int, int) (bool, time.Duration, error)
 	CheckAndRecord(context.Context, string, int64, time.Duration, int) (bool, int64, time.Duration, error)
@@ -104,7 +113,7 @@ type CheckinRepository interface {
 	GetUserState(context.Context, int64) (*CheckinUserState, error)
 	GetByDate(context.Context, int64, string) (*CheckinRecord, error)
 	List(context.Context, int64, int, int) ([]CheckinRecord, int64, error)
-	Apply(context.Context, int64, string, string, func(decimal.Decimal) (decimal.Decimal, decimal.Decimal, string, error)) (*CheckinRecord, bool, error)
+	Apply(context.Context, int64, string, string, func(CheckinSettlementState) (decimal.Decimal, decimal.Decimal, string, error)) (*CheckinRecord, bool, error)
 }
 
 type CheckinConfig struct {
@@ -125,6 +134,9 @@ type CheckinConfig struct {
 	MinAccountAge                time.Duration
 	IPWindow                     time.Duration
 	IPMaxUsers                   int
+	UnrechargedEnabled           bool
+	UnrechargedThreshold         int64
+	UnrechargedNormalPercent     float64
 }
 
 type CheckinPositiveTier struct {
@@ -159,6 +171,9 @@ type AdminCheckinConfig struct {
 	MinAccountAgeHours           int                        `json:"min_account_age_hours"`
 	IPWindowMinutes              int                        `json:"ip_window_minutes"`
 	IPMaxUsers                   int                        `json:"ip_max_users"`
+	UnrechargedEnabled           bool                       `json:"unrecharged_reduction_enabled"`
+	UnrechargedCheckinThreshold  int                        `json:"unrecharged_checkin_threshold"`
+	UnrechargedNormalPercent     string                     `json:"unrecharged_normal_reward_percent"`
 	ConfigVersion                int64                      `json:"config_version"`
 	UpdatedAt                    time.Time                  `json:"updated_at"`
 }
@@ -181,6 +196,9 @@ type AdminCheckinConfigUpdate struct {
 	MinAccountAgeHours           int
 	IPWindowMinutes              int
 	IPMaxUsers                   int
+	UnrechargedEnabled           bool
+	UnrechargedCheckinThreshold  int
+	UnrechargedNormalPercent     string
 	ExpectedVersion              int64
 	ChangeReason                 string
 }
@@ -369,7 +387,8 @@ func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source
 			return nil, false, ErrCheckinSourceLimited
 		}
 	}
-	record, newlyCheckedIn, err := s.repo.Apply(ctx, userID, businessDate, mode, func(balance decimal.Decimal) (decimal.Decimal, decimal.Decimal, string, error) {
+	record, newlyCheckedIn, err := s.repo.Apply(ctx, userID, businessDate, mode, func(settlement CheckinSettlementState) (decimal.Decimal, decimal.Decimal, string, error) {
+		balance := settlement.Balance
 		if mode == "normal" {
 			value, randomErr := secureRandomBetween(checkinConfig.NormalMin, checkinConfig.NormalMax)
 			if randomErr != nil {
@@ -377,6 +396,9 @@ func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source
 			}
 			value = roundCheckinValue(value)
 			reward := decimal.NewFromFloat(value)
+			if checkinConfig.UnrechargedEnabled && !settlement.HasRecharge && settlement.CheckinCount >= checkinConfig.UnrechargedThreshold {
+				reward = reward.Mul(decimal.NewFromFloat(checkinConfig.UnrechargedNormalPercent / 100)).Round(CheckinCalculationScale)
+			}
 			return reward, reward, CheckinRewardTypeAmount, nil
 		}
 		if checkinConfig.LuckyRewardType == CheckinRewardTypeAmount {
@@ -445,6 +467,9 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 		SettingKeyCheckinMinAccountAge,
 		SettingKeyCheckinIPWindow,
 		SettingKeyCheckinIPMaxUsers,
+		SettingKeyCheckinUnrechargedEnabled,
+		SettingKeyCheckinUnrechargedThreshold,
+		SettingKeyCheckinUnrechargedNormalPercent,
 	})
 	if err != nil {
 		return CheckinConfig{}, ErrCheckinConfigInvalid
@@ -471,13 +496,17 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 	minAccountAgeHours, err8 := parseCheckinInt(values[SettingKeyCheckinMinAccountAge])
 	ipWindowMinutes, err9 := parseCheckinInt(values[SettingKeyCheckinIPWindow])
 	ipMaxUsers, err10 := parseCheckinInt(values[SettingKeyCheckinIPMaxUsers])
+	unrechargedEnabled, unrechargedEnabledErr := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinUnrechargedEnabled]))
+	unrechargedThreshold, err13 := parseCheckinInt(values[SettingKeyCheckinUnrechargedThreshold])
+	unrechargedNormalPercent, err14 := parse(SettingKeyCheckinUnrechargedNormalPercent)
 	multiplierPositiveTiers, _, err11 := parseStoredCheckinPositiveTiers(values[SettingKeyCheckinLuckyMultiplierPositiveTiers], luckyMax)
 	amountPositiveTiers, _, err12 := parseStoredCheckinPositiveTiers(values[SettingKeyCheckinLuckyAmountPositiveTiers], luckyAmountMax)
-	if enabledErr != nil || normalEnabledErr != nil || luckyEnabledErr != nil || riskEnabledErr != nil || err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || err9 != nil ||
-		err10 != nil || err11 != nil || err12 != nil || normalMin < 0 || normalMax < normalMin || normalMax > 100 || !validCheckinLuckyRewardType(luckyRewardType) ||
+	if enabledErr != nil || normalEnabledErr != nil || luckyEnabledErr != nil || riskEnabledErr != nil || unrechargedEnabledErr != nil || err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || err9 != nil ||
+		err10 != nil || err11 != nil || err12 != nil || err13 != nil || err14 != nil || normalMin < 0 || normalMax < normalMin || normalMax > 100 || !validCheckinLuckyRewardType(luckyRewardType) ||
 		luckyPositive < 0 || luckyPositive > 100 || luckyMin < -1 || luckyMin >= 0 || luckyMax <= 0 || luckyMax > 10 ||
 		luckyAmountMin < -100 || luckyAmountMin >= 0 || luckyAmountMax <= 0 || luckyAmountMax > 100 ||
-		minAccountAgeHours < 0 || minAccountAgeHours > 720 || ipWindowMinutes < 1 || ipWindowMinutes > 1440 || ipMaxUsers < 1 || ipMaxUsers > 10000 {
+		minAccountAgeHours < 0 || minAccountAgeHours > 720 || ipWindowMinutes < 1 || ipWindowMinutes > 1440 || ipMaxUsers < 1 || ipMaxUsers > 10000 ||
+		unrechargedThreshold < 1 || unrechargedThreshold > 3650 || unrechargedNormalPercent < 0 || unrechargedNormalPercent > 100 {
 		return CheckinConfig{}, ErrCheckinConfigInvalid
 	}
 	return CheckinConfig{
@@ -498,6 +527,9 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 		MinAccountAge:                time.Duration(minAccountAgeHours) * time.Hour,
 		IPWindow:                     time.Duration(ipWindowMinutes) * time.Minute,
 		IPMaxUsers:                   ipMaxUsers,
+		UnrechargedEnabled:           unrechargedEnabled,
+		UnrechargedThreshold:         int64(unrechargedThreshold),
+		UnrechargedNormalPercent:     unrechargedNormalPercent,
 	}, nil
 }
 

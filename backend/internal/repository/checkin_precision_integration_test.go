@@ -28,10 +28,10 @@ func TestCheckinApplySettlesHighBalanceAtTwoDecimals(t *testing.T) {
 	})
 
 	repo := &checkinRepository{db: integrationDB}
-	record, newlyCheckedIn, err := repo.Apply(ctx, userID, "2026-07-27", "lucky", func(balance decimal.Decimal) (decimal.Decimal, decimal.Decimal, string, error) {
-		require.Equal(t, "199999839.31129506", balance.StringFixed(8))
+	record, newlyCheckedIn, err := repo.Apply(ctx, userID, "2026-07-27", "lucky", func(state service.CheckinSettlementState) (decimal.Decimal, decimal.Decimal, string, error) {
+		require.Equal(t, "199999839.31129506", state.Balance.StringFixed(8))
 		multiplier := decimal.RequireFromString("-0.08")
-		return balance.Mul(multiplier).Round(service.CheckinCalculationScale), multiplier, service.CheckinRewardTypeMultiplier, nil
+		return state.Balance.Mul(multiplier).Round(service.CheckinCalculationScale), multiplier, service.CheckinRewardTypeMultiplier, nil
 	})
 
 	require.NoError(t, err)
@@ -58,6 +58,123 @@ func TestCheckinApplySettlesHighBalanceAtTwoDecimals(t *testing.T) {
 	require.Equal(t, "-15999987.14000000", historyValue)
 	require.Equal(t, userID, historyUserID)
 	require.Equal(t, service.CheckinHistoryModeNote("lucky"), historyNotes)
+}
+
+func TestCheckinApplySettlementStateRecognizesAllBalanceRechargeSources(t *testing.T) {
+	tests := []struct {
+		name           string
+		totalRecharged float64
+		redeemType     string
+	}{
+		{name: "payment channel", totalRecharged: 1},
+		{name: "balance redeem code", redeemType: "balance"},
+		{name: "admin balance adjustment", redeemType: "admin_balance"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			email := fmt.Sprintf("checkin-recharge-state-%d@example.com", time.Now().UnixNano())
+			var userID int64
+			require.NoError(t, integrationDB.QueryRowContext(ctx, `
+				INSERT INTO users (email, password_hash, role, status, balance, concurrency, total_recharged)
+				VALUES ($1, 'hash', 'user', 'active', 10, 1, $2)
+				RETURNING id`, email, test.totalRecharged).Scan(&userID))
+			t.Cleanup(func() {
+				_, _ = integrationDB.ExecContext(context.Background(), `DELETE FROM redeem_codes WHERE used_by = $1`, userID)
+				_, _ = integrationDB.ExecContext(context.Background(), `DELETE FROM users WHERE id = $1`, userID)
+			})
+
+			_, err := integrationDB.ExecContext(ctx, `
+				INSERT INTO checkin_records
+					(user_id, checkin_date, mode, reward_type, random_value, reward_amount,
+					 balance_before, balance_after, calculation_scale, checked_in_at)
+				VALUES
+					($1, '2026-07-25', 'normal', 'amount', 0.01, 0.01, 9.97, 9.98, 2, NOW()),
+					($1, '2026-07-26', 'normal', 'amount', 0.01, 0.01, 9.98, 9.99, 2, NOW()),
+					($1, '2026-07-27', 'normal', 'amount', 0.01, 0.01, 9.99, 10.00, 2, NOW())`, userID)
+			require.NoError(t, err)
+			if test.redeemType != "" {
+				_, err = integrationDB.ExecContext(ctx, `
+					INSERT INTO redeem_codes (code, type, value, status, used_by, used_at, created_at)
+					VALUES ($1, $2, 1.00, 'used', $3, NOW(), NOW())`, fmt.Sprintf("CHECKIN-RECHARGE-%d", userID), test.redeemType, userID)
+				require.NoError(t, err)
+			}
+
+			repo := &checkinRepository{db: integrationDB}
+			_, newlyCheckedIn, err := repo.Apply(ctx, userID, "2026-07-28", "normal", func(state service.CheckinSettlementState) (decimal.Decimal, decimal.Decimal, string, error) {
+				require.Equal(t, int64(3), state.CheckinCount)
+				require.True(t, state.HasRecharge)
+				return decimal.RequireFromString("0.01"), decimal.RequireFromString("0.01"), service.CheckinRewardTypeAmount, nil
+			})
+
+			require.NoError(t, err)
+			require.True(t, newlyCheckedIn)
+		})
+	}
+}
+
+func TestCheckinApplyConcurrentRequestsSettleExactlyOnce(t *testing.T) {
+	ctx := context.Background()
+	email := fmt.Sprintf("checkin-concurrent-%d@example.com", time.Now().UnixNano())
+	var userID int64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `
+		INSERT INTO users (email, password_hash, role, status, balance, concurrency, total_recharged)
+		VALUES ($1, 'hash', 'user', 'active', 10, 1, 0)
+		RETURNING id`, email).Scan(&userID))
+	t.Cleanup(func() {
+		_, _ = integrationDB.ExecContext(context.Background(), `DELETE FROM redeem_codes WHERE used_by = $1`, userID)
+		_, _ = integrationDB.ExecContext(context.Background(), `DELETE FROM users WHERE id = $1`, userID)
+	})
+
+	const attempts = 8
+	type applyResult struct {
+		recordID int64
+		new      bool
+		err      error
+	}
+	results := make(chan applyResult, attempts)
+	start := make(chan struct{})
+	repo := &checkinRepository{db: integrationDB}
+	for range attempts {
+		go func() {
+			<-start
+			record, newlyCheckedIn, err := repo.Apply(ctx, userID, "2026-07-29", "normal", func(service.CheckinSettlementState) (decimal.Decimal, decimal.Decimal, string, error) {
+				return decimal.RequireFromString("0.01"), decimal.RequireFromString("0.01"), service.CheckinRewardTypeAmount, nil
+			})
+			var recordID int64
+			if record != nil {
+				recordID = record.ID
+			}
+			results <- applyResult{recordID: recordID, new: newlyCheckedIn, err: err}
+		}()
+	}
+	close(start)
+
+	var newlyCheckedInCount int
+	var settledRecordID int64
+	for range attempts {
+		result := <-results
+		require.NoError(t, result.err)
+		require.NotZero(t, result.recordID)
+		if settledRecordID == 0 {
+			settledRecordID = result.recordID
+		}
+		require.Equal(t, settledRecordID, result.recordID)
+		if result.new {
+			newlyCheckedInCount++
+		}
+	}
+	require.Equal(t, 1, newlyCheckedInCount)
+
+	var balance string
+	var recordCount, historyCount int
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT balance::text FROM users WHERE id = $1`, userID).Scan(&balance))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM checkin_records WHERE user_id = $1 AND checkin_date = '2026-07-29'`, userID).Scan(&recordCount))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM redeem_codes WHERE used_by = $1 AND type = 'checkin'`, userID).Scan(&historyCount))
+	require.Equal(t, "10.01000000", balance)
+	require.Equal(t, 1, recordCount)
+	require.Equal(t, 1, historyCount)
 }
 
 func TestCheckinPrecisionMigrationNormalizesLegacySettings(t *testing.T) {

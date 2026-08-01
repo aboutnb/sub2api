@@ -173,7 +173,7 @@ func (r *checkinRepository) UpdateConfigIfVersion(ctx context.Context, expectedV
 	return true, nil
 }
 
-func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDate, mode string, calculate func(decimal.Decimal) (decimal.Decimal, decimal.Decimal, string, error)) (*service.CheckinRecord, bool, error) {
+func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDate, mode string, calculate func(service.CheckinSettlementState) (decimal.Decimal, decimal.Decimal, string, error)) (*service.CheckinRecord, bool, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, false, err
@@ -181,11 +181,24 @@ func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDat
 	defer func() { _ = tx.Rollback() }()
 
 	var role, status, balanceText string
+	var checkinCount int64
+	var hasRecharge bool
 	if err := tx.QueryRowContext(ctx, `
-		SELECT role, status, balance::text
-		FROM users
-		WHERE id = $1 AND deleted_at IS NULL
-		FOR UPDATE`, userID).Scan(&role, &status, &balanceText); err != nil {
+		SELECT u.role,
+		       u.status,
+		       u.balance::text,
+		       (SELECT COUNT(*) FROM checkin_records cr WHERE cr.user_id = u.id),
+		       (COALESCE(u.total_recharged, 0) > 0 OR EXISTS (
+				SELECT 1
+				FROM redeem_codes rc
+				WHERE rc.used_by = u.id
+				  AND rc.status = 'used'
+				  AND rc.value > 0
+				  AND rc.type IN ('balance', 'admin_balance')
+			))
+		FROM users u
+		WHERE u.id = $1 AND u.deleted_at IS NULL
+		FOR UPDATE`, userID).Scan(&role, &status, &balanceText, &checkinCount, &hasRecharge); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, false, service.ErrCheckinUserNotFound
 		}
@@ -211,7 +224,9 @@ func (r *checkinRepository) Apply(ctx context.Context, userID int64, businessDat
 		return nil, false, err
 	}
 
-	reward, randomValue, rewardType, err := calculate(balance)
+	reward, randomValue, rewardType, err := calculate(service.CheckinSettlementState{
+		Balance: balance, CheckinCount: checkinCount, HasRecharge: hasRecharge,
+	})
 	if err != nil {
 		return nil, false, err
 	}

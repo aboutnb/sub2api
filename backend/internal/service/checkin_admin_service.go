@@ -48,6 +48,9 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 		SettingKeyCheckinMinAccountAge,
 		SettingKeyCheckinIPWindow,
 		SettingKeyCheckinIPMaxUsers,
+		SettingKeyCheckinUnrechargedEnabled,
+		SettingKeyCheckinUnrechargedThreshold,
+		SettingKeyCheckinUnrechargedNormalPercent,
 		SettingKeyCheckinConfigVersion,
 	})
 	if err != nil {
@@ -66,18 +69,22 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 	minAccountAgeHours, err1 := parseCheckinInt(values[SettingKeyCheckinMinAccountAge])
 	ipWindowMinutes, err2 := parseCheckinInt(values[SettingKeyCheckinIPWindow])
 	ipMaxUsers, err3 := parseCheckinInt(values[SettingKeyCheckinIPMaxUsers])
+	unrechargedEnabled, err8 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinUnrechargedEnabled]))
+	unrechargedThreshold, err9 := parseCheckinInt(values[SettingKeyCheckinUnrechargedThreshold])
+	_, err10 := parseCheckinDecimal(values[SettingKeyCheckinUnrechargedNormalPercent])
 	enabled, err4 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinEnabled]))
 	riskEnabled, err5 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinRiskEnabled]))
 	normalEnabled, err6 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinNormalEnabled]))
 	luckyEnabled, err7 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinLuckyEnabled]))
-	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil ||
+	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || err9 != nil || err10 != nil ||
 		validateCheckinConfigValues(
 			values[SettingKeyCheckinNormalMin], values[SettingKeyCheckinNormalMax],
 			values[SettingKeyCheckinLuckyRewardType],
 			values[SettingKeyCheckinLuckyPositiveProbability],
 			values[SettingKeyCheckinLuckyMinMultiply], values[SettingKeyCheckinLuckyMaxMultiply],
 			values[SettingKeyCheckinLuckyAmountMin], values[SettingKeyCheckinLuckyAmountMax],
-			minAccountAgeHours, ipWindowMinutes, ipMaxUsers,
+			values[SettingKeyCheckinUnrechargedNormalPercent],
+			minAccountAgeHours, ipWindowMinutes, ipMaxUsers, unrechargedThreshold,
 		) != nil {
 		return nil, ErrCheckinConfigInvalid
 	}
@@ -106,6 +113,9 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 		MinAccountAgeHours:           minAccountAgeHours,
 		IPWindowMinutes:              ipWindowMinutes,
 		IPMaxUsers:                   ipMaxUsers,
+		UnrechargedEnabled:           unrechargedEnabled,
+		UnrechargedCheckinThreshold:  unrechargedThreshold,
+		UnrechargedNormalPercent:     values[SettingKeyCheckinUnrechargedNormalPercent],
 		ConfigVersion:                version,
 		UpdatedAt:                    updatedAt,
 	}, nil
@@ -130,9 +140,11 @@ func (s *AdminCheckinService) UpdateConfig(ctx context.Context, input AdminCheck
 		input.LuckyMaxMultiply,
 		input.LuckyAmountMin,
 		input.LuckyAmountMax,
+		input.UnrechargedNormalPercent,
 		input.MinAccountAgeHours,
 		input.IPWindowMinutes,
 		input.IPMaxUsers,
+		input.UnrechargedCheckinThreshold,
 	); err != nil {
 		return nil, err
 	}
@@ -176,6 +188,9 @@ func (s *AdminCheckinService) UpdateConfig(ctx context.Context, input AdminCheck
 		SettingKeyCheckinMinAccountAge:                strconv.Itoa(input.MinAccountAgeHours),
 		SettingKeyCheckinIPWindow:                     strconv.Itoa(input.IPWindowMinutes),
 		SettingKeyCheckinIPMaxUsers:                   strconv.Itoa(input.IPMaxUsers),
+		SettingKeyCheckinUnrechargedEnabled:           strconv.FormatBool(input.UnrechargedEnabled),
+		SettingKeyCheckinUnrechargedThreshold:         strconv.Itoa(input.UnrechargedCheckinThreshold),
+		SettingKeyCheckinUnrechargedNormalPercent:     strings.TrimSpace(input.UnrechargedNormalPercent),
 	})
 	if err != nil {
 		return nil, err
@@ -197,7 +212,7 @@ func (s *AdminCheckinService) Records(ctx context.Context, filter AdminCheckinRe
 	return s.repo.AdminList(ctx, filter)
 }
 
-func validateCheckinConfigValues(normalMin, normalMax, luckyRewardType, luckyPositiveProbability, luckyMin, luckyMax, luckyAmountMin, luckyAmountMax string, minAccountAgeHours, ipWindowMinutes, ipMaxUsers int) error {
+func validateCheckinConfigValues(normalMin, normalMax, luckyRewardType, luckyPositiveProbability, luckyMin, luckyMax, luckyAmountMin, luckyAmountMax, unrechargedNormalPercent string, minAccountAgeHours, ipWindowMinutes, ipMaxUsers, unrechargedCheckinThreshold int) error {
 	parse := parseCheckinDecimal
 	min, err1 := parse(normalMin)
 	max, err2 := parse(normalMax)
@@ -206,12 +221,13 @@ func validateCheckinConfigValues(normalMin, normalMax, luckyRewardType, luckyPos
 	luckyMaxValue, err5 := parse(luckyMax)
 	luckyAmountMinValue, err6 := parse(luckyAmountMin)
 	luckyAmountMaxValue, err7 := parse(luckyAmountMax)
-	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || min < 0 || max < min || max > 100 ||
+	unrechargedNormalPercentValue, err8 := parse(unrechargedNormalPercent)
+	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || min < 0 || max < min || max > 100 ||
 		!validCheckinLuckyRewardType(strings.TrimSpace(luckyRewardType)) ||
 		luckyPositiveValue < 0 || luckyPositiveValue > 100 ||
 		luckyMinValue < -1 || luckyMinValue >= 0 || luckyMaxValue <= 0 || luckyMaxValue > 10 ||
 		luckyAmountMinValue < -100 || luckyAmountMinValue >= 0 || luckyAmountMaxValue <= 0 || luckyAmountMaxValue > 100 ||
-		minAccountAgeHours < 0 || minAccountAgeHours > 720 || ipWindowMinutes < 1 || ipWindowMinutes > 1440 || ipMaxUsers < 1 || ipMaxUsers > 10000 {
+		minAccountAgeHours < 0 || minAccountAgeHours > 720 || ipWindowMinutes < 1 || ipWindowMinutes > 1440 || ipMaxUsers < 1 || ipMaxUsers > 10000 || unrechargedCheckinThreshold < 1 || unrechargedCheckinThreshold > 3650 || unrechargedNormalPercentValue < 0 || unrechargedNormalPercentValue > 100 {
 		return ErrCheckinConfigInput
 	}
 	return nil

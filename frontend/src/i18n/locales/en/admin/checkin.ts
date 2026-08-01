@@ -10,6 +10,11 @@ export default {
     luckyEnabled: 'Enable lucky check-in',
     normalMin: 'Minimum amount',
     normalMax: 'Maximum amount',
+    unrechargedTitle: 'Unrecharged user policy',
+    unrechargedHint: 'After the threshold is reached, normal check-ins use the configured percentage from the next check-in. Recharge detection includes balance payments, redeem codes, admin credits, and rebates; lucky check-ins are unchanged.',
+    unrechargedEnabled: 'Enable unrecharged reduction',
+    unrechargedThreshold: 'Cumulative check-in threshold',
+    unrechargedPercent: 'Normal reward percentage',
     luckyMin: 'Lowest negative multiplier',
     luckyMax: 'Highest positive multiplier',
     luckyType: 'Lucky reward calculation',
@@ -69,7 +74,7 @@ export default {
     saveFailed: 'Failed to save check-in configuration',
     reasonRequired: 'Enter a reason for this change',
     reasonTooLong: 'The change reason must be at most 500 characters',
-    configInvalid: 'Check-in configuration is invalid. Check the probability, amount, multiplier, and protection ranges.',
+    configInvalid: 'Check-in configuration is invalid. Check the probability, amount, multiplier, unrecharged policy, and protection ranges.',
     configConflict: 'Another administrator updated this configuration. Refresh and try again.',
     saveSuccess: 'Check-in configuration updated'
   }

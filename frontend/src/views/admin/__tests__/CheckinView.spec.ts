@@ -78,6 +78,9 @@ const config = {
   min_account_age_hours: 24,
   ip_window_minutes: 10,
   ip_max_users: 20,
+  unrecharged_reduction_enabled: true,
+  unrecharged_checkin_threshold: 3,
+  unrecharged_normal_reward_percent: '50',
   config_version: 1,
   updated_at: '2026-07-26T00:00:00Z',
 }
@@ -135,6 +138,9 @@ describe('CheckinView configuration errors', () => {
       lucky_max_multiplier: '2',
       lucky_amount_min: '-0.05',
       lucky_amount_max: '0.10',
+      unrecharged_reduction_enabled: true,
+      unrecharged_checkin_threshold: 3,
+      unrecharged_normal_reward_percent: '50',
       change_reason: 'test change',
       expected_config_version: 1,
     }))

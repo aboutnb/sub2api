@@ -10,6 +10,11 @@ export default {
     luckyEnabled: '启用运气签到',
     normalMin: '最小金额',
     normalMax: '最大金额',
+    unrechargedTitle: '未充值用户签到策略',
+    unrechargedHint: '累计签到达到阈值后，从下一次普通签到开始按比例发放。充值判定覆盖余额充值、兑换码、管理员充值和返利等正向余额入账；运气签到不受影响。',
+    unrechargedEnabled: '启用未充值折减',
+    unrechargedThreshold: '累计签到阈值（次）',
+    unrechargedPercent: '普通签到发放比例',
     luckyMin: '负向最低倍率',
     luckyMax: '正向最高倍率',
     luckyType: '运气签到计算方式',
@@ -69,7 +74,7 @@ export default {
     saveFailed: '签到配置保存失败',
     reasonRequired: '请填写变更原因',
     reasonTooLong: '变更原因不能超过 500 个字符',
-    configInvalid: '签到配置不合法，请检查概率、金额、倍率和风控范围',
+    configInvalid: '签到配置不合法，请检查概率、金额、倍率、未充值策略和风控范围',
     configConflict: '签到配置已被其他管理员更新，请刷新后重试',
     saveSuccess: '签到配置已更新'
   }

@@ -122,6 +122,31 @@
               </div>
             </div>
           </div>
+          <div class="rounded-xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/50 dark:bg-amber-950/10">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 class="font-medium text-gray-900 dark:text-white">{{ t('admin.checkin.unrechargedTitle') }}</h3>
+                <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t('admin.checkin.unrechargedHint') }}</p>
+              </div>
+              <div class="flex shrink-0 items-center gap-2">
+                <span class="text-xs text-gray-500 dark:text-dark-400">{{ t('admin.checkin.unrechargedEnabled') }}</span>
+                <Toggle v-model="form.unrecharged_reduction_enabled" data-testid="unrecharged-reduction-toggle" :aria-label="t('admin.checkin.unrechargedEnabled')" />
+              </div>
+            </div>
+            <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2" :class="{ 'opacity-50': !form.unrecharged_reduction_enabled }">
+              <label class="text-sm text-gray-600 dark:text-dark-300">
+                {{ t('admin.checkin.unrechargedThreshold') }}
+                <input v-model.number="form.unrecharged_checkin_threshold" data-testid="unrecharged-checkin-threshold" class="input mt-2" type="number" min="1" max="3650" step="1" :disabled="!form.unrecharged_reduction_enabled" />
+              </label>
+              <label class="text-sm text-gray-600 dark:text-dark-300">
+                {{ t('admin.checkin.unrechargedPercent') }}
+                <div class="relative mt-2">
+                  <input v-model="form.unrecharged_normal_reward_percent" data-testid="unrecharged-normal-reward-percent" class="input pr-8" type="number" min="0" max="100" step="1" :disabled="!form.unrecharged_reduction_enabled" />
+                  <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-gray-400">%</span>
+                </div>
+              </label>
+            </div>
+          </div>
           <div class="border-y border-gray-100 py-5 dark:border-dark-700">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -248,6 +273,9 @@ const form = reactive({
   min_account_age_hours: 24,
   ip_window_minutes: 10,
   ip_max_users: 20,
+  unrecharged_reduction_enabled: true,
+  unrecharged_checkin_threshold: 3,
+  unrecharged_normal_reward_percent: '50',
   change_reason: ''
 })
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
@@ -333,6 +361,9 @@ function applyConfig(value: AdminCheckinConfig) {
   form.min_account_age_hours = value.min_account_age_hours
   form.ip_window_minutes = value.ip_window_minutes
   form.ip_max_users = value.ip_max_users
+  form.unrecharged_reduction_enabled = value.unrecharged_reduction_enabled
+  form.unrecharged_checkin_threshold = value.unrecharged_checkin_threshold
+  form.unrecharged_normal_reward_percent = value.unrecharged_normal_reward_percent
 }
 function saveErrorMessage(value: unknown) {
   return extractApiErrorMessage(value, t('admin.checkin.saveFailed'), {
