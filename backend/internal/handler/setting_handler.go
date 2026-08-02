@@ -70,6 +70,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		CommunityGroupURL:                settings.CommunityGroupURL,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
+		CompactHomeEnabled:               settings.CompactHomeEnabled,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		CheckinEnabled:                   settings.CheckinEnabled,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,

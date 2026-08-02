@@ -145,6 +145,7 @@ type SystemSettings struct {
 	CommunityGroupURL           string           `json:"community_group_url"`
 	DocURL                      string           `json:"doc_url"`
 	HomeContent                 string           `json:"home_content"`
+	CompactHomeEnabled          bool             `json:"compact_home_enabled"`
 	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled bool             `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL     string           `json:"purchase_subscription_url"`
@@ -355,6 +356,7 @@ type PublicSettings struct {
 	CommunityGroupURL                string                   `json:"community_group_url"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
+	CompactHomeEnabled               bool                     `json:"compact_home_enabled"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
 	CheckinEnabled                   bool                     `json:"checkin_enabled"`
 	PurchaseSubscriptionEnabled      bool                     `json:"purchase_subscription_enabled"`

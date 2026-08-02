@@ -184,6 +184,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyCommunityGroupURL,
 		SettingKeyDocURL,
 		SettingKeyHomeContent,
+		SettingKeyCompactHomeEnabled,
 		SettingKeyHideCcsImportButton,
 		SettingKeyCheckinEnabled,
 		SettingKeyPurchaseSubscriptionEnabled,
@@ -326,6 +327,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		CommunityGroupURL:                strings.TrimSpace(settings[SettingKeyCommunityGroupURL]),
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
+		CompactHomeEnabled:               settings[SettingKeyCompactHomeEnabled] == "true",
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		CheckinEnabled:                   settings[SettingKeyCheckinEnabled] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
@@ -522,6 +524,7 @@ type PublicSettingsInjectionPayload struct {
 	CommunityGroupURL                string                   `json:"community_group_url"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
+	CompactHomeEnabled               bool                     `json:"compact_home_enabled"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
 	CheckinEnabled                   bool                     `json:"checkin_enabled"`
 	PurchaseSubscriptionEnabled      bool                     `json:"purchase_subscription_enabled"`
@@ -602,6 +605,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		CommunityGroupURL:                settings.CommunityGroupURL,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
+		CompactHomeEnabled:               settings.CompactHomeEnabled,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		CheckinEnabled:                   settings.CheckinEnabled,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,

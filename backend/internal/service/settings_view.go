@@ -142,6 +142,7 @@ type SystemSettings struct {
 	CommunityGroupURL           string
 	DocURL                      string
 	HomeContent                 string
+	CompactHomeEnabled          bool
 	HideCcsImportButton         bool
 	PurchaseSubscriptionEnabled bool
 	PurchaseSubscriptionURL     string
@@ -314,6 +315,7 @@ type PublicSettings struct {
 	CommunityGroupURL                string
 	DocURL                           string
 	HomeContent                      string
+	CompactHomeEnabled               bool
 	HideCcsImportButton              bool
 	CheckinEnabled                   bool
 
