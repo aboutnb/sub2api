@@ -300,8 +300,9 @@ func (r *emailBroadcastRepository) finishRecipient(ctx context.Context, recipien
 	}
 	defer func() { _ = tx.Rollback() }()
 	var taskID int64
-	err = tx.QueryRowContext(ctx, `UPDATE email_broadcast_recipients SET status = $1, last_error = NULLIF($2, ''), sent_at = CASE WHEN $1 = $3 THEN NOW() ELSE sent_at END, claimed_at = NULL, updated_at = NOW() WHERE id = $4 AND status = $5 RETURNING task_id`,
-		status, errorMessage, service.EmailBroadcastRecipientSent, recipientID, service.EmailBroadcastRecipientSending).Scan(&taskID)
+	sent := status == service.EmailBroadcastRecipientSent
+	err = tx.QueryRowContext(ctx, `UPDATE email_broadcast_recipients SET status = $1, last_error = NULLIF($2, ''), sent_at = CASE WHEN $3 THEN NOW() ELSE sent_at END, claimed_at = NULL, updated_at = NOW() WHERE id = $4 AND status = $5 RETURNING task_id`,
+		status, errorMessage, sent, recipientID, service.EmailBroadcastRecipientSending).Scan(&taskID)
 	if err != nil {
 		return err
 	}
