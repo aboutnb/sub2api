@@ -8173,6 +8173,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api";
 import {
@@ -8246,6 +8247,7 @@ import {
 } from "./codexFingerprintSignals";
 
 const { t, locale } = useI18n();
+const route = useRoute();
 const appStore = useAppStore();
 // 关闭 step-up 开关是敏感操作：后端返回 STEP_UP_REQUIRED 时弹 TOTP 码重试
 const settingsStepUp = useStepUp();
@@ -8278,7 +8280,6 @@ type SettingsTab =
   | "payment"
   | "email"
   | "backup";
-const activeTab = ref<SettingsTab>("general");
 const settingsTabs = [
   { key: "general" as SettingsTab, icon: "home" as const },
   { key: "agreement" as SettingsTab, icon: "document" as const },
@@ -8290,6 +8291,12 @@ const settingsTabs = [
   { key: "email" as SettingsTab, icon: "mail" as const },
   { key: "backup" as SettingsTab, icon: "database" as const },
 ];
+const requestedSettingsTab = String(route?.query?.tab || "") as SettingsTab;
+const activeTab = ref<SettingsTab>(
+  settingsTabs.some((tab) => tab.key === requestedSettingsTab)
+    ? requestedSettingsTab
+    : "general",
+);
 
 const settingsTabKeyboardActions = {
   ArrowLeft: -1,

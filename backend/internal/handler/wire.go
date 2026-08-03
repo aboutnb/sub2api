@@ -28,6 +28,7 @@ func ProvideAdminHandlers(
 	promoHandler *admin.PromoHandler,
 	settingHandler *admin.SettingHandler,
 	checkinHandler *admin.CheckinHandler,
+	emailBroadcastHandler *admin.EmailBroadcastHandler,
 	opsHandler *admin.OpsHandler,
 	systemHandler *admin.SystemHandler,
 	subscriptionHandler *admin.SubscriptionHandler,
@@ -89,6 +90,7 @@ func ProvideAdminHandlers(
 		AuditLog:               auditLogHandler,
 		AuthIPBan:              authIPBanHandler,
 		Checkin:                checkinHandler,
+		EmailBroadcast:         emailBroadcastHandler,
 	}
 }
 
@@ -279,6 +281,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewAuditLogHandler,
 	admin.NewAuthIPBanHandler,
 	admin.NewCheckinHandler,
+	admin.NewEmailBroadcastHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

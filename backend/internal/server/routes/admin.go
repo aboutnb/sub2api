@@ -90,6 +90,9 @@ func RegisterAdminRoutes(
 		// 使用记录管理
 		registerUsageRoutes(admin, h)
 
+		// 邮件群发任务
+		registerEmailBroadcastRoutes(admin, h)
+
 		// 用户属性管理
 		registerUserAttributeRoutes(admin, h)
 
@@ -125,6 +128,21 @@ func RegisterAdminRoutes(
 
 		// 登录来源自动封禁
 		registerAuthIPBanRoutes(admin, h)
+	}
+}
+
+func registerEmailBroadcastRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	broadcasts := admin.Group("/email-broadcasts")
+	{
+		broadcasts.GET("", h.Admin.EmailBroadcast.List)
+		broadcasts.GET("/estimate", h.Admin.EmailBroadcast.Estimate)
+		broadcasts.POST("/estimate", h.Admin.EmailBroadcast.EstimateFiltered)
+		broadcasts.POST("", h.Admin.EmailBroadcast.Create)
+		broadcasts.POST("/test", h.Admin.EmailBroadcast.Test)
+		broadcasts.GET("/:id", h.Admin.EmailBroadcast.Get)
+		broadcasts.GET("/:id/recipients", h.Admin.EmailBroadcast.ListRecipients)
+		broadcasts.POST("/:id/cancel", h.Admin.EmailBroadcast.Cancel)
+		broadcasts.POST("/:id/retry-failed", h.Admin.EmailBroadcast.RetryFailed)
 	}
 }
 

@@ -400,6 +400,16 @@ const eventDisplayMeta: Record<string, EventDisplayMeta> = {
     timing: "运维日报、周报、错误摘要或账号健康报表到达配置的发送时间时发送；日报和周报的完整指标均可在模板中编辑。",
     categoryLabel: "运维",
   },
+  "system.maintenance": {
+    label: "系统维护通知",
+    timing: "管理员创建邮件群发任务时，向任务收件人快照中的活跃用户发送。",
+    categoryLabel: "系统通知",
+  },
+  "system.broadcast": {
+    label: "通用邮件群发",
+    timing: "管理员创建通用邮件任务时，使用任务内的中英文内容向收件人快照发送。",
+    categoryLabel: "系统通知",
+  },
 };
 
 const eventDisplayMetaEn: Record<string, EventDisplayMeta> = {
@@ -463,6 +473,16 @@ const eventDisplayMetaEn: Record<string, EventDisplayMeta> = {
     timing: "Sent when a configured daily, weekly, error digest, or account health report reaches its scheduled send time. Every daily and weekly summary metric is editable in this template.",
     categoryLabel: "Ops",
   },
+  "system.maintenance": {
+    label: "System Maintenance Notice",
+    timing: "Sent to the active-user recipient snapshot when an administrator creates an email broadcast task.",
+    categoryLabel: "System",
+  },
+  "system.broadcast": {
+    label: "General Email Broadcast",
+    timing: "Uses the task's Chinese and English content when an administrator creates a general email broadcast.",
+    categoryLabel: "System",
+  },
 };
 
 function normalizeEventOption(option: EmailTemplateEventOption): EmailTemplateOption {
@@ -507,6 +527,7 @@ function formatCategory(category: string): string {
     admin: { zh: "管理告警", en: "Admin" },
     risk_control: { zh: "风控", en: "Risk Control" },
     ops: { zh: "运维", en: "Ops" },
+    system: { zh: "系统通知", en: "System" },
   };
   const item = labels[normalized];
   return item ? localText(item.zh, item.en) : category;

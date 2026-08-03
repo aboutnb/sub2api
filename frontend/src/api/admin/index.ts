@@ -36,6 +36,7 @@ import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
 import authIPBansAPI from './authIPBans'
 import checkinAdminAPI from './checkin'
+import emailBroadcastsAPI from './emailBroadcasts'
 
 /**
  * Unified admin API object for convenient access
@@ -73,7 +74,8 @@ export const adminAPI = {
   compliance: adminComplianceAPI,
   audit: auditAPI,
   authIPBans: authIPBansAPI,
-  checkin: checkinAdminAPI
+  checkin: checkinAdminAPI,
+  emailBroadcasts: emailBroadcastsAPI
 }
 
 export {
@@ -109,7 +111,8 @@ export {
   adminComplianceAPI,
   auditAPI,
   authIPBansAPI,
-  checkinAdminAPI
+  checkinAdminAPI,
+  emailBroadcastsAPI
 }
 
 export default adminAPI
@@ -122,3 +125,11 @@ export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
 export type { TLSFingerprintProfile, CreateProfileRequest, UpdateProfileRequest } from './tlsFingerprintProfile'
 export type { ContentModerationConfig, ContentModerationLog, ModerationMode } from './riskControl'
 export type { AuthIPBan, AuthIPBanPolicy, AuthIPBanStatus, AuthUserAgentCategory } from './authIPBans'
+export type {
+  EmailBroadcastTask,
+  EmailBroadcastRecipient,
+  EmailBroadcastPayload,
+  EmailBroadcastStatus,
+  EmailBroadcastAudience,
+  EmailBroadcastAudienceMode
+} from './emailBroadcasts'

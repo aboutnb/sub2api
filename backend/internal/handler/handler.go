@@ -43,6 +43,7 @@ type AdminHandlers struct {
 	AuditLog               *admin.AuditLogHandler
 	AuthIPBan              *admin.AuthIPBanHandler
 	Checkin                *admin.CheckinHandler
+	EmailBroadcast         *admin.EmailBroadcastHandler
 }
 
 // Handlers contains all HTTP handlers

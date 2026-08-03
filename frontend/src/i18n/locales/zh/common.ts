@@ -152,6 +152,7 @@ export default {
   nav: {
     dashboard: '仪表盘',
     announcements: '公告',
+    emailBroadcasts: '邮件群发',
     communityGroup: '交流群',
     apiKeys: 'API 密钥',
     batchImage: '批量生图',
