@@ -85,9 +85,8 @@ type EmailBroadcastRepository interface {
 	ListTasks(ctx context.Context, params pagination.PaginationParams) ([]EmailBroadcastTask, *pagination.PaginationResult, error)
 	GetTask(ctx context.Context, taskID int64) (*EmailBroadcastTask, error)
 	ListRecipients(ctx context.Context, taskID int64, status string, params pagination.PaginationParams) ([]EmailBroadcastRecipient, *pagination.PaginationResult, error)
-	ClaimNextRecipient(ctx context.Context, staleAfter time.Duration) (*EmailBroadcastDelivery, error)
+	ClaimNextRecipient(ctx context.Context) (*EmailBroadcastDelivery, error)
 	CompleteRecipient(ctx context.Context, recipientID int64) error
-	RetryRecipient(ctx context.Context, recipientID int64, errorMessage string, nextAttemptAt time.Time) error
 	FailRecipient(ctx context.Context, recipientID int64, errorMessage string) error
 	CancelTask(ctx context.Context, taskID, canceledBy int64) (bool, error)
 	RetryFailed(ctx context.Context, taskID int64) (int64, error)

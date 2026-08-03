@@ -41,14 +41,11 @@ func (r *emailBroadcastRepositoryStub) ListRecipients(context.Context, int64, st
 	return nil, &pagination.PaginationResult{}, nil
 }
 
-func (r *emailBroadcastRepositoryStub) ClaimNextRecipient(context.Context, time.Duration) (*EmailBroadcastDelivery, error) {
+func (r *emailBroadcastRepositoryStub) ClaimNextRecipient(context.Context) (*EmailBroadcastDelivery, error) {
 	return nil, nil
 }
 
 func (r *emailBroadcastRepositoryStub) CompleteRecipient(context.Context, int64) error { return nil }
-func (r *emailBroadcastRepositoryStub) RetryRecipient(context.Context, int64, string, time.Time) error {
-	return nil
-}
 func (r *emailBroadcastRepositoryStub) FailRecipient(context.Context, int64, string) error {
 	return nil
 }

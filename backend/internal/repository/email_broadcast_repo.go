@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -235,11 +234,7 @@ func (r *emailBroadcastRepository) ListRecipients(ctx context.Context, taskID in
 	return items, paginationResultFromTotal(total, params), nil
 }
 
-func (r *emailBroadcastRepository) ClaimNextRecipient(ctx context.Context, staleAfter time.Duration) (*service.EmailBroadcastDelivery, error) {
-	staleSeconds := int64(staleAfter.Seconds())
-	if staleSeconds < 30 {
-		staleSeconds = 120
-	}
+func (r *emailBroadcastRepository) ClaimNextRecipient(ctx context.Context) (*service.EmailBroadcastDelivery, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -252,8 +247,8 @@ func (r *emailBroadcastRepository) ClaimNextRecipient(ctx context.Context, stale
 			JOIN email_broadcast_tasks t ON t.id = r.task_id
 			WHERE t.status IN ($1, $2, $3)
 			  AND t.scheduled_at <= NOW()
-			  AND ((r.status = $4 AND r.next_attempt_at <= NOW())
-			    OR (r.status = $5 AND r.claimed_at < NOW() - ($6 * interval '1 second')))
+			  AND r.status = $4
+			  AND r.next_attempt_at <= NOW()
 			ORDER BY t.scheduled_at ASC, t.id ASC, r.id ASC
 			LIMIT 1
 			FOR UPDATE OF r, t SKIP LOCKED
@@ -263,7 +258,7 @@ func (r *emailBroadcastRepository) ClaimNextRecipient(ctx context.Context, stale
 		FROM candidate WHERE r.id = candidate.id
 		RETURNING `+emailBroadcastRecipientReturningColumns,
 		service.EmailBroadcastStatusScheduled, service.EmailBroadcastStatusPending, service.EmailBroadcastStatusRunning,
-		service.EmailBroadcastRecipientPending, service.EmailBroadcastRecipientSending, staleSeconds)
+		service.EmailBroadcastRecipientPending, service.EmailBroadcastRecipientSending)
 	recipient, err := scanEmailBroadcastRecipient(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -324,12 +319,6 @@ func (r *emailBroadcastRepository) finishRecipient(ctx context.Context, recipien
 		return err
 	}
 	return tx.Commit()
-}
-
-func (r *emailBroadcastRepository) RetryRecipient(ctx context.Context, recipientID int64, errorMessage string, nextAttemptAt time.Time) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE email_broadcast_recipients SET status = $1, last_error = $2, claimed_at = NULL, next_attempt_at = $3, updated_at = NOW() WHERE id = $4 AND status = $5`,
-		service.EmailBroadcastRecipientPending, errorMessage, nextAttemptAt, recipientID, service.EmailBroadcastRecipientSending)
-	return err
 }
 
 func (r *emailBroadcastRepository) CancelTask(ctx context.Context, taskID, canceledBy int64) (bool, error) {

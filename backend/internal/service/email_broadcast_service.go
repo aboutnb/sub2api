@@ -18,9 +18,7 @@ import (
 
 const (
 	emailBroadcastEvent         = NotificationEmailEventBroadcast
-	emailBroadcastMaxAttempts   = 3
 	emailBroadcastRateInterval  = 200 * time.Millisecond
-	emailBroadcastClaimTimeout  = 2 * time.Minute
 	emailBroadcastUpdateTimeout = 10 * time.Second
 )
 
@@ -81,7 +79,7 @@ func (s *EmailBroadcastService) worker() {
 func (s *EmailBroadcastService) runOnce() {
 	ctx, cancel := context.WithTimeout(s.ctx, 45*time.Second)
 	defer cancel()
-	delivery, err := s.repo.ClaimNextRecipient(ctx, emailBroadcastClaimTimeout)
+	delivery, err := s.repo.ClaimNextRecipient(ctx)
 	if err != nil || delivery == nil {
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			slog.Error("email broadcast claim failed", "error", err)
@@ -106,16 +104,8 @@ func (s *EmailBroadcastService) runOnce() {
 	if len(message) > 500 {
 		message = message[:500]
 	}
-	if delivery.Recipient.Attempts < emailBroadcastMaxAttempts {
-		backoff := time.Duration(delivery.Recipient.Attempts*delivery.Recipient.Attempts) * 30 * time.Second
-		updateCtx, updateCancel := context.WithTimeout(context.Background(), emailBroadcastUpdateTimeout)
-		updateErr := s.repo.RetryRecipient(updateCtx, delivery.Recipient.ID, message, time.Now().Add(backoff))
-		updateCancel()
-		if updateErr != nil {
-			slog.Error("email broadcast retry update failed", "recipient_id", delivery.Recipient.ID, "error", updateErr)
-		}
-		return
-	}
+	// SMTP may accept a message before the client observes an error; never retry
+	// an ambiguous broadcast delivery automatically.
 	updateCtx, updateCancel := context.WithTimeout(context.Background(), emailBroadcastUpdateTimeout)
 	updateErr := s.repo.FailRecipient(updateCtx, delivery.Recipient.ID, message)
 	updateCancel()
