@@ -61,6 +61,8 @@ type RegisterRequest struct {
 	Password              string                           `json:"password" binding:"required,min=6"`
 	VerifyCode            string                           `json:"verify_code"`
 	TurnstileToken        string                           `json:"turnstile_token"`
+	TencentCaptchaTicket  string                           `json:"tencent_captcha_ticket"`
+	TencentCaptchaRandstr string                           `json:"tencent_captcha_randstr"`
 	RegistrationChallenge *RegistrationChallengeSubmission `json:"registration_challenge"`
 	PromoCode             string                           `json:"promo_code"`      // 注册优惠码
 	InvitationCode        string                           `json:"invitation_code"` // 邀请码
@@ -71,6 +73,8 @@ type RegisterRequest struct {
 type SendVerifyCodeRequest struct {
 	Email                 string                           `json:"email" binding:"required,email"`
 	TurnstileToken        string                           `json:"turnstile_token"`
+	TencentCaptchaTicket  string                           `json:"tencent_captcha_ticket"`
+	TencentCaptchaRandstr string                           `json:"tencent_captcha_randstr"`
 	RegistrationChallenge *RegistrationChallengeSubmission `json:"registration_challenge"`
 }
 
@@ -82,9 +86,19 @@ type SendVerifyCodeResponse struct {
 
 // LoginRequest represents the login request payload
 type LoginRequest struct {
-	Email          string `json:"email" binding:"required,email"`
-	Password       string `json:"password" binding:"required"`
-	TurnstileToken string `json:"turnstile_token"`
+	Email                 string `json:"email" binding:"required,email"`
+	Password              string `json:"password" binding:"required"`
+	TurnstileToken        string `json:"turnstile_token"`
+	TencentCaptchaTicket  string `json:"tencent_captcha_ticket"`
+	TencentCaptchaRandstr string `json:"tencent_captcha_randstr"`
+}
+
+func captchaProof(turnstileToken, tencentTicket, tencentRandstr string) service.CaptchaProof {
+	return service.CaptchaProof{
+		TurnstileToken: turnstileToken,
+		TencentTicket:  tencentTicket,
+		TencentRandstr: tencentRandstr,
+	}
 }
 
 // AuthResponse 认证响应格式（匹配前端期望）
@@ -185,8 +199,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Turnstile 验证（邮箱验证码注册场景避免重复校验一次性 token）
-	if err := h.authService.VerifyTurnstileForRegister(c.Request.Context(), req.TurnstileToken, ip.GetClientIP(c), req.VerifyCode); err != nil {
+	// 验证当前启用的验证码（邮箱验证码注册场景避免重复校验一次性票据）
+	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
+	if err := h.authService.VerifyCaptchaForRegister(c.Request.Context(), proof, ip.GetClientIP(c), req.VerifyCode); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -222,8 +237,8 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 		return
 	}
 
-	// Turnstile 验证
-	if err := h.authService.VerifyTurnstile(c.Request.Context(), req.TurnstileToken, ip.GetClientIP(c)); err != nil {
+	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
+	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, ip.GetClientIP(c)); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -251,13 +266,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 	middleware2.SetAuthAttemptTarget(c, req.Email)
 
-	// Turnstile 验证
-	if err := h.authService.VerifyTurnstile(c.Request.Context(), req.TurnstileToken, ip.GetClientIP(c)); err != nil {
-		if strings.TrimSpace(req.TurnstileToken) == "" {
-			middleware2.SetAuthAttemptFailureReason(c, "turnstile_token_missing")
-		} else {
-			middleware2.SetAuthAttemptFailureReason(c, "turnstile_verification_failed")
-		}
+	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
+	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, ip.GetClientIP(c)); err != nil {
+		middleware2.SetAuthAttemptFailureReason(c, "captcha_verification_failed")
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -607,8 +618,10 @@ func (h *AuthHandler) ValidateInvitationCode(c *gin.Context) {
 
 // ForgotPasswordRequest 忘记密码请求
 type ForgotPasswordRequest struct {
-	Email          string `json:"email" binding:"required,email"`
-	TurnstileToken string `json:"turnstile_token"`
+	Email                 string `json:"email" binding:"required,email"`
+	TurnstileToken        string `json:"turnstile_token"`
+	TencentCaptchaTicket  string `json:"tencent_captcha_ticket"`
+	TencentCaptchaRandstr string `json:"tencent_captcha_randstr"`
 }
 
 // ForgotPasswordResponse 忘记密码响应
@@ -625,8 +638,8 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 		return
 	}
 
-	// Turnstile 验证
-	if err := h.authService.VerifyTurnstile(c.Request.Context(), req.TurnstileToken, ip.GetClientIP(c)); err != nil {
+	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
+	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, ip.GetClientIP(c)); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
