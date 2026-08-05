@@ -1164,6 +1164,20 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				if eventType == "error" {
 					s.handleOpenAIWSErrorEventTransientFailure(ctx, account, capturedSessionModel, handshakeHeaders, payload)
 				}
+				if completedTurns.Load() == 0 && !wroteDownstream && eventType == "response.failed" {
+					failedMessage := extractOpenAISSEErrorMessage(payload)
+					if isOpenAIModelCapacityErrorMessage(failedMessage) {
+						return s.newOpenAIStreamFailoverError(
+							c,
+							account,
+							true,
+							handshakeHeaders.Get("x-request-id"),
+							payload,
+							failedMessage,
+							handshakeHeaders,
+						)
+					}
+				}
 				if wroteDownstream || eventType != "error" {
 					return nil
 				}

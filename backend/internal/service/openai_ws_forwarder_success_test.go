@@ -552,6 +552,66 @@ func TestOpenAIGatewayService_Forward_WSv2_ResponseFailedIsNotSchedulingSuccess(
 	require.True(t, svc.isOpenAIAccountModelRuntimeBlocked(account, "gpt-5.5"))
 }
 
+func TestOpenAIGatewayService_Forward_WSv2_CapacityBeforeOutputReturnsRetryableFailover(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	capacityMessage := "Selected model is at capacity. Please try a different model."
+
+	for _, stream := range []bool{false, true} {
+		t.Run("stream="+strconv.FormatBool(stream), func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", nil)
+			c.Request.Header.Set("User-Agent", "codex_cli_rs/0.98.0")
+
+			cfg := newOpenAIWSV2TestConfig()
+			cfg.Security.URLAllowlist.Enabled = false
+			cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+			cfg.Gateway.OpenAIWS.MinIdlePerAccount = 0
+
+			captureConn := &openAIWSCaptureConn{events: [][]byte{
+				[]byte(`{"type":"response.failed","response":{"id":"resp_capacity","model":"gpt-5.5","error":{"type":"invalid_request_error","message":"` + capacityMessage + `"}}}`),
+			}}
+			pool := newOpenAIWSConnPool(cfg)
+			pool.setClientDialerForTest(&openAIWSCaptureDialer{
+				conn:      captureConn,
+				handshake: http.Header{"X-Request-Id": []string{"rid-ws-capacity"}},
+			})
+
+			svc := &OpenAIGatewayService{
+				cfg:              cfg,
+				httpUpstream:     &httpUpstreamRecorder{},
+				cache:            &stubGatewayCache{},
+				openaiWSResolver: NewOpenAIWSProtocolResolver(cfg),
+				toolCorrector:    NewCodexToolCorrector(),
+				openaiWSPool:     pool,
+			}
+			account := &Account{
+				ID:          1303,
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Concurrency: 1,
+				Credentials: map[string]any{"api_key": "sk-test"},
+				Extra:       map[string]any{"responses_websockets_v2_enabled": true},
+			}
+			body := []byte(`{"model":"gpt-5.5","stream":` + strconv.FormatBool(stream) + `,"input":"hello"}`)
+
+			result, err := svc.Forward(context.Background(), c, account, body)
+
+			require.Nil(t, result)
+			var failoverErr *UpstreamFailoverError
+			require.ErrorAs(t, err, &failoverErr)
+			require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+			require.True(t, failoverErr.RetryableOnSameAccount)
+			require.True(t, failoverErr.RequestScopedTransient)
+			require.Contains(t, string(failoverErr.ResponseBody), capacityMessage)
+			require.Equal(t, "rid-ws-capacity", failoverErr.ResponseHeaders.Get("x-request-id"))
+			require.Empty(t, rec.Body.String())
+		})
+	}
+}
+
 func TestOpenAIWSPayloadString_OnlyAcceptsStringValues(t *testing.T) {
 	payload := map[string]any{
 		"type":                 nil,

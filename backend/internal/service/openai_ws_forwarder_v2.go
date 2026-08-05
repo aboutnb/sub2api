@@ -574,6 +574,19 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 					UpstreamOutTok: usage.OutputTokens,
 				})
 			}
+			failedMessage := extractOpenAISSEErrorMessage(message)
+			if (!reqStream || !wroteDownstream) && isOpenAIModelCapacityErrorMessage(failedMessage) {
+				headers := lease.HandshakeHeaders()
+				return nil, s.newOpenAIStreamFailoverError(
+					c,
+					account,
+					false,
+					headers.Get("x-request-id"),
+					message,
+					failedMessage,
+					headers,
+				)
+			}
 		}
 
 		if eventType == "error" {

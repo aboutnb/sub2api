@@ -961,6 +961,19 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 						UpstreamOutTok: usage.OutputTokens,
 					})
 				}
+				failedMessage := extractOpenAISSEErrorMessage(upstreamMessage)
+				if turn == 1 && !wroteDownstream && isOpenAIModelCapacityErrorMessage(failedMessage) {
+					headers := lease.HandshakeHeaders()
+					return nil, s.newOpenAIStreamFailoverError(
+						c,
+						account,
+						false,
+						headers.Get("x-request-id"),
+						upstreamMessage,
+						failedMessage,
+						headers,
+					)
+				}
 			}
 
 			if !clientDisconnected {

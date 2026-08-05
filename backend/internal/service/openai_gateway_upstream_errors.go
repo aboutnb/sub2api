@@ -145,7 +145,7 @@ func isOpenAITransientProcessingError(upstreamStatusCode int, upstreamMsg string
 		if strings.Contains(lower, "an error occurred while processing your request") {
 			return true
 		}
-		if strings.Contains(lower, "selected model is at capacity") {
+		if isOpenAIModelCapacityErrorMessage(lower) {
 			return true
 		}
 		return strings.Contains(lower, "you can retry your request") &&
@@ -163,6 +163,16 @@ func isOpenAITransientProcessingError(upstreamStatusCode int, upstreamMsg string
 		return true
 	}
 	return match(string(upstreamBody))
+}
+
+func isOpenAIModelCapacityErrorMessage(message string) bool {
+	return strings.Contains(strings.ToLower(strings.TrimSpace(message)), "selected model is at capacity")
+}
+
+func isOpenAIRequestScopedTransientError(message string, responseBody []byte) bool {
+	return isOpenAIModelCapacityErrorMessage(message) ||
+		isOpenAIModelCapacityErrorMessage(extractUpstreamErrorMessage(responseBody)) ||
+		isOpenAIUpstreamCapacityShedEvent(responseBody)
 }
 
 func isOpenAIContextWindowError(upstreamMsg string, upstreamBody []byte) bool {
@@ -249,11 +259,13 @@ func newOpenAIUpstreamFailoverError(
 	upstreamMsg string,
 	retryableOnSameAccount bool,
 ) *UpstreamFailoverError {
+	requestScopedTransient := isOpenAIRequestScopedTransientError(upstreamMsg, responseBody)
 	failoverErr := &UpstreamFailoverError{
 		StatusCode:             statusCode,
 		ResponseBody:           responseBody,
 		ResponseHeaders:        responseHeaders.Clone(),
-		RetryableOnSameAccount: retryableOnSameAccount,
+		RetryableOnSameAccount: retryableOnSameAccount || requestScopedTransient,
+		RequestScopedTransient: requestScopedTransient,
 	}
 	if isOpenAIRequestBodyTooLargeError(statusCode, upstreamMsg, responseBody) {
 		failoverErr.RetryableOnSameAccount = false

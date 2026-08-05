@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,6 +56,37 @@ func TestTempUnscheduleRetryableErrorSkipsRequestScopedTransient(t *testing.T) {
 	})
 }
 
+func TestRequestScopedCapacityDoesNotPenalizeAccountHealth(t *testing.T) {
+	repo := &capacityShedAccountRepoStub{}
+	cfg := &config.Config{}
+	svc := &OpenAIGatewayService{
+		rateLimitService: NewRateLimitService(repo, nil, cfg, nil, nil),
+	}
+	account := &Account{
+		ID:       5108,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+	}
+	capacityBody := []byte(`{"error":{"message":"Selected model is at capacity. Please try a different model.","type":"invalid_request_error"}}`)
+
+	for range 3 {
+		require.False(t, svc.handleOpenAIAccountUpstreamError(
+			context.Background(),
+			account,
+			http.StatusBadRequest,
+			http.Header{},
+			capacityBody,
+			"gpt-5.5",
+		))
+	}
+
+	require.False(t, svc.isOpenAIAccountRuntimeBlocked(account))
+	require.False(t, svc.isOpenAIAccountModelRuntimeBlocked(account, "gpt-5.5"))
+	require.Zero(t, repo.tempUnschedCalls)
+	require.False(t, (&UpstreamFailoverError{RequestScopedTransient: true}).ShouldReportAccountScheduleFailure())
+	require.True(t, (&UpstreamFailoverError{StatusCode: http.StatusBadGateway}).ShouldReportAccountScheduleFailure())
+}
+
 // 非池模式账号同样要先在同账号重试：换号不改变降载因素。
 func TestStreamFailedEventCapacityShedRetriesOnSameAccount(t *testing.T) {
 	nonPool := &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
@@ -64,6 +96,9 @@ func TestStreamFailedEventCapacityShedRetriesOnSameAccount(t *testing.T) {
 		require.True(t, isOpenAIUpstreamCapacityShedEvent(payload), code)
 		require.True(t, openAIStreamFailedEventRetryableOnSameAccount(nonPool, payload, "overloaded"), code)
 	}
+	capacityMessage := "Selected model is at capacity. Please try a different model."
+	capacityPayload := []byte(`{"type":"response.failed","response":{"error":{"type":"invalid_request_error","message":"` + capacityMessage + `"}}}`)
+	require.True(t, openAIStreamFailedEventRetryableOnSameAccount(nonPool, capacityPayload, capacityMessage))
 
 	// 非降载的 failed 事件在非池模式下仍不做同账号重试，避免放大改动面。
 	other := []byte(`{"type":"response.failed","response":{"error":{"code":"server_error"}}}`)
