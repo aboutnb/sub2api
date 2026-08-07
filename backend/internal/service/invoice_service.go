@@ -1068,12 +1068,12 @@ func invoiceDraftResponse(draft *dbent.InvoiceApplication) *InvoiceDraftResponse
 
 func invoiceApplicationResponse(application *dbent.InvoiceApplication) *InvoiceApplicationResponse {
 	return &InvoiceApplicationResponse{
-		ID: application.ID, ExternalID: ptrString(application.ExternalID),
+		ID: application.ID, ExternalID: invoiceStringValue(application.ExternalID),
 		OrderIDs: append([]int64(nil), application.OrderIds...), OrderNos: append([]string(nil), application.OrderNos...),
 		NeedPayTax: application.NeedPayTax, TaxOrderNos: append([]string(nil), application.TaxOrderNos...),
-		Status: application.Status, Title: ptrString(application.Title), RecipientEmail: ptrString(application.RecipientEmail),
-		TotalAmount: application.TotalAmount, Currency: application.Currency, RequestID: ptrString(application.RequestID),
-		ErrorCode: ptrString(application.ErrorCode), CreatedAt: application.CreatedAt, UpdatedAt: application.UpdatedAt,
+		Status: application.Status, Title: invoiceStringValue(application.Title), RecipientEmail: invoiceStringValue(application.RecipientEmail),
+		TotalAmount: application.TotalAmount, Currency: application.Currency, RequestID: invoiceStringValue(application.RequestID),
+		ErrorCode: invoiceStringValue(application.ErrorCode), CreatedAt: application.CreatedAt, UpdatedAt: application.UpdatedAt,
 	}
 }
 
@@ -1183,7 +1183,7 @@ func defaultString(value, fallback string) string {
 	return value
 }
 
-func ptrString(value *string) string {
+func invoiceStringValue(value *string) string {
 	if value == nil {
 		return ""
 	}
