@@ -858,7 +858,7 @@ func (s *InvoiceService) getAccessToken(ctx context.Context, force bool) (string
 	if err != nil {
 		return "", fmt.Errorf("request invoice token: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := readLimitedBody(resp.Body, invoiceJSONBodyLimit)
 	if err != nil {
 		return "", fmt.Errorf("read invoice token response: %w", err)

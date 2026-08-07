@@ -163,7 +163,7 @@ func (h *PaymentHandler) DownloadInvoicePDF(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	defer pdf.Body.Close()
+	defer func() { _ = pdf.Body.Close() }()
 	contentLength := pdf.ContentLength
 	if contentLength < 0 {
 		contentLength = -1

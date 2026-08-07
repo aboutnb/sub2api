@@ -61,7 +61,8 @@ func TestInvoiceClientTokenFormCacheAndValidation(t *testing.T) {
 				t.Fatalf("decode validation request: %v", err)
 			}
 			if validationCalls.Load() == 1 {
-				if payload["needPayTax"] != true || len(payload["taxOrderNos"].([]any)) != 1 {
+				taxOrderNos, ok := payload["taxOrderNos"].([]any)
+				if payload["needPayTax"] != true || !ok || len(taxOrderNos) != 1 {
 					t.Errorf("tax validation payload = %#v", payload)
 				}
 				writeInvoiceTestEnvelope(t, w, http.StatusOK, map[string]any{
@@ -288,7 +289,7 @@ func TestInvoiceClientCancelAndPDF(t *testing.T) {
 	if err != nil {
 		t.Fatalf("download PDF: %v", err)
 	}
-	defer pdf.Body.Close()
+	defer func() { _ = pdf.Body.Close() }()
 	body, err := io.ReadAll(pdf.Body)
 	if err != nil {
 		t.Fatalf("read PDF: %v", err)
@@ -416,7 +417,7 @@ func TestInvoiceApplicationOwnershipIsLocal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		t.Fatalf("enable sqlite foreign keys: %v", err)
 	}
@@ -446,7 +447,7 @@ func TestInvoiceDraftRecoveryClaimsOrdersAndPreservesTaxDrafts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		t.Fatalf("enable sqlite foreign keys: %v", err)
 	}
@@ -517,7 +518,7 @@ func TestInvoiceServiceEndToEndBothTaxModes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		t.Fatalf("enable sqlite foreign keys: %v", err)
 	}
@@ -714,7 +715,7 @@ func TestInvoiceServiceEndToEndBothTaxModes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("download completed PDF: %v", err)
 	}
-	defer pdf.Body.Close()
+	defer func() { _ = pdf.Body.Close() }()
 	pdfBody, err := io.ReadAll(pdf.Body)
 	if err != nil || string(pdfBody) != "%PDF-1.7 invoice e2e" {
 		t.Fatalf("downloaded PDF = %q, err=%v", pdfBody, err)
@@ -765,7 +766,7 @@ func TestInvoiceListRecoversUnknownSubmissionByOrderSet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		t.Fatalf("enable sqlite foreign keys: %v", err)
 	}
