@@ -114,6 +114,66 @@ func TestInvoiceClientTokenFormCacheAndValidation(t *testing.T) {
 	}
 }
 
+func TestInvoiceClientUsesUpdatedSettingsAndDropsCachedToken(t *testing.T) {
+	t.Parallel()
+
+	var tokenCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/oauth/token":
+			if err := r.ParseForm(); err != nil {
+				t.Fatalf("parse token form: %v", err)
+			}
+			clientID := r.Form.Get("client_id")
+			secret := r.Form.Get("client_secret")
+			if secret != "secret-"+strings.TrimPrefix(clientID, "client-") {
+				t.Fatalf("unexpected credentials: client_id=%q secret=%q", clientID, secret)
+			}
+			tokenCalls.Add(1)
+			writeInvoiceTestJSON(t, w, http.StatusOK, map[string]any{
+				"access_token": "token-" + clientID, "expires_in": 900, "scope": invoiceScope,
+			})
+		case "/api/v1/invoice-orders/validate":
+			if got := r.Header.Get("Authorization"); got != "Bearer token-client-a" && got != "Bearer token-client-b" {
+				t.Fatalf("unexpected authorization: %q", got)
+			}
+			writeInvoiceTestEnvelope(t, w, http.StatusOK, map[string]any{
+				"totalAmount": "100.00", "currency": "CNY", "taxAmount": "0.00", "invoiceAmount": "100.00",
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	repo := newInvoiceSettingsTestRepo()
+	settings := NewInvoiceSettingsService(repo, invoiceSettingsTestEncryptor{}, config.InvoiceIntegrationConfig{}, true)
+	_, err := settings.Update(ctx, InvoiceAdminSettings{
+		Enabled: true, BaseURL: server.URL, ClientID: "client-a", ClientSecret: "secret-a", TimeoutSeconds: 15,
+	})
+	if err != nil {
+		t.Fatalf("save initial settings: %v", err)
+	}
+	service := &InvoiceService{settingsService: settings, httpClient: server.Client()}
+	if _, err := service.validateRemoteOrders(ctx, []string{"ORDER-A"}, false, nil); err != nil {
+		t.Fatalf("validate with initial settings: %v", err)
+	}
+
+	_, err = settings.Update(ctx, InvoiceAdminSettings{
+		Enabled: true, BaseURL: server.URL, ClientID: "client-b", ClientSecret: "secret-b", TimeoutSeconds: 15,
+	})
+	if err != nil {
+		t.Fatalf("save updated settings: %v", err)
+	}
+	if _, err := service.validateRemoteOrders(ctx, []string{"ORDER-B"}, false, nil); err != nil {
+		t.Fatalf("validate with updated settings: %v", err)
+	}
+	if got := tokenCalls.Load(); got != 2 {
+		t.Fatalf("token calls = %d, want 2 after credential change", got)
+	}
+}
+
 func TestSetInvoiceAmountUsesExactDecimalArithmetic(t *testing.T) {
 	t.Parallel()
 

@@ -24,7 +24,12 @@ func (h *PaymentHandler) GetInvoiceConfig(c *gin.Context) {
 		response.Success(c, service.InvoiceConfigResponse{})
 		return
 	}
-	response.Success(c, h.invoiceService.Config())
+	config, err := h.invoiceService.Config(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, config)
 }
 
 func (h *PaymentHandler) ValidateInvoiceOrders(c *gin.Context) {

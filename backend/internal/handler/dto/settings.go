@@ -296,6 +296,13 @@ type SystemSettings struct {
 	// Use Alipay face-to-face precreate and an app deep link on mobile clients.
 	PaymentAlipayMobilePrecreateDeepLink bool `json:"payment_alipay_mobile_precreate_deep_link"`
 
+	// XZNOAuth self-service invoice integration. The client secret is never returned.
+	InvoiceEnabled                bool   `json:"invoice_enabled"`
+	InvoiceBaseURL                string `json:"invoice_base_url"`
+	InvoiceClientID               string `json:"invoice_client_id"`
+	InvoiceClientSecretConfigured bool   `json:"invoice_client_secret_configured"`
+	InvoiceTimeoutSeconds         int    `json:"invoice_timeout_seconds"`
+
 	// 余额、订阅到期与账号限额通知
 	BalanceLowNotifyEnabled         bool               `json:"balance_low_notify_enabled"`
 	BalanceLowNotifyThreshold       float64            `json:"balance_low_notify_threshold"`

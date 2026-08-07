@@ -58,6 +58,7 @@ type SettingHandler struct {
 	opsService               *service.OpsService
 	paymentConfigService     *service.PaymentConfigService
 	paymentService           *service.PaymentService
+	invoiceSettingsService   *service.InvoiceSettingsService
 	userAttributeService     *service.UserAttributeService
 	notificationEmailService *service.NotificationEmailService
 	totpService              *service.TotpService
@@ -87,6 +88,10 @@ func (h *SettingHandler) SetNotificationEmailService(notificationEmailService *s
 // changing the constructor signature used by existing unit tests.
 func (h *SettingHandler) SetAliyunCaptchaService(aliyunCaptchaService *service.AliyunCaptchaService) {
 	h.aliyunCaptchaService = aliyunCaptchaService
+}
+
+func (h *SettingHandler) SetInvoiceSettingsService(invoiceSettingsService *service.InvoiceSettingsService) {
+	h.invoiceSettingsService = invoiceSettingsService
 }
 
 // SetStepUpDeps attaches the services backing the step-up switch preconditions
@@ -129,6 +134,14 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 	}
 	if paymentCfg == nil {
 		paymentCfg = &service.PaymentConfig{SubscriptionFeeEnabled: true}
+	}
+	invoiceSettings := &service.InvoiceAdminSettings{TimeoutSeconds: 15}
+	if h.invoiceSettingsService != nil {
+		invoiceSettings, err = h.invoiceSettingsService.GetAdminSettings(c.Request.Context())
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
 	}
 	passkeyConfigured, passkeyRPID, passkeyRPOrigins := h.settingService.PasskeyConfiguration()
 
@@ -373,6 +386,11 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PaymentCancelRateLimitMode:                             paymentCfg.CancelRateLimitMode,
 		PaymentAlipayForceQRCode:                               paymentCfg.AlipayForceQRCode,
 		PaymentAlipayMobilePrecreateDeepLink:                   paymentCfg.AlipayMobilePrecreateDeepLink,
+		InvoiceEnabled:                                         invoiceSettings.Enabled,
+		InvoiceBaseURL:                                         invoiceSettings.BaseURL,
+		InvoiceClientID:                                        invoiceSettings.ClientID,
+		InvoiceClientSecretConfigured:                          invoiceSettings.ClientSecretConfigured,
+		InvoiceTimeoutSeconds:                                  invoiceSettings.TimeoutSeconds,
 
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,

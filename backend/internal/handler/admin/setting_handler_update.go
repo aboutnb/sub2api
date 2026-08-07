@@ -331,6 +331,13 @@ type UpdateSettingsRequest struct {
 	// Use Alipay face-to-face precreate and an app deep link on mobile clients.
 	PaymentAlipayMobilePrecreateDeepLink *bool `json:"payment_alipay_mobile_precreate_deep_link"`
 
+	// XZNOAuth self-service invoice integration.
+	InvoiceEnabled        *bool   `json:"invoice_enabled"`
+	InvoiceBaseURL        *string `json:"invoice_base_url"`
+	InvoiceClientID       *string `json:"invoice_client_id"`
+	InvoiceClientSecret   *string `json:"invoice_client_secret"`
+	InvoiceTimeoutSeconds *int    `json:"invoice_timeout_seconds"`
+
 	// Channel Monitor feature switch
 	ChannelMonitorEnabled                *bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds *int  `json:"channel_monitor_default_interval_seconds"`
@@ -2044,6 +2051,33 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	if h.invoiceSettingsService != nil && hasInvoiceFields(req) {
+		invoiceSettings, err := h.invoiceSettingsService.GetAdminSettings(c.Request.Context())
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		if req.InvoiceEnabled != nil {
+			invoiceSettings.Enabled = *req.InvoiceEnabled
+		}
+		if req.InvoiceBaseURL != nil {
+			invoiceSettings.BaseURL = *req.InvoiceBaseURL
+		}
+		if req.InvoiceClientID != nil {
+			invoiceSettings.ClientID = *req.InvoiceClientID
+		}
+		if req.InvoiceClientSecret != nil {
+			invoiceSettings.ClientSecret = *req.InvoiceClientSecret
+		}
+		if req.InvoiceTimeoutSeconds != nil {
+			invoiceSettings.TimeoutSeconds = *req.InvoiceTimeoutSeconds
+		}
+		if _, err := h.invoiceSettingsService.Update(c.Request.Context(), *invoiceSettings); err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	}
+
 	h.auditSettingsUpdate(c, previousSettings, settings, previousAuthSourceDefaults, authSourceDefaults, auditReq)
 
 	// 重新获取设置返回
@@ -2073,6 +2107,14 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 	if updatedPaymentCfg == nil {
 		updatedPaymentCfg = &service.PaymentConfig{SubscriptionFeeEnabled: true}
+	}
+	updatedInvoiceSettings := &service.InvoiceAdminSettings{TimeoutSeconds: 15}
+	if h.invoiceSettingsService != nil {
+		updatedInvoiceSettings, err = h.invoiceSettingsService.GetAdminSettings(c.Request.Context())
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
 	}
 	passkeyConfigured, passkeyRPID, passkeyRPOrigins := h.settingService.PasskeyConfiguration()
 
@@ -2313,6 +2355,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PaymentCancelRateLimitMode:                             updatedPaymentCfg.CancelRateLimitMode,
 		PaymentAlipayForceQRCode:                               updatedPaymentCfg.AlipayForceQRCode,
 		PaymentAlipayMobilePrecreateDeepLink:                   updatedPaymentCfg.AlipayMobilePrecreateDeepLink,
+		InvoiceEnabled:                                         updatedInvoiceSettings.Enabled,
+		InvoiceBaseURL:                                         updatedInvoiceSettings.BaseURL,
+		InvoiceClientID:                                        updatedInvoiceSettings.ClientID,
+		InvoiceClientSecretConfigured:                          updatedInvoiceSettings.ClientSecretConfigured,
+		InvoiceTimeoutSeconds:                                  updatedInvoiceSettings.TimeoutSeconds,
 
 		ChannelMonitorEnabled:                updatedSettings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: updatedSettings.ChannelMonitorDefaultIntervalSeconds,
@@ -2372,6 +2419,12 @@ func hasPaymentFields(req UpdateSettingsRequest) bool {
 		req.PaymentCancelRateLimitMax != nil || req.PaymentCancelRateLimitWindow != nil ||
 		req.PaymentCancelRateLimitUnit != nil || req.PaymentCancelRateLimitMode != nil ||
 		req.PaymentAlipayForceQRCode != nil || req.PaymentAlipayMobilePrecreateDeepLink != nil
+}
+
+func hasInvoiceFields(req UpdateSettingsRequest) bool {
+	return req.InvoiceEnabled != nil || req.InvoiceBaseURL != nil ||
+		req.InvoiceClientID != nil || req.InvoiceClientSecret != nil ||
+		req.InvoiceTimeoutSeconds != nil
 }
 
 // ensureDingTalkSyncAttributes 在保存 settings 后，按 admin 配置的 (attr key, attr name)
