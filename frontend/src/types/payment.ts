@@ -108,6 +108,86 @@ export interface PaymentOrder {
   provider_instance_id?: string
 }
 
+// ==================== Invoices ====================
+
+export interface InvoiceConfig {
+  enabled: boolean
+  supports_tax_payment: boolean
+  max_orders: number
+}
+
+export interface InvoiceTaxPayment {
+  taxOrderNo: string
+  payUrl: string
+}
+
+export interface InvoiceValidation {
+  orders?: Array<Record<string, unknown>>
+  totalAmount?: string
+  invoiceAmount?: string
+  currency?: string
+  taxAmount?: string
+  taxPaidAmount?: string
+  taxDueAmount?: string
+  taxOrderNo?: string
+  payUrl?: string
+  taxPayments?: Record<string, InvoiceTaxPayment>
+}
+
+export interface InvoiceDraft {
+  draft_id: number
+  order_ids: number[]
+  need_pay_tax: boolean
+  validation: InvoiceValidation
+  tax_order_nos: string[]
+}
+
+export interface InvoiceTaxStatus {
+  paid: boolean
+  ready: boolean
+  validation?: InvoiceValidation
+  tax_order_nos: string[]
+}
+
+export type InvoiceStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'completed'
+  | 'canceled'
+  | 'submitting'
+  | 'submission_unknown'
+  | 'failed'
+
+export interface InvoiceApplication {
+  id: number
+  external_id?: string
+  order_ids: number[]
+  order_nos: string[]
+  need_pay_tax: boolean
+  tax_order_nos: string[]
+  status: InvoiceStatus
+  title?: string
+  recipient_email?: string
+  total_amount: string
+  currency: string
+  request_id?: string
+  error_code?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface InvoiceApplyRequest {
+  buyer_type: 'individual' | 'company'
+  title: string
+  taxpayer_id: string
+  buyer_address?: string
+  buyer_phone?: string
+  buyer_bank?: string
+  buyer_bank_account?: string
+  recipient_email: string
+}
+
 // ==================== Plans & Channels ====================
 
 export interface SubscriptionPlan {

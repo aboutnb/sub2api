@@ -100,6 +100,7 @@ type Config struct {
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
 	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
+	Invoice                 InvoiceIntegrationConfig      `mapstructure:"invoice"`
 }
 
 type LogConfig struct {
@@ -180,6 +181,16 @@ type IdempotencyConfig struct {
 	CleanupIntervalSeconds int `mapstructure:"cleanup_interval_seconds"`
 	// CleanupBatchSize 每次清理的最大记录数。
 	CleanupBatchSize int `mapstructure:"cleanup_batch_size"`
+}
+
+// InvoiceIntegrationConfig configures the server-side XZNOAuth invoice client.
+// Client credentials must never be exposed to the frontend or stored in browser state.
+type InvoiceIntegrationConfig struct {
+	Enabled        bool   `mapstructure:"enabled"`
+	BaseURL        string `mapstructure:"base_url"`
+	ClientID       string `mapstructure:"client_id"`
+	ClientSecret   string `mapstructure:"client_secret"`
+	TimeoutSeconds int    `mapstructure:"timeout_seconds"`
 }
 
 type BatchImageConfig struct {
@@ -1701,6 +1712,18 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	if err := viper.BindEnv("server.enable_server_timing", "ENABLE_SERVER_TIMING"); err != nil {
 		return nil, fmt.Errorf("bind ENABLE_SERVER_TIMING: %w", err)
 	}
+	invoiceEnvBindings := map[string]string{
+		"invoice.enabled":         "XZNOAUTH_INVOICE_ENABLED",
+		"invoice.base_url":        "XZNOAUTH_BASE_URL",
+		"invoice.client_id":       "XZNOAUTH_CLIENT_ID",
+		"invoice.client_secret":   "XZNOAUTH_CLIENT_SECRET",
+		"invoice.timeout_seconds": "XZNOAUTH_INVOICE_TIMEOUT_SECONDS",
+	}
+	for key, envName := range invoiceEnvBindings {
+		if err := viper.BindEnv(key, envName); err != nil {
+			return nil, fmt.Errorf("bind %s: %w", envName, err)
+		}
+	}
 
 	// 默认值
 	setDefaults()
@@ -1747,6 +1770,9 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	}
 	cfg.Server.FrontendURL = strings.TrimSpace(cfg.Server.FrontendURL)
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
+	cfg.Invoice.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.Invoice.BaseURL), "/")
+	cfg.Invoice.ClientID = strings.TrimSpace(cfg.Invoice.ClientID)
+	cfg.Invoice.ClientSecret = strings.TrimSpace(cfg.Invoice.ClientSecret)
 	cfg.LinuxDo.ClientID = strings.TrimSpace(cfg.LinuxDo.ClientID)
 	cfg.LinuxDo.ClientSecret = strings.TrimSpace(cfg.LinuxDo.ClientSecret)
 	cfg.LinuxDo.AuthorizeURL = strings.TrimSpace(cfg.LinuxDo.AuthorizeURL)
@@ -2194,6 +2220,13 @@ func setDefaults() {
 	viper.SetDefault("image_storage.secret_access_key", "")
 	viper.SetDefault("image_storage.public_base_url", "")
 
+	// XZNOAuth self-service invoice integration.
+	viper.SetDefault("invoice.enabled", false)
+	viper.SetDefault("invoice.base_url", "https://oauth.xzncraft.cn")
+	viper.SetDefault("invoice.client_id", "")
+	viper.SetDefault("invoice.client_secret", "")
+	viper.SetDefault("invoice.timeout_seconds", 15)
+
 	// Ops (vNext)
 	viper.SetDefault("ops.enabled", true)
 	viper.SetDefault("ops.use_preaggregated_tables", true)
@@ -2588,6 +2621,20 @@ func (c *Config) Validate() error {
 	}
 	if c.Server.MaxRequestBodySize < 0 {
 		return fmt.Errorf("server.max_request_body_size must be non-negative")
+	}
+	if c.Invoice.TimeoutSeconds < 1 || c.Invoice.TimeoutSeconds > 120 {
+		return fmt.Errorf("invoice.timeout_seconds must be between 1 and 120")
+	}
+	if c.Invoice.Enabled {
+		if c.Invoice.ClientID == "" {
+			return fmt.Errorf("invoice.client_id is required when invoice.enabled=true")
+		}
+		if c.Invoice.ClientSecret == "" {
+			return fmt.Errorf("invoice.client_secret is required when invoice.enabled=true")
+		}
+		if err := ValidateAbsoluteHTTPURL(c.Invoice.BaseURL); err != nil {
+			return fmt.Errorf("invoice.base_url invalid: %w", err)
+		}
 	}
 	if c.Server.H2C.Enabled {
 		if c.Server.H2C.MaxConcurrentStreams == 0 {

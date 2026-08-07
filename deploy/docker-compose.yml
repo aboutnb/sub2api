@@ -54,6 +54,11 @@ services:
       - RUN_MODE=${RUN_MODE:-standard}
       - UPDATE_GITHUB_TOKEN=${UPDATE_GITHUB_TOKEN:-}
       - ALIPAY_MOBILE_PRECREATE_DEEP_LINK=${ALIPAY_MOBILE_PRECREATE_DEEP_LINK:-}
+      - XZNOAUTH_INVOICE_ENABLED=${XZNOAUTH_INVOICE_ENABLED:-false}
+      - XZNOAUTH_BASE_URL=${XZNOAUTH_BASE_URL:-https://oauth.xzncraft.cn}
+      - XZNOAUTH_CLIENT_ID=${XZNOAUTH_CLIENT_ID:-}
+      - XZNOAUTH_CLIENT_SECRET=${XZNOAUTH_CLIENT_SECRET:-}
+      - XZNOAUTH_INVOICE_TIMEOUT_SECONDS=${XZNOAUTH_INVOICE_TIMEOUT_SECONDS:-15}
 
       # =======================================================================
       # Database Configuration (PostgreSQL)

@@ -101,6 +101,21 @@ webauthn:
 run_mode: "standard"
 
 # =============================================================================
+# XZNOAuth Invoice Integration (Optional)
+# XZNOAuth 自助开票对接（可选）
+# =============================================================================
+# Credentials are server-side only. The invoice entry is hidden when disabled.
+# 凭据仅保存在服务端；关闭后“我的订单”不会显示开票入口。
+invoice:
+  enabled: false
+  base_url: "https://oauth.xzncraft.cn"
+  client_id: ""
+  client_secret: ""
+  # Each request selects whether the platform or customer bears the invoice fee.
+  # 每次开票由用户选择平台承担或用户支付开票费。
+  timeout_seconds: 15
+
+# =============================================================================
 # CORS Configuration
 # 跨域资源共享 (CORS) 配置
 # =============================================================================

@@ -1,35 +1,11 @@
 <template>
   <div class="space-y-4">
-    <!-- Quick Amount Buttons -->
     <div>
-      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-        {{ t('payment.quickAmounts') }}
-      </label>
-      <div class="grid grid-cols-3 gap-2">
-        <button
-          v-for="amt in filteredAmounts"
-          :key="amt"
-          type="button"
-          :class="[
-            'rounded-lg border-2 px-4 py-3 text-center font-medium transition-colors',
-            modelValue === amt
-              ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-900/40 dark:text-primary-300'
-              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-dark-500',
-          ]"
-          @click="selectAmount(amt)"
-        >
-          {{ amt }}
-        </button>
-      </div>
-    </div>
-
-    <!-- Custom Amount Input -->
-    <div>
-      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+      <label class="mb-2 block text-xs font-medium text-gray-500 dark:text-gray-400">
         {{ t('payment.customAmount') }}
       </label>
       <div class="relative">
-        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-dark-500">
+        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-medium text-gray-400 dark:text-dark-500">
           $
         </span>
         <input
@@ -37,9 +13,32 @@
           inputmode="decimal"
           :value="customText"
           :placeholder="placeholderText"
-          class="input w-full py-3 pl-8 pr-4"
+          class="input h-14 w-full rounded-md pl-9 pr-4 text-xl font-semibold tabular-nums"
           @input="handleInput"
         />
+      </div>
+    </div>
+
+    <div>
+      <label class="mb-2 block text-xs font-medium text-gray-500 dark:text-gray-400">
+        {{ t('payment.quickAmounts') }}
+      </label>
+      <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+        <button
+          v-for="amt in filteredAmounts"
+          :key="amt"
+          type="button"
+          :aria-pressed="modelValue === amt"
+          :class="[
+            'h-11 rounded-md border px-2 text-center text-sm font-semibold tabular-nums transition-colors',
+            modelValue === amt
+              ? 'border-primary-500 bg-primary-50/70 text-primary-700 ring-1 ring-primary-500/20 dark:border-primary-400 dark:bg-dark-900 dark:text-primary-300'
+              : 'border-gray-300 bg-transparent text-gray-700 hover:border-gray-500 dark:border-dark-600 dark:text-gray-200 dark:hover:border-dark-500',
+          ]"
+          @click="selectAmount(amt)"
+        >
+          ${{ amt }}
+        </button>
       </div>
     </div>
   </div>

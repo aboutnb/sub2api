@@ -156,6 +156,8 @@ describe('PaymentView balance recharge credited fee', () => {
     expect(wrapper.text()).toContain('payment.feeCreditedNotice')
     expect(wrapper.text()).toContain('$102.00')
     expect(wrapper.text()).toContain(formatPaymentAmount(102, 'CNY'))
+    expect(wrapper.find('[data-test="recharge-checkout-layout"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="recharge-summary"]').text()).toContain('payment.checkoutSummary')
   })
 
   it('keeps the fee outside credited balance when disabled', async () => {
@@ -366,6 +368,8 @@ describe('PaymentView subscription confirmation amounts', () => {
 
     expect(text).toContain(convertedPrice)
     expect(text).toContain(convertedOriginalPrice)
+    expect(wrapper.find('[data-test="subscription-checkout-layout"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="subscription-summary"]').text()).toContain(convertedPrice)
     expect(text).not.toContain(formatPaymentAmount(9.99, 'CNY'))
     // 换算必须使用订阅汇率（×7.15），而不是余额倍率（÷0.14 = 71.36）
     expect(text).not.toContain(formatPaymentAmount(71.36, 'CNY'))
