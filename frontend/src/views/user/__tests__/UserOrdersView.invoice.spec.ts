@@ -180,6 +180,33 @@ describe('UserOrdersView invoice workflow', () => {
     expect(validateInvoiceOrders).toHaveBeenCalledWith([101], true)
   })
 
+  it('marks an already invoiced order and excludes it from merged selection', async () => {
+    getInvoiceConfig.mockResolvedValue({
+      data: { enabled: true, supports_tax_payment: true, max_orders: 20, fee_payer: 'customer' },
+    })
+    getMyOrders.mockResolvedValue({
+      data: {
+        items: [{ ...completedOrder, invoice_status: 'completed' }],
+        total: 1,
+        page: 1,
+        page_size: 20,
+        pages: 1,
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    const row = wrapper.find('[data-order-id="101"]')
+    expect(row.find('[data-test="invoice-order-status"]').text()).toContain('payment.invoice.orderStatus.completed')
+    expect(row.text()).not.toContain('payment.invoice.apply')
+
+    await wrapper.findAll('button').find(button => button.text() === 'payment.invoice.apply')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-order-id="101"] input[type="checkbox"]').exists()).toBe(false)
+    expect(wrapper.find('[data-order-id="101"] [data-test="invoice-order-status"]').exists()).toBe(true)
+  })
+
   it('requires confirmed tax reconciliation before submitting buyer data', async () => {
     getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 20, fee_payer: 'user_choice' } })
     validateInvoiceOrders.mockResolvedValue({
@@ -262,6 +289,7 @@ describe('UserOrdersView invoice workflow', () => {
       recipient_email: 'invoice@example.test',
     }))
     expect(showSuccess).toHaveBeenCalledWith('payment.invoice.applicationSubmitted')
+    expect(getMyOrders).toHaveBeenCalledTimes(2)
   })
 
   it('renders invoice records in mobile cards and a desktop table', async () => {

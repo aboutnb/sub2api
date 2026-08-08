@@ -115,6 +115,50 @@ type InvoiceApplicationResponse struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
+// InvoiceOrderStatuses returns the latest local invoice workflow status for the
+// requested orders. Canceled and rejected applications are intentionally
+// excluded because those orders are eligible for a new invoice request.
+func (s *InvoiceService) InvoiceOrderStatuses(ctx context.Context, userID int64, orderIDs []int64) (map[int64]string, error) {
+	statuses := make(map[int64]string)
+	if s == nil || s.entClient == nil || userID <= 0 || len(orderIDs) == 0 {
+		return statuses, nil
+	}
+
+	wanted := make(map[int64]struct{}, len(orderIDs))
+	for _, orderID := range orderIDs {
+		if orderID > 0 {
+			wanted[orderID] = struct{}{}
+		}
+	}
+	if len(wanted) == 0 {
+		return statuses, nil
+	}
+
+	applications, err := s.entClient.InvoiceApplication.Query().
+		Where(
+			invoiceapplication.UserIDEQ(userID),
+			invoiceapplication.StatusIn(invoiceClaimingStatuses...),
+		).
+		Order(dbent.Desc(invoiceapplication.FieldUpdatedAt)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query invoice order statuses: %w", err)
+	}
+	for _, application := range applications {
+		for _, orderID := range application.OrderIds {
+			if _, ok := wanted[orderID]; !ok {
+				continue
+			}
+			// Applications are ordered newest first, so the first matching
+			// application is the current state for an order.
+			if _, exists := statuses[orderID]; !exists {
+				statuses[orderID] = application.Status
+			}
+		}
+	}
+	return statuses, nil
+}
+
 type InvoicePDF struct {
 	Body               io.ReadCloser
 	ContentLength      int64

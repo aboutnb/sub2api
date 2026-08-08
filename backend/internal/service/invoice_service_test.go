@@ -541,6 +541,57 @@ func TestInvoiceApplicationOwnershipIsLocal(t *testing.T) {
 	}
 }
 
+func TestInvoiceOrderStatusesReturnsOnlyCurrentUserClaims(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:invoice-order-statuses?mode=memory&cache=shared&_fk=1")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		t.Fatalf("enable sqlite foreign keys: %v", err)
+	}
+	client := enttest.NewClient(t, enttest.WithOptions(dbent.Driver(entsql.OpenDB(dialect.SQLite, db))))
+	ctx := context.Background()
+
+	for _, input := range []struct {
+		userID int64
+		orders []int64
+		status string
+	}{
+		{userID: 101, orders: []int64{7, 8}, status: "completed"},
+		{userID: 101, orders: []int64{9}, status: "pending"},
+		{userID: 101, orders: []int64{10}, status: "canceled"},
+		{userID: 101, orders: []int64{12}, status: "rejected"},
+		{userID: 202, orders: []int64{11}, status: "completed"},
+	} {
+		if _, err := client.InvoiceApplication.Create().
+			SetUserID(input.userID).
+			SetOrderIds(input.orders).
+			SetStatus(input.status).
+			Save(ctx); err != nil {
+			t.Fatalf("create invoice application: %v", err)
+		}
+	}
+
+	service := &InvoiceService{entClient: client}
+	got, err := service.InvoiceOrderStatuses(ctx, 101, []int64{7, 8, 9, 10, 11, 12})
+	if err != nil {
+		t.Fatalf("query invoice order statuses: %v", err)
+	}
+	if got[7] != "completed" || got[8] != "completed" || got[9] != "pending" {
+		t.Fatalf("unexpected claimed statuses: %#v", got)
+	}
+	if _, ok := got[10]; ok {
+		t.Fatalf("canceled order should be eligible again: %#v", got)
+	}
+	if _, ok := got[12]; ok {
+		t.Fatalf("rejected order should be eligible again: %#v", got)
+	}
+	if _, ok := got[11]; ok {
+		t.Fatalf("another user's invoice status leaked: %#v", got)
+	}
+}
+
 func TestInvoiceDraftRecoveryClaimsOrdersAndPreservesTaxDrafts(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:invoice-drafts?mode=memory&cache=shared&_fk=1")
 	if err != nil {

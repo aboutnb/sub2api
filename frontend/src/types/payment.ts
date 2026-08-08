@@ -106,9 +106,20 @@ export interface PaymentOrder {
   refund_request_reason?: string
   plan_id?: number
   provider_instance_id?: string
+  /** Latest local invoice workflow status for this order, when claimed. */
+  invoice_status?: InvoiceOrderStatus
 }
 
 // ==================== Invoices ====================
+
+export type InvoiceOrderStatus =
+  | 'draft'
+  | 'failed'
+  | 'submitting'
+  | 'submission_unknown'
+  | 'pending'
+  | 'approved'
+  | 'completed'
 
 export interface InvoiceConfig {
   enabled: boolean

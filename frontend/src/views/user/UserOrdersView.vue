@@ -121,15 +121,25 @@
       <OrderTable :orders="orders" :loading="loading">
         <template #actions="{ row }">
           <div class="flex flex-wrap items-center gap-2">
+            <span
+              v-if="invoiceConfig.enabled && row.invoice_status"
+              data-test="invoice-order-status"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium"
+              :class="invoiceOrderStatusClass(row.invoice_status)"
+              :title="t('payment.invoice.orderStatusHint')"
+            >
+              <Icon :name="row.invoice_status === 'completed' ? 'checkCircle' : 'clock'" size="sm" />
+              <span>{{ invoiceOrderStatusLabel(row.invoice_status) }}</span>
+            </span>
             <label
-              v-if="invoiceConfig.enabled && invoiceSelectionMode && row.status === 'COMPLETED'"
+              v-else-if="invoiceConfig.enabled && invoiceSelectionMode && row.status === 'COMPLETED'"
               class="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/30"
             >
               <input
                 type="checkbox"
                 class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 :checked="selectedInvoiceOrderIds.has(row.id)"
-                :disabled="!selectedInvoiceOrderIds.has(row.id) && selectedInvoiceOrderIds.size >= invoiceConfig.max_orders"
+                :disabled="!!row.invoice_status || (!selectedInvoiceOrderIds.has(row.id) && selectedInvoiceOrderIds.size >= invoiceConfig.max_orders)"
                 @change="toggleInvoiceOrder(row.id)"
               />
               <span>{{ t('payment.invoice.selectOrder') }}</span>
@@ -761,6 +771,8 @@ function startInvoiceSelection(orderId?: number) {
 }
 
 function toggleInvoiceOrder(orderId: number) {
+  const order = orders.value.find(item => item.id === orderId)
+  if (order?.invoice_status) return
   const selected = new Set(selectedInvoiceOrderIds.value)
   if (selected.has(orderId)) {
     selected.delete(orderId)
@@ -813,6 +825,7 @@ async function abandonInvoiceDraft() {
     await paymentAPI.abandonInvoiceDraft(invoiceDraft.value.draft_id)
     cancelInvoiceSelection()
     resetInvoiceForm()
+    await fetchOrders()
   } catch (err: unknown) {
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
   } finally {
@@ -877,6 +890,7 @@ async function submitInvoiceApplication() {
     invoiceDialogOpen.value = false
     cancelInvoiceSelection()
     resetInvoiceForm()
+    await fetchOrders()
     if (invoiceRecordsOpen.value) await fetchInvoiceRecords()
   } catch (err: unknown) {
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('payment.invoice.submitFailed')))
@@ -930,6 +944,7 @@ async function cancelInvoiceApplication(application: InvoiceApplication) {
   try {
     await paymentAPI.cancelInvoice(application.id)
     appStore.showSuccess(t('payment.invoice.applicationCanceled'))
+    await fetchOrders()
     await fetchInvoiceRecords()
   } catch (err: unknown) {
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('payment.invoice.cancelFailed')))
@@ -964,6 +979,17 @@ function invoiceStatusClass(status: InvoiceStatus): string {
   if (status === 'approved') return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
   if (status === 'submission_unknown') return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
   return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300'
+}
+
+function invoiceOrderStatusLabel(status: NonNullable<PaymentOrder['invoice_status']>): string {
+  return t(`payment.invoice.orderStatus.${status}`)
+}
+
+function invoiceOrderStatusClass(status: NonNullable<PaymentOrder['invoice_status']>): string {
+  if (status === 'completed') return 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300'
+  if (status === 'failed') return 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+  if (status === 'draft') return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+  return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
 }
 
 function formatDate(dateStr: string) {
