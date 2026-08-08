@@ -58,8 +58,14 @@
       <div v-if="invoiceSelectionMode && !invoiceDraft" data-test="invoice-selection-bar" class="sticky top-3 z-20 border-l-2 border-primary-500 bg-white p-4 shadow-md dark:bg-dark-800">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div class="min-w-0 sm:w-64">
-            <p class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('payment.invoice.taxMode') }}</p>
-            <div data-test="invoice-tax-mode" class="grid grid-cols-2 rounded-md bg-gray-100 p-1 dark:bg-dark-700">
+            <p class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+              {{ t(invoiceAllowsFeePayerChoice ? 'payment.invoice.taxMode' : 'payment.invoice.feePolicy') }}
+            </p>
+            <div
+              v-if="invoiceAllowsFeePayerChoice"
+              data-test="invoice-tax-mode"
+              class="grid grid-cols-2 rounded-md bg-gray-100 p-1 dark:bg-dark-700"
+            >
               <button
                 type="button"
                 class="rounded px-2 py-1.5 text-xs font-medium transition-colors"
@@ -78,6 +84,14 @@
               >
                 {{ t('payment.invoice.taxRequired') }}
               </button>
+            </div>
+            <div
+              v-else
+              data-test="invoice-fixed-fee-payer"
+              class="inline-flex items-center gap-1.5 border-l-2 border-primary-500 pl-2 text-sm font-semibold text-gray-950 dark:text-white"
+            >
+              <Icon name="lock" size="xs" class="text-primary-600 dark:text-primary-400" />
+              {{ t(invoiceNeedPayTax ? 'payment.invoice.taxRequired' : 'payment.invoice.taxNotRequired') }}
             </div>
             <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
               {{ invoiceNeedPayTax ? t('payment.invoice.userPaysTaxNotice') : t('payment.invoice.platformPaysTaxNotice') }}
@@ -561,7 +575,12 @@ const cancelTargetId = ref<number | null>(null)
 const refundTarget = ref<PaymentOrder | null>(null)
 const refundReason = ref('')
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
-const invoiceConfig = reactive<InvoiceConfig>({ enabled: false, supports_tax_payment: false, max_orders: 20 })
+const invoiceConfig = reactive<InvoiceConfig>({
+  enabled: false,
+  supports_tax_payment: false,
+  max_orders: 20,
+  fee_payer: 'customer',
+})
 const invoiceSelectionMode = ref(false)
 const selectedInvoiceOrderIds = ref<Set<number>>(new Set())
 const invoiceNeedPayTax = ref(false)
@@ -603,6 +622,8 @@ const statusFilters = computed(() => [
 
 const invoiceValidation = computed<InvoiceValidation>(() => invoiceDraft.value?.validation || {})
 const invoiceCurrency = computed(() => invoiceValidation.value.currency || 'CNY')
+const invoiceAllowsFeePayerChoice = computed(() => invoiceConfig.fee_payer === 'user_choice')
+const configuredInvoiceNeedPayTax = computed(() => invoiceConfig.fee_payer !== 'platform')
 const invoiceReady = computed(() => {
   if (!invoiceDraft.value?.need_pay_tax) return true
   return invoiceValidation.value.taxDueAmount === '0.00'
@@ -700,6 +721,10 @@ async function loadInvoiceConfig() {
   try {
     const res = await paymentAPI.getInvoiceConfig()
     Object.assign(invoiceConfig, res.data)
+    if (!['customer', 'platform', 'user_choice'].includes(invoiceConfig.fee_payer)) {
+      invoiceConfig.fee_payer = 'customer'
+    }
+    invoiceNeedPayTax.value = configuredInvoiceNeedPayTax.value
   } catch {
     invoiceConfig.enabled = false
   }
@@ -724,6 +749,7 @@ function startInvoiceSelection(orderId?: number) {
     resumeInvoiceDraft()
     return
   }
+  invoiceNeedPayTax.value = configuredInvoiceNeedPayTax.value
   invoiceSelectionMode.value = true
   if (orderId) {
     selectedInvoiceOrderIds.value = new Set([orderId])
@@ -747,7 +773,7 @@ function toggleInvoiceOrder(orderId: number) {
 function cancelInvoiceSelection() {
   invoiceSelectionMode.value = false
   selectedInvoiceOrderIds.value = new Set()
-  invoiceNeedPayTax.value = false
+  invoiceNeedPayTax.value = configuredInvoiceNeedPayTax.value
   invoiceDraft.value = null
   selectedTaxOrderNo.value = ''
 }

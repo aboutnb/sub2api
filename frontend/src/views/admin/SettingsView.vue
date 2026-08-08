@@ -8082,6 +8082,36 @@
                   v-if="form.invoice_enabled"
                   class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6"
                 >
+                  <div class="sm:col-span-2 lg:col-span-6">
+                    <label class="input-label">
+                      {{ t("admin.settings.payment.invoice.feePayer") }}
+                    </label>
+                    <div
+                      data-testid="invoice-fee-payer"
+                      role="radiogroup"
+                      class="mt-1 grid grid-cols-1 rounded-md bg-gray-100 p-1 sm:inline-grid sm:grid-cols-3 dark:bg-dark-700"
+                    >
+                      <button
+                        v-for="option in invoiceFeePayerOptions"
+                        :key="option.value"
+                        type="button"
+                        role="radio"
+                        :aria-checked="form.invoice_fee_payer === option.value"
+                        :class="[
+                          'rounded px-3 py-2 text-sm font-medium transition-colors',
+                          form.invoice_fee_payer === option.value
+                            ? 'bg-white text-gray-950 shadow-sm dark:bg-dark-800 dark:text-white'
+                            : 'text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white',
+                        ]"
+                        @click="form.invoice_fee_payer = option.value"
+                      >
+                        {{ option.label }}
+                      </button>
+                    </div>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      {{ invoiceFeePayerHint }}
+                    </p>
+                  </div>
                   <div class="sm:col-span-2 lg:col-span-3">
                     <label class="input-label">
                       {{ t("admin.settings.payment.invoice.baseUrl") }}
@@ -9523,6 +9553,7 @@ const form = reactive<SettingsForm>({
   invoice_client_secret: "",
   invoice_client_secret_configured: false,
   invoice_timeout_seconds: 15,
+  invoice_fee_payer: "customer",
   table_default_page_size: tablePageSizeDefault,
   table_page_size_options: [10, 20, 50, 100],
   custom_menu_items: [] as Array<{
@@ -10924,6 +10955,31 @@ const invoiceConfigurationReady = computed(
       form.invoice_client_secret.trim() !== ""),
 );
 
+const invoiceFeePayerOptions = computed(() => [
+  {
+    value: "customer" as const,
+    label: t("admin.settings.payment.invoice.feePayerCustomer"),
+  },
+  {
+    value: "platform" as const,
+    label: t("admin.settings.payment.invoice.feePayerPlatform"),
+  },
+  {
+    value: "user_choice" as const,
+    label: t("admin.settings.payment.invoice.feePayerUserChoice"),
+  },
+]);
+
+const invoiceFeePayerHint = computed(() => {
+  if (form.invoice_fee_payer === "platform") {
+    return t("admin.settings.payment.invoice.feePayerPlatformHint");
+  }
+  if (form.invoice_fee_payer === "user_choice") {
+    return t("admin.settings.payment.invoice.feePayerUserChoiceHint");
+  }
+  return t("admin.settings.payment.invoice.feePayerCustomerHint");
+});
+
 async function saveSettings() {
   saving.value = true;
   try {
@@ -11343,6 +11399,7 @@ async function saveSettings() {
       invoice_client_id: form.invoice_client_id.trim(),
       invoice_client_secret: form.invoice_client_secret.trim(),
       invoice_timeout_seconds: Number(form.invoice_timeout_seconds) || 15,
+      invoice_fee_payer: form.invoice_fee_payer,
       openai_low_upstream_rate_priority_enabled:
         form.openai_low_upstream_rate_priority_enabled,
       openai_oauth_scheduling_rate_multiplier:

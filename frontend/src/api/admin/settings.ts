@@ -640,6 +640,7 @@ export interface SystemSettings {
   invoice_client_id: string;
   invoice_client_secret_configured: boolean;
   invoice_timeout_seconds: number;
+  invoice_fee_payer: "customer" | "platform" | "user_choice";
   payment_visible_method_alipay_source?: string;
   payment_visible_method_wxpay_source?: string;
   payment_visible_method_alipay_enabled?: boolean;
@@ -956,6 +957,7 @@ export interface UpdateSettingsRequest {
   invoice_client_id?: string;
   invoice_client_secret?: string;
   invoice_timeout_seconds?: number;
+  invoice_fee_payer?: "customer" | "platform" | "user_choice";
   payment_visible_method_alipay_source?: string;
   payment_visible_method_wxpay_source?: string;
   payment_visible_method_alipay_enabled?: boolean;

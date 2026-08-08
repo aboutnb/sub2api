@@ -398,6 +398,7 @@ export default {
       records: '开票记录',
       selectedCount: '已选择 {count} / {max} 笔订单',
       eligibleHint: '仅支持已完成订单，每次最多选择 20 笔。',
+      feePolicy: '开票费用规则',
       taxMode: '开票费承担方',
       taxNotRequired: '平台承担费用',
       taxRequired: '用户支付费用',

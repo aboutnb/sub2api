@@ -12,7 +12,12 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
-const settingKeyInvoiceIntegrationConfig = "invoice_integration_config"
+const (
+	settingKeyInvoiceIntegrationConfig = "invoice_integration_config"
+	InvoiceFeePayerCustomer            = "customer"
+	InvoiceFeePayerPlatform            = "platform"
+	InvoiceFeePayerUserChoice          = "user_choice"
+)
 
 var ErrInvoiceSecretEncryptionKeyNotConfigured = infraerrors.BadRequest(
 	"INVOICE_SECRET_ENCRYPTION_KEY_NOT_CONFIGURED",
@@ -26,6 +31,7 @@ type InvoiceAdminSettings struct {
 	ClientSecret           string
 	ClientSecretConfigured bool
 	TimeoutSeconds         int
+	FeePayer               string
 }
 
 type invoiceStoredSettings struct {
@@ -34,6 +40,7 @@ type invoiceStoredSettings struct {
 	ClientID       string `json:"client_id"`
 	ClientSecret   string `json:"client_secret,omitempty"`
 	TimeoutSeconds int    `json:"timeout_seconds"`
+	FeePayer       string `json:"fee_payer"`
 }
 
 // InvoiceSettingsService stores the XZNOAuth credentials outside the public
@@ -74,6 +81,7 @@ func (s *InvoiceSettingsService) GetAdminSettings(ctx context.Context) (*Invoice
 		ClientID:               stored.ClientID,
 		ClientSecretConfigured: stored.ClientSecret != "" || s.fallback.ClientSecret != "",
 		TimeoutSeconds:         stored.TimeoutSeconds,
+		FeePayer:               stored.FeePayer,
 	}, nil
 }
 
@@ -108,9 +116,13 @@ func (s *InvoiceSettingsService) Update(ctx context.Context, in InvoiceAdminSett
 		ClientID:       strings.TrimSpace(in.ClientID),
 		ClientSecret:   secret,
 		TimeoutSeconds: in.TimeoutSeconds,
+		FeePayer:       strings.ToLower(strings.TrimSpace(in.FeePayer)),
 	}
 	if next.TimeoutSeconds == 0 {
 		next.TimeoutSeconds = 15
+	}
+	if next.FeePayer == "" {
+		next.FeePayer = InvoiceFeePayerCustomer
 	}
 	if err := validateInvoiceStoredSettings(next, s.fallback.ClientSecret != ""); err != nil {
 		return nil, err
@@ -156,6 +168,17 @@ func (s *InvoiceSettingsService) EffectiveConfig(ctx context.Context) (config.In
 	}), nil
 }
 
+func (s *InvoiceSettingsService) FeePayer(ctx context.Context) (string, error) {
+	stored, err := s.load(ctx)
+	if err != nil {
+		return "", err
+	}
+	if stored == nil {
+		return InvoiceFeePayerCustomer, nil
+	}
+	return normalizeInvoiceFeePayer(stored.FeePayer), nil
+}
+
 func (s *InvoiceSettingsService) load(ctx context.Context) (*invoiceStoredSettings, error) {
 	if s == nil || s.settingRepo == nil {
 		return nil, nil //nolint:nilnil // no repository means no stored override
@@ -176,6 +199,7 @@ func (s *InvoiceSettingsService) load(ctx context.Context) (*invoiceStoredSettin
 	if stored.TimeoutSeconds == 0 {
 		stored.TimeoutSeconds = 15
 	}
+	stored.FeePayer = normalizeInvoiceFeePayer(stored.FeePayer)
 	return &stored, nil
 }
 
@@ -186,6 +210,7 @@ func invoiceAdminSettingsFromConfig(cfg config.InvoiceIntegrationConfig) *Invoic
 		ClientID:               cfg.ClientID,
 		ClientSecretConfigured: cfg.ClientSecret != "",
 		TimeoutSeconds:         cfg.TimeoutSeconds,
+		FeePayer:               InvoiceFeePayerCustomer,
 	}
 }
 
@@ -200,6 +225,11 @@ func normalizeInvoiceIntegrationConfig(cfg config.InvoiceIntegrationConfig) conf
 }
 
 func validateInvoiceStoredSettings(settings invoiceStoredSettings, fallbackSecretConfigured bool) error {
+	switch settings.FeePayer {
+	case InvoiceFeePayerCustomer, InvoiceFeePayerPlatform, InvoiceFeePayerUserChoice:
+	default:
+		return infraerrors.BadRequest("INVOICE_INVALID_FEE_PAYER", "invoice fee payer must be customer, platform, or user_choice")
+	}
 	if settings.TimeoutSeconds < 1 || settings.TimeoutSeconds > 120 {
 		return infraerrors.BadRequest("INVOICE_INVALID_TIMEOUT", "invoice timeout must be between 1 and 120 seconds")
 	}
@@ -216,4 +246,15 @@ func validateInvoiceStoredSettings(settings invoiceStoredSettings, fallbackSecre
 		return infraerrors.BadRequest("INVOICE_CONFIG_INCOMPLETE", "base URL, client ID, and client secret are required when invoicing is enabled")
 	}
 	return nil
+}
+
+func normalizeInvoiceFeePayer(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case InvoiceFeePayerPlatform:
+		return InvoiceFeePayerPlatform
+	case InvoiceFeePayerUserChoice:
+		return InvoiceFeePayerUserChoice
+	default:
+		return InvoiceFeePayerCustomer
+	}
 }

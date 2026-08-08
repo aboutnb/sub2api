@@ -148,8 +148,40 @@ describe('UserOrdersView invoice workflow', () => {
     expect(wrapper.text()).not.toContain('payment.invoice.records')
   })
 
+  it('defaults to customer-paid fees without showing a payer selector', async () => {
+    getInvoiceConfig.mockResolvedValue({
+      data: { enabled: true, supports_tax_payment: true, max_orders: 20, fee_payer: 'customer' },
+    })
+    validateInvoiceOrders.mockResolvedValue({
+      data: {
+        draft_id: 8,
+        order_ids: [101],
+        need_pay_tax: true,
+        tax_order_nos: [],
+        validation: {
+          totalAmount: '102.00',
+          invoiceAmount: '108.12',
+          currency: 'CNY',
+          taxAmount: '6.12',
+          taxDueAmount: '6.12',
+        },
+      },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.find('[data-order-id="101"] button').trigger('click')
+
+    expect(wrapper.find('[data-test="invoice-tax-mode"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="invoice-fixed-fee-payer"]').text()).toContain('payment.invoice.taxRequired')
+    await wrapper.findAll('button').find(button => button.text() === 'common.next')!.trigger('click')
+    await flushPromises()
+
+    expect(validateInvoiceOrders).toHaveBeenCalledWith([101], true)
+  })
+
   it('requires confirmed tax reconciliation before submitting buyer data', async () => {
-    getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 20 } })
+    getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 20, fee_payer: 'user_choice' } })
     validateInvoiceOrders.mockResolvedValue({
       data: {
         draft_id: 9,
@@ -233,7 +265,7 @@ describe('UserOrdersView invoice workflow', () => {
   })
 
   it('renders invoice records in mobile cards and a desktop table', async () => {
-    getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 20 } })
+    getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 20, fee_payer: 'customer' } })
     getInvoices.mockResolvedValue({
       data: {
         items: [{
@@ -269,8 +301,8 @@ describe('UserOrdersView invoice workflow', () => {
     expect(table.text()).toContain('Example Technology Ltd.')
   })
 
-  it('sends the no-tax branch selected for this invoice request', async () => {
-    getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 20 } })
+  it('uses the platform-paid branch without showing a user override', async () => {
+    getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 20, fee_payer: 'platform' } })
     validateInvoiceOrders.mockResolvedValue({
       data: {
         draft_id: 12,
@@ -284,6 +316,8 @@ describe('UserOrdersView invoice workflow', () => {
     const wrapper = mountView()
     await flushPromises()
     await wrapper.find('[data-order-id="101"] button').trigger('click')
+    expect(wrapper.find('[data-test="invoice-tax-mode"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="invoice-fixed-fee-payer"]').text()).toContain('payment.invoice.taxNotRequired')
     await wrapper.findAll('button').find(button => button.text() === 'common.next')!.trigger('click')
     await flushPromises()
 
@@ -293,7 +327,7 @@ describe('UserOrdersView invoice workflow', () => {
   })
 
   it('keeps the selected WeChat tax checkout order for reconciliation', async () => {
-    getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 20 } })
+    getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 20, fee_payer: 'user_choice' } })
     validateInvoiceOrders.mockResolvedValue({
       data: {
         draft_id: 18,
@@ -350,7 +384,7 @@ describe('UserOrdersView invoice workflow', () => {
   })
 
   it('restores an unfinished draft without creating a new checkout', async () => {
-    getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 20 } })
+    getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 20, fee_payer: 'customer' } })
     getCurrentInvoiceDraft.mockResolvedValue({
       data: {
         draft_id: 17,

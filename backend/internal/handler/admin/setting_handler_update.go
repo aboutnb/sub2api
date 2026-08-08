@@ -337,6 +337,7 @@ type UpdateSettingsRequest struct {
 	InvoiceClientID       *string `json:"invoice_client_id"`
 	InvoiceClientSecret   *string `json:"invoice_client_secret"`
 	InvoiceTimeoutSeconds *int    `json:"invoice_timeout_seconds"`
+	InvoiceFeePayer       *string `json:"invoice_fee_payer"`
 
 	// Channel Monitor feature switch
 	ChannelMonitorEnabled                *bool `json:"channel_monitor_enabled"`
@@ -2072,6 +2073,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		if req.InvoiceTimeoutSeconds != nil {
 			invoiceSettings.TimeoutSeconds = *req.InvoiceTimeoutSeconds
 		}
+		if req.InvoiceFeePayer != nil {
+			invoiceSettings.FeePayer = *req.InvoiceFeePayer
+		}
 		if _, err := h.invoiceSettingsService.Update(c.Request.Context(), *invoiceSettings); err != nil {
 			response.ErrorFrom(c, err)
 			return
@@ -2108,7 +2112,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if updatedPaymentCfg == nil {
 		updatedPaymentCfg = &service.PaymentConfig{SubscriptionFeeEnabled: true}
 	}
-	updatedInvoiceSettings := &service.InvoiceAdminSettings{TimeoutSeconds: 15}
+	updatedInvoiceSettings := &service.InvoiceAdminSettings{
+		TimeoutSeconds: 15,
+		FeePayer:       service.InvoiceFeePayerCustomer,
+	}
 	if h.invoiceSettingsService != nil {
 		updatedInvoiceSettings, err = h.invoiceSettingsService.GetAdminSettings(c.Request.Context())
 		if err != nil {
@@ -2360,6 +2367,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		InvoiceClientID:                                        updatedInvoiceSettings.ClientID,
 		InvoiceClientSecretConfigured:                          updatedInvoiceSettings.ClientSecretConfigured,
 		InvoiceTimeoutSeconds:                                  updatedInvoiceSettings.TimeoutSeconds,
+		InvoiceFeePayer:                                        updatedInvoiceSettings.FeePayer,
 
 		ChannelMonitorEnabled:                updatedSettings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: updatedSettings.ChannelMonitorDefaultIntervalSeconds,
@@ -2424,7 +2432,7 @@ func hasPaymentFields(req UpdateSettingsRequest) bool {
 func hasInvoiceFields(req UpdateSettingsRequest) bool {
 	return req.InvoiceEnabled != nil || req.InvoiceBaseURL != nil ||
 		req.InvoiceClientID != nil || req.InvoiceClientSecret != nil ||
-		req.InvoiceTimeoutSeconds != nil
+		req.InvoiceTimeoutSeconds != nil || req.InvoiceFeePayer != nil
 }
 
 // ensureDingTalkSyncAttributes 在保存 settings 后，按 admin 配置的 (attr key, attr name)

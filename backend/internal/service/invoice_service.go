@@ -65,9 +65,10 @@ type InvoiceService struct {
 }
 
 type InvoiceConfigResponse struct {
-	Enabled            bool `json:"enabled"`
-	SupportsTaxPayment bool `json:"supports_tax_payment"`
-	MaxOrders          int  `json:"max_orders"`
+	Enabled            bool   `json:"enabled"`
+	SupportsTaxPayment bool   `json:"supports_tax_payment"`
+	MaxOrders          int    `json:"max_orders"`
+	FeePayer           string `json:"fee_payer"`
 }
 
 type InvoiceDraftResponse struct {
@@ -169,11 +170,33 @@ func (s *InvoiceService) Config(ctx context.Context) (InvoiceConfigResponse, err
 	if err != nil {
 		return InvoiceConfigResponse{}, err
 	}
+	feePayer, err := s.invoiceFeePayer(ctx)
+	if err != nil {
+		return InvoiceConfigResponse{}, err
+	}
 	return InvoiceConfigResponse{
 		Enabled:            invoiceConfigEnabled(cfg),
 		SupportsTaxPayment: true,
 		MaxOrders:          invoiceMaxOrders,
+		FeePayer:           feePayer,
 	}, nil
+}
+
+// ResolveInvoiceNeedPayTax applies the server-owned fee policy. The caller's
+// requested branch is honored only when an administrator allows user choice.
+func (s *InvoiceService) ResolveInvoiceNeedPayTax(ctx context.Context, requested bool) (bool, error) {
+	feePayer, err := s.invoiceFeePayer(ctx)
+	if err != nil {
+		return false, err
+	}
+	switch feePayer {
+	case InvoiceFeePayerPlatform:
+		return false, nil
+	case InvoiceFeePayerUserChoice:
+		return requested, nil
+	default:
+		return true, nil
+	}
 }
 
 func (s *InvoiceService) ValidateOrders(ctx context.Context, userID int64, orderIDs []int64, needPayTax bool) (*InvoiceDraftResponse, error) {
@@ -492,6 +515,13 @@ func (s *InvoiceService) effectiveConfig(ctx context.Context) (config.InvoiceInt
 		return s.settingsService.EffectiveConfig(ctx)
 	}
 	return s.config, nil
+}
+
+func (s *InvoiceService) invoiceFeePayer(ctx context.Context) (string, error) {
+	if s.settingsService == nil {
+		return InvoiceFeePayerCustomer, nil
+	}
+	return s.settingsService.FeePayer(ctx)
 }
 
 func (s *InvoiceService) resolveOwnedCompletedOrders(ctx context.Context, userID int64, orderIDs []int64) ([]*dbent.PaymentOrder, []int64, []string, error) {

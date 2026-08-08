@@ -135,7 +135,10 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 	if paymentCfg == nil {
 		paymentCfg = &service.PaymentConfig{SubscriptionFeeEnabled: true}
 	}
-	invoiceSettings := &service.InvoiceAdminSettings{TimeoutSeconds: 15}
+	invoiceSettings := &service.InvoiceAdminSettings{
+		TimeoutSeconds: 15,
+		FeePayer:       service.InvoiceFeePayerCustomer,
+	}
 	if h.invoiceSettingsService != nil {
 		invoiceSettings, err = h.invoiceSettingsService.GetAdminSettings(c.Request.Context())
 		if err != nil {
@@ -391,6 +394,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		InvoiceClientID:                                        invoiceSettings.ClientID,
 		InvoiceClientSecretConfigured:                          invoiceSettings.ClientSecretConfigured,
 		InvoiceTimeoutSeconds:                                  invoiceSettings.TimeoutSeconds,
+		InvoiceFeePayer:                                        invoiceSettings.FeePayer,
 
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,

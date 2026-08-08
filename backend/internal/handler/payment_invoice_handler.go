@@ -21,7 +21,7 @@ type checkInvoiceTaxPaymentRequest struct {
 
 func (h *PaymentHandler) GetInvoiceConfig(c *gin.Context) {
 	if h.invoiceService == nil {
-		response.Success(c, service.InvoiceConfigResponse{})
+		response.Success(c, service.InvoiceConfigResponse{FeePayer: service.InvoiceFeePayerCustomer})
 		return
 	}
 	config, err := h.invoiceService.Config(c.Request.Context())
@@ -42,7 +42,12 @@ func (h *PaymentHandler) ValidateInvoiceOrders(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-	result, err := h.invoiceService.ValidateOrders(c.Request.Context(), subject.UserID, req.OrderIDs, req.NeedPayTax)
+	needPayTax, err := h.invoiceService.ResolveInvoiceNeedPayTax(c.Request.Context(), req.NeedPayTax)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	result, err := h.invoiceService.ValidateOrders(c.Request.Context(), subject.UserID, req.OrderIDs, needPayTax)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

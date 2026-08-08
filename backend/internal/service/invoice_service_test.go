@@ -174,6 +174,45 @@ func TestInvoiceClientUsesUpdatedSettingsAndDropsCachedToken(t *testing.T) {
 	}
 }
 
+func TestInvoiceFeePayerPolicyOverridesClientChoice(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		feePayer  string
+		requested bool
+		want      bool
+	}{
+		{name: "customer default forces tax payment", requested: false, want: true},
+		{name: "customer forces tax payment", feePayer: InvoiceFeePayerCustomer, requested: false, want: true},
+		{name: "platform suppresses tax payment", feePayer: InvoiceFeePayerPlatform, requested: true, want: false},
+		{name: "user choice accepts tax payment", feePayer: InvoiceFeePayerUserChoice, requested: true, want: true},
+		{name: "user choice accepts platform payment", feePayer: InvoiceFeePayerUserChoice, requested: false, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newInvoiceSettingsTestRepo()
+			settings := NewInvoiceSettingsService(repo, invoiceSettingsTestEncryptor{}, config.InvoiceIntegrationConfig{}, true)
+			if tt.feePayer != "" {
+				if _, err := settings.Update(context.Background(), InvoiceAdminSettings{
+					TimeoutSeconds: 15,
+					FeePayer:       tt.feePayer,
+				}); err != nil {
+					t.Fatalf("save fee payer: %v", err)
+				}
+			}
+			service := &InvoiceService{settingsService: settings}
+			got, err := service.ResolveInvoiceNeedPayTax(context.Background(), tt.requested)
+			if err != nil {
+				t.Fatalf("resolve invoice tax policy: %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("need pay tax = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSetInvoiceAmountUsesExactDecimalArithmetic(t *testing.T) {
 	t.Parallel()
 

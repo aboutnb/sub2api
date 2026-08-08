@@ -302,6 +302,7 @@ type SystemSettings struct {
 	InvoiceClientID               string `json:"invoice_client_id"`
 	InvoiceClientSecretConfigured bool   `json:"invoice_client_secret_configured"`
 	InvoiceTimeoutSeconds         int    `json:"invoice_timeout_seconds"`
+	InvoiceFeePayer               string `json:"invoice_fee_payer"`
 
 	// 余额、订阅到期与账号限额通知
 	BalanceLowNotifyEnabled         bool               `json:"balance_low_notify_enabled"`

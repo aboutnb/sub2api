@@ -495,6 +495,7 @@ const baseSettingsResponse = {
   invoice_client_id: "",
   invoice_client_secret_configured: false,
   invoice_timeout_seconds: 15,
+  invoice_fee_payer: "customer",
   payment_visible_method_alipay_source: "alipay_direct",
   payment_visible_method_wxpay_source: "invalid-source",
   payment_visible_method_alipay_enabled: true,
@@ -1130,6 +1131,34 @@ describe("admin SettingsView payment visible method controls", () => {
         invoice_enabled: true,
         invoice_client_secret: "",
       }),
+    );
+  });
+
+  it("submits the administrator-owned invoice fee payer policy", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      invoice_enabled: true,
+      invoice_base_url: "https://invoice.example.test",
+      invoice_client_id: "invoice-client",
+      invoice_client_secret_configured: true,
+      invoice_fee_payer: "customer",
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openPaymentTab(wrapper);
+    const feePayer = wrapper.get('[data-testid="invoice-fee-payer"]');
+    await feePayer
+      .findAll('button')
+      .find((button) =>
+        button.text().includes("admin.settings.payment.invoice.feePayerPlatform"),
+      )!
+      .trigger("click");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ invoice_fee_payer: "platform" }),
     );
   });
 

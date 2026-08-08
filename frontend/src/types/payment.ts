@@ -114,6 +114,7 @@ export interface InvoiceConfig {
   enabled: boolean
   supports_tax_payment: boolean
   max_orders: number
+  fee_payer: 'customer' | 'platform' | 'user_choice'
 }
 
 export interface InvoiceTaxPayment {

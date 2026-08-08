@@ -374,6 +374,7 @@ export default {
       records: 'Invoice Records',
       selectedCount: '{count} / {max} orders selected',
       eligibleHint: 'Only completed orders are eligible. Up to 20 orders may be selected.',
+      feePolicy: 'Invoice Fee Policy',
       taxMode: 'Invoice Fee Payer',
       taxNotRequired: 'Platform pays fee',
       taxRequired: 'Customer pays fee',

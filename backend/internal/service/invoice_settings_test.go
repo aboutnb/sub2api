@@ -113,6 +113,9 @@ func TestInvoiceSettingsFallbackDoesNotExposeSecret(t *testing.T) {
 	if admin.ClientSecret != "" || !admin.ClientSecretConfigured {
 		t.Fatalf("secret leaked or configured state lost: %#v", admin)
 	}
+	if admin.FeePayer != InvoiceFeePayerCustomer {
+		t.Fatalf("fee payer = %q, want customer default", admin.FeePayer)
+	}
 	effective, err := service.EffectiveConfig(ctx)
 	if err != nil {
 		t.Fatalf("get effective config: %v", err)
@@ -153,6 +156,42 @@ func TestInvoiceSettingsEncryptsAndPreservesClientSecret(t *testing.T) {
 	}
 	if effective.ClientSecret != "secret-a" || effective.ClientID != "client-b" || effective.TimeoutSeconds != 25 {
 		t.Fatalf("unexpected effective config: %#v", effective)
+	}
+}
+
+func TestInvoiceSettingsPersistsFeePayerPolicy(t *testing.T) {
+	ctx := context.Background()
+	repo := newInvoiceSettingsTestRepo()
+	service := NewInvoiceSettingsService(repo, invoiceSettingsTestEncryptor{}, config.InvoiceIntegrationConfig{}, true)
+
+	admin, err := service.Update(ctx, InvoiceAdminSettings{
+		TimeoutSeconds: 15,
+		FeePayer:       InvoiceFeePayerPlatform,
+	})
+	if err != nil {
+		t.Fatalf("save invoice fee payer: %v", err)
+	}
+	if admin.FeePayer != InvoiceFeePayerPlatform {
+		t.Fatalf("fee payer = %q, want platform", admin.FeePayer)
+	}
+
+	feePayer, err := service.FeePayer(ctx)
+	if err != nil {
+		t.Fatalf("get invoice fee payer: %v", err)
+	}
+	if feePayer != InvoiceFeePayerPlatform {
+		t.Fatalf("effective fee payer = %q, want platform", feePayer)
+	}
+}
+
+func TestInvoiceSettingsRejectsInvalidFeePayer(t *testing.T) {
+	service := NewInvoiceSettingsService(newInvoiceSettingsTestRepo(), invoiceSettingsTestEncryptor{}, config.InvoiceIntegrationConfig{}, true)
+	_, err := service.Update(context.Background(), InvoiceAdminSettings{
+		TimeoutSeconds: 15,
+		FeePayer:       "browser_override",
+	})
+	if err == nil {
+		t.Fatal("expected invalid invoice fee payer to be rejected")
 	}
 }
 
