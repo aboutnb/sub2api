@@ -138,7 +138,8 @@ func TestCheckinAbuseGuardChecksIPAndFingerprintAtomically(t *testing.T) {
 	mr := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	t.Cleanup(func() { _ = client.Close() })
-	guard := newCheckinAbuseGuardForTest(client).(service.CheckinMultiSourceAbuseGuard)
+	guard, ok := newCheckinAbuseGuardForTest(client).(service.CheckinMultiSourceAbuseGuard)
+	require.True(t, ok)
 	ctx := context.Background()
 	sources := []service.CheckinSourceLimit{
 		{Source: "192.0.2.10", Window: 24 * time.Hour, MaxUsers: 2},
