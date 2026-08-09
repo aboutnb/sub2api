@@ -40,6 +40,12 @@ func RegisterAuthRoutes(
 	// 公开接口
 	auth := v1.Group("/auth")
 	auth.Use(servermiddleware.BackendModeAuthGuard(settingService))
+	if h != nil && h.Auth != nil {
+		auth.Use(func(c *gin.Context) {
+			h.Auth.AttachSignupRiskIdentity(c)
+			c.Next()
+		})
+	}
 	if protectPublicPOST {
 		auth.Use(func(c *gin.Context) {
 			if c.Request.Method != http.MethodPost {

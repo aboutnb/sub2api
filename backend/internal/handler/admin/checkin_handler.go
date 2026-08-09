@@ -70,6 +70,8 @@ type updateCheckinConfigRequest struct {
 	MinAccountAgeHours           int                                `json:"min_account_age_hours"`
 	IPWindowMinutes              int                                `json:"ip_window_minutes"`
 	IPMaxUsers                   int                                `json:"ip_max_users"`
+	FingerprintWindowMinutes     int                                `json:"fingerprint_window_minutes"`
+	FingerprintMaxUsers          int                                `json:"fingerprint_max_users"`
 	UnrechargedEnabled           bool                               `json:"unrecharged_reduction_enabled"`
 	UnrechargedCheckinThreshold  int                                `json:"unrecharged_checkin_threshold"`
 	UnrechargedNormalPercent     checkinDecimalString               `json:"unrecharged_normal_reward_percent"`
@@ -105,6 +107,8 @@ func (h *CheckinHandler) UpdateConfig(c *gin.Context) {
 		MinAccountAgeHours:           req.MinAccountAgeHours,
 		IPWindowMinutes:              req.IPWindowMinutes,
 		IPMaxUsers:                   req.IPMaxUsers,
+		FingerprintWindowMinutes:     req.FingerprintWindowMinutes,
+		FingerprintMaxUsers:          req.FingerprintMaxUsers,
 		UnrechargedEnabled:           req.UnrechargedEnabled,
 		UnrechargedCheckinThreshold:  req.UnrechargedCheckinThreshold,
 		UnrechargedNormalPercent:     string(req.UnrechargedNormalPercent),

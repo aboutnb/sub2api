@@ -12,6 +12,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
 
 func normalizeOAuthSignupSource(signupSource string) string {
@@ -151,14 +152,14 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 	}
 
 	signupSource = normalizeOAuthSignupSource(signupSource)
-	grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
+	grant := s.prepareSignupGrant(ctx, signupSource)
 
 	user := &User{
 		Email:        email,
 		PasswordHash: hashedPassword,
 		Role:         RoleUser,
-		Balance:      grantPlan.Balance,
-		Concurrency:  grantPlan.Concurrency,
+		Balance:      grant.initialBalance(),
+		Concurrency:  grant.initialConcurrency(),
 		Status:       StatusActive,
 		SignupSource: signupSource,
 	}
@@ -169,6 +170,10 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 		}
 		slog.Error("oauth email register: userRepo.Create failed", "email", email, "signup_source", signupSource, "error", err.Error())
 		return nil, nil, ErrServiceUnavailable
+	}
+	if _, grantErr := s.applySignupGrant(ctx, user, grant); grantErr != nil {
+		_ = s.RollbackOAuthEmailAccountCreation(ctx, user.ID, "")
+		return nil, nil, grantErr
 	}
 
 	tokenPair, err := s.GenerateTokenPair(ctx, user, "")
@@ -230,7 +235,7 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 	}
 
 	signupSource = normalizeOAuthSignupSource(signupSource)
-	grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
+	grant := s.prepareSignupGrant(ctx, signupSource)
 	var defaultRPMLimit int
 	if s.settingService != nil {
 		defaultRPMLimit = s.settingService.GetDefaultUserRPMLimit(ctx)
@@ -239,8 +244,8 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 		Email:        email,
 		PasswordHash: hashedPassword,
 		Role:         RoleUser,
-		Balance:      grantPlan.Balance,
-		Concurrency:  grantPlan.Concurrency,
+		Balance:      grant.initialBalance(),
+		Concurrency:  grant.initialConcurrency(),
 		RPMLimit:     defaultRPMLimit,
 		Status:       StatusActive,
 		SignupSource: signupSource,
@@ -251,6 +256,10 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 			return nil, nil, ErrEmailExists
 		}
 		return nil, nil, ErrServiceUnavailable
+	}
+	if _, grantErr := s.applySignupGrant(ctx, user, grant); grantErr != nil {
+		_ = s.RollbackOAuthEmailAccountCreation(ctx, user.ID, "")
+		return nil, nil, grantErr
 	}
 
 	tokenPair, err := s.GenerateTokenPair(ctx, user, "")
@@ -287,9 +296,20 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 
 	s.updateOAuthSignupSource(ctx, user.ID, signupSource)
 	grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
-	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
-	// snapshot user × platform quota（fail-open）
-	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
+	grantAllowed := true
+	if s.signupRiskGrantStore != nil && signupRiskIdentityFromContext(ctx) != "" {
+		var err error
+		grantAllowed, err = s.signupRiskGrantStore.SignupGrantAllowed(ctx, user.ID)
+		if err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] failed to load signup grant decision for user %d: %v", user.ID, err)
+			grantAllowed = false
+		}
+	}
+	if grantAllowed {
+		s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+		// snapshot user × platform quota（fail-open）
+		_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
+	}
 	s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
 	return nil
 }
@@ -303,6 +323,7 @@ func (s *AuthService) RollbackOAuthEmailAccountCreation(ctx context.Context, use
 	if err := s.restoreOAuthRegistrationInvitation(ctx, invitationCode, userID); err != nil {
 		return err
 	}
+	s.releaseSignupGrant(ctx, userID)
 	if err := s.userRepo.Delete(ctx, userID); err != nil {
 		return fmt.Errorf("delete created oauth user: %w", err)
 	}

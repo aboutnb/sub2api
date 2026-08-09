@@ -49,6 +49,7 @@ export default {
     modeDisabled: 'This check-in mode has been disabled. Refresh the page and try again.',
     accountTooNew: 'This account was created recently and cannot check in yet.',
     negativeBalance: 'Check-in is not available for the current balance state.',
+    grantRestricted: 'This account must complete a real recharge before it can check in again.',
     sourceLimited: 'Several accounts have checked in from this network recently. Please try again later.',
     rateLimited: 'Too many attempts. Please try again later.',
     riskUnavailable: 'Check-in security verification is temporarily unavailable. Please try again later.',

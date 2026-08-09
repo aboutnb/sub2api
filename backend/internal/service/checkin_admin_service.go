@@ -48,6 +48,8 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 		SettingKeyCheckinMinAccountAge,
 		SettingKeyCheckinIPWindow,
 		SettingKeyCheckinIPMaxUsers,
+		SettingKeyCheckinFingerprintWindow,
+		SettingKeyCheckinFingerprintMaxUsers,
 		SettingKeyCheckinUnrechargedEnabled,
 		SettingKeyCheckinUnrechargedThreshold,
 		SettingKeyCheckinUnrechargedNormalPercent,
@@ -69,6 +71,8 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 	minAccountAgeHours, err1 := parseCheckinInt(values[SettingKeyCheckinMinAccountAge])
 	ipWindowMinutes, err2 := parseCheckinInt(values[SettingKeyCheckinIPWindow])
 	ipMaxUsers, err3 := parseCheckinInt(values[SettingKeyCheckinIPMaxUsers])
+	fingerprintWindowMinutes, err11 := parseCheckinInt(values[SettingKeyCheckinFingerprintWindow])
+	fingerprintMaxUsers, err12 := parseCheckinInt(values[SettingKeyCheckinFingerprintMaxUsers])
 	unrechargedEnabled, err8 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinUnrechargedEnabled]))
 	unrechargedThreshold, err9 := parseCheckinInt(values[SettingKeyCheckinUnrechargedThreshold])
 	_, err10 := parseCheckinDecimal(values[SettingKeyCheckinUnrechargedNormalPercent])
@@ -76,7 +80,7 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 	riskEnabled, err5 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinRiskEnabled]))
 	normalEnabled, err6 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinNormalEnabled]))
 	luckyEnabled, err7 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinLuckyEnabled]))
-	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || err9 != nil || err10 != nil ||
+	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || err9 != nil || err10 != nil || err11 != nil || err12 != nil ||
 		validateCheckinConfigValues(
 			values[SettingKeyCheckinNormalMin], values[SettingKeyCheckinNormalMax],
 			values[SettingKeyCheckinLuckyRewardType],
@@ -85,6 +89,7 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 			values[SettingKeyCheckinLuckyAmountMin], values[SettingKeyCheckinLuckyAmountMax],
 			values[SettingKeyCheckinUnrechargedNormalPercent],
 			minAccountAgeHours, ipWindowMinutes, ipMaxUsers, unrechargedThreshold,
+			fingerprintWindowMinutes, fingerprintMaxUsers,
 		) != nil {
 		return nil, ErrCheckinConfigInvalid
 	}
@@ -113,6 +118,8 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 		MinAccountAgeHours:           minAccountAgeHours,
 		IPWindowMinutes:              ipWindowMinutes,
 		IPMaxUsers:                   ipMaxUsers,
+		FingerprintWindowMinutes:     fingerprintWindowMinutes,
+		FingerprintMaxUsers:          fingerprintMaxUsers,
 		UnrechargedEnabled:           unrechargedEnabled,
 		UnrechargedCheckinThreshold:  unrechargedThreshold,
 		UnrechargedNormalPercent:     values[SettingKeyCheckinUnrechargedNormalPercent],
@@ -145,6 +152,8 @@ func (s *AdminCheckinService) UpdateConfig(ctx context.Context, input AdminCheck
 		input.IPWindowMinutes,
 		input.IPMaxUsers,
 		input.UnrechargedCheckinThreshold,
+		input.FingerprintWindowMinutes,
+		input.FingerprintMaxUsers,
 	); err != nil {
 		return nil, err
 	}
@@ -188,6 +197,8 @@ func (s *AdminCheckinService) UpdateConfig(ctx context.Context, input AdminCheck
 		SettingKeyCheckinMinAccountAge:                strconv.Itoa(input.MinAccountAgeHours),
 		SettingKeyCheckinIPWindow:                     strconv.Itoa(input.IPWindowMinutes),
 		SettingKeyCheckinIPMaxUsers:                   strconv.Itoa(input.IPMaxUsers),
+		SettingKeyCheckinFingerprintWindow:            strconv.Itoa(input.FingerprintWindowMinutes),
+		SettingKeyCheckinFingerprintMaxUsers:          strconv.Itoa(input.FingerprintMaxUsers),
 		SettingKeyCheckinUnrechargedEnabled:           strconv.FormatBool(input.UnrechargedEnabled),
 		SettingKeyCheckinUnrechargedThreshold:         strconv.Itoa(input.UnrechargedCheckinThreshold),
 		SettingKeyCheckinUnrechargedNormalPercent:     strings.TrimSpace(input.UnrechargedNormalPercent),
@@ -212,7 +223,13 @@ func (s *AdminCheckinService) Records(ctx context.Context, filter AdminCheckinRe
 	return s.repo.AdminList(ctx, filter)
 }
 
-func validateCheckinConfigValues(normalMin, normalMax, luckyRewardType, luckyPositiveProbability, luckyMin, luckyMax, luckyAmountMin, luckyAmountMax, unrechargedNormalPercent string, minAccountAgeHours, ipWindowMinutes, ipMaxUsers, unrechargedCheckinThreshold int) error {
+func validateCheckinConfigValues(normalMin, normalMax, luckyRewardType, luckyPositiveProbability, luckyMin, luckyMax, luckyAmountMin, luckyAmountMax, unrechargedNormalPercent string, minAccountAgeHours, ipWindowMinutes, ipMaxUsers, unrechargedCheckinThreshold int, fingerprintLimits ...int) error {
+	fingerprintWindowMinutes, fingerprintMaxUsers := 1440, 1
+	if len(fingerprintLimits) == 2 {
+		fingerprintWindowMinutes, fingerprintMaxUsers = fingerprintLimits[0], fingerprintLimits[1]
+	} else if len(fingerprintLimits) != 0 {
+		return ErrCheckinConfigInput
+	}
 	parse := parseCheckinDecimal
 	min, err1 := parse(normalMin)
 	max, err2 := parse(normalMax)
@@ -227,7 +244,7 @@ func validateCheckinConfigValues(normalMin, normalMax, luckyRewardType, luckyPos
 		luckyPositiveValue < 0 || luckyPositiveValue > 100 ||
 		luckyMinValue < -1 || luckyMinValue >= 0 || luckyMaxValue <= 0 || luckyMaxValue > 10 ||
 		luckyAmountMinValue < -100 || luckyAmountMinValue >= 0 || luckyAmountMaxValue <= 0 || luckyAmountMaxValue > 100 ||
-		minAccountAgeHours < 0 || minAccountAgeHours > 720 || ipWindowMinutes < 1 || ipWindowMinutes > 1440 || ipMaxUsers < 1 || ipMaxUsers > 10000 || unrechargedCheckinThreshold < 1 || unrechargedCheckinThreshold > 3650 || unrechargedNormalPercentValue < 0 || unrechargedNormalPercentValue > 100 {
+		minAccountAgeHours < 0 || minAccountAgeHours > 720 || ipWindowMinutes < 1 || ipWindowMinutes > 1440 || ipMaxUsers < 1 || ipMaxUsers > 10000 || unrechargedCheckinThreshold < 1 || unrechargedCheckinThreshold > 3650 || unrechargedNormalPercentValue < 0 || unrechargedNormalPercentValue > 100 || fingerprintWindowMinutes < 1 || fingerprintWindowMinutes > 10080 || fingerprintMaxUsers < 1 || fingerprintMaxUsers > 100 {
 		return ErrCheckinConfigInput
 	}
 	return nil

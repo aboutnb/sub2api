@@ -33,6 +33,40 @@ end
 return {1, count, ttl}
 `)
 
+var checkinMultiSourceAbuseGuardScript = redis.NewScript(`
+local member = ARGV[1]
+local max_count = 0
+local max_ttl = 0
+
+-- Check every source before mutating any of them. Each source has its own
+-- window/max pair in ARGV: window_ms, max_users.
+for i,key in ipairs(KEYS) do
+  local offset = 2 + ((i - 1) * 2)
+  local window = tonumber(ARGV[offset])
+  local max_users = tonumber(ARGV[offset + 1])
+  local is_member = redis.call('SISMEMBER', key, member)
+  local count = redis.call('SCARD', key)
+  if is_member == 0 and count >= max_users then
+    local ttl = redis.call('PTTL', key)
+    if ttl < 0 then ttl = window end
+    return {0, count, ttl}
+  end
+  if count > max_count then max_count = count end
+  local ttl = redis.call('PTTL', key)
+  if ttl < 0 then ttl = window end
+  if ttl > max_ttl then max_ttl = ttl end
+end
+
+for i,key in ipairs(KEYS) do
+  local offset = 2 + ((i - 1) * 2)
+  local window = tonumber(ARGV[offset])
+  redis.call('SADD', key, member)
+  local ttl = redis.call('PTTL', key)
+  if ttl < 0 then redis.call('PEXPIRE', key, window) end
+end
+return {1, max_count + 1, max_ttl}
+`)
+
 var checkinRequestGuardScript = redis.NewScript(`
 local user_count = redis.call('INCR', KEYS[1])
 local user_ttl = redis.call('PTTL', KEYS[1])
@@ -134,6 +168,49 @@ func (g *checkinAbuseGuard) CheckAndRecord(
 	}
 	if len(values) != 3 {
 		return false, 0, 0, fmt.Errorf("check-in abuse guard returned %d values", len(values))
+	}
+	allowedValue, err := checkinAbuseGuardInt64(values[0])
+	if err != nil {
+		return false, 0, 0, err
+	}
+	count, err := checkinAbuseGuardInt64(values[1])
+	if err != nil {
+		return false, 0, 0, err
+	}
+	ttlMillis, err := checkinAbuseGuardInt64(values[2])
+	if err != nil {
+		return false, 0, 0, err
+	}
+	return allowedValue == 1, count, time.Duration(ttlMillis) * time.Millisecond, nil
+}
+
+func (g *checkinAbuseGuard) CheckAndRecordSources(
+	ctx context.Context,
+	sources []service.CheckinSourceLimit,
+	userID int64,
+) (bool, int64, time.Duration, error) {
+	if g == nil || g.rdb == nil || len(g.hashKey) == 0 {
+		return false, 0, 0, fmt.Errorf("nil check-in abuse guard")
+	}
+	if userID <= 0 || len(sources) == 0 {
+		return false, 0, 0, fmt.Errorf("invalid check-in multi-source guard input")
+	}
+	keys := make([]string, 0, len(sources))
+	args := make([]any, 0, 1+len(sources)*2)
+	args = append(args, g.userDigest(userID))
+	for _, source := range sources {
+		if strings.TrimSpace(source.Source) == "" || source.Window <= 0 || source.MaxUsers <= 0 {
+			return false, 0, 0, fmt.Errorf("invalid check-in multi-source guard source")
+		}
+		keys = append(keys, "checkin:risk:source:"+g.sourceDigest(source.Source))
+		args = append(args, source.Window.Milliseconds(), source.MaxUsers)
+	}
+	values, err := checkinMultiSourceAbuseGuardScript.Run(ctx, g.rdb, keys, args...).Slice()
+	if err != nil {
+		return false, 0, 0, err
+	}
+	if len(values) != 3 {
+		return false, 0, 0, fmt.Errorf("check-in multi-source abuse guard returned %d values", len(values))
 	}
 	allowedValue, err := checkinAbuseGuardInt64(values[0])
 	if err != nil {

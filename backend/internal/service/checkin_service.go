@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -38,6 +39,8 @@ const (
 	SettingKeyCheckinMinAccountAge                = "checkin_min_account_age_hours"
 	SettingKeyCheckinIPWindow                     = "checkin_ip_window_minutes"
 	SettingKeyCheckinIPMaxUsers                   = "checkin_ip_max_users"
+	SettingKeyCheckinFingerprintWindow            = "checkin_fingerprint_window_minutes"
+	SettingKeyCheckinFingerprintMaxUsers          = "checkin_fingerprint_max_users"
 	SettingKeyCheckinUnrechargedEnabled           = "checkin_unrecharged_reduction_enabled"
 	SettingKeyCheckinUnrechargedThreshold         = "checkin_unrecharged_checkin_threshold"
 	SettingKeyCheckinUnrechargedNormalPercent     = "checkin_unrecharged_normal_reward_percent"
@@ -49,6 +52,7 @@ const (
 	CheckinRequestWindow      = time.Minute
 	CheckinUserRequestLimit   = 10
 	CheckinSourceRequestLimit = 60
+	CheckinUserAgentMaxBytes  = 512
 
 	CheckinRewardTypeAmount     = "amount"
 	CheckinRewardTypeMultiplier = "multiplier"
@@ -64,6 +68,7 @@ var (
 	ErrCheckinConfigInvalid       = infraerrors.InternalServer("CHECKIN_CONFIG_INVALID", "daily check-in configuration is invalid")
 	ErrCheckinUserNotFound        = infraerrors.NotFound("USER_NOT_FOUND", "user not found")
 	ErrCheckinAccountTooNew       = infraerrors.Forbidden("CHECKIN_ACCOUNT_TOO_NEW", "account is too new for daily check-in")
+	ErrCheckinGrantRestricted     = infraerrors.Forbidden("CHECKIN_GRANT_RESTRICTED", "this account must recharge before using daily check-in")
 	ErrCheckinNegativeBalance     = infraerrors.Forbidden("CHECKIN_NEGATIVE_BALANCE", "accounts with a negative balance cannot use daily check-in")
 	ErrCheckinSourceLimited       = infraerrors.TooManyRequests("CHECKIN_SOURCE_LIMITED", "too many accounts checked in from this source")
 	ErrCheckinRiskUnavailable     = infraerrors.ServiceUnavailable("CHECKIN_RISK_UNAVAILABLE", "daily check-in risk control is temporarily unavailable")
@@ -92,10 +97,12 @@ type CheckinRecord struct {
 }
 
 type CheckinUserState struct {
-	Role      string
-	Status    string
-	Balance   float64
-	CreatedAt time.Time
+	Role                  string
+	Status                string
+	Balance               float64
+	CreatedAt             time.Time
+	HasRecharge           bool
+	SignupGrantRestricted bool
 }
 
 type CheckinSettlementState struct {
@@ -107,6 +114,27 @@ type CheckinSettlementState struct {
 type CheckinAbuseGuard interface {
 	CheckRequest(context.Context, string, int64, time.Duration, int, int) (bool, time.Duration, error)
 	CheckAndRecord(context.Context, string, int64, time.Duration, int) (bool, int64, time.Duration, error)
+}
+
+// CheckinMultiSourceAbuseGuard atomically applies independent limits to more
+// than one source identity (for example IP and IP+User-Agent). Implementations
+// must not retain a user in any source set when another source is rejected.
+type CheckinMultiSourceAbuseGuard interface {
+	CheckAndRecordSources(context.Context, []CheckinSourceLimit, int64) (bool, int64, time.Duration, error)
+}
+
+type CheckinSourceLimit struct {
+	Source   string
+	Window   time.Duration
+	MaxUsers int
+}
+
+// CheckinIdentity contains only request metadata used by the abuse guard. The
+// raw values are never persisted; the repository hashes them with its server
+// secret before writing Redis.
+type CheckinIdentity struct {
+	IP        string
+	UserAgent string
 }
 
 type CheckinRepository interface {
@@ -134,6 +162,8 @@ type CheckinConfig struct {
 	MinAccountAge                time.Duration
 	IPWindow                     time.Duration
 	IPMaxUsers                   int
+	FingerprintWindow            time.Duration
+	FingerprintMaxUsers          int
 	UnrechargedEnabled           bool
 	UnrechargedThreshold         int64
 	UnrechargedNormalPercent     float64
@@ -171,6 +201,8 @@ type AdminCheckinConfig struct {
 	MinAccountAgeHours           int                        `json:"min_account_age_hours"`
 	IPWindowMinutes              int                        `json:"ip_window_minutes"`
 	IPMaxUsers                   int                        `json:"ip_max_users"`
+	FingerprintWindowMinutes     int                        `json:"fingerprint_window_minutes"`
+	FingerprintMaxUsers          int                        `json:"fingerprint_max_users"`
 	UnrechargedEnabled           bool                       `json:"unrecharged_reduction_enabled"`
 	UnrechargedCheckinThreshold  int                        `json:"unrecharged_checkin_threshold"`
 	UnrechargedNormalPercent     string                     `json:"unrecharged_normal_reward_percent"`
@@ -196,6 +228,8 @@ type AdminCheckinConfigUpdate struct {
 	MinAccountAgeHours           int
 	IPWindowMinutes              int
 	IPMaxUsers                   int
+	FingerprintWindowMinutes     int
+	FingerprintMaxUsers          int
 	UnrechargedEnabled           bool
 	UnrechargedCheckinThreshold  int
 	UnrechargedNormalPercent     string
@@ -258,6 +292,11 @@ func (s *CheckinService) Status(ctx context.Context, userID int64) (*CheckinStat
 	} else if state.Balance < 0 {
 		result.Eligible = false
 		result.UnavailableReason = "negative_balance"
+	}
+	if result.Eligible && state.SignupGrantRestricted && !state.HasRecharge {
+		result.Eligible = false
+		result.CanCheckIn = false
+		result.UnavailableReason = "grant_restricted"
 	}
 	checkinConfig, configErr := s.loadConfig(ctx)
 	if configErr != nil {
@@ -325,11 +364,17 @@ type CheckinStatus struct {
 	FirstWeekday       int            `json:"first_weekday"`
 }
 
+// CheckIn preserves the service API used by non-HTTP callers. HTTP handlers
+// should use CheckInWithIdentity so the IP+User-Agent fingerprint is enforced.
 func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source string) (*CheckinRecord, bool, error) {
+	return s.CheckInWithIdentity(ctx, userID, mode, CheckinIdentity{IP: source})
+}
+
+func (s *CheckinService) CheckInWithIdentity(ctx context.Context, userID int64, mode string, identity CheckinIdentity) (*CheckinRecord, bool, error) {
 	if mode != "normal" && mode != "lucky" {
 		return nil, false, ErrCheckinInvalidMode
 	}
-	normalizedSource := net.ParseIP(strings.TrimSpace(source))
+	normalizedSource := net.ParseIP(strings.TrimSpace(identity.IP))
 	if normalizedSource == nil || s.abuseGuard == nil {
 		return nil, false, ErrCheckinSecurityUnavailable
 	}
@@ -357,6 +402,9 @@ func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source
 	if state.Balance < 0 {
 		return nil, false, ErrCheckinNegativeBalance
 	}
+	if state.SignupGrantRestricted && !state.HasRecharge {
+		return nil, false, ErrCheckinGrantRestricted
+	}
 	businessDate := timezone.Now().Format("2006-01-02")
 	existing, err := s.repo.GetByDate(ctx, userID, businessDate)
 	if err == nil {
@@ -379,7 +427,7 @@ func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source
 		return nil, false, ErrCheckinAccountTooNew
 	}
 	if checkinConfig.RiskEnabled {
-		allowed, _, _, guardErr := s.abuseGuard.CheckAndRecord(ctx, normalizedSource.String(), userID, checkinConfig.IPWindow, checkinConfig.IPMaxUsers)
+		allowed, _, _, guardErr := s.checkinSourceRisk(ctx, userID, normalizedSource.String(), identity.UserAgent, checkinConfig)
 		if guardErr != nil {
 			return nil, false, ErrCheckinRiskUnavailable
 		}
@@ -431,6 +479,34 @@ func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source
 	return record, newlyCheckedIn, nil
 }
 
+func (s *CheckinService) checkinSourceRisk(ctx context.Context, userID int64, normalizedIP, rawUserAgent string, cfg CheckinConfig) (bool, int64, time.Duration, error) {
+	userAgent := normalizeCheckinUserAgent(rawUserAgent)
+	if multiGuard, ok := s.abuseGuard.(CheckinMultiSourceAbuseGuard); ok && userAgent != "" {
+		fingerprintSource := normalizedIP + "\x00" + userAgent
+		return multiGuard.CheckAndRecordSources(
+			ctx,
+			[]CheckinSourceLimit{
+				{Source: normalizedIP, Window: cfg.IPWindow, MaxUsers: cfg.IPMaxUsers},
+				{Source: fingerprintSource, Window: cfg.FingerprintWindow, MaxUsers: cfg.FingerprintMaxUsers},
+			},
+			userID,
+		)
+	}
+	return s.abuseGuard.CheckAndRecord(ctx, normalizedIP, userID, cfg.IPWindow, cfg.IPMaxUsers)
+}
+
+func normalizeCheckinUserAgent(value string) string {
+	value = strings.TrimSpace(strings.ToValidUTF8(value, ""))
+	if len(value) <= CheckinUserAgentMaxBytes {
+		return value
+	}
+	value = value[:CheckinUserAgentMaxBytes]
+	for !utf8.ValidString(value) {
+		value = value[:len(value)-1]
+	}
+	return value
+}
+
 func checkinRateLimitedError(retryAfter time.Duration) error {
 	seconds := int(math.Ceil(retryAfter.Seconds()))
 	if seconds < 1 {
@@ -467,6 +543,8 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 		SettingKeyCheckinMinAccountAge,
 		SettingKeyCheckinIPWindow,
 		SettingKeyCheckinIPMaxUsers,
+		SettingKeyCheckinFingerprintWindow,
+		SettingKeyCheckinFingerprintMaxUsers,
 		SettingKeyCheckinUnrechargedEnabled,
 		SettingKeyCheckinUnrechargedThreshold,
 		SettingKeyCheckinUnrechargedNormalPercent,
@@ -496,16 +574,18 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 	minAccountAgeHours, err8 := parseCheckinInt(values[SettingKeyCheckinMinAccountAge])
 	ipWindowMinutes, err9 := parseCheckinInt(values[SettingKeyCheckinIPWindow])
 	ipMaxUsers, err10 := parseCheckinInt(values[SettingKeyCheckinIPMaxUsers])
+	fingerprintWindowMinutes, err15 := parseCheckinInt(values[SettingKeyCheckinFingerprintWindow])
+	fingerprintMaxUsers, err16 := parseCheckinInt(values[SettingKeyCheckinFingerprintMaxUsers])
 	unrechargedEnabled, unrechargedEnabledErr := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinUnrechargedEnabled]))
 	unrechargedThreshold, err13 := parseCheckinInt(values[SettingKeyCheckinUnrechargedThreshold])
 	unrechargedNormalPercent, err14 := parse(SettingKeyCheckinUnrechargedNormalPercent)
 	multiplierPositiveTiers, _, err11 := parseStoredCheckinPositiveTiers(values[SettingKeyCheckinLuckyMultiplierPositiveTiers], luckyMax)
 	amountPositiveTiers, _, err12 := parseStoredCheckinPositiveTiers(values[SettingKeyCheckinLuckyAmountPositiveTiers], luckyAmountMax)
 	if enabledErr != nil || normalEnabledErr != nil || luckyEnabledErr != nil || riskEnabledErr != nil || unrechargedEnabledErr != nil || err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || err9 != nil ||
-		err10 != nil || err11 != nil || err12 != nil || err13 != nil || err14 != nil || normalMin < 0 || normalMax < normalMin || normalMax > 100 || !validCheckinLuckyRewardType(luckyRewardType) ||
+		err10 != nil || err11 != nil || err12 != nil || err13 != nil || err14 != nil || err15 != nil || err16 != nil || normalMin < 0 || normalMax < normalMin || normalMax > 100 || !validCheckinLuckyRewardType(luckyRewardType) ||
 		luckyPositive < 0 || luckyPositive > 100 || luckyMin < -1 || luckyMin >= 0 || luckyMax <= 0 || luckyMax > 10 ||
 		luckyAmountMin < -100 || luckyAmountMin >= 0 || luckyAmountMax <= 0 || luckyAmountMax > 100 ||
-		minAccountAgeHours < 0 || minAccountAgeHours > 720 || ipWindowMinutes < 1 || ipWindowMinutes > 1440 || ipMaxUsers < 1 || ipMaxUsers > 10000 ||
+		minAccountAgeHours < 0 || minAccountAgeHours > 720 || ipWindowMinutes < 1 || ipWindowMinutes > 1440 || ipMaxUsers < 1 || ipMaxUsers > 10000 || fingerprintWindowMinutes < 1 || fingerprintWindowMinutes > 10080 || fingerprintMaxUsers < 1 || fingerprintMaxUsers > 100 ||
 		unrechargedThreshold < 1 || unrechargedThreshold > 3650 || unrechargedNormalPercent < 0 || unrechargedNormalPercent > 100 {
 		return CheckinConfig{}, ErrCheckinConfigInvalid
 	}
@@ -527,6 +607,8 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 		MinAccountAge:                time.Duration(minAccountAgeHours) * time.Hour,
 		IPWindow:                     time.Duration(ipWindowMinutes) * time.Minute,
 		IPMaxUsers:                   ipMaxUsers,
+		FingerprintWindow:            time.Duration(fingerprintWindowMinutes) * time.Minute,
+		FingerprintMaxUsers:          fingerprintMaxUsers,
 		UnrechargedEnabled:           unrechargedEnabled,
 		UnrechargedThreshold:         int64(unrechargedThreshold),
 		UnrechargedNormalPercent:     unrechargedNormalPercent,

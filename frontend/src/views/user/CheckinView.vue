@@ -314,6 +314,7 @@ const status = ref<CheckinStatus | null>(null)
 const unavailableMessage = computed(() => {
   if (status.value?.unavailable_reason === 'account_too_new') return t('checkin.accountTooNew')
   if (status.value?.unavailable_reason === 'negative_balance') return t('checkin.negativeBalance')
+  if (status.value?.unavailable_reason === 'grant_restricted') return t('checkin.grantRestricted')
   if (status.value?.unavailable_reason === 'no_modes_enabled') return t('checkin.noModesAvailable')
   return t('checkin.unavailable')
 })

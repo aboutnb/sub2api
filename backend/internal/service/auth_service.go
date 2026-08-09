@@ -84,6 +84,7 @@ type AuthService struct {
 	affiliateService      *AffiliateService
 	defaultSubAssigner    DefaultSubscriptionAssigner
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	signupRiskGrantStore  SignupRiskGrantStore
 }
 
 type CaptchaProof struct {
@@ -150,6 +151,91 @@ func (s *AuthService) SetTencentCaptchaService(tencentCaptchaService *TencentCap
 
 func (s *AuthService) SetAliyunCaptchaService(aliyunCaptchaService *AliyunCaptchaService) {
 	s.aliyunCaptchaService = aliyunCaptchaService
+}
+
+func (s *AuthService) SetSignupRiskGrantStore(store SignupRiskGrantStore) {
+	if s != nil {
+		s.signupRiskGrantStore = store
+	}
+}
+
+type signupGrantApplication struct {
+	plan     signupGrantPlan
+	deferred bool
+}
+
+func (g signupGrantApplication) initialBalance() float64 {
+	if g.deferred {
+		return 0
+	}
+	return g.plan.Balance
+}
+
+func (g signupGrantApplication) initialConcurrency() int {
+	if g.deferred {
+		return 0
+	}
+	return g.plan.Concurrency
+}
+
+// prepareSignupGrant defers all automatic free benefits when a request carries
+// a server-derived risk identity. The account is created with zero balance and
+// concurrency first; ClaimSignupGrant decides whether this identity gets the
+// one-time package, preventing concurrent account cycling from racing the grant.
+func (s *AuthService) prepareSignupGrant(ctx context.Context, signupSource string) signupGrantApplication {
+	plan := s.resolveSignupGrantPlan(ctx, signupSource)
+	if signupRiskIdentityFromContext(ctx) == "" {
+		return signupGrantApplication{plan: plan}
+	}
+	// A risk identity is attached only by the public auth route. Once present,
+	// never fall back to the unrestricted grant path when its decision store is
+	// unavailable or miswired; applySignupGrant will fail closed instead.
+	return signupGrantApplication{plan: plan, deferred: true}
+}
+
+func (s *AuthService) applySignupGrant(ctx context.Context, user *User, grant signupGrantApplication) (bool, error) {
+	if user == nil {
+		return false, ErrServiceUnavailable
+	}
+	if !grant.deferred {
+		return true, nil
+	}
+	fingerprint := signupRiskIdentityFromContext(ctx)
+	if fingerprint == "" || s == nil || s.signupRiskGrantStore == nil {
+		return false, ErrServiceUnavailable
+	}
+	allowed, err := s.signupRiskGrantStore.ClaimSignupGrant(ctx, user.ID, fingerprint)
+	if err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] signup risk grant claim failed for user %d: %v", user.ID, err)
+		return false, ErrServiceUnavailable
+	}
+	if !allowed {
+		return false, nil
+	}
+	if grant.plan.Balance != 0 {
+		if _, err := s.userRepo.AdjustBalance(ctx, user.ID, grant.plan.Balance); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] failed to apply signup balance grant for user %d: %v", user.ID, err)
+			return false, ErrServiceUnavailable
+		}
+	}
+	if grant.plan.Concurrency != 0 {
+		if err := s.userRepo.UpdateConcurrency(ctx, user.ID, grant.plan.Concurrency); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] failed to apply signup concurrency grant for user %d: %v", user.ID, err)
+			return false, ErrServiceUnavailable
+		}
+	}
+	user.Balance = grant.plan.Balance
+	user.Concurrency = grant.plan.Concurrency
+	return true, nil
+}
+
+func (s *AuthService) releaseSignupGrant(ctx context.Context, userID int64) {
+	if s == nil || s.signupRiskGrantStore == nil || userID <= 0 {
+		return
+	}
+	if err := s.signupRiskGrantStore.ReleaseSignupGrant(ctx, userID); err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] failed to release signup risk grant for user %d: %v", userID, err)
+	}
 }
 
 // Register 用户注册，返回token和用户
@@ -225,7 +311,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		return "", nil, fmt.Errorf("hash password: %w", err)
 	}
 
-	grantPlan := s.resolveSignupGrantPlan(ctx, "email")
+	grant := s.prepareSignupGrant(ctx, "email")
 
 	// 新用户默认 RPM（0 = 不限制）。注册时写入，后续作为用户级兜底。
 	var defaultRPMLimit int
@@ -238,8 +324,8 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		Email:        email,
 		PasswordHash: hashedPassword,
 		Role:         RoleUser,
-		Balance:      grantPlan.Balance,
-		Concurrency:  grantPlan.Concurrency,
+		Balance:      grant.initialBalance(),
+		Concurrency:  grant.initialConcurrency(),
 		RPMLimit:     defaultRPMLimit,
 		Status:       StatusActive,
 	}
@@ -252,10 +338,17 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		logger.LegacyPrintf("service.auth", "[Auth] Database error creating user: %v", err)
 		return "", nil, ErrServiceUnavailable
 	}
+	grantAllowed, grantErr := s.applySignupGrant(ctx, user, grant)
+	if grantErr != nil {
+		_ = s.userRepo.Delete(ctx, user.ID)
+		return "", nil, grantErr
+	}
 	s.postAuthUserBootstrap(ctx, user, "email", true)
-	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
-	// snapshot user × platform quota（fail-open）
-	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
+	if grantAllowed {
+		s.assignSubscriptions(ctx, user.ID, grant.plan.Subscriptions, "auto assigned by signup defaults")
+		// snapshot user × platform quota（fail-open）
+		_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grant.plan)
+	}
 	if s.affiliateService != nil {
 		if _, err := s.affiliateService.EnsureUserAffiliate(ctx, user.ID); err != nil {
 			logger.LegacyPrintf("service.auth", "[Auth] Failed to initialize affiliate profile for user %d: %v", user.ID, err)
@@ -602,7 +695,7 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 			}
 
 			signupSource := inferLegacySignupSource(email)
-			grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
+			grant := s.prepareSignupGrant(ctx, signupSource)
 			var defaultRPMLimit int
 			if s.settingService != nil {
 				defaultRPMLimit = s.settingService.GetDefaultUserRPMLimit(ctx)
@@ -613,8 +706,8 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				Username:     username,
 				PasswordHash: hashedPassword,
 				Role:         RoleUser,
-				Balance:      grantPlan.Balance,
-				Concurrency:  grantPlan.Concurrency,
+				Balance:      grant.initialBalance(),
+				Concurrency:  grant.initialConcurrency(),
 				RPMLimit:     defaultRPMLimit,
 				Status:       StatusActive,
 				SignupSource: signupSource,
@@ -634,10 +727,17 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				}
 			} else {
 				user = newUser
+				grantAllowed, grantErr := s.applySignupGrant(ctx, user, grant)
+				if grantErr != nil {
+					_ = s.userRepo.Delete(ctx, user.ID)
+					return "", nil, grantErr
+				}
 				s.postAuthUserBootstrap(ctx, user, signupSource, false)
-				s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
-				// snapshot user × platform quota（fail-open）
-				_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
+				if grantAllowed {
+					s.assignSubscriptions(ctx, user.ID, grant.plan.Subscriptions, "auto assigned by signup defaults")
+					// snapshot user × platform quota（fail-open）
+					_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grant.plan)
+				}
 			}
 		} else {
 			logger.LegacyPrintf("service.auth", "[Auth] Database error during oauth login: %v", err)
@@ -751,7 +851,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			if strings.TrimSpace(signupSource) == "" {
 				signupSource = inferLegacySignupSource(email)
 			}
-			grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
+			grant := s.prepareSignupGrant(ctx, signupSource)
 			var defaultRPMLimit int
 			if s.settingService != nil {
 				defaultRPMLimit = s.settingService.GetDefaultUserRPMLimit(ctx)
@@ -762,8 +862,8 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				Username:     username,
 				PasswordHash: hashedPassword,
 				Role:         RoleUser,
-				Balance:      grantPlan.Balance,
-				Concurrency:  grantPlan.Concurrency,
+				Balance:      grant.initialBalance(),
+				Concurrency:  grant.initialConcurrency(),
 				RPMLimit:     defaultRPMLimit,
 				Status:       StatusActive,
 				SignupSource: signupSource,
@@ -799,10 +899,17 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					}
 					user = newUser
 					created = true
+					grantAllowed, grantErr := s.applySignupGrant(ctx, user, grant)
+					if grantErr != nil {
+						_ = s.userRepo.Delete(ctx, user.ID)
+						return nil, nil, grantErr
+					}
 					s.postAuthUserBootstrap(ctx, user, signupSource, false)
-					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
-					// snapshot user × platform quota（fail-open）
-					_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
+					if grantAllowed {
+						s.assignSubscriptions(ctx, user.ID, grant.plan.Subscriptions, "auto assigned by signup defaults")
+						// snapshot user × platform quota（fail-open）
+						_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grant.plan)
+					}
 					s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
 				}
 			} else {
@@ -820,10 +927,17 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				} else {
 					user = newUser
 					created = true
+					grantAllowed, grantErr := s.applySignupGrant(ctx, user, grant)
+					if grantErr != nil {
+						_ = s.userRepo.Delete(ctx, user.ID)
+						return nil, nil, grantErr
+					}
 					s.postAuthUserBootstrap(ctx, user, signupSource, false)
-					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
-					// snapshot user × platform quota（fail-open）
-					_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
+					if grantAllowed {
+						s.assignSubscriptions(ctx, user.ID, grant.plan.Subscriptions, "auto assigned by signup defaults")
+						// snapshot user × platform quota（fail-open）
+						_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grant.plan)
+					}
 					s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
 					if invitationRedeemCode != nil {
 						if err := s.redeemRepo.Use(ctx, invitationRedeemCode.ID, user.ID); err != nil {

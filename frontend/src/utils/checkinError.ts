@@ -10,6 +10,7 @@ const errorTranslationKeys: Record<string, string> = {
   CHECKIN_ENTROPY_UNAVAILABLE: 'checkin.entropyUnavailable',
   CHECKIN_ACCOUNT_TOO_NEW: 'checkin.accountTooNew',
   CHECKIN_NEGATIVE_BALANCE: 'checkin.negativeBalance',
+  CHECKIN_GRANT_RESTRICTED: 'checkin.grantRestricted',
   CHECKIN_MODE_DISABLED: 'checkin.modeDisabled',
   CHECKIN_INVALID_REQUEST: 'checkin.invalidRequest',
 }
