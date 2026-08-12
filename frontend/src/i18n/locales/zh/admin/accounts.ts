@@ -339,10 +339,6 @@ export default {
         rateLimited: '限流中',
         overloaded: '过载中',
         tempUnschedulable: '临时不可调度',
-      accountSchedulingThresholdOverride: '账号自动停调阈值覆盖',
-      accountSchedulingThresholdOverrideHint: '仅对当前账号覆盖平台级自动停调阈值；关闭后使用平台设置。',
-      accountSchedulingThresholdOverrideValue: '账号阈值百分比',
-      accountSchedulingThresholdOverrideDisabledHint: '1-100，达到该用量百分比后临时不可调度；100 表示禁用当前账号自动停调。',
         quotaExceeded: '配额超限',
         unschedulable: '不可调度',
         rateLimitedUntil: '限流中，当前不参与调度，预计 {time} 自动恢复',
@@ -355,6 +351,10 @@ export default {
         viewTempUnschedDetails: '查看临时不可调度详情',
         tempUnschedulableUntil: '预计 {time} 恢复'
       },
+      accountSchedulingThresholdOverride: '账号自动停调阈值覆盖',
+      accountSchedulingThresholdOverrideHint: '仅对当前账号覆盖平台级自动停调阈值；关闭后使用平台设置。',
+      accountSchedulingThresholdOverrideValue: '账号阈值百分比',
+      accountSchedulingThresholdOverrideDisabledHint: '1-100，达到该用量百分比后临时不可调度；100 表示禁用当前账号自动停调。',
       tempUnschedulable: {
         title: '临时不可调度',
         statusTitle: '临时不可调度状态',

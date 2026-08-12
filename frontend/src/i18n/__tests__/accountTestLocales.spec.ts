@@ -7,6 +7,16 @@ describe.each([
   ['en', en],
   ['zh', zh]
 ])('account test locale keys in %s', (_locale, messages) => {
+  it('keeps account scheduling threshold copy at the account level', () => {
+    expect(messages.admin.accounts).toMatchObject({
+      accountSchedulingThresholdOverride: expect.any(String),
+      accountSchedulingThresholdOverrideHint: expect.any(String),
+      accountSchedulingThresholdOverrideValue: expect.any(String),
+      accountSchedulingThresholdOverrideDisabledHint: expect.any(String)
+    })
+    expect(messages.admin.accounts.status).not.toHaveProperty('accountSchedulingThresholdOverride')
+  })
+
   it('defines all locally generated errors and SSE progress messages', () => {
     expect(messages.admin.accounts.testError).toMatchObject({
       requestFailed: expect.any(String),
