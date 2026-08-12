@@ -154,10 +154,6 @@ export default {
         viewTempUnschedDetails: 'View temp unschedulable details',
         tempUnschedulableUntil: 'Resumes {time}'
       },
-      accountSchedulingThresholdOverride: 'Account Auto-Pause Threshold Override',
-      accountSchedulingThresholdOverrideHint: 'Override the platform auto-pause threshold for this account only. Disable to use platform settings.',
-      accountSchedulingThresholdOverrideValue: 'Account threshold percent',
-      accountSchedulingThresholdOverrideDisabledHint: 'Use 1-100. The account becomes temporarily unschedulable after reaching this usage percent; 100 disables it for this account.',
       columns: {
         name: 'Name',
         id: 'Account ID',
