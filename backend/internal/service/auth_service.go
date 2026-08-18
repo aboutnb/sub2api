@@ -258,6 +258,9 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	if isReservedEmail(email) {
 		return "", nil, ErrEmailReserved
 	}
+	if err := s.validateRegistrationEmailRiskPolicy(ctx, email); err != nil {
+		return "", nil, err
+	}
 	// 检查是否需要邀请码
 	var invitationRedeemCode *RedeemCode
 	if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
@@ -409,6 +412,9 @@ func (s *AuthService) SendVerifyCode(ctx context.Context, email string, locale .
 	if isReservedEmail(email) {
 		return ErrEmailReserved
 	}
+	if err := s.validateRegistrationEmailRiskPolicy(ctx, email); err != nil {
+		return err
+	}
 	// 检查邮箱是否已存在（含 +别名 / Gmail 点号变体归一化，防止单个收件箱批量派生注册）
 	existsEmail, err := s.existsByEmailOrAlias(ctx, email)
 	if err != nil {
@@ -448,6 +454,9 @@ func (s *AuthService) SendVerifyCodeAsync(ctx context.Context, email string, loc
 
 	if isReservedEmail(email) {
 		return nil, ErrEmailReserved
+	}
+	if err := s.validateRegistrationEmailRiskPolicy(ctx, email); err != nil {
+		return nil, err
 	}
 	// 检查邮箱是否已存在（含 +别名 / Gmail 点号变体归一化；在发信前拦截，避免批量脚本消耗发信配额）
 	existsEmail, err := s.existsByEmailOrAlias(ctx, email)
@@ -1308,7 +1317,7 @@ func inferLegacySignupSource(email string) string {
 	}
 }
 
-func (s *AuthService) validateRegistrationEmailPolicy(ctx context.Context, email string) error {
+func (s *AuthService) validateRegistrationEmailRiskPolicy(ctx context.Context, email string) error {
 	if IsDisposableRegistrationEmailDomain(email) {
 		return ErrEmailDisposableNotAllowed
 	}
@@ -1321,6 +1330,13 @@ func (s *AuthService) validateRegistrationEmailPolicy(ctx context.Context, email
 			return ErrEmailExists
 		}
 		return ErrEmailAliasNotAllowed
+	}
+	return nil
+}
+
+func (s *AuthService) validateRegistrationEmailPolicy(ctx context.Context, email string) error {
+	if err := s.validateRegistrationEmailRiskPolicy(ctx, email); err != nil {
+		return err
 	}
 	if s == nil || s.settingService == nil {
 		return nil
