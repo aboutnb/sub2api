@@ -81,6 +81,13 @@ export default {
     view: 'View',
     settings: 'Settings',
     chooseFile: 'Choose File',
+    upload: 'Upload',
+    remove: 'Remove',
+    noFileSelected: 'No file selected',
+    selectedFile: 'Selected: {name}',
+    fileReadFailed: 'Failed to read file',
+    selectImageFile: 'Please select an image file',
+    fileTooLargeKb: 'File too large ({size} KB), max {max} KB',
     copy: 'Copy',
     notAvailable: 'N/A',
     now: 'Now',
@@ -244,6 +251,8 @@ export default {
       REGISTRATION_RISK_CONTROL_UNAVAILABLE: 'Registration verification is temporarily unavailable. Please try again later.',
     },
     registrationFailed: 'Registration failed. Please try again.',
+    emailDomainRegistrationLimit:
+      'This email domain cannot register another account. Please use a mainstream email, or contact support to add your enterprise domain to the allowlist.',
     emailSuffixNotAllowed: 'This email domain is not allowed for registration.',
     emailSuffixNotAllowedWithAllowed:
       'This email domain is not allowed. Allowed domains: {suffixes}',

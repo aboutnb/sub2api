@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -64,9 +65,113 @@ func (c *gatewayCache) DeleteSessionAccountID(ctx context.Context, groupID int64
 	return c.rdb.Del(ctx, key).Err()
 }
 
+const (
+	grokVideoPendingBillingPrefix = "grok_video_pending:"
+	grokVideoBilledPrefix         = "grok_video_billed:"
+)
+
+func (c *gatewayCache) SetGrokVideoPendingBilling(ctx context.Context, key string, payload []byte, ttl time.Duration) error {
+	if c == nil || c.rdb == nil {
+		return errors.New("gateway cache unavailable")
+	}
+	key = strings.TrimSpace(key)
+	if key == "" || len(payload) == 0 {
+		return errors.New("invalid grok video pending billing payload")
+	}
+	if ttl <= 0 {
+		ttl = 24 * time.Hour
+	}
+	return c.rdb.Set(ctx, grokVideoPendingBillingPrefix+key, payload, ttl).Err()
+}
+
+func (c *gatewayCache) GetGrokVideoPendingBilling(ctx context.Context, key string) ([]byte, error) {
+	if c == nil || c.rdb == nil {
+		return nil, errors.New("gateway cache unavailable")
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return nil, errors.New("invalid grok video pending billing key")
+	}
+	val, err := c.rdb.Get(ctx, grokVideoPendingBillingPrefix+key).Bytes()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return val, nil
+}
+
+func (c *gatewayCache) ClaimGrokVideoBilled(ctx context.Context, key string, ttl time.Duration) (bool, error) {
+	if c == nil || c.rdb == nil {
+		return false, errors.New("gateway cache unavailable")
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return false, errors.New("invalid grok video billed key")
+	}
+	if ttl <= 0 {
+		ttl = 48 * time.Hour
+	}
+	return c.rdb.SetNX(ctx, grokVideoBilledPrefix+key, "1", ttl).Result()
+}
+
+func (c *gatewayCache) ReleaseGrokVideoBilled(ctx context.Context, key string) error {
+	if c == nil || c.rdb == nil {
+		return errors.New("gateway cache unavailable")
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return errors.New("invalid grok video billed key")
+	}
+	return c.rdb.Del(ctx, grokVideoBilledPrefix+key).Err()
+}
+
 // Compile-time assertion: gatewayCache must implement CyberSessionBlockStore.
 var _ service.CyberSessionBlockStore = (*gatewayCache)(nil)
 var _ service.LiveCallStore = (*gatewayCache)(nil)
+
+const reasoningContentPrefix = "reasoning_content:"
+
+// reasoningContentDefaultTTL 是 reasoning 缓存的默认过期时间。Codex 会话可能
+// 跨多天恢复，取 7 天；调用方传入非正 TTL 时兜底。
+const reasoningContentDefaultTTL = 7 * 24 * time.Hour
+
+// SetReasoningContent 按 reasoning item id 缓存 reasoning 全文。
+// itemID 或 content 为空时直接返回 nil（无可缓存内容，属正常情况而非错误）。
+func (c *gatewayCache) SetReasoningContent(ctx context.Context, itemID string, content string, ttl time.Duration) error {
+	if c == nil || c.rdb == nil {
+		return errors.New("gateway cache unavailable")
+	}
+	itemID = strings.TrimSpace(itemID)
+	if itemID == "" || content == "" {
+		return nil
+	}
+	if ttl <= 0 {
+		ttl = reasoningContentDefaultTTL
+	}
+	return c.rdb.Set(ctx, reasoningContentPrefix+itemID, content, ttl).Err()
+}
+
+// GetReasoningContent 返回缓存的 reasoning 全文；未命中返回
+// service.ErrReasoningContentNotFound。
+func (c *gatewayCache) GetReasoningContent(ctx context.Context, itemID string) (string, error) {
+	if c == nil || c.rdb == nil {
+		return "", errors.New("gateway cache unavailable")
+	}
+	itemID = strings.TrimSpace(itemID)
+	if itemID == "" {
+		return "", service.ErrReasoningContentNotFound
+	}
+	val, err := c.rdb.Get(ctx, reasoningContentPrefix+itemID).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return "", service.ErrReasoningContentNotFound
+		}
+		return "", err
+	}
+	return val, nil
+}
 
 const cyberSessionBlockPrefix = "cyber_session_block:"
 
