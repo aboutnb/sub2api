@@ -49,6 +49,7 @@ export default {
     modeDisabled: '该签到方式已关闭，请刷新页面后重试。',
     accountTooNew: '账号注册时间较短，暂时无法参与签到。',
     negativeBalance: '当前余额状态暂不支持签到。',
+    grantRestricted: '该账号需要完成一次真实充值后才能继续签到。',
     sourceLimited: '当前网络短时间内已有较多账号签到，请稍后再试。',
     rateLimited: '操作过于频繁，请稍后再试。',
     riskUnavailable: '签到安全校验暂时不可用，请稍后再试。',

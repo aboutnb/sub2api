@@ -8300,6 +8300,168 @@
                   </div>
                 </div>
               </template>
+
+              <section
+                data-testid="invoice-settings"
+                class="border-t border-gray-200 pt-6 dark:border-dark-700"
+              >
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div class="flex min-w-0 items-start gap-3">
+                    <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      <Icon name="document" size="sm" :stroke-width="1.8" />
+                    </div>
+                    <div class="min-w-0">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <h3 class="font-semibold text-gray-900 dark:text-white">
+                          {{ t("admin.settings.payment.invoice.title") }}
+                        </h3>
+                        <span
+                          v-if="form.invoice_enabled"
+                          :class="[
+                            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
+                            invoiceConfigurationReady
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                              : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+                          ]"
+                        >
+                          <Icon
+                            :name="invoiceConfigurationReady ? 'checkCircle' : 'exclamationCircle'"
+                            size="xs"
+                          />
+                          {{
+                            invoiceConfigurationReady
+                              ? t("admin.settings.payment.invoice.configured")
+                              : t("admin.settings.payment.invoice.incomplete")
+                          }}
+                        </span>
+                      </div>
+                      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {{ t("admin.settings.payment.invoice.description") }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex flex-shrink-0 items-center gap-3 sm:pt-1">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.payment.invoice.enabled") }}
+                    </span>
+                    <Toggle v-model="form.invoice_enabled" />
+                  </div>
+                </div>
+
+                <div
+                  v-if="form.invoice_enabled"
+                  class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6"
+                >
+                  <div class="sm:col-span-2 lg:col-span-6">
+                    <label class="input-label">
+                      {{ t("admin.settings.payment.invoice.feePayer") }}
+                    </label>
+                    <div
+                      data-testid="invoice-fee-payer"
+                      role="radiogroup"
+                      class="mt-1 grid grid-cols-1 rounded-md bg-gray-100 p-1 sm:inline-grid sm:grid-cols-3 dark:bg-dark-700"
+                    >
+                      <button
+                        v-for="option in invoiceFeePayerOptions"
+                        :key="option.value"
+                        type="button"
+                        role="radio"
+                        :aria-checked="form.invoice_fee_payer === option.value"
+                        :class="[
+                          'rounded px-3 py-2 text-sm font-medium transition-colors',
+                          form.invoice_fee_payer === option.value
+                            ? 'bg-white text-gray-950 shadow-sm dark:bg-dark-800 dark:text-white'
+                            : 'text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white',
+                        ]"
+                        @click="form.invoice_fee_payer = option.value"
+                      >
+                        {{ option.label }}
+                      </button>
+                    </div>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      {{ invoiceFeePayerHint }}
+                    </p>
+                  </div>
+                  <div class="sm:col-span-2 lg:col-span-3">
+                    <label class="input-label">
+                      {{ t("admin.settings.payment.invoice.baseUrl") }}
+                    </label>
+                    <input
+                      v-model.trim="form.invoice_base_url"
+                      type="url"
+                      class="input"
+                      placeholder="https://oauth.xzncraft.cn"
+                      autocomplete="url"
+                    />
+                  </div>
+                  <div class="sm:col-span-2 lg:col-span-2">
+                    <label class="input-label">
+                      {{ t("admin.settings.payment.invoice.clientId") }}
+                    </label>
+                    <input
+                      v-model.trim="form.invoice_client_id"
+                      type="text"
+                      class="input"
+                      autocomplete="off"
+                    />
+                  </div>
+                  <div class="lg:col-span-1">
+                    <label class="input-label">
+                      {{ t("admin.settings.payment.invoice.timeout") }}
+                    </label>
+                    <div class="relative">
+                      <input
+                        v-model.number="form.invoice_timeout_seconds"
+                        type="number"
+                        min="1"
+                        max="120"
+                        step="1"
+                        class="input pr-10"
+                      />
+                      <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400">
+                        {{ t("admin.settings.payment.invoice.seconds") }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="sm:col-span-2 lg:col-span-3">
+                    <label class="input-label">
+                      {{ t("admin.settings.payment.invoice.clientSecret") }}
+                    </label>
+                    <input
+                      v-model="form.invoice_client_secret"
+                      type="password"
+                      class="input"
+                      autocomplete="new-password"
+                      :placeholder="
+                        form.invoice_client_secret_configured
+                          ? t('admin.settings.payment.invoice.secretConfiguredPlaceholder')
+                          : t('admin.settings.payment.invoice.secretPlaceholder')
+                      "
+                    />
+                    <p
+                      v-if="!form.totp_encryption_key_configured"
+                      class="mt-2 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300"
+                    >
+                      <Icon
+                        name="exclamationCircle"
+                        size="xs"
+                        class="mt-0.5 flex-shrink-0"
+                      />
+                      <span>{{
+                        t(
+                          "admin.settings.payment.invoice.secretEncryptionKeyRequired",
+                        )
+                      }}</span>
+                    </p>
+                  </div>
+                  <div class="sm:col-span-2 lg:col-span-3 lg:self-end">
+                    <div class="flex items-start gap-2 border-l-2 border-emerald-500 pl-3 text-xs text-gray-500 dark:text-gray-400">
+                      <Icon name="infoCircle" size="xs" class="mt-0.5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <p>{{ t("admin.settings.payment.invoice.requirement") }}</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
 
@@ -9567,6 +9729,7 @@ type SettingsForm = Omit<
   oidc_connect_client_secret: string;
   github_oauth_client_secret: string;
   google_oauth_client_secret: string;
+  invoice_client_secret: string;
   force_email_on_third_party_signup: boolean;
   openai_low_upstream_rate_priority_enabled: boolean;
   openai_oauth_scheduling_rate_multiplier: number;
@@ -9665,6 +9828,13 @@ const form = reactive<SettingsForm>({
   payment_cancel_rate_limit_window_mode: "rolling",
   payment_alipay_force_qrcode: false,
   payment_alipay_mobile_precreate_deep_link: false,
+  invoice_enabled: false,
+  invoice_base_url: "https://oauth.xzncraft.cn",
+  invoice_client_id: "",
+  invoice_client_secret: "",
+  invoice_client_secret_configured: false,
+  invoice_timeout_seconds: 15,
+  invoice_fee_payer: "customer",
   table_default_page_size: tablePageSizeDefault,
   table_page_size_options: [10, 20, 50, 100],
   custom_menu_items: [] as Array<{
@@ -10915,6 +11085,7 @@ async function loadSettings() {
     form.tencent_captcha_cloud_secret_id = "";
     form.tencent_captcha_cloud_secret_key = "";
     form.aliyun_captcha_access_key_secret = "";
+    form.invoice_client_secret = "";
     form.linuxdo_connect_client_secret = "";
     form.dingtalk_connect_client_secret = "";
     form.github_oauth_client_secret = "";
@@ -11074,9 +11245,55 @@ function findDuplicateDefaultSubscription(
   });
 }
 
+const invoiceConfigurationReady = computed(
+  () =>
+    form.invoice_base_url.trim() !== "" &&
+    form.invoice_client_id.trim() !== "" &&
+    (form.invoice_client_secret_configured ||
+      form.invoice_client_secret.trim() !== ""),
+);
+
+const invoiceFeePayerOptions = computed(() => [
+  {
+    value: "customer" as const,
+    label: t("admin.settings.payment.invoice.feePayerCustomer"),
+  },
+  {
+    value: "platform" as const,
+    label: t("admin.settings.payment.invoice.feePayerPlatform"),
+  },
+  {
+    value: "user_choice" as const,
+    label: t("admin.settings.payment.invoice.feePayerUserChoice"),
+  },
+]);
+
+const invoiceFeePayerHint = computed(() => {
+  if (form.invoice_fee_payer === "platform") {
+    return t("admin.settings.payment.invoice.feePayerPlatformHint");
+  }
+  if (form.invoice_fee_payer === "user_choice") {
+    return t("admin.settings.payment.invoice.feePayerUserChoiceHint");
+  }
+  return t("admin.settings.payment.invoice.feePayerCustomerHint");
+});
+
 async function saveSettings() {
   saving.value = true;
   try {
+    if (form.invoice_enabled && !invoiceConfigurationReady.value) {
+      appStore.showError(t("admin.settings.payment.invoice.incompleteError"));
+      return;
+    }
+    if (
+      form.invoice_enabled &&
+      (!Number.isInteger(Number(form.invoice_timeout_seconds)) ||
+        Number(form.invoice_timeout_seconds) < 1 ||
+        Number(form.invoice_timeout_seconds) > 120)
+    ) {
+      appStore.showError(t("admin.settings.payment.invoice.timeoutError"));
+      return;
+    }
     const normalizedTableDefaultPageSize = Math.floor(
       Number(form.table_default_page_size),
     );
@@ -11482,6 +11699,12 @@ async function saveSettings() {
       payment_alipay_force_qrcode: form.payment_alipay_force_qrcode,
       payment_alipay_mobile_precreate_deep_link:
         form.payment_alipay_mobile_precreate_deep_link,
+      invoice_enabled: form.invoice_enabled,
+      invoice_base_url: form.invoice_base_url.trim(),
+      invoice_client_id: form.invoice_client_id.trim(),
+      invoice_client_secret: form.invoice_client_secret.trim(),
+      invoice_timeout_seconds: Number(form.invoice_timeout_seconds) || 15,
+      invoice_fee_payer: form.invoice_fee_payer,
       openai_low_upstream_rate_priority_enabled:
         form.openai_low_upstream_rate_priority_enabled,
       openai_oauth_scheduling_rate_multiplier:
@@ -11616,6 +11839,7 @@ async function saveSettings() {
     smtpPasswordManuallyEdited.value = false;
     form.turnstile_secret_key = "";
     form.aliyun_captcha_access_key_secret = "";
+    form.invoice_client_secret = "";
     form.linuxdo_connect_client_secret = "";
     form.dingtalk_connect_client_secret = "";
     form.github_oauth_client_secret = "";

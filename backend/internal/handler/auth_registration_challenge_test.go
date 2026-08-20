@@ -201,11 +201,46 @@ func TestRequireRegistrationChallengeAllowsSharedNetworkAndUserAgent(t *testing.
 	attachRegistrationChallengeRedis(t, handler)
 	ginCtx, _ := newRegistrationChallengeTestContext()
 
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 5; i++ {
 		email := fmt.Sprintf("shared-network-%d@example.com", i)
 		submission := buildRegistrationChallengeSubmissionForTest(t, handler, ginCtx, email, "send_verify_code", "")
 		require.NoError(t, handler.requireRegistrationChallenge(ginCtx, "send_verify_code", email, submission))
 	}
+}
+
+func TestRequireRegistrationChallengeLimitsSharedIPAndUserAgentRegistrations(t *testing.T) {
+	handler := newRegistrationChallengeTestHandler()
+	attachRegistrationChallengeRedis(t, handler)
+	ginCtx, _ := newRegistrationChallengeTestContext()
+
+	for i := 0; i < 3; i++ {
+		email := fmt.Sprintf("shared-registration-%d@example.com", i)
+		submission := buildRegistrationChallengeSubmissionForTest(t, handler, ginCtx, email, "register", "")
+		require.NoError(t, handler.requireRegistrationChallenge(ginCtx, "register", email, submission))
+	}
+
+	email := "shared-registration-blocked@example.com"
+	submission := buildRegistrationChallengeSubmissionForTest(t, handler, ginCtx, email, "register", "")
+	err := handler.requireRegistrationChallenge(ginCtx, "register", email, submission)
+	require.Error(t, err)
+	require.Equal(t, "REGISTRATION_TOO_MANY_ATTEMPTS", infraerrors.Reason(err))
+}
+
+func TestRegistrationChallengeRiskHashesAreHMACAndUseTrustedClientIP(t *testing.T) {
+	handler := newRegistrationChallengeTestHandler()
+	ginCtx, _ := newRegistrationChallengeTestContext()
+	ginCtx.Request.RemoteAddr = "198.51.100.12:443"
+	ginCtx.Request.Header.Set("User-Agent", "browser-a")
+
+	firstIPHash := handler.registrationClientIPHash(ginCtx)
+	firstIdentityHash := handler.registrationClientIdentityHash(ginCtx)
+	require.Len(t, firstIPHash, 64)
+	require.Len(t, firstIdentityHash, 64)
+	require.NotEqual(t, registrationRiskHash("198.51.100.12"), firstIPHash)
+
+	ginCtx.Request.Header.Set("User-Agent", "browser-b")
+	require.Equal(t, firstIPHash, handler.registrationClientIPHash(ginCtx))
+	require.NotEqual(t, firstIdentityHash, handler.registrationClientIdentityHash(ginCtx))
 }
 
 func TestRequireRegistrationChallengeRejectsMissingSubmission(t *testing.T) {

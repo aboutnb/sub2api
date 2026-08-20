@@ -911,9 +911,9 @@ const startTest = async () => {
       throw new Error(t('admin.accounts.testError.requestFailed', { status: response.status }))
     }
 
-	const reader = response.body?.getReader()
-	if (!reader) {
-	  throw new Error(t('admin.accounts.testError.noResponseBody'))
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error(t('admin.accounts.testError.noResponseBody'))
     }
 
     const decoder = new TextDecoder()
@@ -945,11 +945,11 @@ const startTest = async () => {
     if (error instanceof DOMException && error.name === 'AbortError') {
       status.value = 'idle'
       return
-	}
-	status.value = 'error'
-	const msg = error instanceof Error ? error.message : t('admin.accounts.testError.unknown')
-	errorMessage.value = msg
-	addLine(t('admin.accounts.testError.line', { message: msg }), 'text-red-400')
+    }
+    status.value = 'error'
+    const msg = error instanceof Error ? error.message : t('admin.accounts.testError.unknown')
+    errorMessage.value = msg
+    addLine(t('admin.accounts.testError.line', { message: msg }), 'text-red-400')
   }
 }
 
@@ -1054,9 +1054,9 @@ const handleEvent = (event: {
       }
       break
 
-	case 'error':
-	  status.value = 'error'
-	  errorMessage.value = event.error || t('admin.accounts.testError.unknown')
+    case 'error':
+      status.value = 'error'
+      errorMessage.value = event.error || t('admin.accounts.testError.unknown')
       if (streamingContent.value) {
         addLine(streamingContent.value, 'text-green-300')
         streamingContent.value = ''

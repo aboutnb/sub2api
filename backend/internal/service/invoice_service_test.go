@@ -61,7 +61,8 @@ func TestInvoiceClientTokenFormCacheAndValidation(t *testing.T) {
 				t.Fatalf("decode validation request: %v", err)
 			}
 			if validationCalls.Load() == 1 {
-				if payload["needPayTax"] != true || len(payload["taxOrderNos"].([]any)) != 1 {
+				taxOrderNos, ok := payload["taxOrderNos"].([]any)
+				if payload["needPayTax"] != true || !ok || len(taxOrderNos) != 1 {
 					t.Errorf("tax validation payload = %#v", payload)
 				}
 				writeInvoiceTestEnvelope(t, w, http.StatusOK, map[string]any{
@@ -110,6 +111,105 @@ func TestInvoiceClientTokenFormCacheAndValidation(t *testing.T) {
 	}
 	if got := validationCalls.Load(); got != 2 {
 		t.Fatalf("validation calls = %d, want 2", got)
+	}
+}
+
+func TestInvoiceClientUsesUpdatedSettingsAndDropsCachedToken(t *testing.T) {
+	t.Parallel()
+
+	var tokenCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/oauth/token":
+			if err := r.ParseForm(); err != nil {
+				t.Fatalf("parse token form: %v", err)
+			}
+			clientID := r.Form.Get("client_id")
+			secret := r.Form.Get("client_secret")
+			if secret != "secret-"+strings.TrimPrefix(clientID, "client-") {
+				t.Fatalf("unexpected credentials: client_id=%q secret=%q", clientID, secret)
+			}
+			tokenCalls.Add(1)
+			writeInvoiceTestJSON(t, w, http.StatusOK, map[string]any{
+				"access_token": "token-" + clientID, "expires_in": 900, "scope": invoiceScope,
+			})
+		case "/api/v1/invoice-orders/validate":
+			if got := r.Header.Get("Authorization"); got != "Bearer token-client-a" && got != "Bearer token-client-b" {
+				t.Fatalf("unexpected authorization: %q", got)
+			}
+			writeInvoiceTestEnvelope(t, w, http.StatusOK, map[string]any{
+				"totalAmount": "100.00", "currency": "CNY", "taxAmount": "0.00", "invoiceAmount": "100.00",
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	repo := newInvoiceSettingsTestRepo()
+	settings := NewInvoiceSettingsService(repo, invoiceSettingsTestEncryptor{}, config.InvoiceIntegrationConfig{}, true)
+	_, err := settings.Update(ctx, InvoiceAdminSettings{
+		Enabled: true, BaseURL: server.URL, ClientID: "client-a", ClientSecret: "secret-a", TimeoutSeconds: 15,
+	})
+	if err != nil {
+		t.Fatalf("save initial settings: %v", err)
+	}
+	service := &InvoiceService{settingsService: settings, httpClient: server.Client()}
+	if _, err := service.validateRemoteOrders(ctx, []string{"ORDER-A"}, false, nil); err != nil {
+		t.Fatalf("validate with initial settings: %v", err)
+	}
+
+	_, err = settings.Update(ctx, InvoiceAdminSettings{
+		Enabled: true, BaseURL: server.URL, ClientID: "client-b", ClientSecret: "secret-b", TimeoutSeconds: 15,
+	})
+	if err != nil {
+		t.Fatalf("save updated settings: %v", err)
+	}
+	if _, err := service.validateRemoteOrders(ctx, []string{"ORDER-B"}, false, nil); err != nil {
+		t.Fatalf("validate with updated settings: %v", err)
+	}
+	if got := tokenCalls.Load(); got != 2 {
+		t.Fatalf("token calls = %d, want 2 after credential change", got)
+	}
+}
+
+func TestInvoiceFeePayerPolicyOverridesClientChoice(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		feePayer  string
+		requested bool
+		want      bool
+	}{
+		{name: "customer default forces tax payment", requested: false, want: true},
+		{name: "customer forces tax payment", feePayer: InvoiceFeePayerCustomer, requested: false, want: true},
+		{name: "platform suppresses tax payment", feePayer: InvoiceFeePayerPlatform, requested: true, want: false},
+		{name: "user choice accepts tax payment", feePayer: InvoiceFeePayerUserChoice, requested: true, want: true},
+		{name: "user choice accepts platform payment", feePayer: InvoiceFeePayerUserChoice, requested: false, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := newInvoiceSettingsTestRepo()
+			settings := NewInvoiceSettingsService(repo, invoiceSettingsTestEncryptor{}, config.InvoiceIntegrationConfig{}, true)
+			if tt.feePayer != "" {
+				if _, err := settings.Update(context.Background(), InvoiceAdminSettings{
+					TimeoutSeconds: 15,
+					FeePayer:       tt.feePayer,
+				}); err != nil {
+					t.Fatalf("save fee payer: %v", err)
+				}
+			}
+			service := &InvoiceService{settingsService: settings}
+			got, err := service.ResolveInvoiceNeedPayTax(context.Background(), tt.requested)
+			if err != nil {
+				t.Fatalf("resolve invoice tax policy: %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("need pay tax = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -288,7 +388,7 @@ func TestInvoiceClientCancelAndPDF(t *testing.T) {
 	if err != nil {
 		t.Fatalf("download PDF: %v", err)
 	}
-	defer pdf.Body.Close()
+	defer func() { _ = pdf.Body.Close() }()
 	body, err := io.ReadAll(pdf.Body)
 	if err != nil {
 		t.Fatalf("read PDF: %v", err)
@@ -416,7 +516,7 @@ func TestInvoiceApplicationOwnershipIsLocal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		t.Fatalf("enable sqlite foreign keys: %v", err)
 	}
@@ -441,12 +541,63 @@ func TestInvoiceApplicationOwnershipIsLocal(t *testing.T) {
 	}
 }
 
+func TestInvoiceOrderStatusesReturnsOnlyCurrentUserClaims(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:invoice-order-statuses?mode=memory&cache=shared&_fk=1")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		t.Fatalf("enable sqlite foreign keys: %v", err)
+	}
+	client := enttest.NewClient(t, enttest.WithOptions(dbent.Driver(entsql.OpenDB(dialect.SQLite, db))))
+	ctx := context.Background()
+
+	for _, input := range []struct {
+		userID int64
+		orders []int64
+		status string
+	}{
+		{userID: 101, orders: []int64{7, 8}, status: "completed"},
+		{userID: 101, orders: []int64{9}, status: "pending"},
+		{userID: 101, orders: []int64{10}, status: "canceled"},
+		{userID: 101, orders: []int64{12}, status: "rejected"},
+		{userID: 202, orders: []int64{11}, status: "completed"},
+	} {
+		if _, err := client.InvoiceApplication.Create().
+			SetUserID(input.userID).
+			SetOrderIds(input.orders).
+			SetStatus(input.status).
+			Save(ctx); err != nil {
+			t.Fatalf("create invoice application: %v", err)
+		}
+	}
+
+	service := &InvoiceService{entClient: client}
+	got, err := service.InvoiceOrderStatuses(ctx, 101, []int64{7, 8, 9, 10, 11, 12})
+	if err != nil {
+		t.Fatalf("query invoice order statuses: %v", err)
+	}
+	if got[7] != "completed" || got[8] != "completed" || got[9] != "pending" {
+		t.Fatalf("unexpected claimed statuses: %#v", got)
+	}
+	if _, ok := got[10]; ok {
+		t.Fatalf("canceled order should be eligible again: %#v", got)
+	}
+	if _, ok := got[12]; ok {
+		t.Fatalf("rejected order should be eligible again: %#v", got)
+	}
+	if _, ok := got[11]; ok {
+		t.Fatalf("another user's invoice status leaked: %#v", got)
+	}
+}
+
 func TestInvoiceDraftRecoveryClaimsOrdersAndPreservesTaxDrafts(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:invoice-drafts?mode=memory&cache=shared&_fk=1")
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		t.Fatalf("enable sqlite foreign keys: %v", err)
 	}
@@ -517,7 +668,7 @@ func TestInvoiceServiceEndToEndBothTaxModes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		t.Fatalf("enable sqlite foreign keys: %v", err)
 	}
@@ -714,7 +865,7 @@ func TestInvoiceServiceEndToEndBothTaxModes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("download completed PDF: %v", err)
 	}
-	defer pdf.Body.Close()
+	defer func() { _ = pdf.Body.Close() }()
 	pdfBody, err := io.ReadAll(pdf.Body)
 	if err != nil || string(pdfBody) != "%PDF-1.7 invoice e2e" {
 		t.Fatalf("downloaded PDF = %q, err=%v", pdfBody, err)
@@ -765,7 +916,7 @@ func TestInvoiceListRecoversUnknownSubmissionByOrderSet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		t.Fatalf("enable sqlite foreign keys: %v", err)
 	}

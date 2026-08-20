@@ -14,6 +14,7 @@ import (
 	"net/netip"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -30,7 +31,9 @@ const (
 	registrationChallengeSigVersion   = "v1"
 	registrationChallengeMaxClockSkew = 2 * time.Minute
 	registrationRiskWindow            = 10 * time.Minute
+	registrationIdentityRiskWindow    = 24 * time.Hour
 	registrationRiskTrapWindow        = time.Hour
+	registrationUserAgentMaxBytes     = 512
 )
 
 var (
@@ -203,8 +206,8 @@ func (h *AuthHandler) enforceRegistrationRiskLimits(c *gin.Context, action, emai
 	action = strings.TrimSpace(action)
 	email = normalizeRegistrationChallengeEmail(email)
 
-	emailLimit, ipLimit := registrationRiskLimitsForAction(action)
-	limits := make([]registrationRiskLimit, 0, 2)
+	emailLimit, ipLimit, identityLimit := registrationRiskLimitsForAction(action)
+	limits := make([]registrationRiskLimit, 0, 3)
 	if email != "" && emailLimit > 0 {
 		limits = append(limits, registrationRiskLimit{
 			name:   "email",
@@ -219,6 +222,14 @@ func (h *AuthHandler) enforceRegistrationRiskLimits(c *gin.Context, action, emai
 			value:  ipHash,
 			limit:  ipLimit,
 			window: registrationRiskWindow,
+		})
+	}
+	if identityHash := h.registrationClientIdentityHash(c); identityHash != "" && identityLimit > 0 {
+		limits = append(limits, registrationRiskLimit{
+			name:   "ip_ua",
+			value:  identityHash,
+			limit:  identityLimit,
+			window: registrationIdentityRiskWindow,
 		})
 	}
 	for _, limit := range limits {
@@ -238,14 +249,14 @@ func (h *AuthHandler) enforceRegistrationRiskLimits(c *gin.Context, action, emai
 	return nil
 }
 
-func registrationRiskLimitsForAction(action string) (emailLimit int64, ipLimit int64) {
+func registrationRiskLimitsForAction(action string) (emailLimit int64, ipLimit int64, identityLimit int64) {
 	switch strings.TrimSpace(action) {
 	case "send_verify_code", "oauth_pending_send_verify_code":
-		return 3, 200
+		return 3, 10, 5
 	case "register", "oauth_pending_create_account":
-		return 8, 300
+		return 8, 5, 3
 	default:
-		return 8, 300
+		return 8, 5, 3
 	}
 }
 
@@ -337,6 +348,20 @@ func (h *AuthHandler) attachRegistrationVerificationContext(c *gin.Context, acti
 	c.Request = c.Request.WithContext(service.WithRegistrationVerificationContext(c.Request.Context(), registrationCtx))
 }
 
+// AttachSignupRiskIdentity makes the trusted IP+normalized User-Agent identity
+// available to every auth flow, including OAuth routes that do not use the
+// browser registration challenge endpoint.
+func (h *AuthHandler) AttachSignupRiskIdentity(c *gin.Context) {
+	if h == nil || c == nil || c.Request == nil {
+		return
+	}
+	fingerprint := h.registrationClientIdentityHash(c)
+	if fingerprint == "" {
+		return
+	}
+	c.Request = c.Request.WithContext(service.WithSignupRiskIdentity(c.Request.Context(), fingerprint))
+}
+
 func (h *AuthHandler) signRegistrationChallengePayload(payload registrationChallengeTokenPayload) (string, error) {
 	rawPayload, err := json.Marshal(payload)
 	if err != nil {
@@ -393,29 +418,64 @@ func (h *AuthHandler) registrationChallengeFingerprint(c *gin.Context) string {
 		userAgent = strings.TrimSpace(c.GetHeader("User-Agent"))
 		acceptLanguage = strings.TrimSpace(c.GetHeader("Accept-Language"))
 	}
-	sum := sha256.Sum256([]byte(userAgent + "\n" + acceptLanguage))
-	return hex.EncodeToString(sum[:])
+	return h.registrationSensitiveHash("challenge-fingerprint-v1", userAgent+"\n"+acceptLanguage)
 }
 
 func (h *AuthHandler) registrationClientIPHash(c *gin.Context) string {
-	if c == nil {
-		return ""
-	}
-	return registrationRiskHash(ip.GetClientIP(c))
+	return h.registrationSensitiveHash("client-ip-v1", h.registrationSecurityClientIP(c))
 }
 
 func (h *AuthHandler) registrationUserAgentHash(c *gin.Context) string {
 	if c == nil || c.Request == nil {
 		return ""
 	}
-	return registrationRiskHash(strings.TrimSpace(c.GetHeader("User-Agent")))
+	return h.registrationSensitiveHash("user-agent-v1", normalizeRegistrationUserAgent(c.GetHeader("User-Agent")))
 }
 
 func (h *AuthHandler) registrationNetworkBucketHash(c *gin.Context) string {
-	if c == nil {
+	return h.registrationSensitiveHash("network-bucket-v1", registrationChallengeIPBucket(h.registrationSecurityClientIP(c)))
+}
+
+func (h *AuthHandler) registrationClientIdentityHash(c *gin.Context) string {
+	if c == nil || c.Request == nil {
 		return ""
 	}
-	return registrationRiskHash(registrationChallengeIPBucket(ip.GetClientIP(c)))
+	clientIP := h.registrationSecurityClientIP(c)
+	userAgent := normalizeRegistrationUserAgent(c.GetHeader("User-Agent"))
+	if clientIP == "" {
+		return ""
+	}
+	if userAgent == "" {
+		// Missing UA must not become a bypass; it is a stable bucket for this IP.
+		userAgent = "<missing-user-agent>"
+	}
+	return h.registrationSensitiveHash("client-ip-user-agent-v1", clientIP+"\x00"+userAgent)
+}
+
+func (h *AuthHandler) registrationSecurityClientIP(c *gin.Context) string {
+	return ip.GetSecurityClientIP(c, false)
+}
+
+func (h *AuthHandler) registrationSensitiveHash(domain, value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	mac := hmac.New(sha256.New, h.registrationChallengeSecret())
+	_, _ = mac.Write([]byte(domain + "\x00" + value))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func normalizeRegistrationUserAgent(value string) string {
+	value = strings.TrimSpace(strings.ToValidUTF8(value, ""))
+	if len(value) <= registrationUserAgentMaxBytes {
+		return value
+	}
+	value = value[:registrationUserAgentMaxBytes]
+	for !utf8.ValidString(value) {
+		value = value[:len(value)-1]
+	}
+	return value
 }
 
 func registrationRiskHash(value string) string {

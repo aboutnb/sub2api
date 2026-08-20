@@ -501,6 +501,12 @@ const baseSettingsResponse = {
   payment_cancel_rate_limit_window: 1,
   payment_cancel_rate_limit_unit: "day",
   payment_cancel_rate_limit_window_mode: "rolling",
+  invoice_enabled: false,
+  invoice_base_url: "https://oauth.xzncraft.cn",
+  invoice_client_id: "",
+  invoice_client_secret_configured: false,
+  invoice_timeout_seconds: 15,
+  invoice_fee_payer: "customer",
   payment_visible_method_alipay_source: "alipay_direct",
   payment_visible_method_wxpay_source: "invalid-source",
   payment_visible_method_alipay_enabled: true,
@@ -1111,6 +1117,103 @@ describe("admin SettingsView payment visible method controls", () => {
 
     expect(updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({ payment_subscription_fee_enabled: false }),
+    );
+  });
+
+  it("shows configured invoice credentials without exposing the secret", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      invoice_enabled: true,
+      invoice_base_url: "https://invoice.example.test",
+      invoice_client_id: "invoice-client",
+      invoice_client_secret_configured: true,
+      invoice_timeout_seconds: 25,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openPaymentTab(wrapper);
+
+    const invoiceSettings = wrapper.get('[data-testid="invoice-settings"]');
+    const secretInput = invoiceSettings.get('input[type="password"]');
+    expect((secretInput.element as HTMLInputElement).value).toBe("");
+    expect(secretInput.attributes("placeholder")).toBe(
+      "admin.settings.payment.invoice.secretConfiguredPlaceholder",
+    );
+    expect(wrapper.text()).toContain(
+      "admin.settings.payment.invoice.configured",
+    );
+  });
+
+  it("keeps an existing invoice secret when the secret input is blank", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      invoice_enabled: true,
+      invoice_base_url: "https://invoice.example.test",
+      invoice_client_id: "invoice-client",
+      invoice_client_secret_configured: true,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        invoice_enabled: true,
+        invoice_client_secret: "",
+      }),
+    );
+  });
+
+  it("submits the administrator-owned invoice fee payer policy", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      invoice_enabled: true,
+      invoice_base_url: "https://invoice.example.test",
+      invoice_client_id: "invoice-client",
+      invoice_client_secret_configured: true,
+      invoice_fee_payer: "customer",
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openPaymentTab(wrapper);
+    const feePayer = wrapper.get('[data-testid="invoice-fee-payer"]');
+    await feePayer
+      .findAll('button')
+      .find((button) =>
+        button.text().includes("admin.settings.payment.invoice.feePayerPlatform"),
+      )!
+      .trigger("click");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ invoice_fee_payer: "platform" }),
+    );
+  });
+
+  it("blocks enabling invoices until all credentials are present", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      invoice_enabled: true,
+      invoice_client_id: "",
+      invoice_client_secret_configured: false,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).not.toHaveBeenCalled();
+    expect(showError).toHaveBeenCalledWith(
+      "admin.settings.payment.invoice.incompleteError",
+    );
+    expect(wrapper.text()).toContain(
+      "admin.settings.payment.invoice.secretEncryptionKeyRequired",
     );
   });
 

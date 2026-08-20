@@ -158,7 +158,7 @@
                 <Toggle v-model="form.risk_control_enabled" />
               </div>
             </div>
-            <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3" :class="{ 'opacity-50': !form.risk_control_enabled }">
+            <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5" :class="{ 'opacity-50': !form.risk_control_enabled }">
               <label class="text-sm text-gray-600 dark:text-dark-300">
                 {{ t('admin.checkin.minAccountAge') }}
                 <input v-model.number="form.min_account_age_hours" class="input mt-2" type="number" min="0" max="720" step="1" :disabled="!form.risk_control_enabled" />
@@ -170,6 +170,14 @@
               <label class="text-sm text-gray-600 dark:text-dark-300">
                 {{ t('admin.checkin.ipMaxUsers') }}
                 <input v-model.number="form.ip_max_users" class="input mt-2" type="number" min="1" max="10000" step="1" :disabled="!form.risk_control_enabled" />
+              </label>
+              <label class="text-sm text-gray-600 dark:text-dark-300">
+                {{ t('admin.checkin.fingerprintWindow') }}
+                <input v-model.number="form.fingerprint_window_minutes" class="input mt-2" type="number" min="1" max="10080" step="1" :disabled="!form.risk_control_enabled" />
+              </label>
+              <label class="text-sm text-gray-600 dark:text-dark-300">
+                {{ t('admin.checkin.fingerprintMaxUsers') }}
+                <input v-model.number="form.fingerprint_max_users" class="input mt-2" type="number" min="1" max="100" step="1" :disabled="!form.risk_control_enabled" />
               </label>
             </div>
           </div>
@@ -272,7 +280,9 @@ const form = reactive({
   risk_control_enabled: true,
   min_account_age_hours: 24,
   ip_window_minutes: 10,
-  ip_max_users: 20,
+  ip_max_users: 5,
+  fingerprint_window_minutes: 1440,
+  fingerprint_max_users: 1,
   unrecharged_reduction_enabled: true,
   unrecharged_checkin_threshold: 3,
   unrecharged_normal_reward_percent: '50',
@@ -361,6 +371,8 @@ function applyConfig(value: AdminCheckinConfig) {
   form.min_account_age_hours = value.min_account_age_hours
   form.ip_window_minutes = value.ip_window_minutes
   form.ip_max_users = value.ip_max_users
+  form.fingerprint_window_minutes = value.fingerprint_window_minutes
+  form.fingerprint_max_users = value.fingerprint_max_users
   form.unrecharged_reduction_enabled = value.unrecharged_reduction_enabled
   form.unrecharged_checkin_threshold = value.unrecharged_checkin_threshold
   form.unrecharged_normal_reward_percent = value.unrecharged_normal_reward_percent

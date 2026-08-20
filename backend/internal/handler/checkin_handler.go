@@ -67,8 +67,12 @@ func (h *CheckinHandler) CheckIn(c *gin.Context) {
 	}
 	c.Request.Header.Set("Idempotency-Key", scopedCheckinIdempotencyKey(subject.UserID, c.GetHeader("Idempotency-Key")))
 	clientIP := ip.GetSecurityClientIP(c, false)
+	identity := service.CheckinIdentity{IP: clientIP}
+	if c.Request != nil {
+		identity.UserAgent = c.Request.UserAgent()
+	}
 	executeUserIdempotentJSON(c, "user.checkin.claim", req, 26*time.Hour, func(ctx context.Context) (any, error) {
-		record, newlyCheckedIn, checkinErr := h.service.CheckIn(ctx, subject.UserID, req.Mode, clientIP)
+		record, newlyCheckedIn, checkinErr := h.service.CheckInWithIdentity(ctx, subject.UserID, req.Mode, identity)
 		if checkinErr != nil {
 			middleware2.SetAuditExtra(c, map[string]any{
 				"result":     "rejected",

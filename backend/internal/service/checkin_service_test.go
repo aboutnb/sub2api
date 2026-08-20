@@ -88,6 +88,17 @@ type checkinAbuseGuardStub struct {
 	maxUsers      int
 }
 
+type checkinMultiSourceGuardStub struct {
+	*checkinAbuseGuardStub
+	sources []CheckinSourceLimit
+}
+
+func (s *checkinMultiSourceGuardStub) CheckAndRecordSources(_ context.Context, sources []CheckinSourceLimit, _ int64) (bool, int64, time.Duration, error) {
+	s.sources = append([]CheckinSourceLimit(nil), sources...)
+	s.calls++
+	return s.allowed, 1, sources[0].Window, s.err
+}
+
 func (s *checkinAbuseGuardStub) CheckRequest(_ context.Context, source string, userID int64, window time.Duration, _, _ int) (bool, time.Duration, error) {
 	s.requestCalls++
 	s.source = source
@@ -167,7 +178,9 @@ func checkinSettings(values map[string]string) *checkinSettingRepoStub {
 		SettingKeyCheckinRiskEnabled:              "false",
 		SettingKeyCheckinMinAccountAge:            "0",
 		SettingKeyCheckinIPWindow:                 "10",
-		SettingKeyCheckinIPMaxUsers:               "20",
+		SettingKeyCheckinIPMaxUsers:               "5",
+		SettingKeyCheckinFingerprintWindow:        "1440",
+		SettingKeyCheckinFingerprintMaxUsers:      "1",
 		SettingKeyCheckinUnrechargedEnabled:       "true",
 		SettingKeyCheckinUnrechargedThreshold:     "3",
 		SettingKeyCheckinUnrechargedNormalPercent: "50",
@@ -212,6 +225,22 @@ func TestCheckinServiceNormalRewardUsesConfiguredRange(t *testing.T) {
 	require.LessOrEqual(t, repo.reward, 0.05)
 	require.Equal(t, repo.reward, repo.randomValue)
 	require.Equal(t, CheckinRewardTypeAmount, record.RewardType)
+}
+
+func TestCheckinServiceRejectsRestrictedUnrechargedAccount(t *testing.T) {
+	repo := &checkinRepoStub{state: &CheckinUserState{
+		Role:                  RoleUser,
+		Status:                StatusActive,
+		Balance:               0,
+		SignupGrantRestricted: true,
+		HasRecharge:           false,
+	}}
+	svc := newCheckinServiceForTest(repo, checkinSettings(nil))
+
+	_, _, err := svc.CheckIn(context.Background(), 7, "normal", "127.0.0.1")
+
+	require.ErrorIs(t, err, ErrCheckinGrantRestricted)
+	require.Zero(t, repo.applyCalls)
 }
 
 func TestCheckinServiceUnrechargedNormalRewardReduction(t *testing.T) {
@@ -665,6 +694,38 @@ func TestCheckinServiceAllowsOldAccountThroughRiskGuard(t *testing.T) {
 	require.Equal(t, 3, guard.maxUsers)
 }
 
+func TestCheckinServiceUsesIPAndUserAgentFingerprintRiskSources(t *testing.T) {
+	guard := &checkinMultiSourceGuardStub{checkinAbuseGuardStub: &checkinAbuseGuardStub{allowed: true}}
+	repo := &checkinRepoStub{state: &CheckinUserState{
+		Role: RoleUser, Status: StatusActive, Balance: 10, CreatedAt: time.Now().Add(-48 * time.Hour),
+	}}
+	settings := checkinSettings(map[string]string{
+		SettingKeyCheckinRiskEnabled:         "true",
+		SettingKeyCheckinMinAccountAge:       "24",
+		SettingKeyCheckinIPWindow:            "10",
+		SettingKeyCheckinIPMaxUsers:          "20",
+		SettingKeyCheckinFingerprintWindow:   "1440",
+		SettingKeyCheckinFingerprintMaxUsers: "1",
+	})
+	svc := NewCheckinService(repo, settings, &config.Config{RunMode: config.RunModeStandard}, nil, guard)
+
+	_, newlyCheckedIn, err := svc.CheckInWithIdentity(context.Background(), 7, "normal", CheckinIdentity{
+		IP:        "2001:0db8::1",
+		UserAgent: "  browser-a  ",
+	})
+
+	require.NoError(t, err)
+	require.True(t, newlyCheckedIn)
+	require.Equal(t, 1, guard.calls)
+	require.Len(t, guard.sources, 2)
+	require.Equal(t, "2001:db8::1", guard.sources[0].Source)
+	require.Equal(t, 10*time.Minute, guard.sources[0].Window)
+	require.Equal(t, 20, guard.sources[0].MaxUsers)
+	require.Equal(t, "2001:db8::1\x00browser-a", guard.sources[1].Source)
+	require.Equal(t, 24*time.Hour, guard.sources[1].Window)
+	require.Equal(t, 1, guard.sources[1].MaxUsers)
+}
+
 func TestCheckinServiceRiskDisabledBypassesCampaignChecksButNotSecurityGuard(t *testing.T) {
 	guard := &checkinAbuseGuardStub{allowed: false}
 	repo := &checkinRepoStub{state: &CheckinUserState{
@@ -930,6 +991,8 @@ func TestAdminCheckinConfigRequiresReasonAndMatchingVersion(t *testing.T) {
 		MinAccountAgeHours:          24,
 		IPWindowMinutes:             10,
 		IPMaxUsers:                  20,
+		FingerprintWindowMinutes:    1440,
+		FingerprintMaxUsers:         1,
 		UnrechargedEnabled:          true,
 		UnrechargedCheckinThreshold: 3,
 		UnrechargedNormalPercent:    "50",
@@ -977,6 +1040,8 @@ func TestAdminCheckinConfigUpdateIncrementsVersion(t *testing.T) {
 		MinAccountAgeHours:          24,
 		IPWindowMinutes:             10,
 		IPMaxUsers:                  20,
+		FingerprintWindowMinutes:    1440,
+		FingerprintMaxUsers:         1,
 		UnrechargedEnabled:          true,
 		UnrechargedCheckinThreshold: 3,
 		UnrechargedNormalPercent:    "50",
@@ -1021,6 +1086,8 @@ func TestAdminCheckinConfigRejectsConcurrentVersionChange(t *testing.T) {
 		MinAccountAgeHours:          24,
 		IPWindowMinutes:             10,
 		IPMaxUsers:                  20,
+		FingerprintWindowMinutes:    1440,
+		FingerprintMaxUsers:         1,
 		UnrechargedEnabled:          true,
 		UnrechargedCheckinThreshold: 3,
 		UnrechargedNormalPercent:    "50",

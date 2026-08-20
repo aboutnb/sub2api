@@ -73,3 +73,27 @@ describe('AppSidebar check-in access', () => {
     expect(componentSource).not.toContain('featureFlag: () => withDashboard && flagCheckin()')
   })
 })
+
+describe('AppSidebar security audit group', () => {
+  const groupStart = componentSource.indexOf("path: '/admin/security-audit'")
+  const groupEnd = componentSource.indexOf("{ path: '/admin/redeem'", groupStart)
+  const groupSource = componentSource.slice(groupStart, groupEnd)
+
+  it('groups login protection and audit logs under security audit', () => {
+    expect(groupStart).toBeGreaterThan(-1)
+    expect(groupEnd).toBeGreaterThan(groupStart)
+    expect(groupSource).toContain("path: '/admin/auth-ip-bans'")
+    expect(groupSource).toContain("path: '/admin/audit-logs'")
+    expect(componentSource.match(/path: '\/admin\/auth-ip-bans'/g)).toHaveLength(1)
+    expect(componentSource.match(/path: '\/admin\/audit-logs'/g)).toHaveLength(1)
+  })
+
+  it('keeps only login protection visible from the group in simple mode', () => {
+    expect(groupSource).toContain(
+      "{ path: '/admin/audit-logs', label: t('nav.auditLogs'), icon: ShieldIcon, hideInSimpleMode: true }",
+    )
+    expect(componentSource).toContain(
+      'children: item.children.filter(child => !child.hideInSimpleMode)',
+    )
+  })
+})

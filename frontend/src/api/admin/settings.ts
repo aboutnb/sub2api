@@ -678,6 +678,14 @@ export interface SystemSettings {
   payment_cancel_rate_limit_window_mode: string;
   payment_alipay_force_qrcode?: boolean;
   payment_alipay_mobile_precreate_deep_link?: boolean;
+
+  // XZNOAuth self-service invoice integration
+  invoice_enabled: boolean;
+  invoice_base_url: string;
+  invoice_client_id: string;
+  invoice_client_secret_configured: boolean;
+  invoice_timeout_seconds: number;
+  invoice_fee_payer: "customer" | "platform" | "user_choice";
   payment_visible_method_alipay_source?: string;
   payment_visible_method_wxpay_source?: string;
   payment_visible_method_alipay_enabled?: boolean;
@@ -997,6 +1005,12 @@ export interface UpdateSettingsRequest {
   payment_cancel_rate_limit_window_mode?: string;
   payment_alipay_force_qrcode?: boolean;
   payment_alipay_mobile_precreate_deep_link?: boolean;
+  invoice_enabled?: boolean;
+  invoice_base_url?: string;
+  invoice_client_id?: string;
+  invoice_client_secret?: string;
+  invoice_timeout_seconds?: number;
+  invoice_fee_payer?: "customer" | "platform" | "user_choice";
   payment_visible_method_alipay_source?: string;
   payment_visible_method_wxpay_source?: string;
   payment_visible_method_alipay_enabled?: boolean;

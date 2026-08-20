@@ -21,10 +21,15 @@ type checkInvoiceTaxPaymentRequest struct {
 
 func (h *PaymentHandler) GetInvoiceConfig(c *gin.Context) {
 	if h.invoiceService == nil {
-		response.Success(c, service.InvoiceConfigResponse{})
+		response.Success(c, service.InvoiceConfigResponse{FeePayer: service.InvoiceFeePayerCustomer})
 		return
 	}
-	response.Success(c, h.invoiceService.Config())
+	config, err := h.invoiceService.Config(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, config)
 }
 
 func (h *PaymentHandler) ValidateInvoiceOrders(c *gin.Context) {
@@ -37,7 +42,12 @@ func (h *PaymentHandler) ValidateInvoiceOrders(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-	result, err := h.invoiceService.ValidateOrders(c.Request.Context(), subject.UserID, req.OrderIDs, req.NeedPayTax)
+	needPayTax, err := h.invoiceService.ResolveInvoiceNeedPayTax(c.Request.Context(), req.NeedPayTax)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	result, err := h.invoiceService.ValidateOrders(c.Request.Context(), subject.UserID, req.OrderIDs, needPayTax)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -163,7 +173,7 @@ func (h *PaymentHandler) DownloadInvoicePDF(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	defer pdf.Body.Close()
+	defer func() { _ = pdf.Body.Close() }()
 	contentLength := pdf.ContentLength
 	if contentLength < 0 {
 		contentLength = -1

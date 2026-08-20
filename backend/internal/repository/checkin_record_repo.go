@@ -30,9 +30,18 @@ func NewAdminCheckinRepository(db *sql.DB) service.AdminCheckinRepository {
 func (r *checkinRepository) GetUserState(ctx context.Context, userID int64) (*service.CheckinUserState, error) {
 	var state service.CheckinUserState
 	err := r.db.QueryRowContext(ctx, `
-		SELECT role, status, balance, created_at
-		FROM users
-		WHERE id = $1 AND deleted_at IS NULL`, userID).Scan(&state.Role, &state.Status, &state.Balance, &state.CreatedAt)
+		SELECT u.role, u.status, u.balance, u.created_at,
+		       (COALESCE(u.total_recharged, 0) > 0 OR EXISTS (
+				SELECT 1 FROM redeem_codes rc
+				WHERE rc.used_by = u.id AND rc.status = 'used' AND rc.value > 0
+				  AND rc.type IN ('balance', 'admin_balance')
+		       )),
+		       EXISTS (
+				SELECT 1 FROM signup_risk_accounts sra
+				WHERE sra.user_id = u.id AND sra.grant_allowed = FALSE
+		       )
+		FROM users u
+		WHERE u.id = $1 AND u.deleted_at IS NULL`, userID).Scan(&state.Role, &state.Status, &state.Balance, &state.CreatedAt, &state.HasRecharge, &state.SignupGrantRestricted)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, service.ErrCheckinUserNotFound
 	}

@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -50,21 +51,24 @@ var invoiceClaimingStatuses = []string{
 }
 
 type InvoiceService struct {
-	entClient  *dbent.Client
-	config     config.InvoiceIntegrationConfig
-	httpClient *http.Client
+	entClient       *dbent.Client
+	config          config.InvoiceIntegrationConfig
+	settingsService *InvoiceSettingsService
+	httpClient      *http.Client
 
-	tokenMu     sync.Mutex
-	accessToken string
-	tokenExpiry time.Time
-	applyMu     sync.Mutex
-	draftMu     sync.Mutex
+	tokenMu        sync.Mutex
+	accessToken    string
+	tokenExpiry    time.Time
+	tokenConfigKey string
+	applyMu        sync.Mutex
+	draftMu        sync.Mutex
 }
 
 type InvoiceConfigResponse struct {
-	Enabled            bool `json:"enabled"`
-	SupportsTaxPayment bool `json:"supports_tax_payment"`
-	MaxOrders          int  `json:"max_orders"`
+	Enabled            bool   `json:"enabled"`
+	SupportsTaxPayment bool   `json:"supports_tax_payment"`
+	MaxOrders          int    `json:"max_orders"`
+	FeePayer           string `json:"fee_payer"`
 }
 
 type InvoiceDraftResponse struct {
@@ -109,6 +113,50 @@ type InvoiceApplicationResponse struct {
 	ErrorCode      string    `json:"error_code,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// InvoiceOrderStatuses returns the latest local invoice workflow status for the
+// requested orders. Canceled and rejected applications are intentionally
+// excluded because those orders are eligible for a new invoice request.
+func (s *InvoiceService) InvoiceOrderStatuses(ctx context.Context, userID int64, orderIDs []int64) (map[int64]string, error) {
+	statuses := make(map[int64]string)
+	if s == nil || s.entClient == nil || userID <= 0 || len(orderIDs) == 0 {
+		return statuses, nil
+	}
+
+	wanted := make(map[int64]struct{}, len(orderIDs))
+	for _, orderID := range orderIDs {
+		if orderID > 0 {
+			wanted[orderID] = struct{}{}
+		}
+	}
+	if len(wanted) == 0 {
+		return statuses, nil
+	}
+
+	applications, err := s.entClient.InvoiceApplication.Query().
+		Where(
+			invoiceapplication.UserIDEQ(userID),
+			invoiceapplication.StatusIn(invoiceClaimingStatuses...),
+		).
+		Order(dbent.Desc(invoiceapplication.FieldUpdatedAt)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query invoice order statuses: %w", err)
+	}
+	for _, application := range applications {
+		for _, orderID := range application.OrderIds {
+			if _, ok := wanted[orderID]; !ok {
+				continue
+			}
+			// Applications are ordered newest first, so the first matching
+			// application is the current state for an order.
+			if _, exists := statuses[orderID]; !exists {
+				statuses[orderID] = application.Status
+			}
+		}
+	}
+	return statuses, nil
 }
 
 type InvoicePDF struct {
@@ -157,16 +205,46 @@ func NewInvoiceService(entClient *dbent.Client, cfg *config.Config) *InvoiceServ
 	return &InvoiceService{entClient: entClient, config: cfg.Invoice, httpClient: client}
 }
 
-func (s *InvoiceService) Config() InvoiceConfigResponse {
+func (s *InvoiceService) SetSettingsService(settings *InvoiceSettingsService) {
+	s.settingsService = settings
+}
+
+func (s *InvoiceService) Config(ctx context.Context) (InvoiceConfigResponse, error) {
+	cfg, err := s.effectiveConfig(ctx)
+	if err != nil {
+		return InvoiceConfigResponse{}, err
+	}
+	feePayer, err := s.invoiceFeePayer(ctx)
+	if err != nil {
+		return InvoiceConfigResponse{}, err
+	}
 	return InvoiceConfigResponse{
-		Enabled:            s.config.Enabled && s.config.ClientID != "" && s.config.ClientSecret != "" && s.config.BaseURL != "",
+		Enabled:            invoiceConfigEnabled(cfg),
 		SupportsTaxPayment: true,
 		MaxOrders:          invoiceMaxOrders,
+		FeePayer:           feePayer,
+	}, nil
+}
+
+// ResolveInvoiceNeedPayTax applies the server-owned fee policy. The caller's
+// requested branch is honored only when an administrator allows user choice.
+func (s *InvoiceService) ResolveInvoiceNeedPayTax(ctx context.Context, requested bool) (bool, error) {
+	feePayer, err := s.invoiceFeePayer(ctx)
+	if err != nil {
+		return false, err
+	}
+	switch feePayer {
+	case InvoiceFeePayerPlatform:
+		return false, nil
+	case InvoiceFeePayerUserChoice:
+		return requested, nil
+	default:
+		return true, nil
 	}
 }
 
 func (s *InvoiceService) ValidateOrders(ctx context.Context, userID int64, orderIDs []int64, needPayTax bool) (*InvoiceDraftResponse, error) {
-	if err := s.requireConfigured(); err != nil {
+	if err := s.requireConfigured(ctx); err != nil {
 		return nil, err
 	}
 	s.draftMu.Lock()
@@ -212,7 +290,7 @@ func (s *InvoiceService) ValidateOrders(ctx context.Context, userID int64, order
 
 // CurrentDraft returns the sole in-progress draft so a browser reload can resume it.
 func (s *InvoiceService) CurrentDraft(ctx context.Context, userID int64) (*InvoiceDraftResponse, error) {
-	if err := s.requireConfigured(); err != nil {
+	if err := s.requireConfigured(ctx); err != nil {
 		return nil, err
 	}
 	draft, err := s.currentDraft(ctx, userID)
@@ -225,7 +303,7 @@ func (s *InvoiceService) CurrentDraft(ctx context.Context, userID int64) (*Invoi
 // AbandonDraft only releases a no-tax draft. A tax checkout can have been paid
 // outside the browser, so it must remain recoverable until submitted.
 func (s *InvoiceService) AbandonDraft(ctx context.Context, userID, draftID int64) error {
-	if err := s.requireConfigured(); err != nil {
+	if err := s.requireConfigured(ctx); err != nil {
 		return err
 	}
 	draft, err := s.getOwnedApplication(ctx, userID, draftID)
@@ -245,7 +323,7 @@ func (s *InvoiceService) AbandonDraft(ctx context.Context, userID, draftID int64
 }
 
 func (s *InvoiceService) CheckTaxPayment(ctx context.Context, userID, draftID int64, taxOrderNo string) (*InvoiceTaxStatusResponse, error) {
-	if err := s.requireConfigured(); err != nil {
+	if err := s.requireConfigured(ctx); err != nil {
 		return nil, err
 	}
 	draft, err := s.getOwnedApplication(ctx, userID, draftID)
@@ -287,7 +365,7 @@ func (s *InvoiceService) CheckTaxPayment(ctx context.Context, userID, draftID in
 }
 
 func (s *InvoiceService) Apply(ctx context.Context, userID, draftID int64, input InvoiceApplyRequest) (*InvoiceApplicationResponse, error) {
-	if err := s.requireConfigured(); err != nil {
+	if err := s.requireConfigured(ctx); err != nil {
 		return nil, err
 	}
 	input = normalizeInvoiceApplyRequest(input)
@@ -387,7 +465,7 @@ func (s *InvoiceService) Apply(ctx context.Context, userID, draftID int64, input
 }
 
 func (s *InvoiceService) ListApplications(ctx context.Context, userID int64, page, pageSize int) ([]InvoiceApplicationResponse, int, error) {
-	if err := s.requireConfigured(); err != nil {
+	if err := s.requireConfigured(ctx); err != nil {
 		return nil, 0, err
 	}
 	if page < 1 {
@@ -422,7 +500,7 @@ func (s *InvoiceService) ListApplications(ctx context.Context, userID int64, pag
 }
 
 func (s *InvoiceService) Cancel(ctx context.Context, userID, applicationID int64) (*InvoiceApplicationResponse, error) {
-	if err := s.requireConfigured(); err != nil {
+	if err := s.requireConfigured(ctx); err != nil {
 		return nil, err
 	}
 	application, err := s.getOwnedApplication(ctx, userID, applicationID)
@@ -448,7 +526,7 @@ func (s *InvoiceService) Cancel(ctx context.Context, userID, applicationID int64
 }
 
 func (s *InvoiceService) DownloadPDF(ctx context.Context, userID, applicationID int64) (*InvoicePDF, error) {
-	if err := s.requireConfigured(); err != nil {
+	if err := s.requireConfigured(ctx); err != nil {
 		return nil, err
 	}
 	application, err := s.getOwnedApplication(ctx, userID, applicationID)
@@ -461,11 +539,33 @@ func (s *InvoiceService) DownloadPDF(ctx context.Context, userID, applicationID 
 	return s.downloadRemotePDF(ctx, *application.ExternalID)
 }
 
-func (s *InvoiceService) requireConfigured() error {
-	if !s.Config().Enabled {
+func (s *InvoiceService) requireConfigured(ctx context.Context) error {
+	cfg, err := s.effectiveConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if !invoiceConfigEnabled(cfg) {
 		return infraerrors.ServiceUnavailable("INVOICE_NOT_CONFIGURED", "invoice service is not configured")
 	}
 	return nil
+}
+
+func invoiceConfigEnabled(cfg config.InvoiceIntegrationConfig) bool {
+	return cfg.Enabled && cfg.ClientID != "" && cfg.ClientSecret != "" && cfg.BaseURL != ""
+}
+
+func (s *InvoiceService) effectiveConfig(ctx context.Context) (config.InvoiceIntegrationConfig, error) {
+	if s.settingsService != nil {
+		return s.settingsService.EffectiveConfig(ctx)
+	}
+	return s.config, nil
+}
+
+func (s *InvoiceService) invoiceFeePayer(ctx context.Context) (string, error) {
+	if s.settingsService == nil {
+		return InvoiceFeePayerCustomer, nil
+	}
+	return s.settingsService.FeePayer(ctx)
 }
 
 func (s *InvoiceService) resolveOwnedCompletedOrders(ctx context.Context, userID int64, orderIDs []int64) ([]*dbent.PaymentOrder, []int64, []string, error) {
@@ -744,19 +844,27 @@ func (s *InvoiceService) syncRemoteApplications(ctx context.Context, local []*db
 }
 
 func (s *InvoiceService) downloadRemotePDF(ctx context.Context, externalID string) (*InvoicePDF, error) {
+	cfg, err := s.effectiveConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !invoiceConfigEnabled(cfg) {
+		return nil, infraerrors.ServiceUnavailable("INVOICE_NOT_CONFIGURED", "invoice service is not configured")
+	}
+	client := s.httpClientForConfig(cfg)
 	path := "/api/v1/invoices/" + url.PathEscape(externalID) + "/pdf"
 	for attempt := 0; attempt < 2; attempt++ {
-		token, err := s.getAccessToken(ctx, attempt > 0)
+		token, err := s.getAccessTokenForConfig(ctx, cfg, client, attempt > 0)
 		if err != nil {
 			return nil, err
 		}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.endpoint(path), nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, invoiceEndpoint(cfg, path), nil)
 		if err != nil {
 			return nil, fmt.Errorf("create invoice PDF request: %w", err)
 		}
 		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("Accept", "application/pdf")
-		resp, err := s.httpClient.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("download invoice PDF: %w", err)
 		}
@@ -800,8 +908,16 @@ func (s *InvoiceService) doJSON(ctx context.Context, method, path string, payloa
 			return fmt.Errorf("encode invoice request: %w", err)
 		}
 	}
+	cfg, err := s.effectiveConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if !invoiceConfigEnabled(cfg) {
+		return infraerrors.ServiceUnavailable("INVOICE_NOT_CONFIGURED", "invoice service is not configured")
+	}
+	client := s.httpClientForConfig(cfg)
 	for attempt := 0; attempt < 2; attempt++ {
-		token, err := s.getAccessToken(ctx, attempt > 0)
+		token, err := s.getAccessTokenForConfig(ctx, cfg, client, attempt > 0)
 		if err != nil {
 			return err
 		}
@@ -809,7 +925,7 @@ func (s *InvoiceService) doJSON(ctx context.Context, method, path string, payloa
 		if encoded != nil {
 			body = bytes.NewReader(encoded)
 		}
-		req, err := http.NewRequestWithContext(ctx, method, s.endpoint(path), body)
+		req, err := http.NewRequestWithContext(ctx, method, invoiceEndpoint(cfg, path), body)
 		if err != nil {
 			return fmt.Errorf("create invoice request: %w", err)
 		}
@@ -818,7 +934,7 @@ func (s *InvoiceService) doJSON(ctx context.Context, method, path string, payloa
 		if encoded != nil {
 			req.Header.Set("Content-Type", "application/json")
 		}
-		resp, err := s.httpClient.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
 			return fmt.Errorf("invoice request failed: %w", err)
 		}
@@ -837,28 +953,45 @@ func (s *InvoiceService) doJSON(ctx context.Context, method, path string, payloa
 }
 
 func (s *InvoiceService) getAccessToken(ctx context.Context, force bool) (string, error) {
+	cfg, err := s.effectiveConfig(ctx)
+	if err != nil {
+		return "", err
+	}
+	if !invoiceConfigEnabled(cfg) {
+		return "", infraerrors.ServiceUnavailable("INVOICE_NOT_CONFIGURED", "invoice service is not configured")
+	}
+	return s.getAccessTokenForConfig(ctx, cfg, s.httpClientForConfig(cfg), force)
+}
+
+func (s *InvoiceService) getAccessTokenForConfig(ctx context.Context, cfg config.InvoiceIntegrationConfig, client *http.Client, force bool) (string, error) {
 	s.tokenMu.Lock()
 	defer s.tokenMu.Unlock()
+	configKey := invoiceTokenConfigKey(cfg)
+	if s.tokenConfigKey != configKey {
+		s.accessToken = ""
+		s.tokenExpiry = time.Time{}
+		s.tokenConfigKey = configKey
+	}
 	if !force && s.accessToken != "" && time.Now().Before(s.tokenExpiry) {
 		return s.accessToken, nil
 	}
 	form := url.Values{
 		"grant_type":    {"client_credentials"},
-		"client_id":     {s.config.ClientID},
-		"client_secret": {s.config.ClientSecret},
+		"client_id":     {cfg.ClientID},
+		"client_secret": {cfg.ClientSecret},
 		"scope":         {invoiceScope},
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.endpoint("/api/oauth/token"), strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, invoiceEndpoint(cfg, "/api/oauth/token"), strings.NewReader(form.Encode()))
 	if err != nil {
 		return "", fmt.Errorf("create invoice token request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
-	resp, err := s.httpClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("request invoice token: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := readLimitedBody(resp.Body, invoiceJSONBodyLimit)
 	if err != nil {
 		return "", fmt.Errorf("read invoice token response: %w", err)
@@ -891,8 +1024,28 @@ func (s *InvoiceService) invalidateToken(token string) {
 	}
 }
 
-func (s *InvoiceService) endpoint(path string) string {
-	return strings.TrimRight(s.config.BaseURL, "/") + path
+func (s *InvoiceService) httpClientForConfig(cfg config.InvoiceIntegrationConfig) *http.Client {
+	base := s.httpClient
+	if base == nil {
+		base = &http.Client{CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		}}
+	}
+	client := *base
+	client.Timeout = time.Duration(cfg.TimeoutSeconds) * time.Second
+	if client.Timeout <= 0 {
+		client.Timeout = 15 * time.Second
+	}
+	return &client
+}
+
+func invoiceEndpoint(cfg config.InvoiceIntegrationConfig, path string) string {
+	return strings.TrimRight(cfg.BaseURL, "/") + path
+}
+
+func invoiceTokenConfigKey(cfg config.InvoiceIntegrationConfig) string {
+	digest := sha256.Sum256([]byte(cfg.BaseURL + "\x00" + cfg.ClientID + "\x00" + cfg.ClientSecret))
+	return fmt.Sprintf("%x", digest[:])
 }
 
 func decodeInvoiceEnvelope(resp *http.Response, out any) (*invoiceUpstreamError, error) {
@@ -1068,12 +1221,12 @@ func invoiceDraftResponse(draft *dbent.InvoiceApplication) *InvoiceDraftResponse
 
 func invoiceApplicationResponse(application *dbent.InvoiceApplication) *InvoiceApplicationResponse {
 	return &InvoiceApplicationResponse{
-		ID: application.ID, ExternalID: ptrString(application.ExternalID),
+		ID: application.ID, ExternalID: invoiceStringValue(application.ExternalID),
 		OrderIDs: append([]int64(nil), application.OrderIds...), OrderNos: append([]string(nil), application.OrderNos...),
 		NeedPayTax: application.NeedPayTax, TaxOrderNos: append([]string(nil), application.TaxOrderNos...),
-		Status: application.Status, Title: ptrString(application.Title), RecipientEmail: ptrString(application.RecipientEmail),
-		TotalAmount: application.TotalAmount, Currency: application.Currency, RequestID: ptrString(application.RequestID),
-		ErrorCode: ptrString(application.ErrorCode), CreatedAt: application.CreatedAt, UpdatedAt: application.UpdatedAt,
+		Status: application.Status, Title: invoiceStringValue(application.Title), RecipientEmail: invoiceStringValue(application.RecipientEmail),
+		TotalAmount: application.TotalAmount, Currency: application.Currency, RequestID: invoiceStringValue(application.RequestID),
+		ErrorCode: invoiceStringValue(application.ErrorCode), CreatedAt: application.CreatedAt, UpdatedAt: application.UpdatedAt,
 	}
 }
 
@@ -1183,7 +1336,7 @@ func defaultString(value, fallback string) string {
 	return value
 }
 
-func ptrString(value *string) string {
+func invoiceStringValue(value *string) string {
 	if value == nil {
 		return ""
 	}

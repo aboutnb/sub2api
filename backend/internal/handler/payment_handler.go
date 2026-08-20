@@ -361,7 +361,15 @@ func (h *PaymentHandler) GetMyOrders(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Paginated(c, sanitizePaymentOrdersForResponse(orders), int64(total), page, pageSize)
+	invoiceStatuses := map[int64]string{}
+	if h.invoiceService != nil {
+		// Invoice state is supplemental metadata; an invoice database error must
+		// never make the user's ordinary order list unavailable.
+		if statuses, statusErr := h.invoiceService.InvoiceOrderStatuses(c.Request.Context(), subject.UserID, paymentOrderIDs(orders)); statusErr == nil {
+			invoiceStatuses = statuses
+		}
+	}
+	response.Paginated(c, sanitizePaymentOrdersForResponse(orders, invoiceStatuses), int64(total), page, pageSize)
 }
 
 // GetOrder returns a single order for the authenticated user.
@@ -383,7 +391,13 @@ func (h *PaymentHandler) GetOrder(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, sanitizePaymentOrderForResponse(order))
+	invoiceStatuses := map[int64]string{}
+	if h.invoiceService != nil {
+		if statuses, statusErr := h.invoiceService.InvoiceOrderStatuses(c.Request.Context(), subject.UserID, []int64{order.ID}); statusErr == nil {
+			invoiceStatuses = statuses
+		}
+	}
+	response.Success(c, sanitizePaymentOrderForResponse(order, invoiceStatuses))
 }
 
 // CancelOrder cancels a pending order for the authenticated user.
@@ -479,7 +493,7 @@ func (h *PaymentHandler) VerifyOrder(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, sanitizePaymentOrderForResponse(order))
+	response.Success(c, sanitizePaymentOrderForResponse(order, nil))
 }
 
 // PublicOrderResult is returned after a signed resume-token lookup. The token
@@ -650,19 +664,30 @@ type PaymentOrderResult struct {
 	RefundRequestReason *string    `json:"refund_request_reason,omitempty"`
 	PlanID              *int64     `json:"plan_id,omitempty"`
 	ProviderInstanceID  *string    `json:"provider_instance_id,omitempty"`
+	InvoiceStatus       string     `json:"invoice_status,omitempty"`
 }
 
-func sanitizePaymentOrdersForResponse(orders []*dbent.PaymentOrder) []PaymentOrderResult {
+func paymentOrderIDs(orders []*dbent.PaymentOrder) []int64 {
+	ids := make([]int64, 0, len(orders))
+	for _, order := range orders {
+		if order != nil {
+			ids = append(ids, order.ID)
+		}
+	}
+	return ids
+}
+
+func sanitizePaymentOrdersForResponse(orders []*dbent.PaymentOrder, invoiceStatuses map[int64]string) []PaymentOrderResult {
 	out := make([]PaymentOrderResult, 0, len(orders))
 	for _, order := range orders {
-		if item := sanitizePaymentOrderForResponse(order); item != nil {
+		if item := sanitizePaymentOrderForResponse(order, invoiceStatuses); item != nil {
 			out = append(out, *item)
 		}
 	}
 	return out
 }
 
-func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderResult {
+func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder, invoiceStatuses map[int64]string) *PaymentOrderResult {
 	if order == nil {
 		return nil
 	}
@@ -688,6 +713,7 @@ func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderRes
 		RefundRequestReason: order.RefundRequestReason,
 		PlanID:              order.PlanID,
 		ProviderInstanceID:  order.ProviderInstanceID,
+		InvoiceStatus:       invoiceStatuses[order.ID],
 	}
 }
 

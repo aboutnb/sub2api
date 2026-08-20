@@ -70,6 +70,7 @@ func ProvideAuthService(
 	defaultSubAssigner DefaultSubscriptionAssigner,
 	affiliateService *AffiliateService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	signupRiskGrantStore SignupRiskGrantStore,
 ) *AuthService {
 	svc := NewAuthService(
 		entClient,
@@ -86,6 +87,7 @@ func ProvideAuthService(
 		affiliateService,
 		userPlatformQuotaRepo,
 	)
+	svc.SetSignupRiskGrantStore(signupRiskGrantStore)
 	svc.SetTencentCaptchaService(tencentCaptchaService)
 	svc.SetAliyunCaptchaService(aliyunCaptchaService)
 	return svc
@@ -648,6 +650,26 @@ func ProvideImageStorageSettingService(
 	return NewImageStorageSettingService(settingRepo, encryptor, backup, factory, cfg.ImageStorage)
 }
 
+// ProvideInvoiceSettingsService keeps invoice credentials editable at runtime
+// while retaining config.yaml and environment variables as the initial fallback.
+func ProvideInvoiceSettingsService(
+	settingRepo SettingRepository,
+	encryptor SecretEncryptor,
+	cfg *config.Config,
+) *InvoiceSettingsService {
+	return NewInvoiceSettingsService(settingRepo, encryptor, cfg.Invoice, cfg.Totp.EncryptionKeyConfigured)
+}
+
+func ProvideInvoiceService(
+	entClient *dbent.Client,
+	cfg *config.Config,
+	settings *InvoiceSettingsService,
+) *InvoiceService {
+	svc := NewInvoiceService(entClient, cfg)
+	svc.SetSettingsService(settings)
+	return svc
+}
+
 // ProvideImageTaskService 构造异步图片任务服务。
 //
 // 对象存储是异步图片任务的启用前提：仅当开关打开且凭证齐全时功能才可用，否则整体禁用
@@ -912,7 +934,8 @@ var ProviderSet = wire.NewSet(
 	NewAffiliateService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,
-	NewInvoiceService,
+	ProvideInvoiceSettingsService,
+	ProvideInvoiceService,
 	ProvidePaymentOrderExpiryService,
 	ProvideBalanceNotifyService,
 	ProvideChannelMonitorService,

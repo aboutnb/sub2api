@@ -332,6 +332,14 @@ type UpdateSettingsRequest struct {
 	// Use Alipay face-to-face precreate and an app deep link on mobile clients.
 	PaymentAlipayMobilePrecreateDeepLink *bool `json:"payment_alipay_mobile_precreate_deep_link"`
 
+	// XZNOAuth self-service invoice integration.
+	InvoiceEnabled        *bool   `json:"invoice_enabled"`
+	InvoiceBaseURL        *string `json:"invoice_base_url"`
+	InvoiceClientID       *string `json:"invoice_client_id"`
+	InvoiceClientSecret   *string `json:"invoice_client_secret"`
+	InvoiceTimeoutSeconds *int    `json:"invoice_timeout_seconds"`
+	InvoiceFeePayer       *string `json:"invoice_fee_payer"`
+
 	// Channel Monitor feature switch
 	ChannelMonitorEnabled                *bool   `json:"channel_monitor_enabled"`
 	ChannelMonitorMode                   *string `json:"channel_monitor_mode"`
@@ -2098,6 +2106,36 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	if h.invoiceSettingsService != nil && hasInvoiceFields(req) {
+		invoiceSettings, err := h.invoiceSettingsService.GetAdminSettings(c.Request.Context())
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		if req.InvoiceEnabled != nil {
+			invoiceSettings.Enabled = *req.InvoiceEnabled
+		}
+		if req.InvoiceBaseURL != nil {
+			invoiceSettings.BaseURL = *req.InvoiceBaseURL
+		}
+		if req.InvoiceClientID != nil {
+			invoiceSettings.ClientID = *req.InvoiceClientID
+		}
+		if req.InvoiceClientSecret != nil {
+			invoiceSettings.ClientSecret = *req.InvoiceClientSecret
+		}
+		if req.InvoiceTimeoutSeconds != nil {
+			invoiceSettings.TimeoutSeconds = *req.InvoiceTimeoutSeconds
+		}
+		if req.InvoiceFeePayer != nil {
+			invoiceSettings.FeePayer = *req.InvoiceFeePayer
+		}
+		if _, err := h.invoiceSettingsService.Update(c.Request.Context(), *invoiceSettings); err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	}
+
 	h.auditSettingsUpdate(c, previousSettings, settings, previousAuthSourceDefaults, authSourceDefaults, auditReq)
 
 	// 重新获取设置返回
@@ -2127,6 +2165,17 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 	if updatedPaymentCfg == nil {
 		updatedPaymentCfg = &service.PaymentConfig{SubscriptionFeeEnabled: true}
+	}
+	updatedInvoiceSettings := &service.InvoiceAdminSettings{
+		TimeoutSeconds: 15,
+		FeePayer:       service.InvoiceFeePayerCustomer,
+	}
+	if h.invoiceSettingsService != nil {
+		updatedInvoiceSettings, err = h.invoiceSettingsService.GetAdminSettings(c.Request.Context())
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
 	}
 	passkeyConfigured, passkeyRPID, passkeyRPOrigins := h.settingService.PasskeyConfiguration()
 
@@ -2368,6 +2417,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PaymentCancelRateLimitMode:                             updatedPaymentCfg.CancelRateLimitMode,
 		PaymentAlipayForceQRCode:                               updatedPaymentCfg.AlipayForceQRCode,
 		PaymentAlipayMobilePrecreateDeepLink:                   updatedPaymentCfg.AlipayMobilePrecreateDeepLink,
+		InvoiceEnabled:                                         updatedInvoiceSettings.Enabled,
+		InvoiceBaseURL:                                         updatedInvoiceSettings.BaseURL,
+		InvoiceClientID:                                        updatedInvoiceSettings.ClientID,
+		InvoiceClientSecretConfigured:                          updatedInvoiceSettings.ClientSecretConfigured,
+		InvoiceTimeoutSeconds:                                  updatedInvoiceSettings.TimeoutSeconds,
+		InvoiceFeePayer:                                        updatedInvoiceSettings.FeePayer,
 
 		ChannelMonitorEnabled:                updatedSettings.ChannelMonitorEnabled,
 		ChannelMonitorMode:                   updatedSettings.ChannelMonitorMode,
@@ -2435,6 +2490,12 @@ func hasPaymentFields(req UpdateSettingsRequest) bool {
 		req.PaymentCancelRateLimitMax != nil || req.PaymentCancelRateLimitWindow != nil ||
 		req.PaymentCancelRateLimitUnit != nil || req.PaymentCancelRateLimitMode != nil ||
 		req.PaymentAlipayForceQRCode != nil || req.PaymentAlipayMobilePrecreateDeepLink != nil
+}
+
+func hasInvoiceFields(req UpdateSettingsRequest) bool {
+	return req.InvoiceEnabled != nil || req.InvoiceBaseURL != nil ||
+		req.InvoiceClientID != nil || req.InvoiceClientSecret != nil ||
+		req.InvoiceTimeoutSeconds != nil || req.InvoiceFeePayer != nil
 }
 
 // ensureDingTalkSyncAttributes 在保存 settings 后，按 admin 配置的 (attr key, attr name)
