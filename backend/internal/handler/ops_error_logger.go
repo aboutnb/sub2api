@@ -784,7 +784,7 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			}
 
 			fallbackPlatform := guessPlatformFromPath(c.Request.URL.Path)
-			platform := resolveOpsPlatform(apiKey, fallbackPlatform)
+			platform := resolveOpsPlatform(c.Request.Context(), apiKey, fallbackPlatform)
 
 			requestID := c.Writer.Header().Get("X-Request-Id")
 			if requestID == "" {
@@ -1005,7 +1005,7 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 		}
 
 		fallbackPlatform := guessPlatformFromPath(c.Request.URL.Path)
-		platform := resolveOpsPlatform(apiKey, fallbackPlatform)
+		platform := resolveOpsPlatform(c.Request.Context(), apiKey, fallbackPlatform)
 
 		requestID := c.Writer.Header().Get("X-Request-Id")
 		if requestID == "" {
@@ -1160,7 +1160,7 @@ func logOpsStreamError(c *gin.Context, ops *service.OpsService, wireStatus int) 
 	}
 
 	fallbackPlatform := guessPlatformFromPath(c.Request.URL.Path)
-	platform := resolveOpsPlatform(apiKey, fallbackPlatform)
+	platform := resolveOpsPlatform(c.Request.Context(), apiKey, fallbackPlatform)
 
 	requestID := c.Writer.Header().Get("X-Request-Id")
 	if requestID == "" {
@@ -1249,7 +1249,11 @@ func isCountTokensRequest(c *gin.Context) bool {
 	if c == nil || c.Request == nil || c.Request.URL == nil {
 		return false
 	}
-	return strings.Contains(c.Request.URL.Path, "/count_tokens")
+	return isTokenCountRequestPath(c.Request.URL.Path)
+}
+
+func isTokenCountRequestPath(path string) bool {
+	return strings.Contains(path, "/count_tokens") || strings.Contains(path, "/responses/input_tokens")
 }
 
 func applyOpsLatencyFieldsFromContext(c *gin.Context, entry *service.OpsInsertErrorLogInput) {
@@ -1431,7 +1435,10 @@ func getOpsAPIKey(c *gin.Context) *service.APIKey {
 	return nil
 }
 
-func resolveOpsPlatform(apiKey *service.APIKey, fallback string) string {
+func resolveOpsPlatform(ctx context.Context, apiKey *service.APIKey, fallback string) string {
+	if platform, ok := service.ResolvedTargetPlatformFromContext(ctx); ok {
+		return platform
+	}
 	if apiKey != nil && apiKey.Group != nil && apiKey.Group.Platform != "" {
 		return apiKey.Group.Platform
 	}
@@ -1771,7 +1778,7 @@ func shouldSkipOpsErrorLog(ctx context.Context, ops *service.OpsService, message
 	bodyLower := strings.ToLower(body)
 
 	// Check if count_tokens errors should be ignored
-	if settings.IgnoreCountTokensErrors && strings.Contains(requestPath, "/count_tokens") {
+	if settings.IgnoreCountTokensErrors && isTokenCountRequestPath(requestPath) {
 		return true
 	}
 

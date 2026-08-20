@@ -144,6 +144,7 @@ export default {
         status: 'Status',
         fileName: 'File Name',
         size: 'Size',
+        parts: 'Parts',
         expiresAt: 'Expires At',
         triggeredBy: 'Triggered By',
         startedAt: 'Started At',
@@ -168,6 +169,10 @@ export default {
       empty: 'No backup records',
       actions: {
         download: 'Download',
+        downloadParts: 'Download Parts',
+        downloadPartsHint: 'Download every part in order and concatenate the gzip bytes: on Linux/macOS run cat payload.part-* > backup.sql.gz; on Windows run copy /b payload.part-000001+payload.part-000002 backup.sql.gz.',
+        partLabel: 'Part {index}',
+        downloadFailed: 'Download URL is empty',
         restore: 'Restore',
         restoreConfirm: 'Are you sure you want to restore from this backup? This will overwrite the current database!',
         restorePasswordPrompt: 'Please enter your admin password to confirm the restore operation',
@@ -573,8 +578,6 @@ export default {
       failedToLoadApiKeys: 'Failed to load user API keys',
       emailRequired: 'Please enter email',
       concurrencyMin: 'Concurrency must be at least 1',
-      soraStorageQuota: 'Sora Storage Quota',
-      soraStorageQuotaHint: 'In GB, 0 means use group or system default quota',
       amountRequired: 'Please enter a valid amount',
       insufficientBalance: 'Insufficient balance',
       adjustBalance: 'Adjust Balance',
@@ -816,6 +819,7 @@ export default {
         userStatus: 'Status'
       },
       usageToday: 'Today',
+      usageYesterday: 'Yesterday',
       usageTotal: 'Total',
       accountsAvailable: 'Avail:',
       accountsRateLimited: 'Limited:',
@@ -850,7 +854,7 @@ export default {
         rpmLimitHint: 'Max requests per minute for each user in this group; 0 = unlimited. Once set, it takes over per-user rate limiting in this group (overrides the user-level rpm_limit fallback).',
         maxReasoningEffort: 'Max reasoning effort',
         maxReasoningEffortUnlimited: 'Unlimited (follow request)',
-        maxReasoningEffortHint: 'Limits explicit OpenAI reasoning effort requests only. Higher values are capped; omitted effort stays omitted. The ceiling takes precedence over reasoning effort mappings.',
+        maxReasoningEffortHint: 'Limits explicit OpenAI reasoning effort requests only. For Composite groups, it applies only to requests resolved to OpenAI. Higher values are capped; omitted effort stays omitted. The ceiling takes precedence over reasoning effort mappings.',
         reasoningEffortMappings: 'Reasoning effort mappings',
         addReasoningEffortMapping: 'Add mapping',
         removeReasoningEffortMapping: 'Remove mapping',
@@ -944,6 +948,10 @@ export default {
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         grok: 'Grok',
+        kimi: 'Kimi',
+        zhipu: 'Zhipu GLM',
+        deepseek: 'DeepSeek',
+        composite: 'Composite',
       },
       deleteConfirm:
         "Are you sure you want to delete '{name}'? All associated API keys will no longer belong to any group.",
@@ -984,12 +992,35 @@ export default {
         title: 'Video Generation Pricing',
         description:
           'Configure Grok video generation prices in USD per second of output video. Leave empty to use the default per-second rates (grok-imagine-video: $0.05/s 480p, $0.07/s 720p; video-1.5: $0.08/s 480p, $0.14/s 720p, $0.25/s 1080p).',
+        modelOverridesTitle: 'Per-model video price overrides',
+        modelOverridesDescription: 'Each populated cell overrides the flat resolution price for that model family. Preview and legacy aliases for video-1.5 use the same family; empty cells fall back to the flat resolution price.',
         independentMultiplier: 'Use independent video multiplier',
         videoMultiplier: 'Video multiplier',
         modeHint:
           'Videos are billed per second: per-second price × duration (1-15s, default 8s). By default the current effective group multiplier applies; independent mode uses the video multiplier instead.',
         finalPricePreview: 'Final per-second price preview',
         notConfigured: 'Not configured'
+      },
+      explicitPricing: {
+        title: 'Grok Search & Voice Pricing',
+        description: 'Optional per-group prices for web_search (per 1k calls) and Voice realtime / TTS / STT (USD). Leave empty if unused.',
+        searchPricePer1k: 'Search price per 1k calls (USD)',
+        pricePlaceholder: 'optional'
+      },
+      modelPricing: {
+        title: 'Per-model group pricing',
+        description: 'Overrides channel and built-in prices for matching models. Long-context tiers come from official presets — do not enter custom intervals. Use per-request tiers such as realtime, tts, and stt for audio.',
+        longContext: 'Enable long-context tier pricing',
+        longContextHint: 'When checked, channel intervals or official preset tiers apply. Otherwise the first tier is used unless the account explicitly enables long-context billing.',
+        add: 'Add model price'
+      },
+      voicePricing: {
+        title: 'Grok Voice Pricing',
+        description: 'Optional per-group prices for Voice realtime / TTS / STT (USD). Leave empty to leave unpriced.',
+        audioRealtimePerMin: 'Realtime price per minute (USD)',
+        audioTtsPerMillionChars: 'TTS price per million chars (USD)',
+        audioSttPerHour: 'STT price per hour (USD)',
+        pricePlaceholder: 'optional'
       },
       webSearchPricing: {
         title: 'Codex Web Search Pricing',
@@ -1005,6 +1036,18 @@ export default {
         peakMultiplier: 'Peak multiplier',
         multiplierHint: 'Applies to token billing multiplier; image tokens in token billing are also affected. 0 means peak token requests are billed at 0x.'
       },
+      profitControl: {
+        enable: 'Enable profit control',
+        enabledHint: 'Scheduling only admits accounts whose account multiplier ≤ the request\'s effective downstream multiplier × (1 − min margin − safety buffer). Account multipliers may be maintained manually or synchronized from probes; existing ordering, stickiness and breakers keep working among qualified accounts. Image/video scheduling is not covered yet.',
+        disabledHint: 'When disabled, scheduling does no profit filtering: accounts whose account multiplier exceeds the downstream multiplier can still be selected, which may produce loss-making requests.',
+        minMargin: 'Min gross margin (%)',
+        minMarginHint: 'Percent input, e.g. 30 means 30%; stored as a decimal on the backend',
+        safetyBuffer: 'Safety buffer (%)',
+        safetyBufferHint: 'Added to min margin and deducted from the downstream multiplier; defaults to 0',
+        marginRangeError: 'Min gross margin must be between 0 and 99.99',
+        bufferRangeError: 'Safety buffer must be between 0 and 99.99',
+        sumTooHigh: 'Min gross margin plus safety buffer must be less than 100%, otherwise every account would be excluded'
+      },
       modelsList: {
         title: 'Custom /v1/models Model List',
         hint: 'Only changes the /v1/models response. Whitelist model calls and account routing are unchanged.',
@@ -1013,6 +1056,56 @@ export default {
         selectedSummary: 'Selected {selected} / {total}',
         selectAll: 'Select all',
         invertSelection: 'Invert'
+      },
+      compositeRoutes: {
+        action: 'Routes',
+        title: 'Composite Routes',
+        titleWithGroup: 'Composite Routes: {name}',
+        routes: 'Saved Routes',
+        empty: 'No composite routes configured',
+        publicModel: 'Public Model',
+        target: 'Target',
+        scope: 'Scope',
+        priority: 'Priority',
+        addRoute: 'Add Route',
+        editRoute: 'Edit Route',
+        matchType: 'Match',
+        endpoint: 'Endpoint',
+        targetPlatform: 'Target Platform',
+        upstreamModel: 'Upstream Model',
+        upstreamModelHint: 'Leave empty to pass the original requested model through: under prefix match each matched model forwards verbatim (e.g. deepseek-v4-flash and deepseek-v4-pro each forwarded as-is); set a value to forward every matched request to that fixed model.',
+        notes: 'Notes',
+        enabled: 'Enabled',
+        preview: 'Preview',
+        matched: 'Matched',
+        notMatched: 'No Match',
+        publicModelRequired: 'Public model is required',
+        routeCreated: 'Composite route created',
+        routeUpdated: 'Composite route updated',
+        routeDeleted: 'Composite route deleted',
+        failedToLoad: 'Failed to load composite routes',
+        failedToSave: 'Failed to save composite route',
+        failedToDelete: 'Failed to delete composite route',
+        failedToPreview: 'Failed to preview composite route',
+        deleteConfirm: 'Delete this composite route?',
+        endpoints: {
+          any: 'Any',
+          messages: 'Messages',
+          countTokens: 'Count Tokens',
+          responses: 'Responses',
+          chatCompletions: 'Chat Completions',
+          embeddings: 'Embeddings',
+          images: 'Images',
+          gemini: 'Gemini Native'
+        },
+        match: {
+          exact: 'Exact',
+          prefix: 'Prefix'
+        },
+        sources: {
+          route: 'Route',
+          detector: 'Detector'
+        }
       },
       claudeCode: {
         title: 'Claude Code Client Restriction',
@@ -1044,6 +1137,14 @@ export default {
         targetModel: 'Target Model',
         targetModelPlaceholder: 'e.g., gpt-5.4',
         removeExactMapping: 'Remove Exact Mapping'
+      },
+      openaiLive: {
+        title: 'OpenAI Live',
+        allow: 'Allow Live access',
+        hint: 'When enabled, API keys in this OpenAI group can create and control Live voice sessions. Disabled by default. The Sub2API server must run on Apple Silicon macOS with the official ChatGPT app installed; client platforms are unrestricted.',
+        unsupportedTitle: 'Current server does not support Live',
+        unsupportedMessage: 'This Sub2API server cannot generate the required Live attestation. Live will not work even if enabled. Continue anyway?',
+        enableAnyway: 'Enable anyway'
       },
       invalidRequestFallback: {
         title: 'Invalid Request Fallback Group',
