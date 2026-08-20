@@ -69,6 +69,7 @@ type Handlers struct {
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
 	Checkin          *CheckinHandler
+	USDT             *USDTPaymentHandler
 }
 
 // BuildInfo contains build-time information

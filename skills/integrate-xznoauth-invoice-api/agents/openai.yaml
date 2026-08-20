@@ -1,0 +1,4 @@
+interface:
+  display_name: "XZNOAuth Invoice API Integration"
+  short_description: "Integrate invoice tax modes and lifecycle APIs"
+  default_prompt: "Use $integrate-xznoauth-invoice-api to first confirm the required invoice-tax mode coverage, then integrate the XZNOAuth application invoicing workflow."

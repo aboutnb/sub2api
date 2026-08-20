@@ -100,6 +100,8 @@ type Config struct {
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
 	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
+	Invoice                 InvoiceIntegrationConfig      `mapstructure:"invoice"`
+	USDTPayment             USDTPaymentConfig             `mapstructure:"usdt_payment"`
 }
 
 type LogConfig struct {
@@ -180,6 +182,35 @@ type IdempotencyConfig struct {
 	CleanupIntervalSeconds int `mapstructure:"cleanup_interval_seconds"`
 	// CleanupBatchSize 每次清理的最大记录数。
 	CleanupBatchSize int `mapstructure:"cleanup_batch_size"`
+}
+
+// InvoiceIntegrationConfig configures the server-side XZNOAuth invoice client.
+// Client credentials must never be exposed to the frontend or stored in browser state.
+type InvoiceIntegrationConfig struct {
+	Enabled        bool   `mapstructure:"enabled"`
+	BaseURL        string `mapstructure:"base_url"`
+	ClientID       string `mapstructure:"client_id"`
+	ClientSecret   string `mapstructure:"client_secret"`
+	TimeoutSeconds int    `mapstructure:"timeout_seconds"`
+}
+
+// USDTPaymentConfig configures the isolated BEpusdt merchant integration.
+// These credentials are server-side only and are never exposed to the browser.
+type USDTPaymentConfig struct {
+	Enabled                  bool     `mapstructure:"enabled"`
+	APIBase                  string   `mapstructure:"api_base"`
+	PublicBaseURL            string   `mapstructure:"public_base_url"`
+	PublicCallbackBaseURL    string   `mapstructure:"public_callback_base_url"`
+	KeyID                    string   `mapstructure:"key_id"`
+	APISecret                string   `mapstructure:"api_secret"`
+	Fiat                     string   `mapstructure:"fiat"`
+	EnabledNetworks          []string `mapstructure:"enabled_networks"`
+	OrderTimeoutSeconds      int      `mapstructure:"order_timeout_seconds"`
+	LatePaymentWindowMinutes int      `mapstructure:"late_payment_window_minutes"`
+	RequestTimeoutSeconds    int      `mapstructure:"request_timeout_seconds"`
+	ReconcileIntervalSeconds int      `mapstructure:"reconcile_interval_seconds"`
+	ReconcileBatchSize       int      `mapstructure:"reconcile_batch_size"`
+	WebhookClockSkewSeconds  int      `mapstructure:"webhook_clock_skew_seconds"`
 }
 
 type BatchImageConfig struct {
@@ -1701,6 +1732,39 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	if err := viper.BindEnv("server.enable_server_timing", "ENABLE_SERVER_TIMING"); err != nil {
 		return nil, fmt.Errorf("bind ENABLE_SERVER_TIMING: %w", err)
 	}
+	invoiceEnvBindings := map[string]string{
+		"invoice.enabled":         "XZNOAUTH_INVOICE_ENABLED",
+		"invoice.base_url":        "XZNOAUTH_BASE_URL",
+		"invoice.client_id":       "XZNOAUTH_CLIENT_ID",
+		"invoice.client_secret":   "XZNOAUTH_CLIENT_SECRET",
+		"invoice.timeout_seconds": "XZNOAUTH_INVOICE_TIMEOUT_SECONDS",
+	}
+	for key, envName := range invoiceEnvBindings {
+		if err := viper.BindEnv(key, envName); err != nil {
+			return nil, fmt.Errorf("bind %s: %w", envName, err)
+		}
+	}
+	usdtPaymentEnvBindings := map[string]string{
+		"usdt_payment.enabled":                     "USDT_PAYMENT_ENABLED",
+		"usdt_payment.api_base":                    "USDT_PAYMENT_API_BASE",
+		"usdt_payment.public_base_url":             "USDT_PAYMENT_PUBLIC_BASE_URL",
+		"usdt_payment.public_callback_base_url":    "USDT_PAYMENT_PUBLIC_CALLBACK_BASE_URL",
+		"usdt_payment.key_id":                      "USDT_PAYMENT_KEY_ID",
+		"usdt_payment.api_secret":                  "USDT_PAYMENT_API_SECRET",
+		"usdt_payment.fiat":                        "USDT_PAYMENT_FIAT",
+		"usdt_payment.enabled_networks":            "USDT_PAYMENT_ENABLED_NETWORKS",
+		"usdt_payment.order_timeout_seconds":       "USDT_PAYMENT_ORDER_TIMEOUT_SECONDS",
+		"usdt_payment.late_payment_window_minutes": "USDT_PAYMENT_LATE_PAYMENT_WINDOW_MINUTES",
+		"usdt_payment.request_timeout_seconds":     "USDT_PAYMENT_REQUEST_TIMEOUT_SECONDS",
+		"usdt_payment.reconcile_interval_seconds":  "USDT_PAYMENT_RECONCILE_INTERVAL_SECONDS",
+		"usdt_payment.reconcile_batch_size":        "USDT_PAYMENT_RECONCILE_BATCH_SIZE",
+		"usdt_payment.webhook_clock_skew_seconds":  "USDT_PAYMENT_WEBHOOK_CLOCK_SKEW_SECONDS",
+	}
+	for key, envName := range usdtPaymentEnvBindings {
+		if err := viper.BindEnv(key, envName); err != nil {
+			return nil, fmt.Errorf("bind %s: %w", envName, err)
+		}
+	}
 
 	// 默认值
 	setDefaults()
@@ -1726,6 +1790,9 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	if forwardedClientIPHeadersEnvConfigured {
 		cfg.Security.ForwardedClientIPHeaders = normalizeStringSlice(strings.Split(forwardedClientIPHeadersEnv, ","))
 	}
+	if enabledNetworksEnv, configured := os.LookupEnv("USDT_PAYMENT_ENABLED_NETWORKS"); configured {
+		cfg.USDTPayment.EnabledNetworks = normalizeStringSlice(strings.Split(enabledNetworksEnv, ","))
+	}
 	cfg.Server.TrustedProxiesConfigured = trustedProxiesConfigured
 	if cfg.Gateway.OpenAIScheduler.StickyEscapeTTFTMs == 0 {
 		cfg.Gateway.OpenAIScheduler.StickyEscapeTTFTMs = 15000
@@ -1747,6 +1814,16 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	}
 	cfg.Server.FrontendURL = strings.TrimSpace(cfg.Server.FrontendURL)
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
+	cfg.Invoice.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.Invoice.BaseURL), "/")
+	cfg.Invoice.ClientID = strings.TrimSpace(cfg.Invoice.ClientID)
+	cfg.Invoice.ClientSecret = strings.TrimSpace(cfg.Invoice.ClientSecret)
+	cfg.USDTPayment.APIBase = strings.TrimRight(strings.TrimSpace(cfg.USDTPayment.APIBase), "/")
+	cfg.USDTPayment.PublicBaseURL = strings.TrimRight(strings.TrimSpace(cfg.USDTPayment.PublicBaseURL), "/")
+	cfg.USDTPayment.PublicCallbackBaseURL = strings.TrimRight(strings.TrimSpace(cfg.USDTPayment.PublicCallbackBaseURL), "/")
+	cfg.USDTPayment.KeyID = strings.TrimSpace(cfg.USDTPayment.KeyID)
+	cfg.USDTPayment.APISecret = strings.TrimSpace(cfg.USDTPayment.APISecret)
+	cfg.USDTPayment.Fiat = strings.ToUpper(strings.TrimSpace(cfg.USDTPayment.Fiat))
+	cfg.USDTPayment.EnabledNetworks = normalizeStringSlice(cfg.USDTPayment.EnabledNetworks)
 	cfg.LinuxDo.ClientID = strings.TrimSpace(cfg.LinuxDo.ClientID)
 	cfg.LinuxDo.ClientSecret = strings.TrimSpace(cfg.LinuxDo.ClientSecret)
 	cfg.LinuxDo.AuthorizeURL = strings.TrimSpace(cfg.LinuxDo.AuthorizeURL)
@@ -2194,6 +2271,29 @@ func setDefaults() {
 	viper.SetDefault("image_storage.secret_access_key", "")
 	viper.SetDefault("image_storage.public_base_url", "")
 
+	// XZNOAuth self-service invoice integration.
+	viper.SetDefault("invoice.enabled", false)
+	viper.SetDefault("invoice.base_url", "https://oauth.xzncraft.cn")
+	viper.SetDefault("invoice.client_id", "")
+	viper.SetDefault("invoice.client_secret", "")
+	viper.SetDefault("invoice.timeout_seconds", 15)
+
+	// Isolated BEpusdt USDT payment module.
+	viper.SetDefault("usdt_payment.enabled", false)
+	viper.SetDefault("usdt_payment.api_base", "")
+	viper.SetDefault("usdt_payment.public_base_url", "")
+	viper.SetDefault("usdt_payment.public_callback_base_url", "")
+	viper.SetDefault("usdt_payment.key_id", "")
+	viper.SetDefault("usdt_payment.api_secret", "")
+	viper.SetDefault("usdt_payment.fiat", "CNY")
+	viper.SetDefault("usdt_payment.enabled_networks", []string{"tron", "bsc"})
+	viper.SetDefault("usdt_payment.order_timeout_seconds", 900)
+	viper.SetDefault("usdt_payment.late_payment_window_minutes", 60)
+	viper.SetDefault("usdt_payment.request_timeout_seconds", 6)
+	viper.SetDefault("usdt_payment.reconcile_interval_seconds", 2)
+	viper.SetDefault("usdt_payment.reconcile_batch_size", 100)
+	viper.SetDefault("usdt_payment.webhook_clock_skew_seconds", 300)
+
 	// Ops (vNext)
 	viper.SetDefault("ops.enabled", true)
 	viper.SetDefault("ops.use_preaggregated_tables", true)
@@ -2588,6 +2688,64 @@ func (c *Config) Validate() error {
 	}
 	if c.Server.MaxRequestBodySize < 0 {
 		return fmt.Errorf("server.max_request_body_size must be non-negative")
+	}
+	if c.Invoice.TimeoutSeconds < 1 || c.Invoice.TimeoutSeconds > 120 {
+		return fmt.Errorf("invoice.timeout_seconds must be between 1 and 120")
+	}
+	if c.Invoice.Enabled {
+		if c.Invoice.ClientID == "" {
+			return fmt.Errorf("invoice.client_id is required when invoice.enabled=true")
+		}
+		if c.Invoice.ClientSecret == "" {
+			return fmt.Errorf("invoice.client_secret is required when invoice.enabled=true")
+		}
+		if err := ValidateAbsoluteHTTPURL(c.Invoice.BaseURL); err != nil {
+			return fmt.Errorf("invoice.base_url invalid: %w", err)
+		}
+	}
+	if c.USDTPayment.OrderTimeoutSeconds < 180 || c.USDTPayment.OrderTimeoutSeconds > 3600 {
+		return fmt.Errorf("usdt_payment.order_timeout_seconds must be between 180 and 3600")
+	}
+	if c.USDTPayment.LatePaymentWindowMinutes < 0 || c.USDTPayment.LatePaymentWindowMinutes > 1440 {
+		return fmt.Errorf("usdt_payment.late_payment_window_minutes must be between 0 and 1440")
+	}
+	if c.USDTPayment.RequestTimeoutSeconds < 1 || c.USDTPayment.RequestTimeoutSeconds > 30 {
+		return fmt.Errorf("usdt_payment.request_timeout_seconds must be between 1 and 30")
+	}
+	if c.USDTPayment.ReconcileIntervalSeconds < 1 || c.USDTPayment.ReconcileIntervalSeconds > 60 {
+		return fmt.Errorf("usdt_payment.reconcile_interval_seconds must be between 1 and 60")
+	}
+	if c.USDTPayment.ReconcileBatchSize < 1 || c.USDTPayment.ReconcileBatchSize > 1000 {
+		return fmt.Errorf("usdt_payment.reconcile_batch_size must be between 1 and 1000")
+	}
+	if c.USDTPayment.WebhookClockSkewSeconds < 30 || c.USDTPayment.WebhookClockSkewSeconds > 900 {
+		return fmt.Errorf("usdt_payment.webhook_clock_skew_seconds must be between 30 and 900")
+	}
+	if c.USDTPayment.Enabled {
+		if c.USDTPayment.KeyID == "" || c.USDTPayment.APISecret == "" {
+			return fmt.Errorf("usdt_payment.key_id and usdt_payment.api_secret are required when enabled")
+		}
+		for key, value := range map[string]string{
+			"api_base":                 c.USDTPayment.APIBase,
+			"public_base_url":          c.USDTPayment.PublicBaseURL,
+			"public_callback_base_url": c.USDTPayment.PublicCallbackBaseURL,
+		} {
+			if err := ValidateAbsoluteHTTPURL(value); err != nil {
+				return fmt.Errorf("usdt_payment.%s invalid: %w", key, err)
+			}
+		}
+		if c.USDTPayment.Fiat != "CNY" {
+			return fmt.Errorf("usdt_payment.fiat currently supports only CNY")
+		}
+		if len(c.USDTPayment.EnabledNetworks) == 0 {
+			return fmt.Errorf("usdt_payment.enabled_networks is required when enabled")
+		}
+		allowedNetworks := map[string]bool{"tron": true, "bsc": true, "ethereum": true, "polygon": true, "arbitrum": true, "solana": true, "ton": true, "aptos": true, "xlayer": true, "plasma": true}
+		for _, network := range c.USDTPayment.EnabledNetworks {
+			if !allowedNetworks[strings.ToLower(network)] {
+				return fmt.Errorf("usdt_payment.enabled_networks contains unsupported network %q", network)
+			}
+		}
 	}
 	if c.Server.H2C.Enabled {
 		if c.Server.H2C.MaxConcurrentStreams == 0 {

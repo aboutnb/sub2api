@@ -20,6 +20,11 @@ import (
 type PaymentHandler struct {
 	paymentService *service.PaymentService
 	configService  *service.PaymentConfigService
+	invoiceService *service.InvoiceService
+}
+
+func (h *PaymentHandler) SetInvoiceService(invoiceService *service.InvoiceService) {
+	h.invoiceService = invoiceService
 }
 
 // NewPaymentHandler creates a new PaymentHandler.

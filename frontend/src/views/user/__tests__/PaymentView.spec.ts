@@ -22,7 +22,12 @@ const showError = vi.hoisted(() => vi.fn())
 const showInfo = vi.hoisted(() => vi.fn())
 const showWarning = vi.hoisted(() => vi.fn())
 const getCheckoutInfo = vi.hoisted(() => vi.fn())
+const getUSDTConfig = vi.hoisted(() => vi.fn())
 const bridgeInvoke = vi.hoisted(() => vi.fn())
+
+beforeEach(() => {
+  getUSDTConfig.mockReset().mockResolvedValue({ data: { enabled: false, networks: [] } })
+})
 
 vi.mock('vue-router', async () => {
   const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
@@ -81,6 +86,7 @@ vi.mock('@/stores', () => ({
 vi.mock('@/api/payment', () => ({
   paymentAPI: {
     getCheckoutInfo,
+    getUSDTConfig,
   },
 }))
 
@@ -121,6 +127,47 @@ function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
   }
 }
 
+describe('PaymentView USDT tab', () => {
+  it('shares the checkout page and selects USDT from the dedicated entry', async () => {
+    vi.useRealTimers()
+    routeState.path = '/usdt-recharge'
+    routeState.query = {}
+    getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture())
+    getUSDTConfig.mockReset().mockResolvedValue({
+      data: {
+        enabled: true,
+        networks: [{
+          crypto: 'USDT',
+          network: 'tron',
+          network_name: 'TRON',
+          trade_type: 'TRC20',
+          wallet_count: 1,
+          rpc_endpoint_set: true,
+          accepting_orders: true,
+        }],
+      },
+    })
+
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+
+    const tabs = wrapper.findAll('[role="tab"]')
+    expect(tabs).toHaveLength(3)
+    expect(tabs[1].text()).toContain('nav.usdtRecharge')
+    expect(tabs[2].text()).toContain('payment.tabSubscribe')
+    expect(tabs.find(tab => tab.attributes('aria-selected') === 'true')?.text()).toContain('nav.usdtRecharge')
+    wrapper.unmount()
+  })
+})
+
 async function mountRecharge(checkout: Partial<CheckoutInfoResponse> = {}) {
   vi.useRealTimers()
   routeState.path = '/purchase'
@@ -145,6 +192,13 @@ async function mountRecharge(checkout: Partial<CheckoutInfoResponse> = {}) {
 }
 
 describe('PaymentView balance recharge credited fee', () => {
+  it('limits recharge quick amounts to 500', async () => {
+    const wrapper = await mountRecharge()
+    const amountInput = wrapper.findComponent({ name: 'AmountInput' })
+
+    expect(amountInput.props('amounts')).toEqual([10, 20, 50, 100, 200, 500])
+  })
+
   it('shows the full paid amount as credited balance when enabled', async () => {
     const wrapper = await mountRecharge({
       subscription_fee_enabled: false,
@@ -156,6 +210,8 @@ describe('PaymentView balance recharge credited fee', () => {
     expect(wrapper.text()).toContain('payment.feeCreditedNotice')
     expect(wrapper.text()).toContain('$102.00')
     expect(wrapper.text()).toContain(formatPaymentAmount(102, 'CNY'))
+    expect(wrapper.find('[data-test="recharge-checkout-layout"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="recharge-summary"]').text()).toContain('payment.checkoutSummary')
   })
 
   it('keeps the fee outside credited balance when disabled', async () => {
@@ -366,6 +422,8 @@ describe('PaymentView subscription confirmation amounts', () => {
 
     expect(text).toContain(convertedPrice)
     expect(text).toContain(convertedOriginalPrice)
+    expect(wrapper.find('[data-test="subscription-checkout-layout"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="subscription-summary"]').text()).toContain(convertedPrice)
     expect(text).not.toContain(formatPaymentAmount(9.99, 'CNY'))
     // 换算必须使用订阅汇率（×7.15），而不是余额倍率（÷0.14 = 71.36）
     expect(text).not.toContain(formatPaymentAmount(71.36, 'CNY'))
