@@ -678,9 +678,11 @@ func ProvideUSDTPaymentService(
 	client *usdtpayment.Client,
 	repository *usdtpayment.Repository,
 	bridge usdtpayment.PaymentBridge,
+	settingService *SettingService,
 	settings *USDTPaymentSettingsService,
 ) *usdtpayment.Service {
 	svc := usdtpayment.NewService(cfg, client, repository, bridge)
+	svc.SetCheckoutModeProvider(settingService)
 	svc.SetConfigResolver(settings)
 	return svc
 }

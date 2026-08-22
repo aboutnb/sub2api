@@ -513,8 +513,8 @@ func TestUpdatePaymentConfig_PersistsUSDTPaymentBonusPercent(t *testing.T) {
 	if err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{USDTPaymentBonusPercent: &bonus}); err != nil {
 		t.Fatalf("UpdatePaymentConfig returned error: %v", err)
 	}
-	if repo.values[SettingUSDTPaymentBonusPercent] != "7.5" {
-		t.Fatalf("USDT bonus = %q, want 7.5", repo.values[SettingUSDTPaymentBonusPercent])
+	if repo.values[SettingUSDTPaymentBonusPercent] != "7.50" {
+		t.Fatalf("USDT bonus = %q, want 7.50", repo.values[SettingUSDTPaymentBonusPercent])
 	}
 }
 

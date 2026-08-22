@@ -25,15 +25,16 @@ const (
 )
 
 type Service struct {
-	config     config.USDTPaymentConfig
-	configMu   sync.RWMutex
-	resolver   ConfigResolver
-	client     *Client
-	repository *Repository
-	bridge     PaymentBridge
-	stop       chan struct{}
-	stopOnce   sync.Once
-	wg         sync.WaitGroup
+	config       config.USDTPaymentConfig
+	configMu     sync.RWMutex
+	resolver     ConfigResolver
+	modeProvider interface{ GetUSDTPaymentCheckoutMode(context.Context) string }
+	client       *Client
+	repository   *Repository
+	bridge       PaymentBridge
+	stop         chan struct{}
+	stopOnce     sync.Once
+	wg           sync.WaitGroup
 }
 
 func NewService(cfg *config.Config, client *Client, repository *Repository, bridge PaymentBridge) *Service {
@@ -56,6 +57,12 @@ func (s *Service) SetConfigResolver(resolver ConfigResolver) {
 		if s.client != nil {
 			s.client.SetConfigResolver(resolver)
 		}
+	}
+}
+
+func (s *Service) SetCheckoutModeProvider(provider interface{ GetUSDTPaymentCheckoutMode(context.Context) string }) {
+	if s != nil {
+		s.modeProvider = provider
 	}
 }
 
@@ -102,6 +109,19 @@ func (s *Service) Stop() {
 
 func (s *Service) Enabled() bool {
 	return s != nil && s.snapshotConfig().Enabled
+}
+
+func (s *Service) checkoutMode(ctx context.Context) string {
+	if s == nil {
+		return "fixed"
+	}
+	if s.modeProvider != nil {
+		return s.modeProvider.GetUSDTPaymentCheckoutMode(ctx)
+	}
+	if strings.EqualFold(strings.TrimSpace(s.snapshotConfig().CheckoutMode), "cashier") {
+		return "cashier"
+	}
+	return "fixed"
 }
 
 func (s *Service) CheckoutMode(ctx context.Context) string { return s.checkoutMode(ctx) }
@@ -227,6 +247,68 @@ func (s *Service) CreateOrder(ctx context.Context, userID int64, req CreateReque
 	if err != nil {
 		_ = s.bridge.FailUSDTOrderBeforeQuote(ctx, prepared.ID, err)
 		return nil, err
+	}
+	if err := s.repository.SaveQuote(ctx, quote); err != nil {
+		_ = s.bridge.FailUSDTOrderBeforeQuote(ctx, prepared.ID, err)
+		return nil, err
+	}
+	return checkoutFromQuote(quote, prepared.BaseAmount, prepared.PayAmount, prepared.FeeRate, "PENDING"), nil
+}
+
+func (s *Service) createCashierOrder(ctx context.Context, userID int64, req CreateRequest, clientIP, sourceHost, sourceURL, locale string) (*CheckoutOrder, error) {
+	cfg, err := s.currentConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(cfg.LegacyToken) == "" {
+		return nil, infraerrors.ServiceUnavailable("USDT_CASHIER_NOT_CONFIGURED", "BEpusdt legacy API token is not configured")
+	}
+	requestedCrypto, err := parseRequestedUSDTAmount(req.Amount)
+	if err != nil {
+		return nil, err
+	}
+	rateQuote, err := s.ExchangeRate(ctx)
+	if err != nil {
+		return nil, infraerrors.ServiceUnavailable("USDT_RATE_UNAVAILABLE", err.Error())
+	}
+	rate, err := decimal.NewFromString(rateQuote.Rate)
+	if err != nil || rate.LessThanOrEqual(decimal.Zero) {
+		return nil, infraerrors.ServiceUnavailable("USDT_RATE_UNAVAILABLE", "BEpusdt returned an invalid exchange rate")
+	}
+	requestedCrypto = requestedCrypto.Truncate(8)
+	fiatAmount := requestedCrypto.Mul(rate).Round(8)
+	prepared, err := s.bridge.PrepareUSDTOrder(ctx, PrepareOrderRequest{
+		UserID: userID, Amount: fiatAmount.InexactFloat64(), TargetPayAmount: fiatAmount.InexactFloat64(),
+		OrderType: req.OrderType, PlanID: req.PlanID, ClientIP: clientIP, SourceHost: sourceHost,
+		SourceURL: sourceURL, PaymentSource: req.PaymentSource, Locale: locale,
+	})
+	if err != nil {
+		return nil, err
+	}
+	redirectURL := strings.TrimSpace(req.ReturnURL)
+	if !validReturnURL(redirectURL) {
+		redirectURL = cfg.PublicCallbackBaseURL + "/payment"
+	}
+	upstream, err := s.client.CreateCashierOrder(ctx, map[string]any{
+		"order_id": prepared.MerchantOrderID, "notify_url": cfg.PublicCallbackBaseURL + webhookPath,
+		"redirect_url": redirectURL, "amount": fiatAmount.InexactFloat64(),
+		"name": "Sub2API USDT payment", "fiat": cfg.Fiat, "timeout": cfg.OrderTimeoutSeconds,
+	})
+	if err != nil {
+		_ = s.bridge.FailUSDTOrderBeforeQuote(ctx, prepared.ID, err)
+		return nil, fmt.Errorf("create BEpusdt cashier order: %w", err)
+	}
+	createdAt := time.Now().UTC()
+	expiresAt := createdAt.Add(time.Duration(cfg.OrderTimeoutSeconds) * time.Second)
+	if upstream.ExpirationTime > 0 {
+		expiresAt = createdAt.Add(time.Duration(upstream.ExpirationTime) * time.Second)
+	}
+	quote := &Quote{
+		PaymentOrderID: prepared.ID, MerchantOrderID: upstream.OrderID, ProviderTradeID: upstream.TradeID,
+		FiatCurrency: cfg.Fiat, FiatAmount: canonicalDecimal(fiatAmount.String()), CryptoCurrency: "USDT",
+		Network: "pending", TradeType: "pending", CryptoAmount: canonicalDecimal(requestedCrypto.String()),
+		ExchangeRate: canonicalDecimal(rateQuote.Rate), ReceivingAddress: "pending", PaymentURL: upstream.PaymentURL,
+		UpstreamCreatedAt: createdAt, UpstreamExpiresAt: expiresAt, ProviderStatus: "waiting", PaymentMode: "cashier",
 	}
 	if err := s.repository.SaveQuote(ctx, quote); err != nil {
 		_ = s.bridge.FailUSDTOrderBeforeQuote(ctx, prepared.ID, err)
@@ -372,12 +454,16 @@ func (s *Service) VerifyWebhook(raw []byte, headers map[string]string, requestPa
 // the original MD5 body signature, enriches the callback with /pay/info so the
 // selected network is frozen, and then enters the same idempotent webhook path.
 func (s *Service) HandleLegacyWebhook(ctx context.Context, raw []byte) error {
+	cfg, err := s.currentConfig(ctx)
+	if err != nil {
+		return err
+	}
 	var body map[string]any
 	if err := json.Unmarshal(raw, &body); err != nil {
 		return errors.New("invalid native BEpusdt webhook JSON")
 	}
 	signature, _ := body["signature"].(string)
-	if signature == "" || !strings.EqualFold(signature, epusdtSign(body, s.config.LegacyToken)) {
+	if signature == "" || !strings.EqualFold(signature, epusdtSign(body, cfg.LegacyToken)) {
 		return errors.New("invalid native BEpusdt webhook signature")
 	}
 	tradeID, _ := body["trade_id"].(string)
@@ -677,6 +763,10 @@ func (s *Service) reconcileErrorDelay(attempt int) time.Duration {
 		seconds = 30
 	}
 	return time.Duration(seconds) * time.Second
+}
+
+func (s *Service) reconcileDelay(attempt int) time.Duration {
+	return s.reconcileErrorDelay(attempt)
 }
 
 func (s *Service) reconcileStateDelay(quote *Quote, providerStatus string) time.Duration {
