@@ -31,6 +31,7 @@ const (
 	SettingSubscriptionFeeEnabled        = "SUBSCRIPTION_FEE_ENABLED"
 	SettingRechargeFeeRate               = "RECHARGE_FEE_RATE"
 	SettingRechargeFeeCredited           = "RECHARGE_FEE_CREDITED"
+	SettingUSDTPaymentBonusPercent       = "USDT_PAYMENT_BONUS_PERCENT"
 	SettingProductNamePrefix             = "PRODUCT_NAME_PREFIX"
 	SettingProductNameSuffix             = "PRODUCT_NAME_SUFFIX"
 	SettingHelpImageURL                  = "PAYMENT_HELP_IMAGE_URL"
@@ -66,6 +67,7 @@ type PaymentConfig struct {
 	SubscriptionFeeEnabled   bool    `json:"subscription_fee_enabled"`
 	RechargeFeeRate          float64 `json:"recharge_fee_rate"`
 	RechargeFeeCredited      bool    `json:"recharge_fee_credited"`
+	USDTPaymentBonusPercent  float64 `json:"usdt_payment_bonus_percent"`
 	LoadBalanceStrategy      string  `json:"load_balance_strategy"`
 	ProductNamePrefix        string  `json:"product_name_prefix"`
 	ProductNameSuffix        string  `json:"product_name_suffix"`
@@ -101,6 +103,7 @@ type UpdatePaymentConfigRequest struct {
 	SubscriptionFeeEnabled    *bool    `json:"subscription_fee_enabled"`
 	RechargeFeeRate           *float64 `json:"recharge_fee_rate"`
 	RechargeFeeCredited       *bool    `json:"recharge_fee_credited"`
+	USDTPaymentBonusPercent   *float64 `json:"usdt_payment_bonus_percent"`
 	LoadBalanceStrategy       *string  `json:"load_balance_strategy"`
 	ProductNamePrefix         *string  `json:"product_name_prefix"`
 	ProductNameSuffix         *string  `json:"product_name_suffix"`
@@ -225,7 +228,7 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 	keys := []string{
 		SettingPaymentEnabled, SettingMinRechargeAmount, SettingMaxRechargeAmount,
 		SettingDailyRechargeLimit, SettingOrderTimeoutMinutes, SettingMaxPendingOrders,
-		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingSubscriptionUSDToCNYRate, SettingSubscriptionFeeEnabled, SettingRechargeFeeRate, SettingRechargeFeeCredited, SettingLoadBalanceStrategy,
+		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingSubscriptionUSDToCNYRate, SettingSubscriptionFeeEnabled, SettingRechargeFeeRate, SettingRechargeFeeCredited, SettingUSDTPaymentBonusPercent, SettingLoadBalanceStrategy,
 		SettingProductNamePrefix, SettingProductNameSuffix,
 		SettingHelpImageURL, SettingHelpText,
 		SettingCancelRateLimitOn, SettingCancelRateLimitMax,
@@ -258,6 +261,7 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 		SubscriptionFeeEnabled:    pcParseBool(vals[SettingSubscriptionFeeEnabled], true),
 		RechargeFeeRate:           pcParseFloat(vals[SettingRechargeFeeRate], 0),
 		RechargeFeeCredited:       vals[SettingRechargeFeeCredited] == "true",
+		USDTPaymentBonusPercent:   pcParseFloat(vals[SettingUSDTPaymentBonusPercent], 0),
 		LoadBalanceStrategy:       vals[SettingLoadBalanceStrategy],
 		ProductNamePrefix:         vals[SettingProductNamePrefix],
 		ProductNameSuffix:         vals[SettingProductNameSuffix],
@@ -351,6 +355,15 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 			return infraerrors.BadRequest("INVALID_RECHARGE_FEE_RATE", "recharge fee rate allows at most 2 decimal places")
 		}
 	}
+	if req.USDTPaymentBonusPercent != nil {
+		v := *req.USDTPaymentBonusPercent
+		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 100 {
+			return infraerrors.BadRequest("INVALID_USDT_PAYMENT_BONUS_PERCENT", "USDT payment bonus percentage must be between 0 and 100")
+		}
+		if math.Round(v*100) != v*100 {
+			return infraerrors.BadRequest("INVALID_USDT_PAYMENT_BONUS_PERCENT", "USDT payment bonus percentage allows at most 2 decimal places")
+		}
+	}
 	m := make(map[string]string)
 	if req.Enabled != nil {
 		m[SettingPaymentEnabled] = formatBoolOrEmpty(req.Enabled)
@@ -390,6 +403,9 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 	}
 	if req.RechargeFeeCredited != nil {
 		m[SettingRechargeFeeCredited] = formatBoolOrEmpty(req.RechargeFeeCredited)
+	}
+	if req.USDTPaymentBonusPercent != nil {
+		m[SettingUSDTPaymentBonusPercent] = formatNonNegativeFloat(req.USDTPaymentBonusPercent)
 	}
 	if req.LoadBalanceStrategy != nil {
 		m[SettingLoadBalanceStrategy] = derefStr(req.LoadBalanceStrategy)

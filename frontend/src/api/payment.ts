@@ -51,8 +51,10 @@ export const paymentAPI = {
     return apiClient.get<USDTConfigResponse>('/usdt/config')
   },
 
-  createUSDTOrder(data: { amount: number; amount_unit?: 'USDT'; network: string; order_type?: string; plan_id?: number; return_url?: string; payment_source?: string }) {
-    return apiClient.post<USDTOrder>('/usdt/orders', data)
+  createUSDTOrder(data: { amount: string; amount_unit?: 'USDT'; network: string; order_type?: string; plan_id?: number; return_url?: string; payment_source?: string }, idempotencyKey: string) {
+    return apiClient.post<USDTOrder>('/usdt/orders', data, {
+      headers: { 'Idempotency-Key': idempotencyKey }
+    })
   },
 
   getUSDTOrder(id: number) {

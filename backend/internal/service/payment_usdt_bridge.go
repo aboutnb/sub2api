@@ -56,7 +56,10 @@ func (s *PaymentService) PrepareUSDTOrder(ctx context.Context, req usdtpayment.P
 		baseAmount = plan.Price
 		limitAmount = plan.Price
 	}
-	feeRate := effectiveOrderFeeRate(cfg, orderType)
+	// USDT is a separate crypto settlement rail. It never participates in the
+	// generic fiat recharge fee settings; its optional incentive is applied only
+	// to the credited balance below.
+	feeRate := 0.0
 	fiatAmount, payAmount, err := calculateCreateOrderPayAmountForOrderType(
 		limitAmount, feeRate, payment.DefaultPaymentCurrency, orderType, cfg.SubscriptionUSDToCNYRate,
 	)
@@ -75,7 +78,7 @@ func (s *PaymentService) PrepareUSDTOrder(ctx context.Context, req usdtpayment.P
 	}
 	orderAmount := baseAmount
 	if orderType == payment.OrderTypeBalance {
-		orderAmount = calculateBalanceCreditedAmount(baseAmount, payAmount, cfg.BalanceRechargeMultiplier, cfg.RechargeFeeCredited)
+		orderAmount = calculateUSDTBalanceCreditedAmount(baseAmount, cfg.USDTPaymentBonusPercent)
 	}
 	selection := &payment.InstanceSelection{
 		ProviderKey: usdtpayment.ProviderKey, SupportedTypes: usdtpayment.PaymentType,
@@ -90,6 +93,14 @@ func (s *PaymentService) PrepareUSDTOrder(ctx context.Context, req usdtpayment.P
 		BaseAmount: order.Amount, PayAmount: order.PayAmount, FeeRate: order.FeeRate,
 		OrderType: order.OrderType, ExpiresAt: order.ExpiresAt,
 	}, nil
+}
+
+func calculateUSDTBalanceCreditedAmount(baseAmount, bonusPercent float64) float64 {
+	if baseAmount <= 0 || bonusPercent <= 0 {
+		return baseAmount
+	}
+	bonus := decimal.NewFromFloat(bonusPercent).Div(decimal.NewFromInt(100))
+	return decimal.NewFromFloat(baseAmount).Mul(decimal.NewFromInt(1).Add(bonus)).Round(2).InexactFloat64()
 }
 
 // baseAmountForTargetPay derives the balance principal from the frozen total.

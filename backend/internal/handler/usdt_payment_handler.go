@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/Wei-Shaw/sub2api/internal/usdtpayment"
 	"github.com/gin-gonic/gin"
 )
@@ -56,15 +58,12 @@ func (h *USDTPaymentHandler) CreateOrder(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-	result, err := h.service.CreateOrder(
-		c.Request.Context(), subject.UserID, req, c.ClientIP(), c.Request.Host,
-		c.Request.Referer(), c.GetHeader("Accept-Language"),
-	)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, result)
+	executeUserIdempotentJSON(c, "user.usdt.orders.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		return h.service.CreateOrder(
+			ctx, subject.UserID, req, c.ClientIP(), c.Request.Host,
+			c.Request.Referer(), c.GetHeader("Accept-Language"),
+		)
+	})
 }
 
 func (h *USDTPaymentHandler) GetOrder(c *gin.Context) {
@@ -87,6 +86,10 @@ func (h *USDTPaymentHandler) GetOrder(c *gin.Context) {
 }
 
 func (h *USDTPaymentHandler) Webhook(c *gin.Context) {
+	if err := h.service.RefreshConfig(c.Request.Context()); err != nil {
+		c.String(http.StatusServiceUnavailable, "configuration unavailable")
+		return
+	}
 	raw, err := io.ReadAll(io.LimitReader(c.Request.Body, maxUSDTWebhookBodySize+1))
 	if err != nil || len(raw) > maxUSDTWebhookBodySize {
 		c.String(http.StatusBadRequest, "invalid body")

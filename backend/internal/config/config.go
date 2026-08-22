@@ -2817,11 +2817,15 @@ func (c *Config) Validate() error {
 		}
 		for key, value := range map[string]string{
 			"api_base":                 c.USDTPayment.APIBase,
-			"public_base_url":          c.USDTPayment.PublicBaseURL,
 			"public_callback_base_url": c.USDTPayment.PublicCallbackBaseURL,
 		} {
 			if err := ValidateAbsoluteHTTPURL(value); err != nil {
 				return fmt.Errorf("usdt_payment.%s invalid: %w", key, err)
+			}
+		}
+		if c.USDTPayment.PublicBaseURL != "" {
+			if err := ValidateAbsoluteHTTPURL(c.USDTPayment.PublicBaseURL); err != nil {
+				return fmt.Errorf("usdt_payment.public_base_url invalid: %w", err)
 			}
 		}
 		if c.USDTPayment.Fiat != "CNY" {

@@ -51,18 +51,19 @@ func firstNonEmpty(values ...string) string {
 
 // SettingHandler 系统设置处理器
 type SettingHandler struct {
-	settingService           *service.SettingService
-	emailService             *service.EmailService
-	turnstileService         *service.TurnstileService
-	aliyunCaptchaService     *service.AliyunCaptchaService
-	opsService               *service.OpsService
-	paymentConfigService     *service.PaymentConfigService
-	paymentService           *service.PaymentService
-	invoiceSettingsService   *service.InvoiceSettingsService
-	userAttributeService     *service.UserAttributeService
-	notificationEmailService *service.NotificationEmailService
-	totpService              *service.TotpService
-	userService              *service.UserService
+	settingService             *service.SettingService
+	emailService               *service.EmailService
+	turnstileService           *service.TurnstileService
+	aliyunCaptchaService       *service.AliyunCaptchaService
+	opsService                 *service.OpsService
+	paymentConfigService       *service.PaymentConfigService
+	paymentService             *service.PaymentService
+	invoiceSettingsService     *service.InvoiceSettingsService
+	usdtPaymentSettingsService *service.USDTPaymentSettingsService
+	userAttributeService       *service.UserAttributeService
+	notificationEmailService   *service.NotificationEmailService
+	totpService                *service.TotpService
+	userService                *service.UserService
 }
 
 // NewSettingHandler 创建系统设置处理器
@@ -92,6 +93,10 @@ func (h *SettingHandler) SetAliyunCaptchaService(aliyunCaptchaService *service.A
 
 func (h *SettingHandler) SetInvoiceSettingsService(invoiceSettingsService *service.InvoiceSettingsService) {
 	h.invoiceSettingsService = invoiceSettingsService
+}
+
+func (h *SettingHandler) SetUSDTPaymentSettingsService(settings *service.USDTPaymentSettingsService) {
+	h.usdtPaymentSettingsService = settings
 }
 
 // SetStepUpDeps attaches the services backing the step-up switch preconditions
@@ -138,6 +143,14 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 	invoiceSettings := &service.InvoiceAdminSettings{
 		TimeoutSeconds: 15,
 		FeePayer:       service.InvoiceFeePayerCustomer,
+	}
+	usdtSettings := &service.USDTPaymentAdminSettings{}
+	if h.usdtPaymentSettingsService != nil {
+		usdtSettings, err = h.usdtPaymentSettingsService.GetAdminSettings(c.Request.Context())
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
 	}
 	if h.invoiceSettingsService != nil {
 		invoiceSettings, err = h.invoiceSettingsService.GetAdminSettings(c.Request.Context())
@@ -379,6 +392,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PaymentSubscriptionFeeEnabled:                          paymentCfg.SubscriptionFeeEnabled,
 		PaymentRechargeFeeRate:                                 paymentCfg.RechargeFeeRate,
 		PaymentRechargeFeeCredited:                             paymentCfg.RechargeFeeCredited,
+		USDTPaymentBonusPercent:                                paymentCfg.USDTPaymentBonusPercent,
 		PaymentLoadBalanceStrat:                                paymentCfg.LoadBalanceStrategy,
 		PaymentProductNamePrefix:                               paymentCfg.ProductNamePrefix,
 		PaymentProductNameSuffix:                               paymentCfg.ProductNameSuffix,
@@ -397,6 +411,20 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		InvoiceClientSecretConfigured:                          invoiceSettings.ClientSecretConfigured,
 		InvoiceTimeoutSeconds:                                  invoiceSettings.TimeoutSeconds,
 		InvoiceFeePayer:                                        invoiceSettings.FeePayer,
+		USDTPaymentEnabled:                                     usdtSettings.Enabled,
+		USDTPaymentAPIBase:                                     usdtSettings.APIBase,
+		USDTPaymentPublicBaseURL:                               usdtSettings.PublicBaseURL,
+		USDTPaymentPublicCallbackBaseURL:                       usdtSettings.PublicCallbackBaseURL,
+		USDTPaymentKeyID:                                       usdtSettings.KeyID,
+		USDTPaymentAPISecretConfigured:                         usdtSettings.APISecretConfigured,
+		USDTPaymentFiat:                                        usdtSettings.Fiat,
+		USDTPaymentEnabledNetworks:                             usdtSettings.EnabledNetworks,
+		USDTPaymentOrderTimeoutSeconds:                         usdtSettings.OrderTimeoutSeconds,
+		USDTPaymentLatePaymentWindowMinutes:                    usdtSettings.LatePaymentWindowMinutes,
+		USDTPaymentRequestTimeoutSeconds:                       usdtSettings.RequestTimeoutSeconds,
+		USDTPaymentReconcileIntervalSeconds:                    usdtSettings.ReconcileIntervalSeconds,
+		USDTPaymentReconcileBatchSize:                          usdtSettings.ReconcileBatchSize,
+		USDTPaymentWebhookClockSkewSeconds:                     usdtSettings.WebhookClockSkewSeconds,
 
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorMode:                   settings.ChannelMonitorMode,

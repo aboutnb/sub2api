@@ -323,6 +323,13 @@ export interface USDTCapability {
   trade_type: string
   wallet_count: number
   rpc_endpoint_set: boolean
+  rpc_endpoint_count?: number
+  scanner_block?: string
+  scanner_success?: string
+  last_scan_at?: number
+  chain_head?: number
+  scanner_lag?: number
+  queue_depth?: number
   accepting_orders: boolean
   reason?: string
 }
@@ -331,6 +338,7 @@ export interface USDTConfigResponse {
   enabled: boolean
   checkout_mode?: 'fixed' | 'cashier'
   networks: USDTCapability[]
+  bonus_percent?: number
   rate?: string
   rate_crypto?: string
   rate_fiat?: string
@@ -357,7 +365,6 @@ export interface USDTOrder {
   trade_type: string
   receiving_address: string
   exchange_rate: string
-  payment_url: string
   expires_at: string
   transaction_hash?: string
   chain_transfer_at?: string

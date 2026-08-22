@@ -12,6 +12,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
+	"github.com/Wei-Shaw/sub2api/internal/usdtpayment"
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -660,6 +661,30 @@ func ProvideInvoiceSettingsService(
 	return NewInvoiceSettingsService(settingRepo, encryptor, cfg.Invoice, cfg.Totp.EncryptionKeyConfigured)
 }
 
+// ProvideUSDTPaymentSettingsService keeps BEpusdt credentials editable at
+// runtime while retaining config.yaml and environment variables as fallback.
+func ProvideUSDTPaymentSettingsService(
+	settingRepo SettingRepository,
+	encryptor SecretEncryptor,
+	cfg *config.Config,
+) *USDTPaymentSettingsService {
+	return NewUSDTPaymentSettingsService(settingRepo, encryptor, cfg.USDTPayment, cfg.Totp.EncryptionKeyConfigured)
+}
+
+// ProvideUSDTPaymentService injects the runtime settings resolver into the
+// isolated BEpusdt service. The RMB provider registry remains untouched.
+func ProvideUSDTPaymentService(
+	cfg *config.Config,
+	client *usdtpayment.Client,
+	repository *usdtpayment.Repository,
+	bridge usdtpayment.PaymentBridge,
+	settings *USDTPaymentSettingsService,
+) *usdtpayment.Service {
+	svc := usdtpayment.NewService(cfg, client, repository, bridge)
+	svc.SetConfigResolver(settings)
+	return svc
+}
+
 func ProvideInvoiceService(
 	entClient *dbent.Client,
 	cfg *config.Config,
@@ -935,6 +960,8 @@ var ProviderSet = wire.NewSet(
 	ProvidePaymentConfigService,
 	ProvidePaymentService,
 	ProvideInvoiceSettingsService,
+	ProvideUSDTPaymentSettingsService,
+	ProvideUSDTPaymentService,
 	ProvideInvoiceService,
 	ProvidePaymentOrderExpiryService,
 	ProvideBalanceNotifyService,

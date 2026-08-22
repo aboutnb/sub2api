@@ -505,6 +505,29 @@ func TestUpdatePaymentConfig_PersistsRechargeFeeCredited(t *testing.T) {
 	}
 }
 
+func TestUpdatePaymentConfig_PersistsUSDTPaymentBonusPercent(t *testing.T) {
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{}}
+	svc := &PaymentConfigService{settingRepo: repo}
+	bonus := 7.5
+
+	if err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{USDTPaymentBonusPercent: &bonus}); err != nil {
+		t.Fatalf("UpdatePaymentConfig returned error: %v", err)
+	}
+	if repo.values[SettingUSDTPaymentBonusPercent] != "7.5" {
+		t.Fatalf("USDT bonus = %q, want 7.5", repo.values[SettingUSDTPaymentBonusPercent])
+	}
+}
+
+func TestUpdatePaymentConfigRejectsInvalidUSDTPaymentBonusPercent(t *testing.T) {
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{}}
+	svc := &PaymentConfigService{settingRepo: repo}
+	bonus := 100.01
+
+	if err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{USDTPaymentBonusPercent: &bonus}); err == nil {
+		t.Fatal("expected invalid USDT bonus to be rejected")
+	}
+}
+
 func TestUpdatePaymentConfig_PersistsSubscriptionFeeEnabled(t *testing.T) {
 	repo := &paymentConfigSettingRepoStub{values: map[string]string{}}
 	svc := &PaymentConfigService{settingRepo: repo}

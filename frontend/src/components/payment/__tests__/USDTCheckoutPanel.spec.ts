@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 const getUSDTOrder = vi.hoisted(() => vi.fn())
 const createUSDTOrder = vi.hoisted(() => vi.fn())
+const toCanvas = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key }),
@@ -10,6 +11,10 @@ vi.mock('vue-i18n', () => ({
 
 vi.mock('@/api/payment', () => ({
   paymentAPI: { getUSDTOrder, createUSDTOrder },
+}))
+
+vi.mock('qrcode', () => ({
+  default: { toCanvas },
 }))
 
 import USDTCheckoutPanel from '../USDTCheckoutPanel.vue'
@@ -39,6 +44,7 @@ describe('USDTCheckoutPanel', () => {
     localStorage.clear()
     getUSDTOrder.mockReset()
     createUSDTOrder.mockReset()
+    toCanvas.mockClear()
   })
 
   afterEach(() => {
@@ -67,6 +73,9 @@ describe('USDTCheckoutPanel', () => {
     await flushPromises()
     expect(getUSDTOrder).toHaveBeenCalledWith(42)
     expect(wrapper.text()).toContain('TAddress')
+    expect(wrapper.text()).toContain('USDT · TRON')
+    expect(wrapper.text()).toContain('TRC-20')
+    expect(toCanvas).toHaveBeenCalledWith(expect.anything(), 'TAddress', expect.objectContaining({ width: 160 }))
     expect(localStorage.getItem('usdt.payment.current')).toContain('sub2_usdt_42')
     wrapper.unmount()
   })
@@ -112,7 +121,6 @@ describe('USDTCheckoutPanel', () => {
   })
 
   it('submits the entered value as USDT while showing its CNY estimate', async () => {
-    vi.spyOn(window, 'open').mockImplementation(() => null)
     createUSDTOrder.mockResolvedValue({ data: order() })
     const wrapper = mount(USDTCheckoutPanel, {
       props: {
@@ -126,12 +134,19 @@ describe('USDTCheckoutPanel', () => {
     })
 
     await flushPromises()
+    expect(wrapper.text()).toContain('USDT · TRON')
+    expect(wrapper.text()).toContain('TRC-20')
     await wrapper.findAll('button').find(button => button.text().includes('TRON'))?.trigger('click')
     const createButton = wrapper.findAll('button').find(button => button.text().includes('payment.usdt.create'))
     await createButton?.trigger('click')
     await flushPromises()
 
-    expect(createUSDTOrder).toHaveBeenCalledWith(expect.objectContaining({ amount: 10, amount_unit: 'USDT', network: 'tron' }))
+    expect(createUSDTOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: '10', amount_unit: 'USDT', network: 'tron' }),
+      expect.stringMatching(/^usdt-order-/),
+    )
+    expect(wrapper.text()).toContain('TAddress')
+    expect(wrapper.find('a[target="_blank"]').exists()).toBe(false)
     wrapper.unmount()
   })
 })

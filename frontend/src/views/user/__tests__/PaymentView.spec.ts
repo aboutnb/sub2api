@@ -128,10 +128,10 @@ function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
 }
 
 describe('PaymentView USDT tab', () => {
-  it('shares the checkout page and selects USDT from the dedicated entry', async () => {
+  it('embeds USDT in the shared checkout page', async () => {
     vi.useRealTimers()
-    routeState.path = '/usdt-recharge'
-    routeState.query = {}
+    routeState.path = '/purchase'
+    routeState.query = { tab: 'usdt' }
     getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture())
     getUSDTConfig.mockReset().mockResolvedValue({
       data: {

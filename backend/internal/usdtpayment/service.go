@@ -25,32 +25,15 @@ const (
 )
 
 type Service struct {
-	config       config.USDTPaymentConfig
-	client       *Client
-	repository   *Repository
-	bridge       PaymentBridge
-	modeProvider interface{ GetUSDTPaymentCheckoutMode(context.Context) string }
-	stop         chan struct{}
-	stopOnce     sync.Once
-	wg           sync.WaitGroup
-}
-
-// SetCheckoutModeProvider connects the DB-backed admin setting without making
-// the USDT module depend on the broader settings service at construction time.
-func (s *Service) SetCheckoutModeProvider(provider interface{ GetUSDTPaymentCheckoutMode(context.Context) string }) {
-	if s != nil {
-		s.modeProvider = provider
-	}
-}
-
-func (s *Service) checkoutMode(ctx context.Context) string {
-	if s != nil && s.modeProvider != nil {
-		return s.modeProvider.GetUSDTPaymentCheckoutMode(ctx)
-	}
-	if strings.EqualFold(strings.TrimSpace(s.config.CheckoutMode), "cashier") {
-		return "cashier"
-	}
-	return "fixed"
+	config     config.USDTPaymentConfig
+	configMu   sync.RWMutex
+	resolver   ConfigResolver
+	client     *Client
+	repository *Repository
+	bridge     PaymentBridge
+	stop       chan struct{}
+	stopOnce   sync.Once
+	wg         sync.WaitGroup
 }
 
 func NewService(cfg *config.Config, client *Client, repository *Repository, bridge PaymentBridge) *Service {
@@ -58,11 +41,55 @@ func NewService(cfg *config.Config, client *Client, repository *Repository, brid
 	if cfg != nil {
 		service.config = cfg.USDTPayment
 	}
-	if service.config.Enabled {
+	if repository != nil {
 		service.wg.Add(1)
 		go service.runReconciler()
 	}
 	return service
+}
+
+func (s *Service) SetConfigResolver(resolver ConfigResolver) {
+	if s != nil {
+		s.configMu.Lock()
+		s.resolver = resolver
+		s.configMu.Unlock()
+		if s.client != nil {
+			s.client.SetConfigResolver(resolver)
+		}
+	}
+}
+
+func (s *Service) RefreshConfig(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+	s.configMu.RLock()
+	resolver := s.resolver
+	s.configMu.RUnlock()
+	if resolver == nil {
+		return nil
+	}
+	cfg, err := resolver.EffectiveConfig(ctx)
+	if err != nil {
+		return err
+	}
+	s.configMu.Lock()
+	s.config = cfg
+	s.configMu.Unlock()
+	return nil
+}
+
+func (s *Service) snapshotConfig() config.USDTPaymentConfig {
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+	return s.config
+}
+
+func (s *Service) currentConfig(ctx context.Context) (config.USDTPaymentConfig, error) {
+	if err := s.RefreshConfig(ctx); err != nil {
+		return config.USDTPaymentConfig{}, err
+	}
+	return s.snapshotConfig(), nil
 }
 
 func (s *Service) Stop() {
@@ -74,20 +101,24 @@ func (s *Service) Stop() {
 }
 
 func (s *Service) Enabled() bool {
-	return s != nil && s.config.Enabled
+	return s != nil && s.snapshotConfig().Enabled
 }
 
 func (s *Service) CheckoutMode(ctx context.Context) string { return s.checkoutMode(ctx) }
 
 func (s *Service) Capabilities(ctx context.Context) ([]Capability, error) {
-	if !s.Enabled() {
-		return []Capability{}, nil
-	}
-	items, err := s.client.Capabilities(ctx, s.config.EnabledNetworks)
+	cfg, err := s.currentConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
-	allowed := s.allowedNetworks()
+	if !cfg.Enabled {
+		return []Capability{}, nil
+	}
+	items, err := s.client.Capabilities(ctx, cfg.EnabledNetworks)
+	if err != nil {
+		return nil, err
+	}
+	allowed := allowedNetworks(cfg.EnabledNetworks)
 	filtered := make([]Capability, 0, len(items))
 	for _, item := range items {
 		network := strings.ToLower(strings.TrimSpace(item.Network))
@@ -99,21 +130,29 @@ func (s *Service) Capabilities(ctx context.Context) ([]Capability, error) {
 }
 
 func (s *Service) ExchangeRate(ctx context.Context) (*RateQuote, error) {
-	if !s.Enabled() {
+	cfg, err := s.currentConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !cfg.Enabled {
 		return nil, infraerrors.Forbidden("USDT_PAYMENT_DISABLED", "USDT payment is disabled")
 	}
 	quote, err := s.client.ExchangeRate(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get BEpusdt exchange rate: %w", err)
 	}
-	if quote == nil || quote.Crypto != "USDT" || quote.Fiat != s.config.Fiat || !positiveDecimal(quote.Rate) {
+	if quote == nil || quote.Crypto != "USDT" || quote.Fiat != cfg.Fiat || !positiveDecimal(quote.Rate) {
 		return nil, errors.New("BEpusdt returned an invalid USDT exchange rate")
 	}
 	return quote, nil
 }
 
 func (s *Service) CreateOrder(ctx context.Context, userID int64, req CreateRequest, clientIP, sourceHost, sourceURL, locale string) (*CheckoutOrder, error) {
-	if !s.Enabled() {
+	cfg, err := s.currentConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !cfg.Enabled {
 		return nil, infraerrors.Forbidden("USDT_PAYMENT_DISABLED", "USDT payment is disabled")
 	}
 	if unit := strings.TrimSpace(req.AmountUnit); unit != "" && !strings.EqualFold(unit, "USDT") {
@@ -124,7 +163,7 @@ func (s *Service) CreateOrder(ctx context.Context, userID int64, req CreateReque
 	}
 	network := strings.ToLower(strings.TrimSpace(req.Network))
 	tradeType, ok := networkTradeTypes[network]
-	if !ok || !s.allowedNetworks()[network] {
+	if !ok || !allowedNetworks(cfg.EnabledNetworks)[network] {
 		return nil, infraerrors.BadRequest("USDT_NETWORK_DISABLED", "selected USDT network is not enabled")
 	}
 	capabilities, err := s.Capabilities(ctx)
@@ -150,15 +189,15 @@ func (s *Service) CreateOrder(ctx context.Context, userID int64, req CreateReque
 	if err != nil {
 		return nil, infraerrors.ServiceUnavailable("USDT_RATE_UNAVAILABLE", err.Error())
 	}
-	requestedCrypto := decimal.NewFromFloat(req.Amount).Truncate(8)
-	if req.Amount <= 0 || requestedCrypto.LessThanOrEqual(decimal.Zero) {
-		return nil, infraerrors.BadRequest("USDT_AMOUNT_INVALID", "USDT amount must be greater than zero")
+	requestedCrypto, err := parseRequestedUSDTAmount(req.Amount)
+	if err != nil {
+		return nil, err
 	}
 	rate, err := decimal.NewFromString(rateQuote.Rate)
 	if err != nil || rate.LessThanOrEqual(decimal.Zero) {
 		return nil, infraerrors.ServiceUnavailable("USDT_RATE_UNAVAILABLE", "BEpusdt returned an invalid exchange rate")
 	}
-	fiatAmount := requestedCrypto.Mul(rate).Round(8)
+	fiatAmount := requestedCrypto.Mul(rate).Round(2)
 	if fiatAmount.LessThanOrEqual(decimal.Zero) {
 		return nil, infraerrors.BadRequest("USDT_AMOUNT_INVALID", "USDT amount is too small for CNY settlement")
 	}
@@ -172,19 +211,19 @@ func (s *Service) CreateOrder(ctx context.Context, userID int64, req CreateReque
 	}
 	redirectURL := strings.TrimSpace(req.ReturnURL)
 	if !validReturnURL(redirectURL) {
-		redirectURL = s.config.PublicCallbackBaseURL + "/payment"
+		redirectURL = cfg.PublicCallbackBaseURL + "/payment"
 	}
 	upstream, err := s.client.CreateOrder(ctx, createUpstreamRequest{
-		OrderID: prepared.MerchantOrderID, Amount: prepared.FiatAmount, Fiat: s.config.Fiat,
-		TradeType: tradeType, NotifyURL: s.config.PublicCallbackBaseURL + webhookPath,
-		RedirectURL: redirectURL, Name: "Sub2API USDT payment", TimeoutSeconds: s.config.OrderTimeoutSeconds,
+		OrderID: prepared.MerchantOrderID, Amount: prepared.FiatAmount, Fiat: cfg.Fiat,
+		TradeType: tradeType, NotifyURL: cfg.PublicCallbackBaseURL + webhookPath,
+		RedirectURL: redirectURL, Name: "Sub2API USDT payment", TimeoutSeconds: cfg.OrderTimeoutSeconds,
 		Rate: rateQuote.Rate,
 	})
 	if err != nil {
 		_ = s.bridge.FailUSDTOrderBeforeQuote(ctx, prepared.ID, err)
 		return nil, fmt.Errorf("create BEpusdt order: %w", err)
 	}
-	quote, err := s.quoteFromUpstream(prepared.ID, upstream, network, tradeType, prepared.FiatAmount, requestedCrypto.String(), rateQuote.Rate)
+	quote, err := s.quoteFromUpstream(prepared.ID, upstream, network, tradeType, prepared.FiatAmount, "", rateQuote.Rate)
 	if err != nil {
 		_ = s.bridge.FailUSDTOrderBeforeQuote(ctx, prepared.ID, err)
 		return nil, err
@@ -196,75 +235,27 @@ func (s *Service) CreateOrder(ctx context.Context, userID int64, req CreateReque
 	return checkoutFromQuote(quote, prepared.BaseAmount, prepared.PayAmount, prepared.FeeRate, "PENDING"), nil
 }
 
-func (s *Service) createCashierOrder(ctx context.Context, userID int64, req CreateRequest, clientIP, sourceHost, sourceURL, locale string) (*CheckoutOrder, error) {
-	if strings.TrimSpace(s.config.LegacyToken) == "" {
-		return nil, infraerrors.ServiceUnavailable("USDT_CASHIER_NOT_CONFIGURED", "BEpusdt legacy API token is not configured")
+func parseRequestedUSDTAmount(raw string) (decimal.Decimal, error) {
+	amount, err := decimal.NewFromString(strings.TrimSpace(raw))
+	if err != nil || amount.LessThanOrEqual(decimal.Zero) {
+		return decimal.Zero, infraerrors.BadRequest("USDT_AMOUNT_INVALID", "USDT amount must be greater than zero")
 	}
-	if req.Amount <= 0 {
-		return nil, infraerrors.BadRequest("USDT_AMOUNT_INVALID", "USDT amount must be greater than zero")
+	if amount.Exponent() < -8 {
+		return decimal.Zero, infraerrors.BadRequest("USDT_AMOUNT_PRECISION_INVALID", "USDT amount supports at most 8 decimal places")
 	}
-	rateQuote, err := s.ExchangeRate(ctx)
-	if err != nil {
-		return nil, infraerrors.ServiceUnavailable("USDT_RATE_UNAVAILABLE", err.Error())
-	}
-	rate, err := decimal.NewFromString(rateQuote.Rate)
-	if err != nil || rate.LessThanOrEqual(decimal.Zero) {
-		return nil, infraerrors.ServiceUnavailable("USDT_RATE_UNAVAILABLE", "BEpusdt returned an invalid exchange rate")
-	}
-	requestedCrypto := decimal.NewFromFloat(req.Amount).Truncate(8)
-	fiatAmount := requestedCrypto.Mul(rate).Round(8)
-	prepared, err := s.bridge.PrepareUSDTOrder(ctx, PrepareOrderRequest{
-		UserID: userID, Amount: fiatAmount.InexactFloat64(), TargetPayAmount: fiatAmount.InexactFloat64(),
-		OrderType: req.OrderType, PlanID: req.PlanID, ClientIP: clientIP, SourceHost: sourceHost,
-		SourceURL: sourceURL, PaymentSource: req.PaymentSource, Locale: locale,
-	})
-	if err != nil {
-		return nil, err
-	}
-	redirectURL := strings.TrimSpace(req.ReturnURL)
-	if !validReturnURL(redirectURL) {
-		redirectURL = s.config.PublicCallbackBaseURL + "/payment"
-	}
-	// Use the same public callback path as fixed mode; the handler dispatches
-	// HMAC-v2 versus legacy MD5 by request headers/body signature.
-	notifyURL := s.config.PublicCallbackBaseURL + webhookPath
-	upstream, err := s.client.CreateCashierOrder(ctx, map[string]any{
-		"order_id": prepared.MerchantOrderID, "notify_url": notifyURL, "redirect_url": redirectURL,
-		"amount": fiatAmount.InexactFloat64(), "name": "Sub2API USDT payment", "fiat": s.config.Fiat,
-		"timeout": s.config.OrderTimeoutSeconds,
-	})
-	if err != nil {
-		_ = s.bridge.FailUSDTOrderBeforeQuote(ctx, prepared.ID, err)
-		return nil, fmt.Errorf("create BEpusdt cashier order: %w", err)
-	}
-	createdAt := time.Now().UTC()
-	expiresAt := createdAt.Add(time.Duration(s.config.OrderTimeoutSeconds) * time.Second)
-	if upstream.ExpirationTime > 0 {
-		expiresAt = createdAt.Add(time.Duration(upstream.ExpirationTime) * time.Second)
-	}
-	quote := &Quote{
-		PaymentOrderID: prepared.ID, MerchantOrderID: upstream.OrderID, ProviderTradeID: upstream.TradeID,
-		FiatCurrency: s.config.Fiat, FiatAmount: canonicalDecimal(fiatAmount.String()), CryptoCurrency: "USDT",
-		Network: "pending", TradeType: "pending", CryptoAmount: canonicalDecimal(requestedCrypto.String()),
-		ExchangeRate: canonicalDecimal(rateQuote.Rate), ReceivingAddress: "pending", PaymentURL: upstream.PaymentURL,
-		UpstreamCreatedAt: createdAt, UpstreamExpiresAt: expiresAt, ProviderStatus: "waiting",
-	}
-	if err := s.repository.SaveQuote(ctx, quote); err != nil {
-		_ = s.bridge.FailUSDTOrderBeforeQuote(ctx, prepared.ID, err)
-		return nil, err
-	}
-	return checkoutFromQuote(quote, prepared.BaseAmount, prepared.PayAmount, prepared.FeeRate, "PENDING"), nil
+	return amount, nil
 }
 
 func (s *Service) quoteFromUpstream(paymentOrderID int64, upstream *UpstreamOrder, network, tradeType, fiatAmount, expectedCryptoAmount, expectedRate string) (*Quote, error) {
 	if upstream == nil {
 		return nil, errors.New("BEpusdt returned an empty order")
 	}
-	if upstream.OrderID == "" || upstream.TradeID == "" || upstream.PaymentURL == "" {
-		return nil, errors.New("BEpusdt quote is missing order identity or payment URL")
+	if upstream.OrderID == "" || upstream.TradeID == "" {
+		return nil, errors.New("BEpusdt quote is missing order identity")
 	}
-	if !equalDecimal(upstream.Amount, fiatAmount) || !strings.EqualFold(upstream.Fiat, s.config.Fiat) {
-		return nil, fmt.Errorf("BEpusdt quote fiat mismatch: expected %s %s, got %s %s", fiatAmount, s.config.Fiat, upstream.Amount, upstream.Fiat)
+	cfg := s.snapshotConfig()
+	if !equalDecimal(upstream.Amount, fiatAmount) || !strings.EqualFold(upstream.Fiat, cfg.Fiat) {
+		return nil, fmt.Errorf("BEpusdt quote fiat mismatch: expected %s %s, got %s %s", fiatAmount, cfg.Fiat, upstream.Amount, upstream.Fiat)
 	}
 	if upstream.Crypto != "USDT" || upstream.Network != network || upstream.TradeType != tradeType {
 		return nil, errors.New("BEpusdt quote currency or network mismatch")
@@ -294,6 +285,9 @@ func (s *Service) quoteFromUpstream(paymentOrderID int64, upstream *UpstreamOrde
 }
 
 func (s *Service) GetOrder(ctx context.Context, userID, paymentOrderID int64) (*CheckoutOrder, error) {
+	if _, err := s.currentConfig(ctx); err != nil {
+		return nil, err
+	}
 	quote, status, amount, payAmount, feeRate, err := s.repository.GetQuoteForUser(ctx, paymentOrderID, userID)
 	if err != nil {
 		if isNotFound(err) {
@@ -327,7 +321,8 @@ func checkoutFromQuote(q *Quote, amount, payAmount, feeRate float64, status stri
 }
 
 func (s *Service) VerifyWebhook(raw []byte, headers map[string]string, requestPath string, now time.Time) (*WebhookPayload, error) {
-	if !s.Enabled() {
+	cfg := s.snapshotConfig()
+	if !cfg.Enabled {
 		return nil, errors.New("USDT payment is disabled")
 	}
 	if len(raw) == 0 || len(raw) > maxWebhookBodySize {
@@ -338,17 +333,17 @@ func (s *Service) VerifyWebhook(raw []byte, headers map[string]string, requestPa
 	nonce := headers[strings.ToLower(headerNonce)]
 	digest := strings.ToLower(headers[strings.ToLower(headerDigest)])
 	signature := strings.ToLower(headers[strings.ToLower(headerSignature)])
-	if keyID != s.config.KeyID || timestamp == "" || len(nonce) < 16 || digest == "" || signature == "" {
+	if keyID != cfg.KeyID || timestamp == "" || len(nonce) < 16 || digest == "" || signature == "" {
 		return nil, errors.New("missing or invalid BEpusdt HMAC headers")
 	}
 	ts, err := strconv.ParseInt(timestamp, 10, 64)
-	if err != nil || absInt64(now.Unix()-ts) > int64(s.config.WebhookClockSkewSeconds) {
+	if err != nil || absInt64(now.Unix()-ts) > int64(cfg.WebhookClockSkewSeconds) {
 		return nil, errors.New("BEpusdt webhook timestamp outside allowed window")
 	}
 	if digest != sha256Hex(raw) {
 		return nil, errors.New("BEpusdt webhook body digest mismatch")
 	}
-	if !equalHex(signature, hmacV2Sign(s.config.APISecret, "POST", requestPath, timestamp, nonce, digest)) {
+	if !equalHex(signature, hmacV2Sign(cfg.APISecret, "POST", requestPath, timestamp, nonce, digest)) {
 		return nil, errors.New("BEpusdt webhook request signature mismatch")
 	}
 	var payload WebhookPayload
@@ -363,11 +358,11 @@ func (s *Service) VerifyWebhook(raw []byte, headers map[string]string, requestPa
 	payloadSignature := payload.Signature
 	payload.Signature = ""
 	unsigned, err := json.Marshal(payload)
-	if err != nil || !equalHex(payloadSignature, hmacHex(s.config.APISecret, unsigned)) {
+	if err != nil || !equalHex(payloadSignature, hmacHex(cfg.APISecret, unsigned)) {
 		return nil, errors.New("BEpusdt webhook payload signature mismatch")
 	}
 	payload.Signature = payloadSignature
-	if payload.SignatureVersion != "v2" || payload.KeyID != s.config.KeyID || payload.EventType != "payment.succeeded" || payload.EventID == "" {
+	if payload.SignatureVersion != "v2" || payload.KeyID != cfg.KeyID || payload.EventType != "payment.succeeded" || payload.EventID == "" {
 		return nil, errors.New("unsupported BEpusdt webhook event")
 	}
 	return &payload, nil
@@ -509,7 +504,7 @@ func (s *Service) reconcileQuote(ctx context.Context, quote *Quote) error {
 	}
 	upstream, err := s.client.QueryOrder(ctx, quote.MerchantOrderID, quote.ProviderTradeID)
 	if err != nil {
-		next := time.Now().Add(s.reconcileDelay(quote.ReconcileAttempts))
+		next := time.Now().Add(s.reconcileErrorDelay(quote.ReconcileAttempts))
 		_ = s.repository.RecordReconcile(ctx, quote.ID, quote.ProviderStatus, next, err)
 		return err
 	}
@@ -522,10 +517,11 @@ func (s *Service) reconcileQuote(ctx context.Context, quote *Quote) error {
 		return nil
 	case "waiting", "confirming", "expired":
 		status := upstream.StatusName
-		if status == "expired" && time.Now().Before(quote.UpstreamExpiresAt.Add(time.Duration(s.config.LatePaymentWindowMinutes)*time.Minute)) {
+		delayStatus := status
+		if status == "expired" && time.Now().Before(quote.UpstreamExpiresAt.Add(time.Duration(s.snapshotConfig().LatePaymentWindowMinutes)*time.Minute)) {
 			status = "waiting"
 		}
-		return s.repository.RecordReconcile(ctx, quote.ID, status, time.Now().Add(s.reconcileDelay(quote.ReconcileAttempts)), nil)
+		return s.repository.RecordReconcile(ctx, quote.ID, status, time.Now().Add(s.reconcileStateDelay(quote, delayStatus)), nil)
 	default:
 		return s.repository.RecordReconcile(ctx, quote.ID, upstream.StatusName, time.Now().Add(30*time.Second), nil)
 	}
@@ -595,7 +591,7 @@ func (s *Service) confirmProof(ctx context.Context, quote *Quote, proof *Upstrea
 	if transferAt.Before(quote.UpstreamCreatedAt) || transferAt.After(quote.UpstreamExpiresAt) {
 		return errors.New("USDT transfer occurred outside the frozen payment window")
 	}
-	recoveryDeadline := quote.UpstreamExpiresAt.Add(time.Duration(s.config.LatePaymentWindowMinutes) * time.Minute)
+	recoveryDeadline := quote.UpstreamExpiresAt.Add(time.Duration(s.snapshotConfig().LatePaymentWindowMinutes) * time.Minute)
 	if time.Now().After(recoveryDeadline) {
 		return errors.New("USDT payment recovery window has elapsed")
 	}
@@ -622,15 +618,20 @@ func (s *Service) confirmProof(ctx context.Context, quote *Quote, proof *Upstrea
 
 func (s *Service) runReconciler() {
 	defer s.wg.Done()
-	interval := time.Duration(s.config.ReconcileIntervalSeconds) * time.Second
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
 	s.runReconcileBatch()
 	for {
+		interval := time.Duration(s.snapshotConfig().ReconcileIntervalSeconds) * time.Second
+		if interval <= 0 {
+			interval = 10 * time.Second
+		}
+		timer := time.NewTimer(interval)
 		select {
-		case <-ticker.C:
+		case <-timer.C:
 			s.runReconcileBatch()
 		case <-s.stop:
+			if !timer.Stop() {
+				<-timer.C
+			}
 			return
 		}
 	}
@@ -639,7 +640,11 @@ func (s *Service) runReconciler() {
 func (s *Service) runReconcileBatch() {
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 	defer cancel()
-	events, err := s.repository.ClaimWebhookEvents(ctx, s.config.ReconcileBatchSize)
+	cfg, err := s.currentConfig(ctx)
+	if err != nil || !cfg.Enabled {
+		return
+	}
+	events, err := s.repository.ClaimWebhookEvents(ctx, cfg.ReconcileBatchSize)
 	if err != nil {
 		slog.Error("[USDT] claim webhook events", "error", err)
 	} else {
@@ -648,7 +653,7 @@ func (s *Service) runReconcileBatch() {
 			_ = s.repository.CompleteWebhookEvent(ctx, event.ID, processErr)
 		}
 	}
-	quotes, err := s.repository.ClaimDueQuotes(ctx, s.config.ReconcileBatchSize, reconcileLease)
+	quotes, err := s.repository.ClaimDueQuotes(ctx, cfg.ReconcileBatchSize, reconcileLease)
 	if err != nil {
 		slog.Error("[USDT] claim reconciliation quotes", "error", err)
 		return
@@ -660,8 +665,11 @@ func (s *Service) runReconcileBatch() {
 	}
 }
 
-func (s *Service) reconcileDelay(attempt int) time.Duration {
-	seconds := s.config.ReconcileIntervalSeconds
+func (s *Service) reconcileErrorDelay(attempt int) time.Duration {
+	seconds := s.snapshotConfig().ReconcileIntervalSeconds
+	if seconds < 2 {
+		seconds = 2
+	}
 	if attempt > 1 {
 		seconds *= attempt
 	}
@@ -671,9 +679,27 @@ func (s *Service) reconcileDelay(attempt int) time.Duration {
 	return time.Duration(seconds) * time.Second
 }
 
-func (s *Service) allowedNetworks() map[string]bool {
-	allowed := make(map[string]bool, len(s.config.EnabledNetworks))
-	for _, network := range s.config.EnabledNetworks {
+func (s *Service) reconcileStateDelay(quote *Quote, providerStatus string) time.Duration {
+	configured := s.snapshotConfig().ReconcileIntervalSeconds
+	if configured < 1 {
+		configured = 2
+	}
+	minimum := 5
+	if quote != nil && time.Since(quote.UpstreamCreatedAt) < 2*time.Minute {
+		minimum = 2
+	}
+	if providerStatus == "expired" {
+		minimum = 15
+	}
+	if configured > minimum {
+		minimum = configured
+	}
+	return time.Duration(minimum) * time.Second
+}
+
+func allowedNetworks(networks []string) map[string]bool {
+	allowed := make(map[string]bool, len(networks))
+	for _, network := range networks {
 		allowed[strings.ToLower(strings.TrimSpace(network))] = true
 	}
 	return allowed

@@ -21,20 +21,24 @@
               v-for="network in readyNetworks"
               :key="network.network"
               type="button"
+              :aria-pressed="selectedNetwork === network.network"
               :class="[
-                'min-h-16 rounded-md border px-3 py-2 text-left transition-colors',
+                'min-h-20 rounded-md border px-3 py-2 text-left transition-colors',
                 selectedNetwork === network.network
                   ? 'border-emerald-600 bg-emerald-50 ring-1 ring-emerald-500/30 dark:border-emerald-400 dark:bg-emerald-950/35'
                   : 'border-gray-200 hover:border-emerald-300 dark:border-dark-600 dark:hover:border-emerald-700',
               ]"
               @click="selectedNetwork = network.network"
             >
-              <span class="block text-sm font-semibold text-gray-900 dark:text-white">{{ network.network_name || network.network }}</span>
-              <span class="mt-1 block text-[11px] text-gray-500 dark:text-gray-400">{{ network.trade_type }}</span>
+              <span class="block break-words text-sm font-semibold leading-5 text-gray-900 dark:text-white">USDT · {{ networkDisplayName(network) }}</span>
+              <span class="mt-1 block text-xs font-semibold leading-4 text-emerald-700 dark:text-emerald-300">{{ networkStandardLabel(network.trade_type, network.network) }}</span>
+              <span class="block break-all text-[10px] leading-4 text-gray-500 dark:text-gray-400">{{ network.trade_type }}</span>
             </button>
           </div>
-          <p v-if="config.checkout_mode !== 'cashier' && readyNetworks.length === 0" class="mt-2 text-xs text-amber-700 dark:text-amber-300">{{ t('payment.usdt.unavailable') }}</p>
-          <p v-if="config.checkout_mode === 'cashier'" class="text-xs leading-5 text-gray-600 dark:text-gray-300">{{ t('payment.usdt.cashierMode') }}</p>
+          <p v-if="selectedNetworkOption" class="mt-3 border-l-2 border-emerald-500 bg-emerald-50/60 px-3 py-2 text-xs leading-5 text-emerald-900 dark:bg-emerald-950/25 dark:text-emerald-100">
+            {{ t('payment.usdt.networkInstruction', { network: networkDisplayName(selectedNetworkOption), standard: networkStandardLabel(selectedNetworkOption.trade_type, selectedNetworkOption.network) }) }}
+          </p>
+          <p v-if="readyNetworks.length === 0" class="mt-2 text-xs text-amber-700 dark:text-amber-300">{{ t('payment.usdt.unavailable') }}</p>
         </div>
 
         <div>
@@ -52,7 +56,7 @@
           <div class="flex items-center justify-between gap-4"><span class="text-gray-500 dark:text-gray-400">{{ t('payment.usdt.fiatAmount') }}</span><strong class="tabular-nums text-gray-950 dark:text-white">{{ fiatCurrencyLabel }} {{ estimatedFiatAmountLabel }}</strong></div>
           <div class="flex items-center justify-between gap-4"><span class="text-gray-500 dark:text-gray-400">{{ t('payment.usdt.exchangeRate') }}</span><strong class="tabular-nums text-gray-950 dark:text-white">1 USDT = ¥{{ exchangeRateLabel }}</strong></div>
           <p v-if="exchangeRate <= 0" class="border-l-2 border-rose-400 bg-rose-50 px-3 py-2 text-xs leading-5 text-rose-900 dark:bg-rose-950/30 dark:text-rose-100">{{ t('payment.usdt.rateUnavailable') }}</p>
-          <div v-if="config.checkout_mode !== 'cashier'" class="flex items-center justify-between gap-4"><span class="text-gray-500 dark:text-gray-400">{{ t('payment.usdt.network') }}</span><strong class="text-gray-950 dark:text-white">{{ selectedNetworkLabel }}</strong></div>
+          <div class="flex items-start justify-between gap-4"><span class="text-gray-500 dark:text-gray-400">{{ t('payment.usdt.network') }}</span><strong class="text-right text-gray-950 dark:text-white">USDT · {{ selectedNetworkLabel }}<span class="block text-xs font-medium text-emerald-700 dark:text-emerald-300">{{ selectedNetworkStandardLabel }}</span></strong></div>
           <p class="border-l-2 border-amber-400 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">{{ t('payment.usdt.notice') }}</p>
         </div>
         <button type="button" class="btn mt-6 w-full bg-emerald-600 py-3 text-base font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" :disabled="!canSubmit || submitting" @click="submit">
@@ -65,21 +69,33 @@
 
     <div v-else class="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div>
-        <iframe v-if="order.payment_mode === 'cashier'" :src="order.payment_url" class="h-[620px] w-full border-0 bg-white" title="BEpusdt checkout" />
-        <template v-else>
-          <div class="flex items-center gap-3"><span class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-lg font-bold text-white">₮</span><div><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.usdt.payToAddress') }}</p><p class="break-all font-mono text-sm font-semibold text-gray-950 dark:text-white">{{ order.receiving_address }}</p></div></div>
-          <button type="button" class="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300" @click="copy(order.receiving_address)"><Icon name="copy" size="sm" />{{ t('common.copy') }}</button>
-        </template>
-        <div v-if="order.payment_mode !== 'cashier'" class="mt-6 rounded-md border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+        <div class="grid items-start gap-5 sm:grid-cols-[176px_minmax(0,1fr)]">
+          <div class="flex h-44 w-44 items-center justify-center border border-gray-200 bg-white p-2 dark:border-dark-600">
+            <canvas ref="addressQRCanvas" class="h-40 w-40" aria-label="USDT receiving address QR code"></canvas>
+          </div>
+          <div>
+            <div class="flex items-center gap-3"><span class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-lg font-bold text-white">₮</span><div class="min-w-0"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.usdt.payToAddress') }}</p><p class="break-all font-mono text-sm font-semibold text-gray-950 dark:text-white">{{ order.receiving_address }}</p></div></div>
+            <button type="button" class="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300" @click="copy(order.receiving_address)"><Icon name="copy" size="sm" />{{ t('common.copy') }}</button>
+          </div>
+        </div>
+        <div class="mt-5 border-l-4 border-emerald-500 bg-emerald-50/70 px-4 py-3 dark:bg-emerald-950/25">
+          <p class="text-xs font-medium text-emerald-800 dark:text-emerald-200">{{ t('payment.usdt.selectedNetwork') }}</p>
+          <p class="mt-1 break-words text-base font-semibold text-emerald-950 dark:text-emerald-50">USDT · {{ orderNetworkName }}</p>
+          <p class="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">{{ orderNetworkStandardLabel }} <span class="font-normal text-emerald-800/70 dark:text-emerald-200/70">({{ order.trade_type }})</span></p>
+        </div>
+        <div class="mt-6 rounded-md border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
           <p class="text-xs font-medium text-emerald-800 dark:text-emerald-200">{{ t('payment.usdt.exactAmount') }}</p>
           <p class="mt-1 break-all font-mono text-3xl font-bold tabular-nums text-emerald-900 dark:text-emerald-100">{{ order.crypto_amount }} USDT</p>
-        <p class="mt-2 text-xs text-emerald-800/80 dark:text-emerald-200/80">{{ t('payment.usdt.network') }}: {{ order.network }} · {{ t('payment.usdt.fiatAmount') }}: ¥{{ order.fiat_amount }} · 1 USDT = ¥{{ order.exchange_rate }}</p>
+          <p class="mt-2 text-xs text-emerald-800/80 dark:text-emerald-200/80">{{ t('payment.usdt.network') }}: USDT · {{ orderNetworkName }} ({{ orderNetworkStandardLabel }}) · {{ t('payment.usdt.fiatAmount') }}: ¥{{ order.fiat_amount }} · 1 USDT = ¥{{ order.exchange_rate }}</p>
         </div>
       </div>
       <aside class="border-t border-gray-100 pt-5 dark:border-dark-700 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
         <div class="flex items-center justify-between"><span class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.status.pending') }}</span><span :class="statusClass">{{ statusLabel }}</span></div>
+        <div class="mt-4 flex items-center justify-between gap-4 border-y border-gray-100 py-3 text-sm dark:border-dark-700">
+          <span class="text-gray-500 dark:text-gray-400">{{ t('payment.qr.expiresIn') }}</span>
+          <strong class="tabular-nums text-gray-950 dark:text-white">{{ countdownDisplay }}</strong>
+        </div>
         <p class="mt-4 text-xs leading-5 text-gray-600 dark:text-gray-300">{{ t('payment.usdt.statusHint') }}</p>
-        <a v-if="order.payment_mode !== 'cashier'" :href="order.payment_url" target="_blank" rel="noopener" class="btn mt-5 flex w-full items-center justify-center gap-2 border border-emerald-600 bg-transparent py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/30"><Icon name="link" size="sm" />{{ t('payment.usdt.openCheckout') }}</a>
         <button type="button" class="mt-3 w-full text-xs text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white" @click="reset">{{ t('payment.usdt.newOrder') }}</button>
       </aside>
     </div>
@@ -87,8 +103,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import QRCode from 'qrcode'
 import { paymentAPI } from '@/api/payment'
 import type { USDTConfigResponse, USDTOrder } from '@/types/payment'
 import Icon from '@/components/icons/Icon.vue'
@@ -103,6 +120,10 @@ const order = ref<USDTOrder | null>(null)
 const submitting = ref(false)
 const error = ref('')
 let pollTimer: number | undefined
+let countdownTimer: number | undefined
+const remainingSeconds = ref(0)
+const addressQRCanvas = ref<HTMLCanvasElement | null>(null)
+const USDT_CREATE_KEY_STORAGE = 'usdt.payment.create-key'
 
 interface USDTRecoverySnapshot {
   orderId: number
@@ -110,8 +131,36 @@ interface USDTRecoverySnapshot {
   savedAt: number
 }
 
+interface USDTCreateKeySnapshot {
+  fingerprint: string
+  key: string
+}
+
+function createRequestKey(fingerprint: string): string {
+  try {
+    const raw = window.sessionStorage.getItem(USDT_CREATE_KEY_STORAGE)
+    if (raw) {
+      const stored = JSON.parse(raw) as Partial<USDTCreateKeySnapshot>
+      if (stored.fingerprint === fingerprint && typeof stored.key === 'string' && stored.key) return stored.key
+    }
+  } catch { /* fall through to a new key */ }
+  const requestID = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const key = `usdt-order-${requestID}`
+  try { window.sessionStorage.setItem(USDT_CREATE_KEY_STORAGE, JSON.stringify({ fingerprint, key })) } catch { /* optional */ }
+  return key
+}
+
+function clearCreateRequestKey() {
+  try { window.sessionStorage.removeItem(USDT_CREATE_KEY_STORAGE) } catch { /* optional */ }
+}
+
 const readyNetworks = computed(() => props.config.networks.filter(network => network.accepting_orders))
-const selectedNetworkLabel = computed(() => readyNetworks.value.find(network => network.network === selectedNetwork.value)?.network_name || selectedNetwork.value || '-')
+const selectedNetworkOption = computed(() => readyNetworks.value.find(network => network.network === selectedNetwork.value))
+const selectedNetworkLabel = computed(() => selectedNetworkOption.value ? networkDisplayName(selectedNetworkOption.value) : networkDisplayName({ network: selectedNetwork.value }))
+const selectedNetworkStandardLabel = computed(() => selectedNetworkOption.value ? networkStandardLabel(selectedNetworkOption.value.trade_type, selectedNetworkOption.value.network) : '-')
+const orderNetworkOption = computed(() => readyNetworks.value.find(network => network.network === order.value?.network))
+const orderNetworkName = computed(() => orderNetworkOption.value ? networkDisplayName(orderNetworkOption.value) : networkDisplayName({ network: order.value?.network }))
+const orderNetworkStandardLabel = computed(() => networkStandardLabel(order.value?.trade_type, order.value?.network))
 const cryptoAmount = computed(() => amount.value || 0)
 const exchangeRate = computed(() => {
   const value = Number(props.config.rate)
@@ -119,11 +168,32 @@ const exchangeRate = computed(() => {
 })
 const estimatedFiatAmount = computed(() => cryptoAmount.value * exchangeRate.value)
 const fiatCurrencyLabel = 'CNY'
-const estimatedFiatAmountLabel = computed(() => estimatedFiatAmount.value > 0 ? estimatedFiatAmount.value.toFixed(8).replace(/0+$/, '').replace(/\.$/, '') : '0')
+const estimatedFiatAmountLabel = computed(() => estimatedFiatAmount.value > 0 ? estimatedFiatAmount.value.toFixed(2) : '0.00')
 const exchangeRateLabel = computed(() => exchangeRate.value > 0 ? exchangeRate.value.toFixed(4).replace(/0+$/, '').replace(/\.$/, '') : '-')
 const canSubmit = computed(() => (props.config.checkout_mode === 'cashier' || !!selectedNetwork.value) && cryptoAmount.value > 0 && exchangeRate.value > 0)
 const statusLabel = computed(() => t(`payment.status.${String(order.value?.status || 'pending').toLowerCase()}`))
-const statusClass = computed(() => order.value?.status === 'COMPLETED' ? 'rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200' : 'rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200')
+const statusClass = computed(() => {
+  if (order.value?.status === 'COMPLETED') return 'rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200'
+  if (isTerminalStatus(order.value?.status)) return 'rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-800 dark:bg-rose-900/50 dark:text-rose-200'
+  return 'rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+})
+const countdownDisplay = computed(() => {
+  const minutes = Math.floor(remainingSeconds.value / 60)
+  const seconds = remainingSeconds.value % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+})
+
+function networkDisplayName(network: { network?: string; network_name?: string }): string {
+  return network.network_name || network.network?.toUpperCase() || '-'
+}
+
+function networkStandardLabel(tradeType?: string, network?: string): string {
+  const normalized = tradeType?.trim().toLowerCase()
+  if (normalized === 'usdt.bep20' || normalized === 'bep20') return 'BEP-20'
+  if (normalized === 'usdt.trc20' || normalized === 'trc20') return 'TRC-20'
+  if (normalized === 'usdt.erc20' || normalized === 'erc20') return 'ERC-20'
+  return tradeType?.trim() || network?.toUpperCase() || '-'
+}
 
 function isTerminalStatus(status: string | undefined): boolean {
   return status === 'COMPLETED'
@@ -175,10 +245,12 @@ async function submit() {
   submitting.value = true
   error.value = ''
   try {
-    const response = await paymentAPI.createUSDTOrder({ amount: cryptoAmount.value, amount_unit: 'USDT', network: selectedNetwork.value, order_type: 'balance', return_url: window.location.href, payment_source: 'usdt-module' })
+    const exactAmount = cryptoAmount.value.toFixed(8).replace(/0+$/, '').replace(/\.$/, '')
+    const request = { amount: exactAmount, amount_unit: 'USDT' as const, network: selectedNetwork.value, order_type: 'balance', return_url: window.location.href, payment_source: 'usdt-module' }
+    const response = await paymentAPI.createUSDTOrder(request, createRequestKey(JSON.stringify(request)))
     order.value = response.data
+    clearCreateRequestKey()
     persistRecoverySnapshot(order.value)
-    // Cashier mode is rendered inline; fixed mode keeps the explicit external checkout link.
     startPolling()
   } catch (err: unknown) {
     error.value = err instanceof Error ? err.message : t('payment.usdt.createFailed')
@@ -193,15 +265,50 @@ function startPolling() {
     if (!order.value) return stopPolling()
     if (isTerminalStatus(order.value.status)) {
       clearRecoverySnapshot()
+      stopCountdown()
       return stopPolling()
     }
     try {
       const response = await paymentAPI.getUSDTOrder(order.value.order_id)
       order.value = response.data
-      if (isTerminalStatus(order.value.status)) clearRecoverySnapshot()
+      if (isTerminalStatus(order.value.status)) {
+        clearRecoverySnapshot()
+        stopCountdown()
+      }
       else persistRecoverySnapshot(order.value)
     } catch { /* durable server reconciliation continues after browser errors */ }
   }, 2000)
+}
+
+function startCountdown() {
+  stopCountdown()
+  const expiresAt = order.value ? new Date(order.value.expires_at).getTime() : 0
+  if (!Number.isFinite(expiresAt) || expiresAt <= 0) {
+    remainingSeconds.value = 0
+    return
+  }
+  const update = () => {
+    remainingSeconds.value = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000))
+    if (remainingSeconds.value === 0) stopCountdown()
+  }
+  update()
+  if (remainingSeconds.value > 0) countdownTimer = window.setInterval(update, 1000)
+}
+
+function stopCountdown() {
+  if (countdownTimer !== undefined) window.clearInterval(countdownTimer)
+  countdownTimer = undefined
+}
+
+async function renderAddressQR() {
+  if (!order.value?.receiving_address || !addressQRCanvas.value) return
+  try {
+    await QRCode.toCanvas(addressQRCanvas.value, order.value.receiving_address, {
+      width: 160,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+    })
+  } catch { /* the copyable address remains available if canvas rendering fails */ }
 }
 
 function stopPolling() {
@@ -211,9 +318,11 @@ function stopPolling() {
 
 function reset() {
   stopPolling()
+  stopCountdown()
   order.value = null
   error.value = ''
   clearRecoverySnapshot()
+	clearCreateRequestKey()
 }
 
 async function restoreOrder() {
@@ -228,7 +337,10 @@ async function restoreOrder() {
       return
     }
     order.value = restored
-    if (isTerminalStatus(restored.status)) clearRecoverySnapshot()
+    if (isTerminalStatus(restored.status)) {
+      clearRecoverySnapshot()
+      stopCountdown()
+    }
     else {
       persistRecoverySnapshot(restored)
       startPolling()
@@ -249,6 +361,15 @@ async function copy(value: string) {
 watch(readyNetworks, networks => {
   if (!networks.some(network => network.network === selectedNetwork.value)) selectedNetwork.value = networks[0]?.network || ''
 }, { immediate: true })
+watch(() => order.value?.receiving_address, async address => {
+  if (!address) return
+  startCountdown()
+  await nextTick()
+  await renderAddressQR()
+})
 onMounted(() => { void restoreOrder() })
-onBeforeUnmount(stopPolling)
+onBeforeUnmount(() => {
+  stopPolling()
+  stopCountdown()
+})
 </script>

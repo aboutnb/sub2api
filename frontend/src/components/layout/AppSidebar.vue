@@ -199,7 +199,6 @@ import { resolveBrandLogo } from '@/utils/branding'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
-import { paymentAPI } from '@/api/payment'
 
 interface NavItem {
   path: string
@@ -252,7 +251,6 @@ const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const mobileOpen = computed(() => appStore.mobileOpen)
 const isAdmin = computed(() => authStore.isAdmin)
 const sidebarNavRef = ref<HTMLElement | null>(null)
-const usdtEnabled = ref(false)
 
 const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboard'))
 
@@ -709,7 +707,6 @@ const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 const flagBatchImageAccess = () => canUseBatchImage.value
-const flagUSDT = () => usdtEnabled.value
 
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
 // withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
@@ -729,7 +726,6 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/monitor', label: t('nav.channelStatus'), icon: SignalIcon, featureFlag: flagChannelMonitor },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagUserSubscriptions },
     { path: '/purchase', label: t('nav.buySubscription'), icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
-    { path: '/usdt-recharge', label: t('nav.usdtRecharge'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagUSDT },
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/checkin', label: t('nav.checkin'), icon: CheckinCenterIcon, hideInSimpleMode: true, featureFlag: flagCheckin },
@@ -948,9 +944,6 @@ watch(
 
 onMounted(() => {
   void refreshBatchImageAccess()
-  void paymentAPI.getUSDTConfig()
-    .then(response => { usdtEnabled.value = response.data.enabled === true })
-    .catch(() => { usdtEnabled.value = false })
   if (isAdmin.value) {
     adminSettingsStore.fetch()
   }

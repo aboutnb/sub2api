@@ -280,6 +280,7 @@ type SystemSettings struct {
 	PaymentSubscriptionFeeEnabled    bool     `json:"payment_subscription_fee_enabled"`
 	PaymentRechargeFeeRate           float64  `json:"payment_recharge_fee_rate"`
 	PaymentRechargeFeeCredited       bool     `json:"payment_recharge_fee_credited"`
+	USDTPaymentBonusPercent          float64  `json:"usdt_payment_bonus_percent"`
 	PaymentLoadBalanceStrat          string   `json:"payment_load_balance_strategy"`
 	PaymentProductNamePrefix         string   `json:"payment_product_name_prefix"`
 	PaymentProductNameSuffix         string   `json:"payment_product_name_suffix"`
@@ -305,6 +306,22 @@ type SystemSettings struct {
 	InvoiceClientSecretConfigured bool   `json:"invoice_client_secret_configured"`
 	InvoiceTimeoutSeconds         int    `json:"invoice_timeout_seconds"`
 	InvoiceFeePayer               string `json:"invoice_fee_payer"`
+
+	// BEpusdt USDT payment integration. The API secret is never returned.
+	USDTPaymentEnabled                  bool     `json:"usdt_payment_enabled"`
+	USDTPaymentAPIBase                  string   `json:"usdt_payment_api_base"`
+	USDTPaymentPublicBaseURL            string   `json:"usdt_payment_public_base_url"`
+	USDTPaymentPublicCallbackBaseURL    string   `json:"usdt_payment_public_callback_base_url"`
+	USDTPaymentKeyID                    string   `json:"usdt_payment_key_id"`
+	USDTPaymentAPISecretConfigured      bool     `json:"usdt_payment_api_secret_configured"`
+	USDTPaymentFiat                     string   `json:"usdt_payment_fiat"`
+	USDTPaymentEnabledNetworks          []string `json:"usdt_payment_enabled_networks"`
+	USDTPaymentOrderTimeoutSeconds      int      `json:"usdt_payment_order_timeout_seconds"`
+	USDTPaymentLatePaymentWindowMinutes int      `json:"usdt_payment_late_payment_window_minutes"`
+	USDTPaymentRequestTimeoutSeconds    int      `json:"usdt_payment_request_timeout_seconds"`
+	USDTPaymentReconcileIntervalSeconds int      `json:"usdt_payment_reconcile_interval_seconds"`
+	USDTPaymentReconcileBatchSize       int      `json:"usdt_payment_reconcile_batch_size"`
+	USDTPaymentWebhookClockSkewSeconds  int      `json:"usdt_payment_webhook_clock_skew_seconds"`
 
 	// 余额、订阅到期与账号限额通知
 	BalanceLowNotifyEnabled         bool               `json:"balance_low_notify_enabled"`

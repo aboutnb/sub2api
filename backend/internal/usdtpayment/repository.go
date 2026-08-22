@@ -50,7 +50,7 @@ func (r *Repository) SaveQuote(ctx context.Context, q *Quote) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	_, err = tx.ExecContext(ctx, `
+	result, err := tx.ExecContext(ctx, `
 INSERT INTO usdt_payment_quotes (
     payment_order_id, merchant_order_id, provider_trade_id, fiat_currency, fiat_amount,
     crypto_currency, network, trade_type, crypto_amount, exchange_rate, receiving_address,
@@ -63,23 +63,70 @@ ON CONFLICT (payment_order_id) DO NOTHING`,
 	if err != nil {
 		return fmt.Errorf("insert USDT quote: %w", err)
 	}
-	_, err = tx.ExecContext(ctx, `
+	effective := q
+	if rows, rowsErr := result.RowsAffected(); rowsErr != nil {
+		return fmt.Errorf("inspect USDT quote insert: %w", rowsErr)
+	} else if rows == 0 {
+		effective, err = scanQuote(tx.QueryRowContext(ctx, `SELECT `+quoteColumns+` FROM usdt_payment_quotes WHERE payment_order_id=$1 FOR UPDATE`, q.PaymentOrderID))
+		if err != nil {
+			return fmt.Errorf("load existing USDT quote: %w", err)
+		}
+		if conflict := frozenQuoteConflict(effective, q); conflict != "" {
+			return fmt.Errorf("existing USDT quote conflicts with the new frozen quote: %s", conflict)
+		}
+	}
+	result, err = tx.ExecContext(ctx, `
 UPDATE payment_orders
 SET pay_url=$1, expires_at=$2, payment_type=$3, provider_key=$4,
     provider_snapshot=$5::jsonb, updated_at=NOW()
 WHERE id=$6 AND out_trade_no=$7 AND status='PENDING'`,
-		q.PaymentURL, q.UpstreamExpiresAt, PaymentType, ProviderKey,
-		func() string {
-			if q.TradeType == "pending" {
-				return `{"schema_version":1,"provider_key":"bepusdt","payment_mode":"cashier","currency":"CNY"}`
-			}
-			return `{"schema_version":1,"provider_key":"bepusdt","payment_mode":"redirect","currency":"CNY"}`
-		}(),
-		q.PaymentOrderID, q.MerchantOrderID)
+		"", effective.UpstreamExpiresAt, PaymentType, ProviderKey,
+		`{"schema_version":1,"provider_key":"bepusdt","payment_mode":"inline","currency":"CNY"}`,
+		effective.PaymentOrderID, effective.MerchantOrderID)
 	if err != nil {
 		return fmt.Errorf("attach USDT quote to payment order: %w", err)
 	}
+	if rows, rowsErr := result.RowsAffected(); rowsErr != nil {
+		return fmt.Errorf("inspect USDT order attachment: %w", rowsErr)
+	} else if rows != 1 {
+		return errors.New("USDT payment order is no longer pending or does not match the frozen quote")
+	}
 	return tx.Commit()
+}
+
+func sameFrozenQuote(left, right *Quote) bool {
+	return frozenQuoteConflict(left, right) == ""
+}
+
+func frozenQuoteConflict(left, right *Quote) string {
+	if left == nil || right == nil {
+		return "quote is nil"
+	}
+	checks := []struct {
+		field string
+		match bool
+	}{
+		{"payment_order_id", left.PaymentOrderID == right.PaymentOrderID},
+		{"merchant_order_id", left.MerchantOrderID == right.MerchantOrderID},
+		{"provider_trade_id", left.ProviderTradeID == right.ProviderTradeID},
+		{"fiat_currency", left.FiatCurrency == right.FiatCurrency},
+		{"fiat_amount", equalDecimal(left.FiatAmount, right.FiatAmount)},
+		{"crypto_currency", left.CryptoCurrency == right.CryptoCurrency},
+		{"network", left.Network == right.Network},
+		{"trade_type", left.TradeType == right.TradeType},
+		{"crypto_amount", equalDecimal(left.CryptoAmount, right.CryptoAmount)},
+		{"exchange_rate", equalDecimal(left.ExchangeRate, right.ExchangeRate)},
+		{"receiving_address", left.ReceivingAddress == right.ReceivingAddress},
+		{"payment_url", left.PaymentURL == right.PaymentURL},
+		{"upstream_created_at", left.UpstreamCreatedAt.Equal(right.UpstreamCreatedAt)},
+		{"upstream_expires_at", left.UpstreamExpiresAt.Equal(right.UpstreamExpiresAt)},
+	}
+	for _, check := range checks {
+		if !check.match {
+			return check.field
+		}
+	}
+	return ""
 }
 
 func (r *Repository) GetQuoteForUser(ctx context.Context, paymentOrderID, userID int64) (*Quote, string, float64, float64, float64, error) {
@@ -307,7 +354,15 @@ func (r *Repository) CompleteWebhookEvent(ctx context.Context, id int64, process
 		_, err := r.db.ExecContext(ctx, `UPDATE usdt_webhook_events SET status='processed',processed_at=NOW(),last_error=NULL,updated_at=NOW() WHERE id=$1`, id)
 		return err
 	}
-	_, err := r.db.ExecContext(ctx, `UPDATE usdt_webhook_events SET status='failed',last_error=$1,next_attempt_at=NOW()+INTERVAL '2 seconds',updated_at=NOW() WHERE id=$2`, processErr.Error(), id)
+	_, err := r.db.ExecContext(ctx, `UPDATE usdt_webhook_events SET status='failed',last_error=$1,
+next_attempt_at=NOW()+CASE
+  WHEN attempts <= 1 THEN INTERVAL '1 second'
+  WHEN attempts = 2 THEN INTERVAL '2 seconds'
+  WHEN attempts = 3 THEN INTERVAL '5 seconds'
+  WHEN attempts = 4 THEN INTERVAL '10 seconds'
+  WHEN attempts = 5 THEN INTERVAL '20 seconds'
+  ELSE INTERVAL '30 seconds'
+END,updated_at=NOW() WHERE id=$2`, processErr.Error(), id)
 	return err
 }
 
@@ -316,7 +371,15 @@ func (r *Repository) MarkWebhookEventByEventID(ctx context.Context, eventID stri
 		_, err := r.db.ExecContext(ctx, `UPDATE usdt_webhook_events SET status='processed',processed_at=NOW(),last_error=NULL,updated_at=NOW() WHERE event_id=$1`, eventID)
 		return err
 	}
-	_, err := r.db.ExecContext(ctx, `UPDATE usdt_webhook_events SET status='failed',attempts=attempts+1,last_error=$1,next_attempt_at=NOW()+INTERVAL '2 seconds',updated_at=NOW() WHERE event_id=$2`, processErr.Error(), eventID)
+	_, err := r.db.ExecContext(ctx, `UPDATE usdt_webhook_events SET status='failed',attempts=attempts+1,last_error=$1,
+next_attempt_at=NOW()+CASE
+  WHEN attempts = 0 THEN INTERVAL '1 second'
+  WHEN attempts = 1 THEN INTERVAL '2 seconds'
+  WHEN attempts = 2 THEN INTERVAL '5 seconds'
+  WHEN attempts = 3 THEN INTERVAL '10 seconds'
+  WHEN attempts = 4 THEN INTERVAL '20 seconds'
+  ELSE INTERVAL '30 seconds'
+END,updated_at=NOW() WHERE event_id=$2`, processErr.Error(), eventID)
 	return err
 }
 

@@ -3,6 +3,8 @@ package usdtpayment
 import (
 	"context"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/config"
 )
 
 const (
@@ -68,18 +70,29 @@ type PaymentBridge interface {
 	FailUSDTOrderBeforeQuote(context.Context, int64, error) error
 }
 
+// ConfigResolver supplies the latest admin-managed configuration. It is kept
+// in this package as a small interface so the payment package does not depend
+// on the service package.
+type ConfigResolver interface {
+	EffectiveConfig(context.Context) (config.USDTPaymentConfig, error)
+}
+
 type Capability struct {
-	Crypto          string `json:"crypto"`
-	Network         string `json:"network"`
-	NetworkName     string `json:"network_name"`
-	TradeType       string `json:"trade_type"`
-	WalletCount     int    `json:"wallet_count"`
-	RPCEndpointSet  bool   `json:"rpc_endpoint_set"`
-	ScannerBlock    string `json:"scanner_block"`
-	ScannerSuccess  string `json:"scanner_success"`
-	LastScanAt      int64  `json:"last_scan_at"`
-	AcceptingOrders bool   `json:"accepting_orders"`
-	Reason          string `json:"reason,omitempty"`
+	Crypto           string `json:"crypto"`
+	Network          string `json:"network"`
+	NetworkName      string `json:"network_name"`
+	TradeType        string `json:"trade_type"`
+	WalletCount      int    `json:"wallet_count"`
+	RPCEndpointSet   bool   `json:"rpc_endpoint_set"`
+	RPCEndpointCount int    `json:"rpc_endpoint_count"`
+	ScannerBlock     string `json:"scanner_block"`
+	ScannerSuccess   string `json:"scanner_success"`
+	LastScanAt       int64  `json:"last_scan_at"`
+	ChainHead        int64  `json:"chain_head"`
+	ScannerLag       int64  `json:"scanner_lag"`
+	QueueDepth       int    `json:"queue_depth"`
+	AcceptingOrders  bool   `json:"accepting_orders"`
+	Reason           string `json:"reason,omitempty"`
 }
 
 // RateQuote is the provider's current fiat value for one unit of USDT.
@@ -165,13 +178,13 @@ type WebhookPayload struct {
 }
 
 type CreateRequest struct {
-	Amount        float64 `json:"amount"` // USDT amount entered by the user
-	AmountUnit    string  `json:"amount_unit"`
-	Network       string  `json:"network" binding:"required"`
-	OrderType     string  `json:"order_type"`
-	PlanID        int64   `json:"plan_id"`
-	ReturnURL     string  `json:"return_url"`
-	PaymentSource string  `json:"payment_source"`
+	Amount        string `json:"amount"` // Exact USDT decimal entered by the user
+	AmountUnit    string `json:"amount_unit"`
+	Network       string `json:"network" binding:"required"`
+	OrderType     string `json:"order_type"`
+	PlanID        int64  `json:"plan_id"`
+	ReturnURL     string `json:"return_url"`
+	PaymentSource string `json:"payment_source"`
 }
 
 type CheckoutOrder struct {
@@ -191,7 +204,7 @@ type CheckoutOrder struct {
 	TradeType        string     `json:"trade_type"`
 	ReceivingAddress string     `json:"receiving_address"`
 	ExchangeRate     string     `json:"exchange_rate"`
-	PaymentURL       string     `json:"payment_url"`
+	PaymentURL       string     `json:"-"`
 	ExpiresAt        time.Time  `json:"expires_at"`
 	TransactionHash  *string    `json:"transaction_hash,omitempty"`
 	ChainTransferAt  *time.Time `json:"chain_transfer_at,omitempty"`

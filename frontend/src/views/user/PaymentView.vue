@@ -604,7 +604,7 @@ const checkout = ref<CheckoutInfoResponse>({
   plans: [], balance_disabled: false, balance_recharge_multiplier: 1, subscription_usd_to_cny_rate: 0, subscription_fee_enabled: true, recharge_fee_rate: 0, recharge_fee_credited: false, help_text: '', help_image_url: '', stripe_publishable_key: '',
 })
 
-const isUSDTEntry = computed(() => route.path === '/usdt-recharge' || route.name === 'USDTRecharge' || route.query.tab === 'usdt')
+const isUSDTEntry = computed(() => route.query.tab === 'usdt')
 
 const tabs = computed(() => {
   const result: { key: 'recharge' | 'subscription' | 'usdt'; label: string }[] = []

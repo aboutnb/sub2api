@@ -667,6 +667,7 @@ export interface SystemSettings {
   payment_subscription_fee_enabled: boolean;
   payment_recharge_fee_rate: number;
   payment_recharge_fee_credited: boolean;
+  usdt_payment_bonus_percent: number;
   payment_load_balance_strategy: string;
   payment_product_name_prefix: string;
   payment_product_name_suffix: string;
@@ -679,6 +680,22 @@ export interface SystemSettings {
   payment_cancel_rate_limit_window_mode: string;
   payment_alipay_force_qrcode?: boolean;
   payment_alipay_mobile_precreate_deep_link?: boolean;
+
+  // BEpusdt USDT payment integration
+  usdt_payment_enabled: boolean;
+  usdt_payment_api_base: string;
+  usdt_payment_public_base_url: string;
+  usdt_payment_public_callback_base_url: string;
+  usdt_payment_key_id: string;
+  usdt_payment_api_secret_configured: boolean;
+  usdt_payment_fiat: string;
+  usdt_payment_enabled_networks: string[];
+  usdt_payment_order_timeout_seconds: number;
+  usdt_payment_late_payment_window_minutes: number;
+  usdt_payment_request_timeout_seconds: number;
+  usdt_payment_reconcile_interval_seconds: number;
+  usdt_payment_reconcile_batch_size: number;
+  usdt_payment_webhook_clock_skew_seconds: number;
 
   // XZNOAuth self-service invoice integration
   invoice_enabled: boolean;
@@ -995,6 +1012,7 @@ export interface UpdateSettingsRequest {
   payment_subscription_fee_enabled?: boolean;
   payment_recharge_fee_rate?: number;
   payment_recharge_fee_credited?: boolean;
+  usdt_payment_bonus_percent?: number;
   payment_load_balance_strategy?: string;
   payment_product_name_prefix?: string;
   payment_product_name_suffix?: string;
@@ -1007,6 +1025,20 @@ export interface UpdateSettingsRequest {
   payment_cancel_rate_limit_window_mode?: string;
   payment_alipay_force_qrcode?: boolean;
   payment_alipay_mobile_precreate_deep_link?: boolean;
+  usdt_payment_enabled?: boolean;
+  usdt_payment_api_base?: string;
+  usdt_payment_public_base_url?: string;
+  usdt_payment_public_callback_base_url?: string;
+  usdt_payment_key_id?: string;
+  usdt_payment_api_secret?: string;
+  usdt_payment_fiat?: string;
+  usdt_payment_enabled_networks?: string[];
+  usdt_payment_order_timeout_seconds?: number;
+  usdt_payment_late_payment_window_minutes?: number;
+  usdt_payment_request_timeout_seconds?: number;
+  usdt_payment_reconcile_interval_seconds?: number;
+  usdt_payment_reconcile_batch_size?: number;
+  usdt_payment_webhook_clock_skew_seconds?: number;
   invoice_enabled?: boolean;
   invoice_base_url?: string;
   invoice_client_id?: string;
@@ -1088,6 +1120,50 @@ export async function updateSettings(
   const { data } = await apiClient.put<SystemSettings>(
     "/admin/settings",
     settings,
+  );
+  return data;
+}
+
+export interface TestUSDTPaymentRequest {
+  api_base: string;
+  public_base_url: string;
+  public_callback_base_url: string;
+  key_id: string;
+  api_secret: string;
+  fiat: string;
+  enabled_networks: string[];
+  order_timeout_seconds: number;
+  late_payment_window_minutes: number;
+  request_timeout_seconds: number;
+  reconcile_interval_seconds: number;
+  reconcile_batch_size: number;
+  webhook_clock_skew_seconds: number;
+}
+
+export interface TestUSDTPaymentResult {
+  ready: boolean;
+  rate: string;
+  rate_updated_at: number;
+  networks: Array<{
+    network: string;
+    network_name: string;
+    trade_type: string;
+    accepting_orders: boolean;
+    reason?: string;
+    scanner_success?: string;
+    last_scan_at?: number;
+    chain_head?: number;
+    scanner_lag?: number;
+    queue_depth?: number;
+  }>;
+}
+
+export async function testUSDTPaymentConnection(
+  request: TestUSDTPaymentRequest,
+): Promise<TestUSDTPaymentResult> {
+  const { data } = await apiClient.post<TestUSDTPaymentResult>(
+    "/admin/settings/test-usdt",
+    request,
   );
   return data;
 }
@@ -1585,6 +1661,7 @@ export async function resetWebSearchUsage(payload: {
 export const settingsAPI = {
   getSettings,
   updateSettings,
+  testUSDTPaymentConnection,
   testSmtpConnection,
   sendTestEmail,
   getEmailTemplates,

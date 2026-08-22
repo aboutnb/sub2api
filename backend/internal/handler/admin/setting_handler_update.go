@@ -315,6 +315,7 @@ type UpdateSettingsRequest struct {
 	PaymentSubscriptionFeeEnabled    *bool    `json:"payment_subscription_fee_enabled"`
 	PaymentRechargeFeeRate           *float64 `json:"payment_recharge_fee_rate"`
 	PaymentRechargeFeeCredited       *bool    `json:"payment_recharge_fee_credited"`
+	USDTPaymentBonusPercent          *float64 `json:"usdt_payment_bonus_percent"`
 	PaymentLoadBalanceStrat          *string  `json:"payment_load_balance_strategy"`
 	PaymentProductNamePrefix         *string  `json:"payment_product_name_prefix"`
 	PaymentProductNameSuffix         *string  `json:"payment_product_name_suffix"`
@@ -340,6 +341,22 @@ type UpdateSettingsRequest struct {
 	InvoiceClientSecret   *string `json:"invoice_client_secret"`
 	InvoiceTimeoutSeconds *int    `json:"invoice_timeout_seconds"`
 	InvoiceFeePayer       *string `json:"invoice_fee_payer"`
+
+	// BEpusdt USDT payment integration. An empty secret preserves the stored value.
+	USDTPaymentEnabled                  *bool     `json:"usdt_payment_enabled"`
+	USDTPaymentAPIBase                  *string   `json:"usdt_payment_api_base"`
+	USDTPaymentPublicBaseURL            *string   `json:"usdt_payment_public_base_url"`
+	USDTPaymentPublicCallbackBaseURL    *string   `json:"usdt_payment_public_callback_base_url"`
+	USDTPaymentKeyID                    *string   `json:"usdt_payment_key_id"`
+	USDTPaymentAPISecret                *string   `json:"usdt_payment_api_secret"`
+	USDTPaymentFiat                     *string   `json:"usdt_payment_fiat"`
+	USDTPaymentEnabledNetworks          *[]string `json:"usdt_payment_enabled_networks"`
+	USDTPaymentOrderTimeoutSeconds      *int      `json:"usdt_payment_order_timeout_seconds"`
+	USDTPaymentLatePaymentWindowMinutes *int      `json:"usdt_payment_late_payment_window_minutes"`
+	USDTPaymentRequestTimeoutSeconds    *int      `json:"usdt_payment_request_timeout_seconds"`
+	USDTPaymentReconcileIntervalSeconds *int      `json:"usdt_payment_reconcile_interval_seconds"`
+	USDTPaymentReconcileBatchSize       *int      `json:"usdt_payment_reconcile_batch_size"`
+	USDTPaymentWebhookClockSkewSeconds  *int      `json:"usdt_payment_webhook_clock_skew_seconds"`
 
 	// Channel Monitor feature switch
 	ChannelMonitorEnabled                *bool   `json:"channel_monitor_enabled"`
@@ -2060,6 +2077,19 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		},
 		ForceEmailOnThirdPartySignup: boolValueOrDefault(req.ForceEmailOnThirdPartySignup, previousAuthSourceDefaults.ForceEmailOnThirdPartySignup),
 	}
+	var proposedUSDTPaymentSettings *service.USDTPaymentAdminSettings
+	if h.usdtPaymentSettingsService != nil && hasUSDTPaymentFields(req) {
+		proposedUSDTPaymentSettings, err = h.usdtPaymentSettingsService.GetAdminSettings(c.Request.Context())
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		mergeUSDTPaymentSettingsRequest(proposedUSDTPaymentSettings, req)
+		if err := h.usdtPaymentSettingsService.ValidateUpdate(c.Request.Context(), *proposedUSDTPaymentSettings); err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	}
 	if err := h.settingService.UpdateSettingsWithAuthSourceDefaultsOmitting(c.Request.Context(), settings, authSourceDefaults, omitted); err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -2093,6 +2123,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			SubscriptionFeeEnabled:        req.PaymentSubscriptionFeeEnabled,
 			RechargeFeeRate:               req.PaymentRechargeFeeRate,
 			RechargeFeeCredited:           req.PaymentRechargeFeeCredited,
+			USDTPaymentBonusPercent:       req.USDTPaymentBonusPercent,
 			LoadBalanceStrategy:           req.PaymentLoadBalanceStrat,
 			ProductNamePrefix:             req.PaymentProductNamePrefix,
 			ProductNameSuffix:             req.PaymentProductNameSuffix,
@@ -2146,6 +2177,13 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	if proposedUSDTPaymentSettings != nil {
+		if _, err := h.usdtPaymentSettingsService.Update(c.Request.Context(), *proposedUSDTPaymentSettings); err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	}
+
 	h.auditSettingsUpdate(c, previousSettings, settings, previousAuthSourceDefaults, authSourceDefaults, auditReq)
 
 	// 重新获取设置返回
@@ -2182,6 +2220,14 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 	if h.invoiceSettingsService != nil {
 		updatedInvoiceSettings, err = h.invoiceSettingsService.GetAdminSettings(c.Request.Context())
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	}
+	updatedUSDTPaymentSettings := &service.USDTPaymentAdminSettings{}
+	if h.usdtPaymentSettingsService != nil {
+		updatedUSDTPaymentSettings, err = h.usdtPaymentSettingsService.GetAdminSettings(c.Request.Context())
 		if err != nil {
 			response.ErrorFrom(c, err)
 			return
@@ -2416,6 +2462,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PaymentSubscriptionFeeEnabled:                          updatedPaymentCfg.SubscriptionFeeEnabled,
 		PaymentRechargeFeeRate:                                 updatedPaymentCfg.RechargeFeeRate,
 		PaymentRechargeFeeCredited:                             updatedPaymentCfg.RechargeFeeCredited,
+		USDTPaymentBonusPercent:                                updatedPaymentCfg.USDTPaymentBonusPercent,
 		PaymentLoadBalanceStrat:                                updatedPaymentCfg.LoadBalanceStrategy,
 		PaymentProductNamePrefix:                               updatedPaymentCfg.ProductNamePrefix,
 		PaymentProductNameSuffix:                               updatedPaymentCfg.ProductNameSuffix,
@@ -2434,6 +2481,20 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		InvoiceClientSecretConfigured:                          updatedInvoiceSettings.ClientSecretConfigured,
 		InvoiceTimeoutSeconds:                                  updatedInvoiceSettings.TimeoutSeconds,
 		InvoiceFeePayer:                                        updatedInvoiceSettings.FeePayer,
+		USDTPaymentEnabled:                                     updatedUSDTPaymentSettings.Enabled,
+		USDTPaymentAPIBase:                                     updatedUSDTPaymentSettings.APIBase,
+		USDTPaymentPublicBaseURL:                               updatedUSDTPaymentSettings.PublicBaseURL,
+		USDTPaymentPublicCallbackBaseURL:                       updatedUSDTPaymentSettings.PublicCallbackBaseURL,
+		USDTPaymentKeyID:                                       updatedUSDTPaymentSettings.KeyID,
+		USDTPaymentAPISecretConfigured:                         updatedUSDTPaymentSettings.APISecretConfigured,
+		USDTPaymentFiat:                                        updatedUSDTPaymentSettings.Fiat,
+		USDTPaymentEnabledNetworks:                             updatedUSDTPaymentSettings.EnabledNetworks,
+		USDTPaymentOrderTimeoutSeconds:                         updatedUSDTPaymentSettings.OrderTimeoutSeconds,
+		USDTPaymentLatePaymentWindowMinutes:                    updatedUSDTPaymentSettings.LatePaymentWindowMinutes,
+		USDTPaymentRequestTimeoutSeconds:                       updatedUSDTPaymentSettings.RequestTimeoutSeconds,
+		USDTPaymentReconcileIntervalSeconds:                    updatedUSDTPaymentSettings.ReconcileIntervalSeconds,
+		USDTPaymentReconcileBatchSize:                          updatedUSDTPaymentSettings.ReconcileBatchSize,
+		USDTPaymentWebhookClockSkewSeconds:                     updatedUSDTPaymentSettings.WebhookClockSkewSeconds,
 
 		ChannelMonitorEnabled:                updatedSettings.ChannelMonitorEnabled,
 		ChannelMonitorMode:                   updatedSettings.ChannelMonitorMode,
@@ -2494,7 +2555,7 @@ func hasPaymentFields(req UpdateSettingsRequest) bool {
 		req.PaymentOrderTimeoutMin != nil || req.PaymentMaxPendingOrders != nil ||
 		req.PaymentEnabledTypes != nil || req.PaymentBalanceDisabled != nil ||
 		req.PaymentBalanceRechargeMultiplier != nil || req.PaymentSubscriptionUSDToCNYRate != nil || req.PaymentSubscriptionFeeEnabled != nil ||
-		req.PaymentRechargeFeeRate != nil || req.PaymentRechargeFeeCredited != nil ||
+		req.PaymentRechargeFeeRate != nil || req.PaymentRechargeFeeCredited != nil || req.USDTPaymentBonusPercent != nil ||
 		req.PaymentLoadBalanceStrat != nil || req.PaymentProductNamePrefix != nil ||
 		req.PaymentProductNameSuffix != nil || req.PaymentHelpImageURL != nil ||
 		req.PaymentHelpText != nil || req.PaymentCancelRateLimitEnabled != nil ||
@@ -2507,6 +2568,64 @@ func hasInvoiceFields(req UpdateSettingsRequest) bool {
 	return req.InvoiceEnabled != nil || req.InvoiceBaseURL != nil ||
 		req.InvoiceClientID != nil || req.InvoiceClientSecret != nil ||
 		req.InvoiceTimeoutSeconds != nil || req.InvoiceFeePayer != nil
+}
+
+func hasUSDTPaymentFields(req UpdateSettingsRequest) bool {
+	return req.USDTPaymentEnabled != nil || req.USDTPaymentAPIBase != nil ||
+		req.USDTPaymentPublicBaseURL != nil || req.USDTPaymentPublicCallbackBaseURL != nil ||
+		req.USDTPaymentKeyID != nil || req.USDTPaymentAPISecret != nil ||
+		req.USDTPaymentFiat != nil || req.USDTPaymentEnabledNetworks != nil ||
+		req.USDTPaymentOrderTimeoutSeconds != nil || req.USDTPaymentLatePaymentWindowMinutes != nil ||
+		req.USDTPaymentRequestTimeoutSeconds != nil || req.USDTPaymentReconcileIntervalSeconds != nil ||
+		req.USDTPaymentReconcileBatchSize != nil || req.USDTPaymentWebhookClockSkewSeconds != nil
+}
+
+func mergeUSDTPaymentSettingsRequest(settings *service.USDTPaymentAdminSettings, req UpdateSettingsRequest) {
+	if settings == nil {
+		return
+	}
+	if req.USDTPaymentEnabled != nil {
+		settings.Enabled = *req.USDTPaymentEnabled
+	}
+	if req.USDTPaymentAPIBase != nil {
+		settings.APIBase = *req.USDTPaymentAPIBase
+	}
+	if req.USDTPaymentPublicBaseURL != nil {
+		settings.PublicBaseURL = *req.USDTPaymentPublicBaseURL
+	}
+	if req.USDTPaymentPublicCallbackBaseURL != nil {
+		settings.PublicCallbackBaseURL = *req.USDTPaymentPublicCallbackBaseURL
+	}
+	if req.USDTPaymentKeyID != nil {
+		settings.KeyID = *req.USDTPaymentKeyID
+	}
+	if req.USDTPaymentAPISecret != nil {
+		settings.APISecret = *req.USDTPaymentAPISecret
+	}
+	if req.USDTPaymentFiat != nil {
+		settings.Fiat = *req.USDTPaymentFiat
+	}
+	if req.USDTPaymentEnabledNetworks != nil {
+		settings.EnabledNetworks = *req.USDTPaymentEnabledNetworks
+	}
+	if req.USDTPaymentOrderTimeoutSeconds != nil {
+		settings.OrderTimeoutSeconds = *req.USDTPaymentOrderTimeoutSeconds
+	}
+	if req.USDTPaymentLatePaymentWindowMinutes != nil {
+		settings.LatePaymentWindowMinutes = *req.USDTPaymentLatePaymentWindowMinutes
+	}
+	if req.USDTPaymentRequestTimeoutSeconds != nil {
+		settings.RequestTimeoutSeconds = *req.USDTPaymentRequestTimeoutSeconds
+	}
+	if req.USDTPaymentReconcileIntervalSeconds != nil {
+		settings.ReconcileIntervalSeconds = *req.USDTPaymentReconcileIntervalSeconds
+	}
+	if req.USDTPaymentReconcileBatchSize != nil {
+		settings.ReconcileBatchSize = *req.USDTPaymentReconcileBatchSize
+	}
+	if req.USDTPaymentWebhookClockSkewSeconds != nil {
+		settings.WebhookClockSkewSeconds = *req.USDTPaymentWebhookClockSkewSeconds
+	}
 }
 
 // ensureDingTalkSyncAttributes 在保存 settings 后，按 admin 配置的 (attr key, attr name)

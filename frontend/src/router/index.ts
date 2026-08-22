@@ -327,17 +327,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/usdt-recharge',
-    name: 'USDTRecharge',
-    component: () => import('@/views/user/PaymentView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'USDT Recharge',
-      titleKey: 'nav.usdtRecharge'
-    }
-  },
-  {
     path: '/orders',
     name: 'OrderList',
     component: () => import('@/views/user/UserOrdersView.vue'),
