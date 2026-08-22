@@ -71,6 +71,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeySiteLogo:                                  "",
 		SettingKeyPurchaseSubscriptionEnabled:               "false",
 		SettingKeyPurchaseSubscriptionURL:                   "",
+		SettingKeyUSDTPaymentCheckoutMode:                   "fixed",
 		SettingKeyTableDefaultPageSize:                      "20",
 		SettingKeyTablePageSizeOptions:                      "[10,20,50,100]",
 		SettingKeyCustomMenuItems:                           "[]",
@@ -264,6 +265,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 		SettingKeyAllowUserViewErrorRequests: "false",
 	}
+	if s != nil && s.cfg != nil {
+		defaults[SettingKeyUSDTPaymentCheckoutMode] = normalizeUSDTPaymentCheckoutMode(s.cfg.USDTPayment.CheckoutMode)
+	}
 
 	return s.settingRepo.SetMultiple(ctx, defaults)
 }
@@ -366,6 +370,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		HideCcsImportButton:                    settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:            settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:                strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
+		USDTPaymentCheckoutMode:                normalizeUSDTPaymentCheckoutMode(settings[SettingKeyUSDTPaymentCheckoutMode]),
 		CustomMenuItems:                        settings[SettingKeyCustomMenuItems],
 		CustomEndpoints:                        settings[SettingKeyCustomEndpoints],
 		BackendModeEnabled:                     settings[SettingKeyBackendModeEnabled] == "true",
@@ -984,6 +989,13 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	})
 
 	return result
+}
+
+func normalizeUSDTPaymentCheckoutMode(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), "cashier") {
+		return "cashier"
+	}
+	return "fixed"
 }
 
 func clampAffiliateRebateRate(value float64) float64 {

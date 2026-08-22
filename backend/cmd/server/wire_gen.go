@@ -334,6 +334,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	usdtpaymentClient := usdtpayment.NewClient(configConfig)
 	usdtpaymentRepository := usdtpayment.NewRepository(db)
 	usdtpaymentService := usdtpayment.NewService(configConfig, usdtpaymentClient, usdtpaymentRepository, paymentService)
+	usdtpaymentService.SetCheckoutModeProvider(settingService)
 	usdtPaymentHandler := handler.NewUSDTPaymentHandler(usdtpaymentService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)

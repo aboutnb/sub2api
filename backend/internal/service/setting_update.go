@@ -350,6 +350,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)
 	updates[SettingKeyPurchaseSubscriptionEnabled] = strconv.FormatBool(settings.PurchaseSubscriptionEnabled)
 	updates[SettingKeyPurchaseSubscriptionURL] = strings.TrimSpace(settings.PurchaseSubscriptionURL)
+	updates[SettingKeyUSDTPaymentCheckoutMode] = normalizeUSDTPaymentCheckoutMode(settings.USDTPaymentCheckoutMode)
 	tableDefaultPageSize, tablePageSizeOptions := normalizeTablePreferences(
 		settings.TableDefaultPageSize,
 		settings.TablePageSizeOptions,

@@ -29,7 +29,7 @@ func (h *USDTPaymentHandler) GetConfig(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	result := gin.H{"enabled": h.service.Enabled(), "networks": capabilities}
+	result := gin.H{"enabled": h.service.Enabled(), "networks": capabilities, "checkout_mode": h.service.CheckoutMode(c.Request.Context())}
 	if h.service.Enabled() {
 		if rate, rateErr := h.service.ExchangeRate(c.Request.Context()); rateErr == nil {
 			result["rate"] = rate.Rate
@@ -98,11 +98,33 @@ func (h *USDTPaymentHandler) Webhook(c *gin.Context) {
 	}
 	payload, err := h.service.VerifyWebhook(raw, headers, c.Request.URL.EscapedPath(), time.Now())
 	if err != nil {
+		// Native BEpusdt callbacks use the original JSON MD5 signature and do
+		// not send merchant HMAC headers. Keep the configured webhook URL shared
+		// by both checkout modes.
+		if headers["x-bepusdt-key-id"] == "" && headers["x-bepusdt-signature"] == "" {
+			if legacyErr := h.service.HandleLegacyWebhook(c.Request.Context(), raw); legacyErr == nil {
+				c.String(http.StatusOK, "success")
+				return
+			}
+		}
 		c.String(http.StatusUnauthorized, "verify failed")
 		return
 	}
 	if err := h.service.HandleWebhook(c.Request.Context(), *payload, raw); err != nil {
 		c.String(http.StatusInternalServerError, "handle failed")
+		return
+	}
+	c.String(http.StatusOK, "success")
+}
+
+func (h *USDTPaymentHandler) NativeWebhook(c *gin.Context) {
+	raw, err := io.ReadAll(io.LimitReader(c.Request.Body, maxUSDTWebhookBodySize+1))
+	if err != nil || len(raw) > maxUSDTWebhookBodySize {
+		c.String(http.StatusBadRequest, "invalid body")
+		return
+	}
+	if err := h.service.HandleLegacyWebhook(c.Request.Context(), raw); err != nil {
+		c.String(http.StatusBadRequest, "fail")
 		return
 	}
 	c.String(http.StatusOK, "success")

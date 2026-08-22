@@ -162,6 +162,7 @@ type SystemSettings struct {
 	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled bool             `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL     string           `json:"purchase_subscription_url"`
+	USDTPaymentCheckoutMode     string           `json:"usdt_payment_checkout_mode"`
 	TableDefaultPageSize        int              `json:"table_default_page_size"`
 	TablePageSizeOptions        []int            `json:"table_page_size_options"`
 	CustomMenuItems             []CustomMenuItem `json:"custom_menu_items"`

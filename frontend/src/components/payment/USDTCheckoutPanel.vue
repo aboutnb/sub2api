@@ -15,8 +15,8 @@
     <div v-if="!order" class="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div class="space-y-5">
         <div>
-          <label class="mb-2 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('payment.usdt.network') }}</label>
-          <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <label v-if="config.checkout_mode !== 'cashier'" class="mb-2 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('payment.usdt.network') }}</label>
+          <div v-if="config.checkout_mode !== 'cashier'" class="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <button
               v-for="network in readyNetworks"
               :key="network.network"
@@ -33,7 +33,8 @@
               <span class="mt-1 block text-[11px] text-gray-500 dark:text-gray-400">{{ network.trade_type }}</span>
             </button>
           </div>
-          <p v-if="readyNetworks.length === 0" class="mt-2 text-xs text-amber-700 dark:text-amber-300">{{ t('payment.usdt.unavailable') }}</p>
+          <p v-if="config.checkout_mode !== 'cashier' && readyNetworks.length === 0" class="mt-2 text-xs text-amber-700 dark:text-amber-300">{{ t('payment.usdt.unavailable') }}</p>
+          <p v-if="config.checkout_mode === 'cashier'" class="text-xs leading-5 text-gray-600 dark:text-gray-300">{{ t('payment.usdt.cashierMode') }}</p>
         </div>
 
         <div>
@@ -51,7 +52,7 @@
           <div class="flex items-center justify-between gap-4"><span class="text-gray-500 dark:text-gray-400">{{ t('payment.usdt.fiatAmount') }}</span><strong class="tabular-nums text-gray-950 dark:text-white">{{ fiatCurrencyLabel }} {{ estimatedFiatAmountLabel }}</strong></div>
           <div class="flex items-center justify-between gap-4"><span class="text-gray-500 dark:text-gray-400">{{ t('payment.usdt.exchangeRate') }}</span><strong class="tabular-nums text-gray-950 dark:text-white">1 USDT = ¥{{ exchangeRateLabel }}</strong></div>
           <p v-if="exchangeRate <= 0" class="border-l-2 border-rose-400 bg-rose-50 px-3 py-2 text-xs leading-5 text-rose-900 dark:bg-rose-950/30 dark:text-rose-100">{{ t('payment.usdt.rateUnavailable') }}</p>
-          <div class="flex items-center justify-between gap-4"><span class="text-gray-500 dark:text-gray-400">{{ t('payment.usdt.network') }}</span><strong class="text-gray-950 dark:text-white">{{ selectedNetworkLabel }}</strong></div>
+          <div v-if="config.checkout_mode !== 'cashier'" class="flex items-center justify-between gap-4"><span class="text-gray-500 dark:text-gray-400">{{ t('payment.usdt.network') }}</span><strong class="text-gray-950 dark:text-white">{{ selectedNetworkLabel }}</strong></div>
           <p class="border-l-2 border-amber-400 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">{{ t('payment.usdt.notice') }}</p>
         </div>
         <button type="button" class="btn mt-6 w-full bg-emerald-600 py-3 text-base font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" :disabled="!canSubmit || submitting" @click="submit">
@@ -64,9 +65,12 @@
 
     <div v-else class="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div>
-        <div class="flex items-center gap-3"><span class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-lg font-bold text-white">₮</span><div><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.usdt.payToAddress') }}</p><p class="break-all font-mono text-sm font-semibold text-gray-950 dark:text-white">{{ order.receiving_address }}</p></div></div>
-        <button type="button" class="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300" @click="copy(order.receiving_address)"><Icon name="copy" size="sm" />{{ t('common.copy') }}</button>
-        <div class="mt-6 rounded-md border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+        <iframe v-if="order.payment_mode === 'cashier'" :src="order.payment_url" class="h-[620px] w-full border-0 bg-white" title="BEpusdt checkout" />
+        <template v-else>
+          <div class="flex items-center gap-3"><span class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-lg font-bold text-white">₮</span><div><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.usdt.payToAddress') }}</p><p class="break-all font-mono text-sm font-semibold text-gray-950 dark:text-white">{{ order.receiving_address }}</p></div></div>
+          <button type="button" class="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-900 dark:text-emerald-300" @click="copy(order.receiving_address)"><Icon name="copy" size="sm" />{{ t('common.copy') }}</button>
+        </template>
+        <div v-if="order.payment_mode !== 'cashier'" class="mt-6 rounded-md border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
           <p class="text-xs font-medium text-emerald-800 dark:text-emerald-200">{{ t('payment.usdt.exactAmount') }}</p>
           <p class="mt-1 break-all font-mono text-3xl font-bold tabular-nums text-emerald-900 dark:text-emerald-100">{{ order.crypto_amount }} USDT</p>
         <p class="mt-2 text-xs text-emerald-800/80 dark:text-emerald-200/80">{{ t('payment.usdt.network') }}: {{ order.network }} · {{ t('payment.usdt.fiatAmount') }}: ¥{{ order.fiat_amount }} · 1 USDT = ¥{{ order.exchange_rate }}</p>
@@ -75,7 +79,7 @@
       <aside class="border-t border-gray-100 pt-5 dark:border-dark-700 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
         <div class="flex items-center justify-between"><span class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.status.pending') }}</span><span :class="statusClass">{{ statusLabel }}</span></div>
         <p class="mt-4 text-xs leading-5 text-gray-600 dark:text-gray-300">{{ t('payment.usdt.statusHint') }}</p>
-        <a :href="order.payment_url" target="_blank" rel="noopener" class="btn mt-5 flex w-full items-center justify-center gap-2 border border-emerald-600 bg-transparent py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/30"><Icon name="link" size="sm" />{{ t('payment.usdt.openCheckout') }}</a>
+        <a v-if="order.payment_mode !== 'cashier'" :href="order.payment_url" target="_blank" rel="noopener" class="btn mt-5 flex w-full items-center justify-center gap-2 border border-emerald-600 bg-transparent py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/30"><Icon name="link" size="sm" />{{ t('payment.usdt.openCheckout') }}</a>
         <button type="button" class="mt-3 w-full text-xs text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white" @click="reset">{{ t('payment.usdt.newOrder') }}</button>
       </aside>
     </div>
@@ -117,7 +121,7 @@ const estimatedFiatAmount = computed(() => cryptoAmount.value * exchangeRate.val
 const fiatCurrencyLabel = 'CNY'
 const estimatedFiatAmountLabel = computed(() => estimatedFiatAmount.value > 0 ? estimatedFiatAmount.value.toFixed(8).replace(/0+$/, '').replace(/\.$/, '') : '0')
 const exchangeRateLabel = computed(() => exchangeRate.value > 0 ? exchangeRate.value.toFixed(4).replace(/0+$/, '').replace(/\.$/, '') : '-')
-const canSubmit = computed(() => !!selectedNetwork.value && cryptoAmount.value > 0 && exchangeRate.value > 0)
+const canSubmit = computed(() => (props.config.checkout_mode === 'cashier' || !!selectedNetwork.value) && cryptoAmount.value > 0 && exchangeRate.value > 0)
 const statusLabel = computed(() => t(`payment.status.${String(order.value?.status || 'pending').toLowerCase()}`))
 const statusClass = computed(() => order.value?.status === 'COMPLETED' ? 'rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200' : 'rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200')
 
@@ -174,7 +178,7 @@ async function submit() {
     const response = await paymentAPI.createUSDTOrder({ amount: cryptoAmount.value, amount_unit: 'USDT', network: selectedNetwork.value, order_type: 'balance', return_url: window.location.href, payment_source: 'usdt-module' })
     order.value = response.data
     persistRecoverySnapshot(order.value)
-    if (order.value.payment_url) window.open(order.value.payment_url, '_blank', 'noopener,noreferrer')
+    // Cashier mode is rendered inline; fixed mode keeps the explicit external checkout link.
     startPolling()
   } catch (err: unknown) {
     error.value = err instanceof Error ? err.message : t('payment.usdt.createFailed')

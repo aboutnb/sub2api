@@ -329,6 +329,7 @@ export interface USDTCapability {
 
 export interface USDTConfigResponse {
   enabled: boolean
+  checkout_mode?: 'fixed' | 'cashier'
   networks: USDTCapability[]
   rate?: string
   rate_crypto?: string
@@ -347,6 +348,7 @@ export interface USDTOrder {
   fee_rate: number
   status: USDTOrderStatus
   payment_type: 'usdt'
+  payment_mode?: 'fixed' | 'cashier'
   fiat_currency: string
   fiat_amount: string
   crypto_currency: 'USDT'

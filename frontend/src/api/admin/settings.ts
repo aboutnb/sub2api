@@ -648,6 +648,7 @@ export interface SystemSettings {
 
   // Payment configuration
   payment_enabled: boolean;
+  usdt_payment_checkout_mode: "fixed" | "cashier" | string;
   risk_control_enabled: boolean;
 
   // Cyber session block
@@ -975,6 +976,7 @@ export interface UpdateSettingsRequest {
   codex_cli_only_engine_fingerprint_signals?: string;
   // Payment configuration
   payment_enabled?: boolean;
+  usdt_payment_checkout_mode?: "fixed" | "cashier" | string;
   risk_control_enabled?: boolean;
 
   // Cyber session block

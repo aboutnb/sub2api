@@ -27,4 +27,5 @@ func RegisterUSDTPaymentRoutes(
 	}
 
 	v1.POST("/usdt/webhook/bepusdt", usdtHandler.Webhook)
+	v1.POST("/usdt/webhook/bepusdt/native", usdtHandler.NativeWebhook)
 }

@@ -167,6 +167,7 @@ type UpdateSettingsRequest struct {
 	HideCcsImportButton         bool                  `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled *bool                 `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL     *string               `json:"purchase_subscription_url"`
+	USDTPaymentCheckoutMode     *string               `json:"usdt_payment_checkout_mode"`
 	TableDefaultPageSize        int                   `json:"table_default_page_size"`
 	TablePageSizeOptions        []int                 `json:"table_page_size_options"`
 	CustomMenuItems             *[]dto.CustomMenuItem `json:"custom_menu_items"`
@@ -1238,6 +1239,14 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if req.PurchaseSubscriptionURL != nil {
 		purchaseURL = strings.TrimSpace(*req.PurchaseSubscriptionURL)
 	}
+	usdtCheckoutMode := previousSettings.USDTPaymentCheckoutMode
+	if req.USDTPaymentCheckoutMode != nil {
+		usdtCheckoutMode = strings.ToLower(strings.TrimSpace(*req.USDTPaymentCheckoutMode))
+		if usdtCheckoutMode != "fixed" && usdtCheckoutMode != "cashier" {
+			response.BadRequest(c, "usdt_payment_checkout_mode must be fixed or cashier")
+			return
+		}
+	}
 
 	// - 启用时要求 URL 合法且非空
 	// - 禁用时允许为空；若提供了 URL 也做基本校验，避免误配置
@@ -1639,6 +1648,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		HideCcsImportButton:                    req.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            purchaseEnabled,
 		PurchaseSubscriptionURL:                purchaseURL,
+		USDTPaymentCheckoutMode:                usdtCheckoutMode,
 		TableDefaultPageSize:                   req.TableDefaultPageSize,
 		TablePageSizeOptions:                   req.TablePageSizeOptions,
 		CustomMenuItems:                        customMenuJSON,
@@ -2307,6 +2317,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		HideCcsImportButton:                                    updatedSettings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:                            updatedSettings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                                updatedSettings.PurchaseSubscriptionURL,
+		USDTPaymentCheckoutMode:                                updatedSettings.USDTPaymentCheckoutMode,
 		TableDefaultPageSize:                                   updatedSettings.TableDefaultPageSize,
 		TablePageSizeOptions:                                   updatedSettings.TablePageSizeOptions,
 		CustomMenuItems:                                        dto.ParseCustomMenuItems(updatedSettings.CustomMenuItems),

@@ -305,6 +305,7 @@ export default {
       unavailableTitle: 'USDT recharge is not available',
       title: 'USDT on-chain payment',
       network: 'Network',
+      cashierMode: 'Choose the payment network in the embedded BEpusdt checkout.',
       fiatAmount: 'CNY amount',
       notice: 'Use only the selected network and exact amount. Underpayment, overpayment, or a wrong network may prevent automatic matching.',
       unavailable: 'No healthy USDT network is available right now.',

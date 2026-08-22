@@ -69,7 +69,12 @@ SET pay_url=$1, expires_at=$2, payment_type=$3, provider_key=$4,
     provider_snapshot=$5::jsonb, updated_at=NOW()
 WHERE id=$6 AND out_trade_no=$7 AND status='PENDING'`,
 		q.PaymentURL, q.UpstreamExpiresAt, PaymentType, ProviderKey,
-		`{"schema_version":1,"provider_key":"bepusdt","payment_mode":"redirect","currency":"CNY"}`,
+		func() string {
+			if q.TradeType == "pending" {
+				return `{"schema_version":1,"provider_key":"bepusdt","payment_mode":"cashier","currency":"CNY"}`
+			}
+			return `{"schema_version":1,"provider_key":"bepusdt","payment_mode":"redirect","currency":"CNY"}`
+		}(),
 		q.PaymentOrderID, q.MerchantOrderID)
 	if err != nil {
 		return fmt.Errorf("attach USDT quote to payment order: %w", err)
@@ -79,8 +84,9 @@ WHERE id=$6 AND out_trade_no=$7 AND status='PENDING'`,
 
 func (r *Repository) GetQuoteForUser(ctx context.Context, paymentOrderID, userID int64) (*Quote, string, float64, float64, float64, error) {
 	row := r.db.QueryRowContext(ctx, `
-SELECT `+prefixColumns("q", quoteColumns)+`, o.status, o.amount, o.pay_amount, o.fee_rate
-FROM usdt_payment_quotes q
+SELECT `+prefixColumns("q", quoteColumns)+`, o.status, o.amount, o.pay_amount, o.fee_rate,
+       o.provider_snapshot->>'payment_mode'
+	FROM usdt_payment_quotes q
 JOIN payment_orders o ON o.id=q.payment_order_id
 WHERE q.payment_order_id=$1 AND o.user_id=$2`, paymentOrderID, userID)
 	var status string
@@ -91,16 +97,20 @@ WHERE q.payment_order_id=$1 AND o.user_id=$2`, paymentOrderID, userID)
 
 func scanQuoteWithOrder(scanner rowScanner, status *string, amount, payAmount, feeRate *float64) (*Quote, error) {
 	var q Quote
+	var paymentMode sql.NullString
 	err := scanner.Scan(
 		&q.ID, &q.PaymentOrderID, &q.MerchantOrderID, &q.ProviderTradeID,
 		&q.FiatCurrency, &q.FiatAmount, &q.CryptoCurrency, &q.Network, &q.TradeType, &q.CryptoAmount,
 		&q.ExchangeRate, &q.ReceivingAddress, &q.PaymentURL, &q.UpstreamCreatedAt, &q.UpstreamExpiresAt,
 		&q.ProviderStatus, &q.TransactionHash, &q.ChainTransferAt, &q.BlockNumber, &q.LastReconciledAt,
 		&q.NextReconcileAt, &q.ReconcileAttempts, &q.ReconcileLeaseUntil, &q.LastError, &q.CreatedAt, &q.UpdatedAt,
-		status, amount, payAmount, feeRate,
+		status, amount, payAmount, feeRate, &paymentMode,
 	)
 	if err != nil {
 		return nil, err
+	}
+	if paymentMode.Valid {
+		q.PaymentMode = paymentMode.String
 	}
 	return &q, nil
 }
@@ -143,6 +153,18 @@ func trimSpace(value string) string {
 
 func (r *Repository) GetQuoteByMerchantOrderID(ctx context.Context, orderID string) (*Quote, error) {
 	return scanQuote(r.db.QueryRowContext(ctx, `SELECT `+quoteColumns+` FROM usdt_payment_quotes WHERE merchant_order_id=$1`, orderID))
+}
+
+func (r *Repository) UpdateCashierSelection(ctx context.Context, quote *Quote, network, tradeType, amount, actualAmount, token, status string, expiresAt time.Time) error {
+	if quote == nil {
+		return errors.New("USDT cashier quote is empty")
+	}
+	_, err := r.db.ExecContext(ctx, `
+UPDATE usdt_payment_quotes
+SET network=$1, trade_type=$2, fiat_amount=$3, crypto_amount=$4, receiving_address=$5,
+    provider_status=$6, upstream_expires_at=$7, updated_at=NOW()
+WHERE id=$8 AND provider_trade_id=$9`, network, tradeType, amount, actualAmount, token, status, expiresAt, quote.ID, quote.ProviderTradeID)
+	return err
 }
 
 func (r *Repository) ClaimDueQuotes(ctx context.Context, limit int, lease time.Duration) ([]*Quote, error) {

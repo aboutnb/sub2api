@@ -3,11 +3,14 @@ package usdtpayment
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +25,7 @@ type Client struct {
 	publicBaseURL string
 	keyID         string
 	secret        string
+	legacyToken   string
 	httpClient    *http.Client
 }
 
@@ -36,6 +40,7 @@ func NewClient(cfg *config.Config) *Client {
 		client.publicBaseURL = strings.TrimRight(cfg.USDTPayment.PublicBaseURL, "/")
 		client.keyID = cfg.USDTPayment.KeyID
 		client.secret = cfg.USDTPayment.APISecret
+		client.legacyToken = cfg.USDTPayment.LegacyToken
 	}
 	return client
 }
@@ -118,6 +123,127 @@ func (c *Client) Readiness(ctx context.Context) (map[string]any, error) {
 		return nil, err
 	}
 	return envelope.Data, nil
+}
+
+type cashierCreateData struct {
+	Fiat           string `json:"fiat"`
+	TradeID        string `json:"trade_id"`
+	OrderID        string `json:"order_id"`
+	Status         int    `json:"status"`
+	Amount         string `json:"amount"`
+	ExpirationTime int64  `json:"expiration_time"`
+	PaymentURL     string `json:"payment_url"`
+}
+
+type cashierInfoData struct {
+	Network      any    `json:"network"`
+	TradeID      string `json:"trade_id"`
+	OrderID      string `json:"order_id"`
+	TradeType    string `json:"trade_type"`
+	Status       int    `json:"status"`
+	Money        string `json:"money"`
+	ActualAmount string `json:"actual_amount"`
+	Token        string `json:"token"`
+	Fiat         string `json:"fiat"`
+	ExpiredAt    int64  `json:"expired_at"`
+	CreatedAt    int64  `json:"created_at"`
+	TradeURL     string `json:"trade_url"`
+	BlockTx      string `json:"block_transaction_id"`
+}
+
+// CreateCashierOrder uses BEpusdt's original MD5-signed API. The user chooses
+// the chain in the embedded checkout page, so no network is sent here.
+func (c *Client) CreateCashierOrder(ctx context.Context, request map[string]any) (*cashierCreateData, error) {
+	var envelope struct {
+		StatusCode int               `json:"status_code"`
+		Message    string            `json:"message"`
+		Data       cashierCreateData `json:"data"`
+	}
+	if err := c.legacyCall(ctx, http.MethodPost, "/api/v1/order/create-order", request, &envelope); err != nil {
+		return nil, err
+	}
+	if envelope.StatusCode != 200 {
+		return nil, fmt.Errorf("BEpusdt cashier create returned %d: %s", envelope.StatusCode, envelope.Message)
+	}
+	if envelope.Data.TradeID == "" || envelope.Data.OrderID == "" {
+		return nil, errors.New("BEpusdt cashier response is missing order identity")
+	}
+	if envelope.Data.PaymentURL == "" && c.publicBaseURL != "" {
+		envelope.Data.PaymentURL = c.publicBaseURL + "/pay/checkout/" + url.PathEscape(envelope.Data.TradeID)
+	}
+	return &envelope.Data, nil
+}
+
+func (c *Client) CashierInfo(ctx context.Context, tradeID string) (*cashierInfoData, error) {
+	var envelope struct {
+		StatusCode int             `json:"status_code"`
+		Message    string          `json:"message"`
+		Data       cashierInfoData `json:"data"`
+	}
+	if err := c.legacyCall(ctx, http.MethodPost, "/api/v1/pay/info", map[string]any{"trade_id": tradeID}, &envelope); err != nil {
+		return nil, err
+	}
+	if envelope.StatusCode != 200 {
+		return nil, fmt.Errorf("BEpusdt cashier info returned %d: %s", envelope.StatusCode, envelope.Message)
+	}
+	return &envelope.Data, nil
+}
+
+func (c *Client) legacyCall(ctx context.Context, method, path string, input map[string]any, output any) error {
+	request := make(map[string]any, len(input)+1)
+	for key, value := range input {
+		request[key] = value
+	}
+	request["signature"] = epusdtSign(request, c.legacyToken)
+	body, err := json.Marshal(request)
+	if err != nil {
+		return fmt.Errorf("marshal BEpusdt cashier request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.apiBase+path, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("build BEpusdt cashier request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("call BEpusdt cashier: %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, maxUpstreamResponseBytes+1))
+	if err != nil {
+		return fmt.Errorf("read BEpusdt cashier response: %w", err)
+	}
+	if len(responseBody) > maxUpstreamResponseBytes {
+		return errors.New("BEpusdt cashier response too large")
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("BEpusdt cashier HTTP %d", resp.StatusCode)
+	}
+	if err := json.Unmarshal(responseBody, output); err != nil {
+		return fmt.Errorf("decode BEpusdt cashier response: %w", err)
+	}
+	return nil
+}
+
+func epusdtSign(data map[string]any, token string) string {
+	keys := make([]string, 0, len(data))
+	for key := range data {
+		if key != "signature" {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	unsigned := ""
+	for _, key := range keys {
+		value := data[key]
+		if value == nil || value == "" {
+			continue
+		}
+		unsigned += key + "=" + fmt.Sprintf("%v", value) + "&"
+	}
+	unsigned = strings.TrimSuffix(unsigned, "&") + token
+	sum := md5.Sum([]byte(unsigned))
+	return fmt.Sprintf("%x", sum)
 }
 
 func (c *Client) call(ctx context.Context, method, path string, input, output any) error {

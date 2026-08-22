@@ -127,6 +127,7 @@ type Quote struct {
 	ExchangeRate        string     `json:"exchange_rate"`
 	ReceivingAddress    string     `json:"receiving_address"`
 	PaymentURL          string     `json:"payment_url"`
+	PaymentMode         string     `json:"-"`
 	UpstreamCreatedAt   time.Time  `json:"created_at"`
 	UpstreamExpiresAt   time.Time  `json:"expires_at"`
 	ProviderStatus      string     `json:"provider_status"`
@@ -181,6 +182,7 @@ type CheckoutOrder struct {
 	FeeRate          float64    `json:"fee_rate"`
 	Status           string     `json:"status"`
 	PaymentType      string     `json:"payment_type"`
+	PaymentMode      string     `json:"payment_mode"`
 	FiatCurrency     string     `json:"fiat_currency"`
 	FiatAmount       string     `json:"fiat_amount"`
 	CryptoCurrency   string     `json:"crypto_currency"`

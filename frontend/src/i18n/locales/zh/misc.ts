@@ -329,6 +329,7 @@ export default {
       unavailableTitle: 'USDT 充值暂未开放',
       title: 'USDT 链上支付',
       network: '支付网络',
+      cashierMode: '请在内嵌的 BEpusdt 收银台中选择支付网络。',
       fiatAmount: '人民币金额',
       notice: '请只在选定网络转账，并按精确数量支付。少付、多付或转错网络都可能导致订单无法自动匹配。',
       unavailable: '当前没有健康可用的 USDT 网络，请稍后再试。',

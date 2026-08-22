@@ -25,13 +25,32 @@ const (
 )
 
 type Service struct {
-	config     config.USDTPaymentConfig
-	client     *Client
-	repository *Repository
-	bridge     PaymentBridge
-	stop       chan struct{}
-	stopOnce   sync.Once
-	wg         sync.WaitGroup
+	config       config.USDTPaymentConfig
+	client       *Client
+	repository   *Repository
+	bridge       PaymentBridge
+	modeProvider interface{ GetUSDTPaymentCheckoutMode(context.Context) string }
+	stop         chan struct{}
+	stopOnce     sync.Once
+	wg           sync.WaitGroup
+}
+
+// SetCheckoutModeProvider connects the DB-backed admin setting without making
+// the USDT module depend on the broader settings service at construction time.
+func (s *Service) SetCheckoutModeProvider(provider interface{ GetUSDTPaymentCheckoutMode(context.Context) string }) {
+	if s != nil {
+		s.modeProvider = provider
+	}
+}
+
+func (s *Service) checkoutMode(ctx context.Context) string {
+	if s != nil && s.modeProvider != nil {
+		return s.modeProvider.GetUSDTPaymentCheckoutMode(ctx)
+	}
+	if strings.EqualFold(strings.TrimSpace(s.config.CheckoutMode), "cashier") {
+		return "cashier"
+	}
+	return "fixed"
 }
 
 func NewService(cfg *config.Config, client *Client, repository *Repository, bridge PaymentBridge) *Service {
@@ -57,6 +76,8 @@ func (s *Service) Stop() {
 func (s *Service) Enabled() bool {
 	return s != nil && s.config.Enabled
 }
+
+func (s *Service) CheckoutMode(ctx context.Context) string { return s.checkoutMode(ctx) }
 
 func (s *Service) Capabilities(ctx context.Context) ([]Capability, error) {
 	if !s.Enabled() {
@@ -97,6 +118,9 @@ func (s *Service) CreateOrder(ctx context.Context, userID int64, req CreateReque
 	}
 	if unit := strings.TrimSpace(req.AmountUnit); unit != "" && !strings.EqualFold(unit, "USDT") {
 		return nil, infraerrors.BadRequest("USDT_AMOUNT_UNIT_INVALID", "USDT orders must use USDT amounts")
+	}
+	if s.checkoutMode(ctx) == "cashier" {
+		return s.createCashierOrder(ctx, userID, req, clientIP, sourceHost, sourceURL, locale)
 	}
 	network := strings.ToLower(strings.TrimSpace(req.Network))
 	tradeType, ok := networkTradeTypes[network]
@@ -172,6 +196,66 @@ func (s *Service) CreateOrder(ctx context.Context, userID int64, req CreateReque
 	return checkoutFromQuote(quote, prepared.BaseAmount, prepared.PayAmount, prepared.FeeRate, "PENDING"), nil
 }
 
+func (s *Service) createCashierOrder(ctx context.Context, userID int64, req CreateRequest, clientIP, sourceHost, sourceURL, locale string) (*CheckoutOrder, error) {
+	if strings.TrimSpace(s.config.LegacyToken) == "" {
+		return nil, infraerrors.ServiceUnavailable("USDT_CASHIER_NOT_CONFIGURED", "BEpusdt legacy API token is not configured")
+	}
+	if req.Amount <= 0 {
+		return nil, infraerrors.BadRequest("USDT_AMOUNT_INVALID", "USDT amount must be greater than zero")
+	}
+	rateQuote, err := s.ExchangeRate(ctx)
+	if err != nil {
+		return nil, infraerrors.ServiceUnavailable("USDT_RATE_UNAVAILABLE", err.Error())
+	}
+	rate, err := decimal.NewFromString(rateQuote.Rate)
+	if err != nil || rate.LessThanOrEqual(decimal.Zero) {
+		return nil, infraerrors.ServiceUnavailable("USDT_RATE_UNAVAILABLE", "BEpusdt returned an invalid exchange rate")
+	}
+	requestedCrypto := decimal.NewFromFloat(req.Amount).Truncate(8)
+	fiatAmount := requestedCrypto.Mul(rate).Round(8)
+	prepared, err := s.bridge.PrepareUSDTOrder(ctx, PrepareOrderRequest{
+		UserID: userID, Amount: fiatAmount.InexactFloat64(), TargetPayAmount: fiatAmount.InexactFloat64(),
+		OrderType: req.OrderType, PlanID: req.PlanID, ClientIP: clientIP, SourceHost: sourceHost,
+		SourceURL: sourceURL, PaymentSource: req.PaymentSource, Locale: locale,
+	})
+	if err != nil {
+		return nil, err
+	}
+	redirectURL := strings.TrimSpace(req.ReturnURL)
+	if !validReturnURL(redirectURL) {
+		redirectURL = s.config.PublicCallbackBaseURL + "/payment"
+	}
+	// Use the same public callback path as fixed mode; the handler dispatches
+	// HMAC-v2 versus legacy MD5 by request headers/body signature.
+	notifyURL := s.config.PublicCallbackBaseURL + webhookPath
+	upstream, err := s.client.CreateCashierOrder(ctx, map[string]any{
+		"order_id": prepared.MerchantOrderID, "notify_url": notifyURL, "redirect_url": redirectURL,
+		"amount": fiatAmount.InexactFloat64(), "name": "Sub2API USDT payment", "fiat": s.config.Fiat,
+		"timeout": s.config.OrderTimeoutSeconds,
+	})
+	if err != nil {
+		_ = s.bridge.FailUSDTOrderBeforeQuote(ctx, prepared.ID, err)
+		return nil, fmt.Errorf("create BEpusdt cashier order: %w", err)
+	}
+	createdAt := time.Now().UTC()
+	expiresAt := createdAt.Add(time.Duration(s.config.OrderTimeoutSeconds) * time.Second)
+	if upstream.ExpirationTime > 0 {
+		expiresAt = createdAt.Add(time.Duration(upstream.ExpirationTime) * time.Second)
+	}
+	quote := &Quote{
+		PaymentOrderID: prepared.ID, MerchantOrderID: upstream.OrderID, ProviderTradeID: upstream.TradeID,
+		FiatCurrency: s.config.Fiat, FiatAmount: canonicalDecimal(fiatAmount.String()), CryptoCurrency: "USDT",
+		Network: "pending", TradeType: "pending", CryptoAmount: canonicalDecimal(requestedCrypto.String()),
+		ExchangeRate: canonicalDecimal(rateQuote.Rate), ReceivingAddress: "pending", PaymentURL: upstream.PaymentURL,
+		UpstreamCreatedAt: createdAt, UpstreamExpiresAt: expiresAt, ProviderStatus: "waiting",
+	}
+	if err := s.repository.SaveQuote(ctx, quote); err != nil {
+		_ = s.bridge.FailUSDTOrderBeforeQuote(ctx, prepared.ID, err)
+		return nil, err
+	}
+	return checkoutFromQuote(quote, prepared.BaseAmount, prepared.PayAmount, prepared.FeeRate, "PENDING"), nil
+}
+
 func (s *Service) quoteFromUpstream(paymentOrderID int64, upstream *UpstreamOrder, network, tradeType, fiatAmount, expectedCryptoAmount, expectedRate string) (*Quote, error) {
 	if upstream == nil {
 		return nil, errors.New("BEpusdt returned an empty order")
@@ -228,9 +312,13 @@ func (s *Service) GetOrder(ctx context.Context, userID, paymentOrderID int64) (*
 }
 
 func checkoutFromQuote(q *Quote, amount, payAmount, feeRate float64, status string) *CheckoutOrder {
+	mode := "fixed"
+	if q.PaymentMode == "cashier" || q.TradeType == "pending" {
+		mode = "cashier"
+	}
 	return &CheckoutOrder{
 		OrderID: q.PaymentOrderID, OutTradeNo: q.MerchantOrderID, Amount: amount, PayAmount: payAmount,
-		FeeRate: feeRate, Status: status, PaymentType: PaymentType,
+		FeeRate: feeRate, Status: status, PaymentType: PaymentType, PaymentMode: mode,
 		FiatCurrency: q.FiatCurrency, FiatAmount: q.FiatAmount, CryptoCurrency: q.CryptoCurrency,
 		CryptoAmount: q.CryptoAmount, Network: q.Network, TradeType: q.TradeType,
 		ReceivingAddress: q.ReceivingAddress, ExchangeRate: q.ExchangeRate, PaymentURL: q.PaymentURL,
@@ -285,6 +373,75 @@ func (s *Service) VerifyWebhook(raw []byte, headers map[string]string, requestPa
 	return &payload, nil
 }
 
+// HandleLegacyWebhook accepts BEpusdt's native checkout callback. It verifies
+// the original MD5 body signature, enriches the callback with /pay/info so the
+// selected network is frozen, and then enters the same idempotent webhook path.
+func (s *Service) HandleLegacyWebhook(ctx context.Context, raw []byte) error {
+	var body map[string]any
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return errors.New("invalid native BEpusdt webhook JSON")
+	}
+	signature, _ := body["signature"].(string)
+	if signature == "" || !strings.EqualFold(signature, epusdtSign(body, s.config.LegacyToken)) {
+		return errors.New("invalid native BEpusdt webhook signature")
+	}
+	tradeID, _ := body["trade_id"].(string)
+	orderID, _ := body["order_id"].(string)
+	status := intFromAny(body["status"])
+	if tradeID == "" || orderID == "" || status != 2 {
+		return errors.New("unsupported native BEpusdt webhook")
+	}
+	info, err := s.client.CashierInfo(ctx, tradeID)
+	if err != nil {
+		return err
+	}
+	quote, err := s.repository.GetQuoteByMerchantOrderID(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	actualAmount, _ := body["actual_amount"].(string)
+	if actualAmount == "" {
+		actualAmount = info.ActualAmount
+	}
+	token, _ := body["token"].(string)
+	if token == "" {
+		token = info.Token
+	}
+	network := normalizeCashierNetwork(info.Network, info.TradeType)
+	if network == "" || info.TradeType == "" || token == "" {
+		return errors.New("native BEpusdt webhook is missing selected network proof")
+	}
+	expiresAt := quote.UpstreamExpiresAt
+	if info.ExpiredAt > 0 {
+		expiresAt = time.Unix(info.ExpiredAt, 0)
+	}
+	if err := s.repository.UpdateCashierSelection(ctx, quote, network, info.TradeType, info.Money, actualAmount, token, "succeeded", expiresAt); err != nil {
+		return err
+	}
+	txHash, _ := body["block_transaction_id"].(string)
+	occurred := time.Now().Unix()
+	payload := WebhookPayload{
+		EventID: "native:" + tradeID + ":" + txHash, EventType: "payment.succeeded", OccurredAt: occurred,
+		OrderID: orderID, TradeID: tradeID, Fiat: info.Fiat, Amount: info.Money, Crypto: "USDT", ActualAmount: actualAmount,
+		TradeType: info.TradeType, Network: network, Token: token,
+		BlockTransactionID: txHash, TransferAt: occurred, SignatureVersion: "legacy", KeyID: "native",
+	}
+	return s.HandleWebhook(ctx, payload, raw)
+}
+
+func intFromAny(value any) int {
+	switch v := value.(type) {
+	case float64:
+		return int(v)
+	case int:
+		return v
+	case string:
+		n, _ := strconv.Atoi(v)
+		return n
+	}
+	return 0
+}
+
 func (s *Service) HandleWebhook(ctx context.Context, payload WebhookPayload, raw []byte) error {
 	inserted, err := s.repository.InsertWebhookEvent(ctx, payload, raw)
 	if err != nil {
@@ -316,6 +473,40 @@ func (s *Service) processWebhookPayload(ctx context.Context, payload WebhookPayl
 }
 
 func (s *Service) reconcileQuote(ctx context.Context, quote *Quote) error {
+	if quote.TradeType == "pending" || quote.Network == "pending" {
+		info, err := s.client.CashierInfo(ctx, quote.ProviderTradeID)
+		if err != nil {
+			_ = s.repository.RecordReconcile(ctx, quote.ID, quote.ProviderStatus, time.Now().Add(s.reconcileDelay(quote.ReconcileAttempts)), err)
+			return err
+		}
+		status := mapCashierStatus(info.Status)
+		if info.TradeType != "" && info.Network != "" && info.Token != "" {
+			tradeType := info.TradeType
+			network := normalizeCashierNetwork(info.Network, tradeType)
+			expiresAt := quote.UpstreamExpiresAt
+			if info.ExpiredAt > 0 {
+				expiresAt = time.Unix(info.ExpiredAt, 0)
+			}
+			if err := s.repository.UpdateCashierSelection(ctx, quote, network, tradeType, info.Money, info.ActualAmount, info.Token, status, expiresAt); err != nil {
+				return err
+			}
+			quote.Network, quote.TradeType, quote.FiatAmount, quote.CryptoAmount, quote.ReceivingAddress, quote.ProviderStatus, quote.UpstreamExpiresAt = network, tradeType, canonicalDecimal(info.Money), canonicalDecimal(info.ActualAmount), info.Token, status, expiresAt
+		}
+		if status != "succeeded" {
+			return s.repository.RecordReconcile(ctx, quote.ID, status, time.Now().Add(s.reconcileDelay(quote.ReconcileAttempts)), nil)
+		}
+		if strings.TrimSpace(info.BlockTx) == "" {
+			// Native /pay/info intentionally does not provide a chain proof. Wait
+			// for the signed legacy callback carrying block_transaction_id.
+			return s.repository.RecordReconcile(ctx, quote.ID, "confirming", time.Now().Add(2*time.Second), nil)
+		}
+		upstream := &UpstreamOrder{OrderID: info.OrderID, TradeID: info.TradeID, Status: info.Status, StatusName: status, Fiat: info.Fiat, Amount: info.Money, Crypto: "USDT", ActualAmount: info.ActualAmount, TradeType: info.TradeType, Network: normalizeCashierNetwork(info.Network, info.TradeType), Token: info.Token, BlockTransactionID: info.BlockTx, TransferAt: time.Now().Unix(), Confirmation: map[string]any{"confirmed": true}}
+		if err := s.confirmProof(ctx, quote, upstream); err != nil {
+			_ = s.repository.RecordReconcile(ctx, quote.ID, quote.ProviderStatus, time.Now().Add(2*time.Second), err)
+			return err
+		}
+		return nil
+	}
 	upstream, err := s.client.QueryOrder(ctx, quote.MerchantOrderID, quote.ProviderTradeID)
 	if err != nil {
 		next := time.Now().Add(s.reconcileDelay(quote.ReconcileAttempts))
@@ -338,6 +529,45 @@ func (s *Service) reconcileQuote(ctx context.Context, quote *Quote) error {
 	default:
 		return s.repository.RecordReconcile(ctx, quote.ID, upstream.StatusName, time.Now().Add(30*time.Second), nil)
 	}
+}
+
+func mapCashierStatus(status int) string {
+	switch status {
+	case 2:
+		return "succeeded"
+	case 3:
+		return "expired"
+	case 1:
+		return "waiting"
+	default:
+		return "waiting"
+	}
+}
+
+func normalizeCashierNetwork(network any, tradeType string) string {
+	n := ""
+	switch value := network.(type) {
+	case string:
+		n = strings.ToLower(strings.TrimSpace(value))
+	case map[string]any:
+		if name, ok := value["network"].(string); ok {
+			n = strings.ToLower(strings.TrimSpace(name))
+		}
+		if n == "" {
+			if alias, ok := value["alias"].(string); ok {
+				n = strings.ToLower(strings.TrimSpace(alias))
+			}
+		}
+	}
+	for key, value := range networkTradeTypes {
+		if value == strings.ToLower(strings.TrimSpace(tradeType)) {
+			if n == "" {
+				return key
+			}
+			break
+		}
+	}
+	return n
 }
 
 func (s *Service) confirmProof(ctx context.Context, quote *Quote, proof *UpstreamOrder) error {

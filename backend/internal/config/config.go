@@ -197,12 +197,19 @@ type InvoiceIntegrationConfig struct {
 // USDTPaymentConfig configures the isolated BEpusdt merchant integration.
 // These credentials are server-side only and are never exposed to the browser.
 type USDTPaymentConfig struct {
-	Enabled                  bool     `mapstructure:"enabled"`
-	APIBase                  string   `mapstructure:"api_base"`
-	PublicBaseURL            string   `mapstructure:"public_base_url"`
-	PublicCallbackBaseURL    string   `mapstructure:"public_callback_base_url"`
-	KeyID                    string   `mapstructure:"key_id"`
-	APISecret                string   `mapstructure:"api_secret"`
+	Enabled bool `mapstructure:"enabled"`
+	// CheckoutMode selects the upstream checkout flow. fixed keeps the
+	// existing server-selected network API; cashier uses BEpusdt's native
+	// network-selection checkout.
+	CheckoutMode          string `mapstructure:"checkout_mode"`
+	APIBase               string `mapstructure:"api_base"`
+	PublicBaseURL         string `mapstructure:"public_base_url"`
+	PublicCallbackBaseURL string `mapstructure:"public_callback_base_url"`
+	KeyID                 string `mapstructure:"key_id"`
+	APISecret             string `mapstructure:"api_secret"`
+	// LegacyToken authenticates BEpusdt's original /api/v1/order and callback API.
+	// It is separate from the merchant HMAC secret in current BEpusdt builds.
+	LegacyToken              string   `mapstructure:"legacy_token"`
 	Fiat                     string   `mapstructure:"fiat"`
 	EnabledNetworks          []string `mapstructure:"enabled_networks"`
 	OrderTimeoutSeconds      int      `mapstructure:"order_timeout_seconds"`
@@ -1799,11 +1806,13 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	}
 	usdtPaymentEnvBindings := map[string]string{
 		"usdt_payment.enabled":                     "USDT_PAYMENT_ENABLED",
+		"usdt_payment.checkout_mode":               "USDT_PAYMENT_CHECKOUT_MODE",
 		"usdt_payment.api_base":                    "USDT_PAYMENT_API_BASE",
 		"usdt_payment.public_base_url":             "USDT_PAYMENT_PUBLIC_BASE_URL",
 		"usdt_payment.public_callback_base_url":    "USDT_PAYMENT_PUBLIC_CALLBACK_BASE_URL",
 		"usdt_payment.key_id":                      "USDT_PAYMENT_KEY_ID",
 		"usdt_payment.api_secret":                  "USDT_PAYMENT_API_SECRET",
+		"usdt_payment.legacy_token":                "USDT_PAYMENT_LEGACY_TOKEN",
 		"usdt_payment.fiat":                        "USDT_PAYMENT_FIAT",
 		"usdt_payment.enabled_networks":            "USDT_PAYMENT_ENABLED_NETWORKS",
 		"usdt_payment.order_timeout_seconds":       "USDT_PAYMENT_ORDER_TIMEOUT_SECONDS",
@@ -1871,10 +1880,15 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	cfg.Invoice.ClientID = strings.TrimSpace(cfg.Invoice.ClientID)
 	cfg.Invoice.ClientSecret = strings.TrimSpace(cfg.Invoice.ClientSecret)
 	cfg.USDTPayment.APIBase = strings.TrimRight(strings.TrimSpace(cfg.USDTPayment.APIBase), "/")
+	cfg.USDTPayment.CheckoutMode = strings.ToLower(strings.TrimSpace(cfg.USDTPayment.CheckoutMode))
+	if cfg.USDTPayment.CheckoutMode == "" {
+		cfg.USDTPayment.CheckoutMode = "fixed"
+	}
 	cfg.USDTPayment.PublicBaseURL = strings.TrimRight(strings.TrimSpace(cfg.USDTPayment.PublicBaseURL), "/")
 	cfg.USDTPayment.PublicCallbackBaseURL = strings.TrimRight(strings.TrimSpace(cfg.USDTPayment.PublicCallbackBaseURL), "/")
 	cfg.USDTPayment.KeyID = strings.TrimSpace(cfg.USDTPayment.KeyID)
 	cfg.USDTPayment.APISecret = strings.TrimSpace(cfg.USDTPayment.APISecret)
+	cfg.USDTPayment.LegacyToken = strings.TrimSpace(cfg.USDTPayment.LegacyToken)
 	cfg.USDTPayment.Fiat = strings.ToUpper(strings.TrimSpace(cfg.USDTPayment.Fiat))
 	cfg.USDTPayment.EnabledNetworks = normalizeStringSlice(cfg.USDTPayment.EnabledNetworks)
 	cfg.LinuxDo.ClientID = strings.TrimSpace(cfg.LinuxDo.ClientID)
@@ -2333,11 +2347,13 @@ func setDefaults() {
 
 	// Isolated BEpusdt USDT payment module.
 	viper.SetDefault("usdt_payment.enabled", false)
+	viper.SetDefault("usdt_payment.checkout_mode", "fixed")
 	viper.SetDefault("usdt_payment.api_base", "")
 	viper.SetDefault("usdt_payment.public_base_url", "")
 	viper.SetDefault("usdt_payment.public_callback_base_url", "")
 	viper.SetDefault("usdt_payment.key_id", "")
 	viper.SetDefault("usdt_payment.api_secret", "")
+	viper.SetDefault("usdt_payment.legacy_token", "")
 	viper.SetDefault("usdt_payment.fiat", "CNY")
 	viper.SetDefault("usdt_payment.enabled_networks", []string{"tron", "bsc"})
 	viper.SetDefault("usdt_payment.order_timeout_seconds", 900)
@@ -2772,6 +2788,11 @@ func (c *Config) Validate() error {
 	if c.USDTPayment.OrderTimeoutSeconds < 180 || c.USDTPayment.OrderTimeoutSeconds > 3600 {
 		return fmt.Errorf("usdt_payment.order_timeout_seconds must be between 180 and 3600")
 	}
+	switch strings.ToLower(strings.TrimSpace(c.USDTPayment.CheckoutMode)) {
+	case "fixed", "cashier":
+	default:
+		return fmt.Errorf("usdt_payment.checkout_mode must be fixed or cashier")
+	}
 	if c.USDTPayment.LatePaymentWindowMinutes < 0 || c.USDTPayment.LatePaymentWindowMinutes > 1440 {
 		return fmt.Errorf("usdt_payment.late_payment_window_minutes must be between 0 and 1440")
 	}
@@ -2790,6 +2811,9 @@ func (c *Config) Validate() error {
 	if c.USDTPayment.Enabled {
 		if c.USDTPayment.KeyID == "" || c.USDTPayment.APISecret == "" {
 			return fmt.Errorf("usdt_payment.key_id and usdt_payment.api_secret are required when enabled")
+		}
+		if strings.EqualFold(strings.TrimSpace(c.USDTPayment.CheckoutMode), "cashier") && strings.TrimSpace(c.USDTPayment.LegacyToken) == "" {
+			return fmt.Errorf("usdt_payment.legacy_token is required when checkout_mode=cashier")
 		}
 		for key, value := range map[string]string{
 			"api_base":                 c.USDTPayment.APIBase,

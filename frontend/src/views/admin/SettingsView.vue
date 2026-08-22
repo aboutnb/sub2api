@@ -7796,6 +7796,16 @@
                 </div>
                 <Toggle v-model="form.payment_enabled" />
               </div>
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label class="input-label">{{ t("admin.settings.payment.usdtCheckoutMode") }}</label>
+                  <select v-model="form.usdt_payment_checkout_mode" class="input">
+                    <option value="fixed">{{ t("admin.settings.payment.usdtCheckoutFixed") }}</option>
+                    <option value="cashier">{{ t("admin.settings.payment.usdtCheckoutCashier") }}</option>
+                  </select>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t("admin.settings.payment.usdtCheckoutModeHint") }}</p>
+                </div>
+              </div>
               <template v-if="form.payment_enabled">
                 <!-- Row 1: Product name -->
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -9801,6 +9811,7 @@ const form = reactive<SettingsForm>({
   backend_mode_enabled: false,
   hide_ccs_import_button: false,
   payment_enabled: false,
+  usdt_payment_checkout_mode: "fixed",
   risk_control_enabled: false,
   cyber_session_block_enabled: false,
   cyber_session_block_ttl_seconds: 3600,
@@ -11664,6 +11675,7 @@ async function saveSettings() {
       ),
       // Payment configuration
       payment_enabled: form.payment_enabled,
+      usdt_payment_checkout_mode: form.usdt_payment_checkout_mode,
       risk_control_enabled: form.risk_control_enabled,
       cyber_session_block_enabled: form.cyber_session_block_enabled,
       cyber_session_block_ttl_seconds:
