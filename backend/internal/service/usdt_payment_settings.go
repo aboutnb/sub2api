@@ -212,7 +212,10 @@ func (s *USDTPaymentSettingsService) EffectiveConfig(ctx context.Context) (confi
 		}
 	}
 	return normalizeUSDTPaymentConfig(config.USDTPaymentConfig{
-		Enabled:                  stored.Enabled,
+		Enabled: stored.Enabled,
+		// The legacy cashier token is environment-only. Keep it available when
+		// an older persisted settings row does not contain this server secret.
+		LegacyToken:              s.fallback.LegacyToken,
 		APIBase:                  stored.APIBase,
 		PublicBaseURL:            stored.PublicBaseURL,
 		PublicCallbackBaseURL:    stored.PublicCallbackBaseURL,

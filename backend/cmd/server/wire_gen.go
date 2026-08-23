@@ -335,7 +335,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	usdtpaymentClient := usdtpayment.NewClient(configConfig)
 	usdtpaymentRepository := usdtpayment.NewRepository(db)
 	usdtpaymentService := service.ProvideUSDTPaymentService(configConfig, usdtpaymentClient, usdtpaymentRepository, paymentService, settingService, usdtPaymentSettingsService)
-	usdtPaymentHandler := handler.NewUSDTPaymentHandler(usdtpaymentService)
+	usdtPaymentHandler := handler.NewUSDTPaymentHandler(usdtpaymentService, paymentConfigService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
 	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, channelMonitorV2Handler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, passkeyHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, modelPlazaHandler, asyncImageHandler, batchImageHandler, handlerCheckinHandler, usdtPaymentHandler, idempotencyCoordinator, idempotencyCleanupService)

@@ -387,6 +387,30 @@ func (s *Service) GetOrder(ctx context.Context, userID, paymentOrderID int64) (*
 	return checkoutFromQuote(quote, amount, payAmount, feeRate, status), nil
 }
 
+func (s *Service) CancelOrder(ctx context.Context, userID, paymentOrderID int64) error {
+	quote, status, _, _, _, err := s.repository.GetQuoteForUser(ctx, paymentOrderID, userID)
+	if err != nil {
+		if isNotFound(err) {
+			return infraerrors.NotFound("USDT_ORDER_NOT_FOUND", "USDT payment order not found")
+		}
+		return err
+	}
+	if quote == nil || status != "PENDING" {
+		return infraerrors.BadRequest("USDT_ORDER_NOT_CANCELLABLE", "USDT payment order cannot be cancelled in its current status")
+	}
+	if err := s.client.CancelOrder(ctx, quote.ProviderTradeID); err != nil {
+		return infraerrors.ServiceUnavailable("USDT_UPSTREAM_CANCEL_FAILED", fmt.Sprintf("cancel BEpusdt order: %v", err))
+	}
+	cancelled, err := s.repository.CancelOrderForUser(ctx, paymentOrderID, userID)
+	if err != nil {
+		return err
+	}
+	if !cancelled {
+		return infraerrors.BadRequest("USDT_ORDER_NOT_CANCELLABLE", "USDT payment order cannot be cancelled in its current status")
+	}
+	return nil
+}
+
 func checkoutFromQuote(q *Quote, amount, payAmount, feeRate float64, status string) *CheckoutOrder {
 	mode := "fixed"
 	if q.PaymentMode == "cashier" || q.TradeType == "pending" {

@@ -61,6 +61,10 @@ export const paymentAPI = {
     return apiClient.get<USDTOrder>(`/usdt/orders/${id}`)
   },
 
+  cancelUSDTOrder(id: number) {
+    return apiClient.post(`/usdt/orders/${id}/cancel`)
+  },
+
   /** Get payment method limits and fee rates */
   getLimits() {
     return apiClient.get<MethodLimitsResponse>('/payment/limits')

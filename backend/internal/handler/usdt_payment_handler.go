@@ -18,20 +18,32 @@ import (
 const maxUSDTWebhookBodySize = 1 << 20
 
 type USDTPaymentHandler struct {
-	service *usdtpayment.Service
+	service       *usdtpayment.Service
+	configService *service.PaymentConfigService
 }
 
-func NewUSDTPaymentHandler(service *usdtpayment.Service) *USDTPaymentHandler {
-	return &USDTPaymentHandler{service: service}
+func NewUSDTPaymentHandler(usdtService *usdtpayment.Service, configService *service.PaymentConfigService) *USDTPaymentHandler {
+	return &USDTPaymentHandler{service: usdtService, configService: configService}
 }
 
 func (h *USDTPaymentHandler) GetConfig(c *gin.Context) {
-	capabilities, err := h.service.Capabilities(c.Request.Context())
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
+	checkoutMode := h.service.CheckoutMode(c.Request.Context())
+	capabilities := []usdtpayment.Capability{}
+	if checkoutMode != "cashier" {
+		var err error
+		capabilities, err = h.service.Capabilities(c.Request.Context())
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
 	}
-	result := gin.H{"enabled": h.service.Enabled(), "networks": capabilities, "checkout_mode": h.service.CheckoutMode(c.Request.Context())}
+	bonusPercent := 0.0
+	if h.configService != nil {
+		if paymentConfig, err := h.configService.GetPaymentConfig(c.Request.Context()); err == nil {
+			bonusPercent = paymentConfig.USDTPaymentBonusPercent
+		}
+	}
+	result := gin.H{"enabled": h.service.Enabled(), "networks": capabilities, "checkout_mode": checkoutMode, "bonus_percent": bonusPercent}
 	if h.service.Enabled() {
 		if rate, rateErr := h.service.ExchangeRate(c.Request.Context()); rateErr == nil {
 			result["rate"] = rate.Rate
@@ -83,6 +95,24 @@ func (h *USDTPaymentHandler) GetOrder(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
+}
+
+func (h *USDTPaymentHandler) CancelOrder(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	orderID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || orderID <= 0 {
+		response.BadRequest(c, "Invalid USDT order id")
+		return
+	}
+	if err := h.service.CancelOrder(c.Request.Context(), subject.UserID, orderID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"cancelled": true})
 }
 
 func (h *USDTPaymentHandler) Webhook(c *gin.Context) {

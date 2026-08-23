@@ -696,6 +696,11 @@ export default {
         title: 'Payment Settings',
         description: 'Configure payment system options',
         configGuide: 'Configuration Guide',
+        sections: {
+          pricing: 'Pricing and Amount Rules',
+          orderRules: 'Order Limits and Payment Behavior',
+          methods: 'Payment Methods and Help',
+        },
         enabled: 'Enable Payment',
         enabledHint: 'Enable or disable the payment system',
         usdtCheckoutMode: 'USDT checkout mode',

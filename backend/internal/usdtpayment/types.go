@@ -178,9 +178,11 @@ type WebhookPayload struct {
 }
 
 type CreateRequest struct {
-	Amount        string `json:"amount"` // Exact USDT decimal entered by the user
-	AmountUnit    string `json:"amount_unit"`
-	Network       string `json:"network" binding:"required"`
+	Amount     string `json:"amount"` // Exact USDT decimal entered by the user
+	AmountUnit string `json:"amount_unit"`
+	// Network is required for the fixed merchant API, but native cashier mode
+	// deliberately lets BEpusdt present the network selector.
+	Network       string `json:"network"`
 	OrderType     string `json:"order_type"`
 	PlanID        int64  `json:"plan_id"`
 	ReturnURL     string `json:"return_url"`
@@ -204,7 +206,7 @@ type CheckoutOrder struct {
 	TradeType        string     `json:"trade_type"`
 	ReceivingAddress string     `json:"receiving_address"`
 	ExchangeRate     string     `json:"exchange_rate"`
-	PaymentURL       string     `json:"-"`
+	PaymentURL       string     `json:"payment_url,omitempty"`
 	ExpiresAt        time.Time  `json:"expires_at"`
 	TransactionHash  *string    `json:"transaction_hash,omitempty"`
 	ChainTransferAt  *time.Time `json:"chain_transfer_at,omitempty"`

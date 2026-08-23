@@ -365,6 +365,7 @@ export interface USDTOrder {
   trade_type: string
   receiving_address: string
   exchange_rate: string
+  payment_url?: string
   expires_at: string
   transaction_hash?: string
   chain_transfer_at?: string

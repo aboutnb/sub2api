@@ -577,6 +577,7 @@ func (s *InvoiceService) resolveOwnedCompletedOrders(ctx context.Context, userID
 		paymentorder.UserIDEQ(userID),
 		paymentorder.IDIn(normalized...),
 		paymentorder.StatusEQ(payment.OrderStatusCompleted),
+		paymentorder.PaymentTypeNEQ("usdt"),
 	).All(ctx)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("query invoice orders: %w", err)

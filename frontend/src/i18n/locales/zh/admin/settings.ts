@@ -691,6 +691,11 @@ export default {
         title: '支付设置',
         description: '配置支付系统选项',
         configGuide: '支付配置指南',
+        sections: {
+          pricing: '计费与金额规则',
+          orderRules: '订单限制与支付行为',
+          methods: '支付方式与说明',
+        },
         enabled: '启用支付',
         enabledHint: '启用或禁用支付系统',
         usdtCheckoutMode: 'USDT 收银台模式',

@@ -7796,17 +7796,11 @@
                 </div>
                 <Toggle v-model="form.payment_enabled" />
               </div>
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label class="input-label">{{ t("admin.settings.payment.usdtCheckoutMode") }}</label>
-                  <select v-model="form.usdt_payment_checkout_mode" class="input">
-                    <option value="fixed">{{ t("admin.settings.payment.usdtCheckoutFixed") }}</option>
-                    <option value="cashier">{{ t("admin.settings.payment.usdtCheckoutCashier") }}</option>
-                  </select>
-                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t("admin.settings.payment.usdtCheckoutModeHint") }}</p>
-                </div>
-              </div>
               <template v-if="form.payment_enabled">
+                <div class="flex items-center gap-3 border-t border-gray-100 pt-5 dark:border-dark-700">
+                  <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.payment.sections.pricing") }}</span>
+                  <span class="h-px flex-1 bg-gray-100 dark:bg-dark-700" />
+                </div>
                 <!-- Row 1: Product name -->
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
@@ -8057,6 +8051,10 @@
                   </div>
                 </div>
                 <!-- Row 3: Pending orders + load balance + cancel rate limit (all in one row) -->
+                <div class="flex items-center gap-3 border-t border-gray-100 pt-5 dark:border-dark-700">
+                  <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.payment.sections.orderRules") }}</span>
+                  <span class="h-px flex-1 bg-gray-100 dark:bg-dark-700" />
+                </div>
                 <div class="flex flex-wrap items-end gap-4">
                   <div class="w-28">
                     <label class="input-label">{{
@@ -8235,6 +8233,10 @@
                   </div>
                 </div>
                 <!-- Row 4: Enabled payment types (provider badges like sub2apipay) -->
+                <div class="flex items-center gap-3 border-t border-gray-100 pt-5 dark:border-dark-700">
+                  <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.payment.sections.methods") }}</span>
+                  <span class="h-px flex-1 bg-gray-100 dark:bg-dark-700" />
+                </div>
                 <div>
                   <label class="input-label">{{
                     t("admin.settings.payment.enabledPaymentTypes")
@@ -8311,11 +8313,15 @@
                 </div>
               </template>
 
-              <section
-                data-testid="usdt-payment-settings"
-                class="border-t border-gray-200 pt-6 dark:border-dark-700"
-              >
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            </div>
+          </div>
+
+          <div class="card overflow-hidden">
+            <section
+              data-testid="usdt-payment-settings"
+              class="p-6"
+            >
+              <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div class="flex items-center gap-2">
                       <h3 class="font-semibold text-gray-900 dark:text-white">
@@ -8343,12 +8349,21 @@
                     </button>
                     <Toggle v-model="form.usdt_payment_enabled" />
                   </div>
-                </div>
+              </div>
 
-                <div
-                  v-if="form.usdt_payment_enabled"
-                  class="mt-5 space-y-5 border-t border-gray-100 pt-5 dark:border-dark-700"
-                >
+              <div class="mt-5 max-w-xl border-t border-gray-100 pt-5 dark:border-dark-700">
+                <label class="input-label">{{ t("admin.settings.payment.usdtCheckoutMode") }}</label>
+                <select v-model="form.usdt_payment_checkout_mode" class="input">
+                  <option value="fixed">{{ t("admin.settings.payment.usdtCheckoutFixed") }}</option>
+                  <option value="cashier">{{ t("admin.settings.payment.usdtCheckoutCashier") }}</option>
+                </select>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t("admin.settings.payment.usdtCheckoutModeHint") }}</p>
+              </div>
+
+              <div
+                v-if="form.usdt_payment_enabled"
+                class="mt-5 space-y-5 border-t border-gray-100 pt-5 dark:border-dark-700"
+              >
                   <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <div>
                       <label class="input-label">{{ t("admin.settings.payment.usdt.apiBase") }}</label>
@@ -8484,13 +8499,15 @@
                   >
                     {{ t("admin.settings.payment.usdt.encryptionKeyHint") }}
                   </p>
-                </div>
-              </section>
+              </div>
+            </section>
+          </div>
 
-              <section
-                data-testid="invoice-settings"
-                class="border-t border-gray-200 pt-6 dark:border-dark-700"
-              >
+          <div class="card overflow-hidden">
+            <section
+              data-testid="invoice-settings"
+              class="p-6"
+            >
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div class="flex min-w-0 items-start gap-3">
                     <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
@@ -8646,9 +8663,8 @@
                       <p>{{ t("admin.settings.payment.invoice.requirement") }}</p>
                     </div>
                   </div>
-                </div>
-              </section>
-            </div>
+              </div>
+            </section>
           </div>
 
           <!-- Provider Management -->

@@ -230,7 +230,10 @@ func (c *Client) CreateCashierOrder(ctx context.Context, request map[string]any)
 	if envelope.Data.TradeID == "" || envelope.Data.OrderID == "" {
 		return nil, errors.New("BEpusdt cashier response is missing order identity")
 	}
-	if envelope.Data.PaymentURL == "" && cfg.PublicBaseURL != "" {
+	// BEpusdt may derive this URL from the container Host header. Always use
+	// the configured public base so browsers do not receive an internal Docker
+	// hostname.
+	if cfg.PublicBaseURL != "" {
 		envelope.Data.PaymentURL = strings.TrimRight(cfg.PublicBaseURL, "/") + "/pay/checkout/" + url.PathEscape(envelope.Data.TradeID)
 	}
 	return &envelope.Data, nil
@@ -253,6 +256,40 @@ func (c *Client) CashierInfo(ctx context.Context, tradeID string) (*cashierInfoD
 		return nil, fmt.Errorf("BEpusdt cashier info returned %d: %s", envelope.StatusCode, envelope.Message)
 	}
 	return &envelope.Data, nil
+}
+
+// CancelOrder stops a pending order in BEpusdt. The native endpoint is also
+// valid for merchant-created orders because both flows share the same order
+// store and legacy signing contract.
+func (c *Client) CancelOrder(ctx context.Context, tradeID string) error {
+	tradeID = strings.TrimSpace(tradeID)
+	if tradeID == "" {
+		return errors.New("BEpusdt trade id is empty")
+	}
+	cfg, err := c.effectiveConfig(ctx)
+	if err != nil {
+		return err
+	}
+	var envelope struct {
+		StatusCode int    `json:"status_code"`
+		Message    string `json:"message"`
+	}
+	if err := c.legacyCall(ctx, cfg, http.MethodPost, "/api/v1/order/cancel-transaction", map[string]any{"trade_id": tradeID}, &envelope); err != nil {
+		return err
+	}
+	if envelope.StatusCode == http.StatusOK {
+		return nil
+	}
+	// Cancellation is idempotent from Sub2API's perspective. If BEpusdt no
+	// longer has the order, there is no upstream payment left to reconcile.
+	message := strings.TrimSpace(envelope.Message)
+	if strings.Contains(strings.ToLower(message), "order not found") || strings.Contains(message, "订单不存在") {
+		return nil
+	}
+	if message == "" {
+		message = "unknown upstream cancellation error"
+	}
+	return fmt.Errorf("BEpusdt cancel returned %d: %s", envelope.StatusCode, message)
 }
 
 func (c *Client) legacyCall(ctx context.Context, cfg config.USDTPaymentConfig, method, path string, input map[string]any, output any) error {

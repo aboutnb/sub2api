@@ -827,6 +827,20 @@ func (s *SettingService) GetFrameSrcOrigins(ctx context.Context) ([]string, erro
 		addOrigin(item)
 	}
 
+	// Native BEpusdt cashier pages open from the USDT checkout flow. The URL is
+	// server-side configuration, so include only its origin in CSP.
+	if s.cfg != nil {
+		addOrigin(s.cfg.USDTPayment.PublicBaseURL)
+	}
+	if raw, err := s.GetRawValue(ctx, settingKeyUSDTPaymentConfig); err == nil {
+		var stored struct {
+			PublicBaseURL string `json:"public_base_url"`
+		}
+		if json.Unmarshal([]byte(raw), &stored) == nil {
+			addOrigin(stored.PublicBaseURL)
+		}
+	}
+
 	return origins, nil
 }
 

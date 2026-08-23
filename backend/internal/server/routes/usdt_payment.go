@@ -24,6 +24,7 @@ func RegisterUSDTPaymentRoutes(
 		user.GET("/config", usdtHandler.GetConfig)
 		user.POST("/orders", usdtHandler.CreateOrder)
 		user.GET("/orders/:id", usdtHandler.GetOrder)
+		user.POST("/orders/:id/cancel", usdtHandler.CancelOrder)
 	}
 
 	v1.POST("/usdt/webhook/bepusdt", usdtHandler.Webhook)

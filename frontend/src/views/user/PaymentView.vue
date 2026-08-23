@@ -428,6 +428,7 @@ const previewImage = ref('')
 const paymentPhase = ref<'select' | 'paying'>('select')
 const usdtConfig = ref<USDTConfigResponse>({ enabled: false, networks: [] })
 let usdtRateTimer: number | undefined
+const USDT_RATE_REFRESH_INTERVAL_MS = 15_000
 
 interface CreateOrderOptions {
   openid?: string
@@ -1195,6 +1196,15 @@ async function resumeWechatPaymentFromQuery() {
   }
 }
 
+async function refreshUSDTConfig() {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+  try {
+    usdtConfig.value = (await paymentAPI.getUSDTConfig()).data
+  } catch {
+    // Keep the last successful quote during a transient refresh failure.
+  }
+}
+
 onMounted(async () => {
   try {
     const checkoutRequest = paymentAPI.getCheckoutInfo()
@@ -1212,13 +1222,9 @@ onMounted(async () => {
     if (usdtResult.status === 'fulfilled') {
       usdtConfig.value = usdtResult.value.data
       if (usdtConfig.value.enabled) {
-        usdtRateTimer = window.setInterval(async () => {
-          try {
-            usdtConfig.value = (await paymentAPI.getUSDTConfig()).data
-          } catch {
-            // Keep the last frozen display during a transient refresh failure.
-          }
-        }, 30_000)
+        usdtRateTimer = window.setInterval(() => { void refreshUSDTConfig() }, USDT_RATE_REFRESH_INTERVAL_MS)
+        window.addEventListener('focus', refreshUSDTConfig)
+        document.addEventListener('visibilitychange', refreshUSDTConfig)
       }
     } else if (isUSDTEntry.value) {
       throw usdtResult.reason
@@ -1286,5 +1292,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (usdtRateTimer !== undefined) window.clearInterval(usdtRateTimer)
+  window.removeEventListener('focus', refreshUSDTConfig)
+  document.removeEventListener('visibilitychange', refreshUSDTConfig)
 })
 </script>

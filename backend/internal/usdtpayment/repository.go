@@ -142,6 +142,50 @@ WHERE q.payment_order_id=$1 AND o.user_id=$2`, paymentOrderID, userID)
 	return q, status, amount, payAmount, feeRate, err
 }
 
+// CancelOrderForUser atomically cancels the local payment order and stops the
+// USDT quote from being picked up by the reconciler. A signed callback for a
+// transfer that was already sent is still handled by the service's recovery
+// rules, so users are warned not to cancel after initiating a transfer.
+func (r *Repository) CancelOrderForUser(ctx context.Context, paymentOrderID, userID int64) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, errors.New("USDT quote repository is unavailable")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var status string
+	if err := tx.QueryRowContext(ctx, `
+SELECT status FROM payment_orders
+WHERE id=$1 AND user_id=$2 AND payment_type=$3
+FOR UPDATE`, paymentOrderID, userID, PaymentType).Scan(&status); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	if status != "PENDING" {
+		return false, nil
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE payment_orders SET status='CANCELLED', updated_at=NOW()
+WHERE id=$1 AND user_id=$2 AND status='PENDING'`, paymentOrderID, userID); err != nil {
+		return false, err
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE usdt_payment_quotes
+SET provider_status='cancelled', next_reconcile_at=NOW(), reconcile_lease_until=NULL,
+    last_error=NULL, updated_at=NOW()
+WHERE payment_order_id=$1`, paymentOrderID); err != nil {
+		return false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func scanQuoteWithOrder(scanner rowScanner, status *string, amount, payAmount, feeRate *float64) (*Quote, error) {
 	var q Quote
 	var paymentMode sql.NullString

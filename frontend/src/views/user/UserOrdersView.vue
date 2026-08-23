@@ -122,7 +122,7 @@
         <template #actions="{ row }">
           <div class="flex flex-wrap items-center gap-2">
             <span
-              v-if="invoiceConfig.enabled && row.invoice_status"
+              v-if="invoiceConfig.enabled && row.payment_type !== 'usdt' && row.invoice_status"
               data-test="invoice-order-status"
               class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium"
               :class="invoiceOrderStatusClass(row.invoice_status)"
@@ -132,7 +132,7 @@
               <span>{{ invoiceOrderStatusLabel(row.invoice_status) }}</span>
             </span>
             <label
-              v-else-if="invoiceConfig.enabled && invoiceSelectionMode && row.status === 'COMPLETED'"
+              v-else-if="invoiceConfig.enabled && invoiceSelectionMode && isInvoiceEligibleOrder(row)"
               class="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/30"
             >
               <input
@@ -145,7 +145,7 @@
               <span>{{ t('payment.invoice.selectOrder') }}</span>
             </label>
             <button
-              v-else-if="invoiceConfig.enabled && row.status === 'COMPLETED'"
+              v-else-if="invoiceConfig.enabled && isInvoiceEligibleOrder(row)"
               class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/30"
               @click="startInvoiceSelection(row.id)"
             >
@@ -718,6 +718,10 @@ function canRequestRefund(order: PaymentOrder): boolean {
   if (order.status !== 'COMPLETED') return false
   if (!order.provider_instance_id) return false
   return refundEligibleProviders.value.has(order.provider_instance_id)
+}
+
+function isInvoiceEligibleOrder(order: PaymentOrder): boolean {
+  return order.status === 'COMPLETED' && order.payment_type.toLowerCase() !== 'usdt'
 }
 
 async function loadRefundEligibility() {
