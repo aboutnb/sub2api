@@ -2401,7 +2401,7 @@ func (s *ProjectMihomoService) restoreProviderFileFromPrevious(previousRefs []pr
 			}
 			return false, fmt.Errorf("read cached mihomo provider file: %w", err)
 		}
-		if err := os.WriteFile(targetPath, content, 0o644); err != nil {
+		if err := os.WriteFile(targetPath, content, 0o644); err != nil { //nolint:gosec // targetPath originates from providerCachePathFor, which strips directory components.
 			return false, fmt.Errorf("write mihomo provider file: %w", err)
 		}
 		return true, nil
