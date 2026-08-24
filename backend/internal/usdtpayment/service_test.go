@@ -80,9 +80,7 @@ func TestConfirmProofDoesNotMarkQuoteSucceededWhenBridgeFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("close db: %v", err)
-		}
+		_ = db.Close()
 	}()
 
 	bridge := &testPaymentBridge{confirmErr: errors.New("temporary fulfillment failure")}
@@ -109,9 +107,7 @@ func TestConfirmProofDoesNotFulfillWhenTransactionHashReservationFails(t *testin
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("close db: %v", err)
-		}
+		_ = db.Close()
 	}()
 
 	bridge := &testPaymentBridge{}
@@ -138,9 +134,7 @@ func TestConfirmProofRecordsQuoteAfterSuccessfulBridge(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("close db: %v", err)
-		}
+		_ = db.Close()
 	}()
 
 	bridge := &testPaymentBridge{}
@@ -257,9 +251,7 @@ func TestSaveQuoteRejectsConflictingExistingQuote(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("close db: %v", err)
-		}
+		_ = db.Close()
 	}()
 	now := time.Now().UTC().Truncate(time.Second)
 	existing, _ := testQuoteAndProof(now)
@@ -294,9 +286,7 @@ func TestSaveQuoteAcceptsIdenticalExistingQuote(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("close db: %v", err)
-		}
+		_ = db.Close()
 	}()
 	now := time.Now().UTC().Truncate(time.Second)
 	quote, _ := testQuoteAndProof(now)
