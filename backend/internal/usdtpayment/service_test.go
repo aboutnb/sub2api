@@ -256,7 +256,11 @@ func TestSaveQuoteRejectsConflictingExistingQuote(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("close db: %v", err)
+		}
+	}()
 	now := time.Now().UTC().Truncate(time.Second)
 	existing, _ := testQuoteAndProof(now)
 	existing.ID = 1
@@ -289,7 +293,11 @@ func TestSaveQuoteAcceptsIdenticalExistingQuote(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("close db: %v", err)
+		}
+	}()
 	now := time.Now().UTC().Truncate(time.Second)
 	quote, _ := testQuoteAndProof(now)
 	quote.ID = 1
