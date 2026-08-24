@@ -27,6 +27,11 @@ func NewUSDTPaymentHandler(usdtService *usdtpayment.Service, configService *serv
 }
 
 func (h *USDTPaymentHandler) GetConfig(c *gin.Context) {
+	minimumAmount, err := h.service.MinimumAmount(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	checkoutMode := h.service.CheckoutMode(c.Request.Context())
 	capabilities := []usdtpayment.Capability{}
 	if checkoutMode != "cashier" {
@@ -43,7 +48,7 @@ func (h *USDTPaymentHandler) GetConfig(c *gin.Context) {
 			bonusPercent = paymentConfig.USDTPaymentBonusPercent
 		}
 	}
-	result := gin.H{"enabled": h.service.Enabled(), "networks": capabilities, "checkout_mode": checkoutMode, "bonus_percent": bonusPercent}
+	result := gin.H{"enabled": h.service.Enabled(), "networks": capabilities, "checkout_mode": checkoutMode, "bonus_percent": bonusPercent, "minimum_amount": minimumAmount}
 	if h.service.Enabled() {
 		if rate, rateErr := h.service.ExchangeRate(c.Request.Context()); rateErr == nil {
 			result["rate"] = rate.Rate

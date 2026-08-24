@@ -9,7 +9,10 @@
             <span class="h-px w-6 bg-emerald-500/60" />
             <h2 class="text-sm font-semibold text-gray-950 dark:text-white">{{ t('payment.amountLabel') }}</h2>
           </div>
-          <AmountInput v-model="amount" :amounts="[10, 20, 50, 100, 200, 500]" currency-symbol="₮" />
+          <AmountInput v-model="amount" :amounts="quickAmounts" :min="minimumAmount" currency-symbol="₮" />
+          <p v-if="amountBelowMinimum" class="mt-2 text-xs text-rose-700 dark:text-rose-300">
+            {{ t('payment.amountTooLow', { min: `₮${minimumAmountLabel}` }) }}
+          </p>
         </div>
 
         <div v-if="config.checkout_mode !== 'cashier'" class="p-5 sm:p-6">
@@ -194,7 +197,13 @@ import AmountInput from '@/components/payment/AmountInput.vue'
 const props = defineProps<{ config: USDTConfigResponse }>()
 const { t } = useI18n()
 const USDT_RECOVERY_STORAGE_KEY = 'usdt.payment.current'
-const amount = ref<number | null>(10)
+const minimumAmount = computed(() => {
+  const value = Number(props.config.minimum_amount)
+  return Number.isFinite(value) && value >= 0.01 ? value : 5
+})
+const minimumAmountLabel = computed(() => minimumAmount.value.toFixed(8).replace(/0+$/, '').replace(/\.$/, ''))
+const quickAmounts = computed(() => Array.from(new Set([minimumAmount.value, 10, 20, 50, 100, 500])).filter(value => value >= minimumAmount.value))
+const amount = ref<number | null>(minimumAmount.value)
 const selectedNetwork = ref('')
 const order = ref<USDTOrder | null>(null)
 const submitting = ref(false)
@@ -258,6 +267,7 @@ const orderNetworkOption = computed(() => readyNetworks.value.find(network => ne
 const orderNetworkName = computed(() => orderNetworkOption.value ? networkDisplayName(orderNetworkOption.value) : networkDisplayName({ network: order.value?.network }))
 const orderNetworkStandardLabel = computed(() => networkStandardLabel(order.value?.trade_type, order.value?.network))
 const cryptoAmount = computed(() => amount.value || 0)
+const amountBelowMinimum = computed(() => cryptoAmount.value > 0 && cryptoAmount.value < minimumAmount.value)
 const exchangeRate = computed(() => {
   const value = Number(props.config.rate)
   return Number.isFinite(value) && value > 0 ? value : 0
@@ -284,7 +294,11 @@ const roundedFiatAmount = computed(() => Number(estimatedFiatAmountLabel.value))
 const bonusAmount = computed(() => bonusPercent.value > 0 ? Number((roundedFiatAmount.value * bonusPercent.value / 100).toFixed(2)) : 0)
 const bonusAmountLabel = computed(() => bonusAmount.value.toFixed(2))
 const creditedAmountLabel = computed(() => (roundedFiatAmount.value + bonusAmount.value).toFixed(2))
-const canSubmit = computed(() => (props.config.checkout_mode === 'cashier' || !!selectedNetwork.value) && cryptoAmount.value > 0 && exchangeRate.value > 0)
+const canSubmit = computed(() => (props.config.checkout_mode === 'cashier' || !!selectedNetwork.value) && cryptoAmount.value >= minimumAmount.value && exchangeRate.value > 0)
+
+watch(minimumAmount, (value) => {
+  if (amount.value === null || amount.value < value) amount.value = value
+})
 
 function formatExchangeRate(value: string | number | undefined): string {
   const numeric = Number(value)

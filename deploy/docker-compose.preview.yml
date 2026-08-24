@@ -5,6 +5,9 @@ services:
     restart: unless-stopped
     ports:
       - "${BIND_HOST:-0.0.0.0}:${SERVER_PORT:-3000}:8080"
+    extra_hosts:
+      # Keep migrated host.docker.internal API bases reachable on Linux hosts.
+      - "host.docker.internal:host-gateway"
     volumes:
       - ${APP_DATA_DIR:-/root/flowai-preview-data/app}:/app/data
       - ${APP_DATA_DIR:-/root/flowai-preview-data/app}/mihomo:/app/data/mihomo
@@ -29,6 +32,7 @@ services:
       - USDT_PAYMENT_LEGACY_TOKEN=${USDT_PAYMENT_LEGACY_TOKEN:-}
       - USDT_PAYMENT_FIAT=${USDT_PAYMENT_FIAT:-CNY}
       - USDT_PAYMENT_ENABLED_NETWORKS=${USDT_PAYMENT_ENABLED_NETWORKS:-tron,bsc}
+      - USDT_PAYMENT_MIN_AMOUNT=${USDT_PAYMENT_MIN_AMOUNT:-5}
       - USDT_PAYMENT_ORDER_TIMEOUT_SECONDS=${USDT_PAYMENT_ORDER_TIMEOUT_SECONDS:-900}
       - USDT_PAYMENT_LATE_PAYMENT_WINDOW_MINUTES=${USDT_PAYMENT_LATE_PAYMENT_WINDOW_MINUTES:-60}
       - USDT_PAYMENT_REQUEST_TIMEOUT_SECONDS=${USDT_PAYMENT_REQUEST_TIMEOUT_SECONDS:-6}

@@ -182,6 +182,12 @@ func (c *Client) effectiveConfig(ctx context.Context) (config.USDTPaymentConfig,
 	if resolved.LegacyToken == "" {
 		resolved.LegacyToken = c.legacyToken
 	}
+	// Older BEpusdt builds use the legacy API token as the merchant HMAC
+	// secret when no dedicated HMAC secret is configured. Keep that deployment
+	// compatible while preferring the explicitly configured secret.
+	if resolved.APISecret == "" {
+		resolved.APISecret = resolved.LegacyToken
+	}
 	return resolved, nil
 }
 
@@ -385,7 +391,7 @@ func (c *Client) call(ctx context.Context, cfg config.USDTPaymentConfig, method,
 	req.Header.Set(headerTimestamp, timestamp)
 	req.Header.Set(headerNonce, nonce)
 	req.Header.Set(headerDigest, digest)
-	req.Header.Set(headerSignature, hmacV2Sign(cfg.APISecret, method, path, timestamp, nonce, digest))
+	req.Header.Set(headerSignature, hmacV2Sign(merchantSecret(cfg), method, path, timestamp, nonce, digest))
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("call BEpusdt: %w", err)
@@ -410,6 +416,13 @@ func (c *Client) call(ctx context.Context, cfg config.USDTPaymentConfig, method,
 		return fmt.Errorf("decode BEpusdt response: %w", err)
 	}
 	return nil
+}
+
+func merchantSecret(cfg config.USDTPaymentConfig) string {
+	if strings.TrimSpace(cfg.APISecret) != "" {
+		return cfg.APISecret
+	}
+	return cfg.LegacyToken
 }
 
 func (c *Client) rewritePaymentURL(order *UpstreamOrder, publicBaseURL string) {

@@ -338,6 +338,7 @@ export interface USDTConfigResponse {
   enabled: boolean
   checkout_mode?: 'fixed' | 'cashier'
   networks: USDTCapability[]
+  minimum_amount?: number
   bonus_percent?: number
   rate?: string
   rate_crypto?: string

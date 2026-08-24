@@ -15,6 +15,7 @@ type testUSDTPaymentRequest struct {
 	APISecret                string   `json:"api_secret"`
 	Fiat                     string   `json:"fiat"`
 	EnabledNetworks          []string `json:"enabled_networks"`
+	MinimumAmount            float64  `json:"minimum_amount"`
 	OrderTimeoutSeconds      int      `json:"order_timeout_seconds"`
 	LatePaymentWindowMinutes int      `json:"late_payment_window_minutes"`
 	RequestTimeoutSeconds    int      `json:"request_timeout_seconds"`
@@ -37,6 +38,7 @@ func (h *SettingHandler) TestUSDTPaymentConnection(c *gin.Context) {
 		Enabled: true, APIBase: req.APIBase, PublicBaseURL: req.PublicBaseURL,
 		PublicCallbackBaseURL: req.PublicCallbackBaseURL, KeyID: req.KeyID, APISecret: req.APISecret,
 		Fiat: req.Fiat, EnabledNetworks: req.EnabledNetworks,
+		MinimumAmount:       req.MinimumAmount,
 		OrderTimeoutSeconds: req.OrderTimeoutSeconds, LatePaymentWindowMinutes: req.LatePaymentWindowMinutes,
 		RequestTimeoutSeconds: req.RequestTimeoutSeconds, ReconcileIntervalSeconds: req.ReconcileIntervalSeconds,
 		ReconcileBatchSize: req.ReconcileBatchSize, WebhookClockSkewSeconds: req.WebhookClockSkewSeconds,

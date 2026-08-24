@@ -426,7 +426,7 @@ const selectedPlan = ref<SubscriptionPlan | null>(null)
 const previewImage = ref('')
 
 const paymentPhase = ref<'select' | 'paying'>('select')
-const usdtConfig = ref<USDTConfigResponse>({ enabled: false, networks: [] })
+const usdtConfig = ref<USDTConfigResponse>({ enabled: false, networks: [], minimum_amount: 5 })
 let usdtRateTimer: number | undefined
 const USDT_RATE_REFRESH_INTERVAL_MS = 15_000
 

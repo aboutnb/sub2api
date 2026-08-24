@@ -690,12 +690,14 @@ export interface SystemSettings {
   usdt_payment_api_secret_configured: boolean;
   usdt_payment_fiat: string;
   usdt_payment_enabled_networks: string[];
+  usdt_payment_minimum_amount: number;
   usdt_payment_order_timeout_seconds: number;
   usdt_payment_late_payment_window_minutes: number;
   usdt_payment_request_timeout_seconds: number;
   usdt_payment_reconcile_interval_seconds: number;
   usdt_payment_reconcile_batch_size: number;
   usdt_payment_webhook_clock_skew_seconds: number;
+  usdt_payment_config_warnings: string[];
 
   // XZNOAuth self-service invoice integration
   invoice_enabled: boolean;
@@ -1033,6 +1035,7 @@ export interface UpdateSettingsRequest {
   usdt_payment_api_secret?: string;
   usdt_payment_fiat?: string;
   usdt_payment_enabled_networks?: string[];
+  usdt_payment_minimum_amount?: number;
   usdt_payment_order_timeout_seconds?: number;
   usdt_payment_late_payment_window_minutes?: number;
   usdt_payment_request_timeout_seconds?: number;
@@ -1132,6 +1135,7 @@ export interface TestUSDTPaymentRequest {
   api_secret: string;
   fiat: string;
   enabled_networks: string[];
+  minimum_amount: number;
   order_timeout_seconds: number;
   late_payment_window_minutes: number;
   request_timeout_seconds: number;

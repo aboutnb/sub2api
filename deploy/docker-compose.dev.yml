@@ -21,6 +21,9 @@ services:
       - no-new-privileges:true
     ports:
       - "${BIND_HOST:-127.0.0.1}:${SERVER_PORT:-8080}:8080"
+    extra_hosts:
+      # Keep migrated host.docker.internal API bases reachable on Linux hosts.
+      - "host.docker.internal:host-gateway"
     volumes:
       - ${DATA_DIR:-./data}:/app/data:Z
       - ${DATA_DIR:-./data}/mihomo:/app/data/mihomo:Z
@@ -46,6 +49,7 @@ services:
       - USDT_PAYMENT_LEGACY_TOKEN=${USDT_PAYMENT_LEGACY_TOKEN:-}
       - USDT_PAYMENT_FIAT=${USDT_PAYMENT_FIAT:-CNY}
       - USDT_PAYMENT_ENABLED_NETWORKS=${USDT_PAYMENT_ENABLED_NETWORKS:-tron,bsc}
+      - USDT_PAYMENT_MIN_AMOUNT=${USDT_PAYMENT_MIN_AMOUNT:-5}
       - USDT_PAYMENT_ORDER_TIMEOUT_SECONDS=${USDT_PAYMENT_ORDER_TIMEOUT_SECONDS:-900}
       - USDT_PAYMENT_LATE_PAYMENT_WINDOW_MINUTES=${USDT_PAYMENT_LATE_PAYMENT_WINDOW_MINUTES:-60}
       - USDT_PAYMENT_REQUEST_TIMEOUT_SECONDS=${USDT_PAYMENT_REQUEST_TIMEOUT_SECONDS:-6}

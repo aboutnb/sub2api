@@ -8361,6 +8361,16 @@
               </div>
 
               <div
+                v-if="form.usdt_payment_config_warnings?.length"
+                class="mt-5 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+              >
+                <strong>{{ t("admin.settings.payment.usdt.configWarningsTitle") }}</strong>
+                <ul class="mt-2 list-disc space-y-1 pl-5">
+                  <li v-for="warning in form.usdt_payment_config_warnings" :key="warning">{{ warning }}</li>
+                </ul>
+              </div>
+
+              <div
                 v-if="form.usdt_payment_enabled"
                 class="mt-5 space-y-5 border-t border-gray-100 pt-5 dark:border-dark-700"
               >
@@ -8420,21 +8430,31 @@
                     <p class="mt-1 text-xs text-gray-400">{{ t("admin.settings.payment.usdt.networksHint") }}</p>
                   </div>
 
-                  <div class="max-w-sm">
-                    <label class="input-label">{{ t("admin.settings.payment.usdt.bonusPercent") }}</label>
-                    <div class="relative">
-                      <input
-                        :value="form.usdt_payment_bonus_percent ?? ''"
-                        @input="form.usdt_payment_bonus_percent = Math.min(100, Math.max(0, Math.round(parseFloat(($event.target as HTMLInputElement).value || '0') * 100) / 100))"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        class="input pr-8"
-                      />
-                      <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">%</span>
+                  <div class="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label class="input-label">{{ t("admin.settings.payment.usdt.minimumAmount") }}</label>
+                      <div class="relative">
+                        <input v-model.number="form.usdt_payment_minimum_amount" type="number" step="0.01" min="0.01" max="1000000" class="input pr-16" />
+                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">USDT</span>
+                      </div>
+                      <p class="mt-1 text-xs text-gray-400">{{ t("admin.settings.payment.usdt.minimumAmountHint") }}</p>
                     </div>
-                    <p class="mt-1 text-xs text-gray-400">{{ t("admin.settings.payment.usdt.bonusPercentHint") }}</p>
+                    <div>
+                      <label class="input-label">{{ t("admin.settings.payment.usdt.bonusPercent") }}</label>
+                      <div class="relative">
+                        <input
+                          :value="form.usdt_payment_bonus_percent ?? ''"
+                          @input="form.usdt_payment_bonus_percent = Math.min(100, Math.max(0, Math.round(parseFloat(($event.target as HTMLInputElement).value || '0') * 100) / 100))"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          class="input pr-8"
+                        />
+                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">%</span>
+                      </div>
+                      <p class="mt-1 text-xs text-gray-400">{{ t("admin.settings.payment.usdt.bonusPercentHint") }}</p>
+                    </div>
                   </div>
 
                   <div
@@ -10044,12 +10064,14 @@ const form = reactive<SettingsForm>({
   usdt_payment_api_secret_configured: false,
   usdt_payment_fiat: "CNY",
   usdt_payment_enabled_networks: ["tron", "bsc"],
+  usdt_payment_minimum_amount: 5,
   usdt_payment_order_timeout_seconds: 1800,
   usdt_payment_late_payment_window_minutes: 30,
   usdt_payment_request_timeout_seconds: 6,
   usdt_payment_reconcile_interval_seconds: 10,
   usdt_payment_reconcile_batch_size: 50,
   usdt_payment_webhook_clock_skew_seconds: 300,
+  usdt_payment_config_warnings: [] as string[],
   invoice_enabled: false,
   invoice_base_url: "https://oauth.xzncraft.cn",
   invoice_client_id: "",
@@ -11932,6 +11954,7 @@ async function saveSettings() {
       usdt_payment_api_secret: form.usdt_payment_api_secret.trim(),
       usdt_payment_fiat: form.usdt_payment_fiat || "CNY",
       usdt_payment_enabled_networks: form.usdt_payment_enabled_networks,
+      usdt_payment_minimum_amount: Number(form.usdt_payment_minimum_amount) || 5,
       usdt_payment_order_timeout_seconds:
         Number(form.usdt_payment_order_timeout_seconds) || 1800,
       usdt_payment_late_payment_window_minutes:
@@ -12202,6 +12225,7 @@ async function testUSDTPaymentConnection() {
       api_secret: form.usdt_payment_api_secret.trim(),
       fiat: form.usdt_payment_fiat || "CNY",
       enabled_networks: form.usdt_payment_enabled_networks,
+      minimum_amount: Number(form.usdt_payment_minimum_amount) || 5,
       order_timeout_seconds: Number(form.usdt_payment_order_timeout_seconds) || 900,
       late_payment_window_minutes: Number(form.usdt_payment_late_payment_window_minutes) || 0,
       request_timeout_seconds: Number(form.usdt_payment_request_timeout_seconds) || 6,
@@ -12215,7 +12239,16 @@ async function testUSDTPaymentConnection() {
       appStore.showWarning(t("admin.settings.payment.usdt.testDegraded"));
     }
   } catch (error: unknown) {
-    appStore.showError(extractApiErrorMessage(error, t("admin.settings.payment.usdt.testFailed")));
+    // Keep the backend reason visible so network, credential, and migration
+    // failures do not collapse into a generic "internal error" toast.
+    appStore.showError(
+      extractI18nErrorMessage(
+        error,
+        t,
+        "payment.errors",
+        t("admin.settings.payment.usdt.testFailed"),
+      ),
+    );
   } finally {
     testingUSDTConnection.value = false;
   }

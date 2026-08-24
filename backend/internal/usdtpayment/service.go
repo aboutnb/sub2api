@@ -126,6 +126,14 @@ func (s *Service) checkoutMode(ctx context.Context) string {
 
 func (s *Service) CheckoutMode(ctx context.Context) string { return s.checkoutMode(ctx) }
 
+func (s *Service) MinimumAmount(ctx context.Context) (float64, error) {
+	cfg, err := s.currentConfig(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return minimumUSDTAmount(cfg).InexactFloat64(), nil
+}
+
 func (s *Service) Capabilities(ctx context.Context) ([]Capability, error) {
 	cfg, err := s.currentConfig(ctx)
 	if err != nil {
@@ -178,8 +186,15 @@ func (s *Service) CreateOrder(ctx context.Context, userID int64, req CreateReque
 	if unit := strings.TrimSpace(req.AmountUnit); unit != "" && !strings.EqualFold(unit, "USDT") {
 		return nil, infraerrors.BadRequest("USDT_AMOUNT_UNIT_INVALID", "USDT orders must use USDT amounts")
 	}
+	requestedCrypto, err := parseRequestedUSDTAmount(req.Amount)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateMinimumUSDTAmount(requestedCrypto, cfg); err != nil {
+		return nil, err
+	}
 	if s.checkoutMode(ctx) == "cashier" {
-		return s.createCashierOrder(ctx, userID, req, clientIP, sourceHost, sourceURL, locale)
+		return s.createCashierOrder(ctx, userID, req, requestedCrypto, clientIP, sourceHost, sourceURL, locale)
 	}
 	network := strings.ToLower(strings.TrimSpace(req.Network))
 	tradeType, ok := networkTradeTypes[network]
@@ -208,10 +223,6 @@ func (s *Service) CreateOrder(ctx context.Context, userID int64, req CreateReque
 	rateQuote, err := s.ExchangeRate(ctx)
 	if err != nil {
 		return nil, infraerrors.ServiceUnavailable("USDT_RATE_UNAVAILABLE", err.Error())
-	}
-	requestedCrypto, err := parseRequestedUSDTAmount(req.Amount)
-	if err != nil {
-		return nil, err
 	}
 	rate, err := decimal.NewFromString(rateQuote.Rate)
 	if err != nil || rate.LessThanOrEqual(decimal.Zero) {
@@ -255,17 +266,13 @@ func (s *Service) CreateOrder(ctx context.Context, userID int64, req CreateReque
 	return checkoutFromQuote(quote, prepared.BaseAmount, prepared.PayAmount, prepared.FeeRate, "PENDING"), nil
 }
 
-func (s *Service) createCashierOrder(ctx context.Context, userID int64, req CreateRequest, clientIP, sourceHost, sourceURL, locale string) (*CheckoutOrder, error) {
+func (s *Service) createCashierOrder(ctx context.Context, userID int64, req CreateRequest, requestedCrypto decimal.Decimal, clientIP, sourceHost, sourceURL, locale string) (*CheckoutOrder, error) {
 	cfg, err := s.currentConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if strings.TrimSpace(cfg.LegacyToken) == "" {
 		return nil, infraerrors.ServiceUnavailable("USDT_CASHIER_NOT_CONFIGURED", "BEpusdt legacy API token is not configured")
-	}
-	requestedCrypto, err := parseRequestedUSDTAmount(req.Amount)
-	if err != nil {
-		return nil, err
 	}
 	rateQuote, err := s.ExchangeRate(ctx)
 	if err != nil {
@@ -326,6 +333,22 @@ func parseRequestedUSDTAmount(raw string) (decimal.Decimal, error) {
 		return decimal.Zero, infraerrors.BadRequest("USDT_AMOUNT_PRECISION_INVALID", "USDT amount supports at most 8 decimal places")
 	}
 	return amount, nil
+}
+
+func minimumUSDTAmount(cfg config.USDTPaymentConfig) decimal.Decimal {
+	minimum := decimal.NewFromFloat(cfg.MinimumAmount)
+	if minimum.LessThanOrEqual(decimal.Zero) {
+		return decimal.NewFromFloat(config.DefaultUSDTPaymentMinimumAmount)
+	}
+	return minimum
+}
+
+func validateMinimumUSDTAmount(amount decimal.Decimal, cfg config.USDTPaymentConfig) error {
+	minimum := minimumUSDTAmount(cfg)
+	if amount.LessThan(minimum) {
+		return infraerrors.BadRequest("USDT_AMOUNT_TOO_LOW", fmt.Sprintf("USDT amount must be at least %s", minimum.String()))
+	}
+	return nil
 }
 
 func (s *Service) quoteFromUpstream(paymentOrderID int64, upstream *UpstreamOrder, network, tradeType, fiatAmount, expectedCryptoAmount, expectedRate string) (*Quote, error) {
@@ -449,7 +472,7 @@ func (s *Service) VerifyWebhook(raw []byte, headers map[string]string, requestPa
 	if digest != sha256Hex(raw) {
 		return nil, errors.New("BEpusdt webhook body digest mismatch")
 	}
-	if !equalHex(signature, hmacV2Sign(cfg.APISecret, "POST", requestPath, timestamp, nonce, digest)) {
+	if !equalHex(signature, hmacV2Sign(merchantSecret(cfg), "POST", requestPath, timestamp, nonce, digest)) {
 		return nil, errors.New("BEpusdt webhook request signature mismatch")
 	}
 	var payload WebhookPayload
@@ -464,7 +487,7 @@ func (s *Service) VerifyWebhook(raw []byte, headers map[string]string, requestPa
 	payloadSignature := payload.Signature
 	payload.Signature = ""
 	unsigned, err := json.Marshal(payload)
-	if err != nil || !equalHex(payloadSignature, hmacHex(cfg.APISecret, unsigned)) {
+	if err != nil || !equalHex(payloadSignature, hmacHex(merchantSecret(cfg), unsigned)) {
 		return nil, errors.New("BEpusdt webhook payload signature mismatch")
 	}
 	payload.Signature = payloadSignature
@@ -581,6 +604,13 @@ func (s *Service) reconcileQuote(ctx context.Context, quote *Quote) error {
 	if quote.TradeType == "pending" || quote.Network == "pending" {
 		info, err := s.client.CashierInfo(ctx, quote.ProviderTradeID)
 		if err != nil {
+			if isUpstreamOrderNotFound(err) {
+				// A migrated quote can outlive the BEpusdt SQLite/Postgres data that
+				// created it. Retrying a terminal 400 forever only floods the logs and
+				// keeps the stale quote eligible for reconciliation.
+				_ = s.repository.RecordReconcile(ctx, quote.ID, "expired", time.Now().Add(24*time.Hour), err)
+				return nil
+			}
 			_ = s.repository.RecordReconcile(ctx, quote.ID, quote.ProviderStatus, time.Now().Add(s.reconcileDelay(quote.ReconcileAttempts)), err)
 			return err
 		}
@@ -635,6 +665,14 @@ func (s *Service) reconcileQuote(ctx context.Context, quote *Quote) error {
 	default:
 		return s.repository.RecordReconcile(ctx, quote.ID, upstream.StatusName, time.Now().Add(30*time.Second), nil)
 	}
+}
+
+func isUpstreamOrderNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "order not found") || strings.Contains(message, "订单不存在")
 }
 
 func mapCashierStatus(status int) string {

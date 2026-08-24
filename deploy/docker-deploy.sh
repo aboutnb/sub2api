@@ -3,12 +3,12 @@
 # Sub2API Docker Deployment Preparation Script
 # =============================================================================
 # This script prepares deployment files for Sub2API:
-#   - Downloads docker-compose.local.yml and .env.example
+#   - Downloads the branch-pinned docker-compose.yml and .env.example
 #   - Generates secure secrets (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
-#   - Creates necessary data directories
+#   - Uses fresh Docker-managed PostgreSQL/Redis/application volumes on the target host
 #
 # After running this script, you can start services with:
-#   docker-compose up -d
+#   docker compose -f docker-compose.yml up -d
 # =============================================================================
 
 set -e
@@ -20,8 +20,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# GitHub raw content base URL
-GITHUB_RAW_URL="https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy"
+# Release repository/branch used by this deployment helper. Override
+# deliberately when deploying another source: GITHUB_REPO=owner/repo
+# GITHUB_BRANCH=main ./docker-deploy.sh
+GITHUB_REPO="${GITHUB_REPO:-aboutnb/sub2api}"
+GITHUB_BRANCH="${GITHUB_BRANCH:-sub2api-flowai}"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/deploy"
 
 # Print colored message
 print_info() {
@@ -75,12 +79,13 @@ main() {
         fi
     fi
 
-    # Download docker-compose.local.yml and save as docker-compose.yml
-    print_info "Downloading docker-compose.yml..."
+    # Download the named-volume compose file. It does not carry local database
+    # directories into the target host.
+    print_info "Downloading docker-compose.yml (branch: ${GITHUB_BRANCH})..."
     if command_exists curl; then
-        curl -sSL "${GITHUB_RAW_URL}/docker-compose.local.yml" -o docker-compose.yml
+        curl -sSL "${GITHUB_RAW_URL}/docker-compose.yml" -o docker-compose.yml
     elif command_exists wget; then
-        wget -q "${GITHUB_RAW_URL}/docker-compose.local.yml" -O docker-compose.yml
+        wget -q "${GITHUB_RAW_URL}/docker-compose.yml" -O docker-compose.yml
     else
         print_error "Neither curl nor wget is installed. Please install one of them."
         exit 1
@@ -121,11 +126,6 @@ main() {
         sed -i '' "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${POSTGRES_PASSWORD}/" .env
     fi
 
-    # Create data directories
-    print_info "Creating data directories..."
-    mkdir -p data postgres_data redis_data
-    print_success "Created data directories"
-
     # Set secure permissions for .env file (readable/writable only by owner)
     chmod 600 .env
     echo ""
@@ -147,17 +147,15 @@ main() {
     echo "  docker-compose.yml        - Docker Compose configuration"
     echo "  .env                      - Environment variables (generated secrets)"
     echo "  .env.example              - Example template (for reference)"
-    echo "  data/                     - Application data (will be created on first run)"
-    echo "  postgres_data/            - PostgreSQL data"
-    echo "  redis_data/               - Redis data"
+    echo "  Docker named volumes       - Fresh application/PostgreSQL/Redis data"
     echo ""
     echo "Next steps:"
     echo "  1. (Optional) Edit .env to customize configuration"
     echo "  2. Start services:"
-    echo "     docker-compose up -d"
+    echo "     docker compose -f docker-compose.yml up -d"
     echo ""
     echo "  3. View logs:"
-    echo "     docker-compose logs -f sub2api"
+    echo "     docker compose -f docker-compose.yml logs -f sub2api"
     echo ""
     echo "  4. Access Web UI:"
     echo "     http://localhost:8080"

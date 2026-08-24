@@ -1,7 +1,7 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-3">
     <div>
-      <label class="mb-2 block text-xs font-medium text-gray-500 dark:text-gray-400">
+      <label class="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
         {{ t('payment.customAmount') }}
       </label>
       <div class="relative">
@@ -20,17 +20,17 @@
     </div>
 
     <div>
-      <label class="mb-2 block text-xs font-medium text-gray-500 dark:text-gray-400">
+      <label class="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
         {{ t('payment.quickAmounts') }}
       </label>
-      <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+      <div data-testid="quick-amounts" class="scrollbar-hide grid grid-flow-col auto-cols-[minmax(4.5rem,1fr)] gap-1.5 overflow-x-auto pb-0.5">
         <button
           v-for="amt in filteredAmounts"
           :key="amt"
           type="button"
           :aria-pressed="modelValue === amt"
           :class="[
-            'h-11 rounded-md border px-2 text-center text-sm font-semibold tabular-nums transition-colors',
+            'h-9 rounded-md border px-2 text-center text-sm font-semibold tabular-nums transition-colors',
             modelValue === amt
               ? 'border-primary-500 bg-primary-50/70 text-primary-700 ring-1 ring-primary-500/20 dark:border-primary-400 dark:bg-dark-900 dark:text-primary-300'
               : 'border-gray-300 bg-transparent text-gray-700 hover:border-gray-500 dark:border-dark-600 dark:text-gray-200 dark:hover:border-dark-500',

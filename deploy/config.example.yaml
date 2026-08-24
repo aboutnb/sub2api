@@ -136,6 +136,7 @@ usdt_payment:
   legacy_token: ""
   fiat: "CNY"
   enabled_networks: ["tron", "bsc"]
+  minimum_amount: 5
   order_timeout_seconds: 900
   # Recovery is allowed only when the proven chain transfer time is before quote expiry.
   late_payment_window_minutes: 60

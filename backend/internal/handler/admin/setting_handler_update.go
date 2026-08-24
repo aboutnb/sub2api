@@ -351,6 +351,7 @@ type UpdateSettingsRequest struct {
 	USDTPaymentAPISecret                *string   `json:"usdt_payment_api_secret"`
 	USDTPaymentFiat                     *string   `json:"usdt_payment_fiat"`
 	USDTPaymentEnabledNetworks          *[]string `json:"usdt_payment_enabled_networks"`
+	USDTPaymentMinimumAmount            *float64  `json:"usdt_payment_minimum_amount"`
 	USDTPaymentOrderTimeoutSeconds      *int      `json:"usdt_payment_order_timeout_seconds"`
 	USDTPaymentLatePaymentWindowMinutes *int      `json:"usdt_payment_late_payment_window_minutes"`
 	USDTPaymentRequestTimeoutSeconds    *int      `json:"usdt_payment_request_timeout_seconds"`
@@ -2489,12 +2490,14 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		USDTPaymentAPISecretConfigured:                         updatedUSDTPaymentSettings.APISecretConfigured,
 		USDTPaymentFiat:                                        updatedUSDTPaymentSettings.Fiat,
 		USDTPaymentEnabledNetworks:                             updatedUSDTPaymentSettings.EnabledNetworks,
+		USDTPaymentMinimumAmount:                               updatedUSDTPaymentSettings.MinimumAmount,
 		USDTPaymentOrderTimeoutSeconds:                         updatedUSDTPaymentSettings.OrderTimeoutSeconds,
 		USDTPaymentLatePaymentWindowMinutes:                    updatedUSDTPaymentSettings.LatePaymentWindowMinutes,
 		USDTPaymentRequestTimeoutSeconds:                       updatedUSDTPaymentSettings.RequestTimeoutSeconds,
 		USDTPaymentReconcileIntervalSeconds:                    updatedUSDTPaymentSettings.ReconcileIntervalSeconds,
 		USDTPaymentReconcileBatchSize:                          updatedUSDTPaymentSettings.ReconcileBatchSize,
 		USDTPaymentWebhookClockSkewSeconds:                     updatedUSDTPaymentSettings.WebhookClockSkewSeconds,
+		USDTPaymentConfigWarnings:                              updatedUSDTPaymentSettings.ConfigWarnings,
 
 		ChannelMonitorEnabled:                updatedSettings.ChannelMonitorEnabled,
 		ChannelMonitorMode:                   updatedSettings.ChannelMonitorMode,
@@ -2575,6 +2578,7 @@ func hasUSDTPaymentFields(req UpdateSettingsRequest) bool {
 		req.USDTPaymentPublicBaseURL != nil || req.USDTPaymentPublicCallbackBaseURL != nil ||
 		req.USDTPaymentKeyID != nil || req.USDTPaymentAPISecret != nil ||
 		req.USDTPaymentFiat != nil || req.USDTPaymentEnabledNetworks != nil ||
+		req.USDTPaymentMinimumAmount != nil ||
 		req.USDTPaymentOrderTimeoutSeconds != nil || req.USDTPaymentLatePaymentWindowMinutes != nil ||
 		req.USDTPaymentRequestTimeoutSeconds != nil || req.USDTPaymentReconcileIntervalSeconds != nil ||
 		req.USDTPaymentReconcileBatchSize != nil || req.USDTPaymentWebhookClockSkewSeconds != nil
@@ -2607,6 +2611,9 @@ func mergeUSDTPaymentSettingsRequest(settings *service.USDTPaymentAdminSettings,
 	}
 	if req.USDTPaymentEnabledNetworks != nil {
 		settings.EnabledNetworks = *req.USDTPaymentEnabledNetworks
+	}
+	if req.USDTPaymentMinimumAmount != nil {
+		settings.MinimumAmount = *req.USDTPaymentMinimumAmount
 	}
 	if req.USDTPaymentOrderTimeoutSeconds != nil {
 		settings.OrderTimeoutSeconds = *req.USDTPaymentOrderTimeoutSeconds

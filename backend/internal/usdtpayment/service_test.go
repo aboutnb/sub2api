@@ -9,6 +9,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/shopspring/decimal"
 )
 
 func quoteRows(q *Quote) *sqlmock.Rows {
@@ -207,6 +208,18 @@ func TestParseRequestedUSDTAmountIsDecimalExact(t *testing.T) {
 	}
 }
 
+func TestValidateMinimumUSDTAmount(t *testing.T) {
+	if err := validateMinimumUSDTAmount(decimal.RequireFromString("4.99999999"), config.USDTPaymentConfig{MinimumAmount: 5}); err == nil {
+		t.Fatal("accepted amount below configured minimum")
+	}
+	if err := validateMinimumUSDTAmount(decimal.RequireFromString("5"), config.USDTPaymentConfig{MinimumAmount: 5}); err != nil {
+		t.Fatalf("rejected exact minimum: %v", err)
+	}
+	if got := minimumUSDTAmount(config.USDTPaymentConfig{}).String(); got != "5" {
+		t.Fatalf("default minimum = %s, want 5", got)
+	}
+}
+
 func TestReconcileScheduleStaysFastForPendingAndSlowsAfterExpiry(t *testing.T) {
 	service := &Service{config: config.USDTPaymentConfig{ReconcileIntervalSeconds: 2}}
 	now := time.Now()
@@ -289,5 +302,19 @@ func TestSaveQuoteAcceptsIdenticalExistingQuote(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestIsUpstreamOrderNotFound(t *testing.T) {
+	for _, err := range []error{
+		errors.New("BEpusdt cashier info returned 400: order not found"),
+		errors.New("BEpusdt cashier info returned 400: 订单不存在"),
+	} {
+		if !isUpstreamOrderNotFound(err) {
+			t.Fatalf("did not classify terminal upstream error: %v", err)
+		}
+	}
+	if isUpstreamOrderNotFound(errors.New("BEpusdt cashier HTTP 502")) {
+		t.Fatal("classified an upstream transport error as terminal")
 	}
 }

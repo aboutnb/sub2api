@@ -117,7 +117,8 @@ describe('USDTCheckoutPanel', () => {
     expect(text).toContain('₮50')
     expect(text).toContain('payment.usdt.exchangeRate')
     expect(text).toContain('¥7.200000 / USDT')
-    expect(amountInput.props('amounts')).toEqual([10, 20, 50, 100, 200, 500])
+    expect(amountInput.props('amounts')).toEqual([5, 10, 20, 50, 100, 500])
+    expect(amountInput.props('min')).toBe(5)
     expect(text).not.toContain('payment.usdt.orderType')
     expect(text).not.toContain('payment.usdt.plan')
     wrapper.unmount()
@@ -142,6 +143,7 @@ describe('USDTCheckoutPanel', () => {
     expect(wrapper.text()).toContain('TRC-20')
     expect(wrapper.text()).toContain('payment.usdt.bonusLine')
     expect(wrapper.text()).toContain('payment.usdt.estimatedBalance')
+    await wrapper.findAll('button').find(button => button.text().includes('₮10'))?.trigger('click')
     await wrapper.findAll('button').find(button => button.text().includes('TRON'))?.trigger('click')
     const createButton = wrapper.findAll('button').find(button => button.text().includes('payment.usdt.confirmPayment'))
     await createButton?.trigger('click')
@@ -153,6 +155,22 @@ describe('USDTCheckoutPanel', () => {
     )
     expect(wrapper.text()).toContain('TAddress')
     expect(wrapper.find('a[target="_blank"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('uses and enforces a configured minimum USDT amount', async () => {
+    const wrapper = mount(USDTCheckoutPanel, {
+      props: {
+        config: { enabled: true, minimum_amount: 12.5, rate: '7.2', networks: [{ network: 'tron', network_name: 'TRON', trade_type: 'usdt.trc20', accepting_orders: true, crypto: 'USDT', wallet_count: 1, rpc_endpoint_set: true }] },
+      },
+      global: { stubs: { Icon: true } },
+    })
+
+    await flushPromises()
+    const amountInput = wrapper.findComponent({ name: 'AmountInput' })
+    expect(amountInput.props('min')).toBe(12.5)
+    expect(amountInput.props('amounts')).toContain(12.5)
+    expect(amountInput.props('modelValue')).toBe(12.5)
     wrapper.unmount()
   })
 

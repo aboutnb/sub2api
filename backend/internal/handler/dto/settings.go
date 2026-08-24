@@ -316,12 +316,14 @@ type SystemSettings struct {
 	USDTPaymentAPISecretConfigured      bool     `json:"usdt_payment_api_secret_configured"`
 	USDTPaymentFiat                     string   `json:"usdt_payment_fiat"`
 	USDTPaymentEnabledNetworks          []string `json:"usdt_payment_enabled_networks"`
+	USDTPaymentMinimumAmount            float64  `json:"usdt_payment_minimum_amount"`
 	USDTPaymentOrderTimeoutSeconds      int      `json:"usdt_payment_order_timeout_seconds"`
 	USDTPaymentLatePaymentWindowMinutes int      `json:"usdt_payment_late_payment_window_minutes"`
 	USDTPaymentRequestTimeoutSeconds    int      `json:"usdt_payment_request_timeout_seconds"`
 	USDTPaymentReconcileIntervalSeconds int      `json:"usdt_payment_reconcile_interval_seconds"`
 	USDTPaymentReconcileBatchSize       int      `json:"usdt_payment_reconcile_batch_size"`
 	USDTPaymentWebhookClockSkewSeconds  int      `json:"usdt_payment_webhook_clock_skew_seconds"`
+	USDTPaymentConfigWarnings           []string `json:"usdt_payment_config_warnings"`
 
 	// 余额、订阅到期与账号限额通知
 	BalanceLowNotifyEnabled         bool               `json:"balance_low_notify_enabled"`

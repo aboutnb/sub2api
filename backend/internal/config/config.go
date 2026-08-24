@@ -194,6 +194,8 @@ type InvoiceIntegrationConfig struct {
 	TimeoutSeconds int    `mapstructure:"timeout_seconds"`
 }
 
+const DefaultUSDTPaymentMinimumAmount = 5.0
+
 // USDTPaymentConfig configures the isolated BEpusdt merchant integration.
 // These credentials are server-side only and are never exposed to the browser.
 type USDTPaymentConfig struct {
@@ -212,6 +214,7 @@ type USDTPaymentConfig struct {
 	LegacyToken              string   `mapstructure:"legacy_token"`
 	Fiat                     string   `mapstructure:"fiat"`
 	EnabledNetworks          []string `mapstructure:"enabled_networks"`
+	MinimumAmount            float64  `mapstructure:"minimum_amount"`
 	OrderTimeoutSeconds      int      `mapstructure:"order_timeout_seconds"`
 	LatePaymentWindowMinutes int      `mapstructure:"late_payment_window_minutes"`
 	RequestTimeoutSeconds    int      `mapstructure:"request_timeout_seconds"`
@@ -1862,6 +1865,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		"usdt_payment.legacy_token":                "USDT_PAYMENT_LEGACY_TOKEN",
 		"usdt_payment.fiat":                        "USDT_PAYMENT_FIAT",
 		"usdt_payment.enabled_networks":            "USDT_PAYMENT_ENABLED_NETWORKS",
+		"usdt_payment.minimum_amount":              "USDT_PAYMENT_MIN_AMOUNT",
 		"usdt_payment.order_timeout_seconds":       "USDT_PAYMENT_ORDER_TIMEOUT_SECONDS",
 		"usdt_payment.late_payment_window_minutes": "USDT_PAYMENT_LATE_PAYMENT_WINDOW_MINUTES",
 		"usdt_payment.request_timeout_seconds":     "USDT_PAYMENT_REQUEST_TIMEOUT_SECONDS",
@@ -2403,6 +2407,7 @@ func setDefaults() {
 	viper.SetDefault("usdt_payment.legacy_token", "")
 	viper.SetDefault("usdt_payment.fiat", "CNY")
 	viper.SetDefault("usdt_payment.enabled_networks", []string{"tron", "bsc"})
+	viper.SetDefault("usdt_payment.minimum_amount", DefaultUSDTPaymentMinimumAmount)
 	viper.SetDefault("usdt_payment.order_timeout_seconds", 900)
 	viper.SetDefault("usdt_payment.late_payment_window_minutes", 60)
 	viper.SetDefault("usdt_payment.request_timeout_seconds", 6)
@@ -2836,6 +2841,9 @@ func (c *Config) Validate() error {
 		if err := ValidateAbsoluteHTTPURL(c.Invoice.BaseURL); err != nil {
 			return fmt.Errorf("invoice.base_url invalid: %w", err)
 		}
+	}
+	if c.USDTPayment.MinimumAmount < 0.01 || c.USDTPayment.MinimumAmount > 1_000_000 {
+		return fmt.Errorf("usdt_payment.minimum_amount must be between 0.01 and 1000000")
 	}
 	if c.USDTPayment.OrderTimeoutSeconds < 180 || c.USDTPayment.OrderTimeoutSeconds > 3600 {
 		return fmt.Errorf("usdt_payment.order_timeout_seconds must be between 180 and 3600")
