@@ -323,7 +323,7 @@ func (c *Client) legacyCall(ctx context.Context, cfg config.USDTPaymentConfig, m
 	if err != nil {
 		return fmt.Errorf("call BEpusdt cashier: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, maxUpstreamResponseBytes+1))
 	if err != nil {
 		return fmt.Errorf("read BEpusdt cashier response: %w", err)
@@ -396,7 +396,7 @@ func (c *Client) call(ctx context.Context, cfg config.USDTPaymentConfig, method,
 	if err != nil {
 		return fmt.Errorf("call BEpusdt: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, maxUpstreamResponseBytes+1))
 	if err != nil {
 		return fmt.Errorf("read BEpusdt response: %w", err)

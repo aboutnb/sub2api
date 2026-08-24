@@ -221,7 +221,11 @@ func TestUSDTPaymentSettingsWarnsAboutMigratedLocalEndpoints(t *testing.T) {
 			ReconcileBatchSize:       100,
 			WebhookClockSkewSeconds:  300,
 		}, true)
-	repo := settings.settingRepo.(*invoiceSettingsTestRepo)
+	repo, ok := settings.settingRepo.(*invoiceSettingsTestRepo)
+	if !ok {
+		t.Fatal("expected invoice settings test repository")
+		return
+	}
 	legacy := `{"enabled":true,"api_base":"http://host.docker.internal:18080","public_base_url":"http://127.0.0.1:18080","public_callback_base_url":"http://localhost:8080","key_id":"sub2api","fiat":"CNY","enabled_networks":["bsc"],"order_timeout_seconds":900,"late_payment_window_minutes":60,"request_timeout_seconds":6,"reconcile_interval_seconds":2,"reconcile_batch_size":100,"webhook_clock_skew_seconds":300}`
 	repo.data[settingKeyUSDTPaymentConfig] = legacy
 	admin, err := settings.GetAdminSettings(context.Background())

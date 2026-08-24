@@ -18,6 +18,22 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 )
 
+const defaultUserConcurrencyFallback = 5
+
+func (s *SettingService) defaultUserConcurrency() int {
+	if s != nil && s.cfg != nil {
+		return s.cfg.Default.UserConcurrency
+	}
+	return defaultUserConcurrencyFallback
+}
+
+func (s *SettingService) defaultUserBalance() float64 {
+	if s != nil && s.cfg != nil {
+		return s.cfg.Default.UserBalance
+	}
+	return 0
+}
+
 // InitializeDefaultSettings 初始化默认设置
 func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	// 检查是否已有设置
@@ -52,6 +68,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("marshal default forwarded client IP headers: %w", err)
 	}
+	defaultConcurrency := s.defaultUserConcurrency()
+	defaultBalance := s.defaultUserBalance()
 
 	// 初始化默认设置
 	defaults := map[string]string{
@@ -124,8 +142,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOIDCConnectUserInfoEmailPath:              "",
 		SettingKeyOIDCConnectUserInfoIDPath:                 "",
 		SettingKeyOIDCConnectUserInfoUsernamePath:           "",
-		SettingKeyDefaultConcurrency:                        strconv.Itoa(s.cfg.Default.UserConcurrency),
-		SettingKeyDefaultBalance:                            strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
+		SettingKeyDefaultConcurrency:                        strconv.Itoa(defaultConcurrency),
+		SettingKeyDefaultBalance:                            strconv.FormatFloat(defaultBalance, 'f', 8, 64),
 		SettingKeyAffiliateRebateRate:                       strconv.FormatFloat(AffiliateRebateRateDefault, 'f', 8, 64),
 		SettingKeyAffiliateRebateFreezeHours:                strconv.Itoa(AffiliateRebateFreezeHoursDefault),
 		SettingKeyAffiliateRebateDurationDays:               strconv.Itoa(AffiliateRebateDurationDaysDefault),
@@ -391,7 +409,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	if concurrency, err := strconv.Atoi(settings[SettingKeyDefaultConcurrency]); err == nil {
 		result.DefaultConcurrency = concurrency
 	} else {
-		result.DefaultConcurrency = s.cfg.Default.UserConcurrency
+		result.DefaultConcurrency = s.defaultUserConcurrency()
 	}
 
 	if rpm, err := strconv.Atoi(settings[SettingKeyDefaultUserRPMLimit]); err == nil && rpm >= 0 {
@@ -402,7 +420,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	if balance, err := strconv.ParseFloat(settings[SettingKeyDefaultBalance], 64); err == nil {
 		result.DefaultBalance = balance
 	} else {
-		result.DefaultBalance = s.cfg.Default.UserBalance
+		result.DefaultBalance = s.defaultUserBalance()
 	}
 	if rebateRate, err := strconv.ParseFloat(settings[SettingKeyAffiliateRebateRate], 64); err == nil {
 		result.AffiliateRebateRate = clampAffiliateRebateRate(rebateRate)

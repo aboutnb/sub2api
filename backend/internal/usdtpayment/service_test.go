@@ -79,7 +79,11 @@ func TestConfirmProofDoesNotMarkQuoteSucceededWhenBridgeFails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("close db: %v", err)
+		}
+	}()
 
 	bridge := &testPaymentBridge{confirmErr: errors.New("temporary fulfillment failure")}
 	service := &Service{config: testUSDTConfig(), repository: NewRepository(db), bridge: bridge}
@@ -104,7 +108,11 @@ func TestConfirmProofDoesNotFulfillWhenTransactionHashReservationFails(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("close db: %v", err)
+		}
+	}()
 
 	bridge := &testPaymentBridge{}
 	service := &Service{config: testUSDTConfig(), repository: NewRepository(db), bridge: bridge}
@@ -129,7 +137,11 @@ func TestConfirmProofRecordsQuoteAfterSuccessfulBridge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("close db: %v", err)
+		}
+	}()
 
 	bridge := &testPaymentBridge{}
 	service := &Service{config: testUSDTConfig(), repository: NewRepository(db), bridge: bridge}

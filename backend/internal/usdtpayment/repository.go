@@ -277,7 +277,7 @@ RETURNING `+prefixColumns("q", quoteColumns), limit, int(lease.Seconds()))
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var quotes []*Quote
 	for rows.Next() {
 		q, err := scanQuote(rows)
@@ -376,7 +376,7 @@ FROM due WHERE e.id=due.id RETURNING e.id,e.payload`, limit)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var events []webhookEvent
 	for rows.Next() {
 		var item webhookEvent
