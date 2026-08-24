@@ -97,6 +97,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // auditLog
 		nil, // promptAudit
 		nil, // usdtPayment
+		nil, // pluginManager
 	)
 
 	require.NotPanics(t, func() {

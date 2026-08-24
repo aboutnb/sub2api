@@ -38,6 +38,7 @@ import auditAPI from './audit'
 import authIPBansAPI from './authIPBans'
 import checkinAdminAPI from './checkin'
 import emailBroadcastsAPI from './emailBroadcasts'
+import pluginsAPI from './plugins'
 
 /**
  * Unified admin API object for convenient access
@@ -77,7 +78,8 @@ export const adminAPI = {
   audit: auditAPI,
   authIPBans: authIPBansAPI,
   checkin: checkinAdminAPI,
-  emailBroadcasts: emailBroadcastsAPI
+  emailBroadcasts: emailBroadcastsAPI,
+  plugins: pluginsAPI
 }
 
 export {
@@ -115,7 +117,8 @@ export {
   auditAPI,
   authIPBansAPI,
   checkinAdminAPI,
-  emailBroadcastsAPI
+  emailBroadcastsAPI,
+  pluginsAPI
 }
 
 export default adminAPI
@@ -136,3 +139,9 @@ export type {
   EmailBroadcastAudience,
   EmailBroadcastAudienceMode
 } from './emailBroadcasts'
+export type {
+  PluginInstallation,
+  PluginCompatibility,
+  PluginUISession,
+  PluginTestResult
+} from './plugins'

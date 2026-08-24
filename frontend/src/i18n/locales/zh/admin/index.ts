@@ -9,6 +9,7 @@ import promptAudit from './promptAudit'
 import authIPBan from './authIPBan'
 import checkin from './checkin'
 import emailBroadcasts from './emailBroadcasts'
+import plugins from './plugins'
 
 export default {
   ...overview,
@@ -22,4 +23,5 @@ export default {
   ...authIPBan,
   ...checkin,
   ...emailBroadcasts,
+  ...plugins,
 }
