@@ -280,7 +280,9 @@ func newCodexModelsFailoverTestHandlerWithAccountCount(firstStatus, accountCount
 			Type:        service.AccountTypeAPIKey,
 			Status:      service.StatusActive,
 			Schedulable: true,
-			Priority:    i - 1,
+			// The local branch defines larger numeric values as higher priority.
+			// Keep account 1 as the first failover candidate for these tests.
+			Priority:    accountCount - i,
 			Concurrency: 1,
 			Credentials: map[string]any{
 				"api_key":  fmt.Sprintf("sk-%d", i),

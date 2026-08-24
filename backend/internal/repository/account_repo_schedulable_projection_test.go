@@ -78,5 +78,5 @@ func TestListSchedulableAccountLoadsUsesSingleProjectionQuery(t *testing.T) {
 	}
 	_, orderClause, hasOrder := strings.Cut(normalized, " ORDER BY ")
 	require.True(t, hasOrder, "projection query must preserve schedulable account order: %s", normalized)
-	require.Contains(t, orderClause, `"priority" ASC`)
+	require.Contains(t, orderClause, `"priority" DESC`)
 }

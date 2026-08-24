@@ -491,6 +491,14 @@ export default {
         resetAccountRecoveryFailed: '窗口已重置，但账号状态恢复失败，请手动恢复账号状态。',
         resetAccountRefreshFailed: '窗口、账号状态和重置次数缓存已更新，但无法加载最新账号显示。',
         refreshCachePersistFailed: '已显示实时次数，但到期明细获取失败，仍保留原有缓存明细。',
+        autoStatus: {
+          checking: '检测中',
+          available: '卡可用',
+          resetting: '自动重置中',
+          success: '自动重置成功',
+          noCredit: '无卡',
+          failed: '自动重置失败'
+        },
         confirmTitle: '确认重置周限',
         confirmMessage: '将消耗 1 次重置次数立即恢复当前窗口，剩余 {count} 次。此操作不可撤销，确定继续吗？'
       },
@@ -525,7 +533,7 @@ export default {
         credentialsLabel: '凭证',
         credentialsPlaceholder: '请输入 Cookie 或 API Key',
         priorityLabel: '优先级',
-        priorityHint: '1 为最高优先级，数值越小优先级越高',
+        priorityHint: '数值越大优先级越高',
         weightLabel: '权重',
         weightHint: '用于负载均衡的权重值',
         statusLabel: '状态'
@@ -969,6 +977,14 @@ export default {
 	  autoPause5hDisabled: '禁用 5h 自动暂停',
 	  autoPause7dDisabled: '禁用 7d 自动暂停',
 	  autoPauseDisabledHint: '开启后该账号永不进入自动暂停（即使全局默认阈值已配置）。',
+	  autoResetCredit: {
+	    title: '自动使用重置卡',
+	    hint: '仅在实际用量达到阈值时使用最早到期的可用卡；默认关闭。无卡或失败时账号保持暂停。',
+	    threshold5h: '5h 自动用卡阈值(%)',
+	    threshold7d: '7d 自动用卡阈值(%)',
+	    thresholdHint: '两个窗口独立判断，任一达到自身阈值即触发。可填写 0.1–100，默认均为 100。',
+	    thresholdInvalid: '自动使用重置卡阈值必须在 0.1% 到 100% 之间。'
+	  },
       // Quota control (Anthropic OAuth/SetupToken only)
       quotaControl: {
         title: '配额控制',
@@ -1067,12 +1083,12 @@ export default {
       loadFactor: '负载因子',
       loadFactorHint: '提高负载因子可以提高对账号的调度频率',
       priority: '优先级',
-      priorityHint: '1 为最高优先级，数值越小的账号优先使用',
+      priorityHint: '优先级越大的账号优先使用',
       billingRateMultiplier: '账号计费倍率',
       billingRateMultiplierHint: '0 表示不计费，仅影响账号计费',
       expiresAt: '过期时间',
       expiresAtHint: '留空表示不过期',
-      higherPriorityFirst: '1 为最高优先级，数值越小越优先',
+      higherPriorityFirst: '数值越大优先级越高',
       mixedScheduling: '在 /v1/messages 中使用',
       mixedSchedulingHint: '启用后可参与 Anthropic/Gemini 分组的调度',
       mixedSchedulingTooltip:

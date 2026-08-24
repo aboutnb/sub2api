@@ -611,7 +611,7 @@ func TestOpenAIModelsSelectionIgnoresTokenCostSignal(t *testing.T) {
 
 	account, err := svc.SelectAccountForModelWithExclusions(context.Background(), nil, "", "", nil)
 	require.NoError(t, err)
-	require.Equal(t, expensive.ID, account.ID)
+	require.Equal(t, cheap.ID, account.ID)
 }
 
 func TestOpenAIGatewayServiceLegacyLowRatePriorityIsIndependentFromAdvancedScheduler(t *testing.T) {
@@ -630,7 +630,7 @@ func TestOpenAIGatewayServiceLegacyLowRatePriorityIsIndependentFromAdvancedSched
 		loadErr   error
 		wantID    int64
 	}{
-		{name: "switch off keeps priority first", loadBatch: true, wantID: 2},
+		{name: "switch off keeps priority first", loadBatch: true, wantID: 1},
 		{name: "load batch", enabled: true, loadBatch: true, wantID: 1},
 		{name: "load batch disabled", enabled: true, wantID: 1},
 		{name: "load lookup failure", enabled: true, loadBatch: true, loadErr: errors.New("load unavailable"), wantID: 1},
@@ -695,7 +695,7 @@ func TestOpenAIGatewayServiceAdvancedSchedulerIgnoresLegacyLowRateSwitch(t *test
 
 	selection, _, err := svc.SelectAccountWithScheduler(context.Background(), &groupID, "", "", "gpt-test", nil, OpenAIUpstreamTransportAny, false)
 	require.NoError(t, err)
-	require.Equal(t, int64(2), selection.Account.ID)
+	require.Equal(t, int64(1), selection.Account.ID)
 	if selection.ReleaseFunc != nil {
 		selection.ReleaseFunc()
 	}

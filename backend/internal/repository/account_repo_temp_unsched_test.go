@@ -361,9 +361,9 @@ func TestAccountRepository_QueryAccountsByGroup_QualifiesJoinedOrdering(t *testi
 	require.Contains(t, normalized, "a.platform = ANY($3)")
 	require.Contains(t, normalized, "a.schedulable = TRUE")
 	require.Contains(t, normalized, "(a.expires_at IS NULL OR a.expires_at > $4 OR a.auto_pause_on_expired = FALSE)")
-	require.Contains(t, normalized, "ORDER BY ag.priority ASC, a.priority ASC, a.id ASC")
+	require.Contains(t, normalized, "ORDER BY ag.priority ASC, a.priority DESC, a.id ASC")
 	require.NotContains(t, normalized, "ORDER BY id")
-	require.NotContains(t, normalized, "a.priority DESC")
+	require.NotContains(t, normalized, "a.priority ASC")
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

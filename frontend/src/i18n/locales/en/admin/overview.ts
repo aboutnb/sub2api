@@ -877,7 +877,7 @@ export default {
         accountsLabel: 'Designated Accounts',
         accountsPlaceholder: 'Select accounts (leave empty for no restriction)',
         priorityLabel: 'Priority',
-        priorityHint: 'Priority 1 is highest; lower values are scheduled first',
+        priorityHint: 'Higher value means higher priority, used for account scheduling',
         statusLabel: 'Status'
       },
       exclusiveObj: {
