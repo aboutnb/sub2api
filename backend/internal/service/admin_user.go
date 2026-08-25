@@ -118,6 +118,9 @@ func normalizeUserRole(role, fallback string) (string, error) {
 }
 
 func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInput) (*User, error) {
+	if input.Concurrency < -1 {
+		return nil, fmt.Errorf("concurrency must be -1 or greater")
+	}
 	balance := 0.0
 	if input.Balance != nil {
 		balance = *input.Balance
@@ -193,6 +196,9 @@ func (s *adminServiceImpl) assignDefaultSubscriptions(ctx context.Context, userI
 }
 
 func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *UpdateUserInput) (*User, error) {
+	if input.Concurrency != nil && *input.Concurrency < -1 {
+		return nil, fmt.Errorf("concurrency must be -1 or greater")
+	}
 	// 校验用户专属分组倍率：必须 > 0（nil 合法，表示清除专属倍率）
 	if input.GroupRates != nil {
 		for groupID, rate := range input.GroupRates {
@@ -454,6 +460,9 @@ func (s *adminServiceImpl) BatchUpdateConcurrency(ctx context.Context, userIDs [
 	var err error
 	switch mode {
 	case "set":
+		if value < -1 {
+			return 0, errors.New("concurrency must be -1 or greater when mode is set")
+		}
 		affected, err = s.userRepo.BatchSetConcurrency(ctx, cleaned, value)
 	case "add":
 		affected, err = s.userRepo.BatchAddConcurrency(ctx, cleaned, value)
@@ -475,6 +484,9 @@ func (s *adminServiceImpl) BatchUpdateConcurrency(ctx context.Context, userIDs [
 func (s *adminServiceImpl) BatchUpdateLimits(ctx context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error) {
 	if concurrency == nil && rpmLimit == nil {
 		return 0, fmt.Errorf("at least one of concurrency or rpm_limit is required")
+	}
+	if concurrency != nil && *concurrency < -1 {
+		return 0, fmt.Errorf("concurrency must be -1 or greater")
 	}
 
 	cleaned := make([]int64, 0, len(userIDs))

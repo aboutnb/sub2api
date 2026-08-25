@@ -586,8 +586,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 
 	// 验证参数
-	if req.DefaultConcurrency < 1 {
-		req.DefaultConcurrency = 1
+	if req.DefaultConcurrency < -1 {
+		// -1 is the explicit deny-all value; normalize smaller invalid values to
+		// it so malformed admin payloads fail closed instead of becoming unlimited.
+		req.DefaultConcurrency = -1
 	}
 	if req.DefaultBalance < 0 {
 		req.DefaultBalance = 0

@@ -62,10 +62,6 @@ describe('UserEditModal concurrency', () => {
     update.mockResolvedValue({})
   })
 
-  // Regression coverage for issue #5977: the gateway treats concurrency <= 0 as
-  // unlimited (AcquireUserSlot) and both the batch limits endpoint and the bulk
-  // edit modal accept 0, so this dialog must not be the only place that rejects
-  // it — doing so blocked every other edit on such a user.
   it('saves an unlimited (0) concurrency instead of blocking the whole form', async () => {
     const wrapper = mountModal(0)
 
@@ -77,10 +73,22 @@ describe('UserEditModal concurrency', () => {
     expect(wrapper.emitted('success')).toBeTruthy()
   })
 
-  it('still rejects a negative concurrency', async () => {
+  it('saves -1 as the explicit deny-all concurrency value', async () => {
     const wrapper = mountModal(3)
 
     await wrapper.get('[data-test="concurrency-input"]').setValue('-1')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(showError).not.toHaveBeenCalled()
+    expect(update).toHaveBeenCalledWith(7, expect.objectContaining({ concurrency: -1 }))
+    expect(wrapper.emitted('success')).toBeTruthy()
+  })
+
+  it('rejects values below -1', async () => {
+    const wrapper = mountModal(3)
+
+    await wrapper.get('[data-test="concurrency-input"]').setValue('-2')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 

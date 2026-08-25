@@ -1071,7 +1071,7 @@ func (r *userRepository) BatchSetConcurrency(ctx context.Context, userIDs []int6
 		return 0, nil
 	}
 	if value < 0 {
-		value = 0
+		value = -1
 	}
 	res, err := r.sql.ExecContext(ctx,
 		"UPDATE users SET concurrency = $1, updated_at = NOW() WHERE id = ANY($2) AND deleted_at IS NULL",
@@ -1105,7 +1105,7 @@ func (r *userRepository) BatchUpdateLimits(ctx context.Context, userIDs []int64,
 	setClauses := make([]string, 0, 3)
 	args := make([]any, 0, 3)
 	if concurrency != nil {
-		value := max(*concurrency, 0)
+		value := max(*concurrency, -1)
 		args = append(args, value)
 		setClauses = append(setClauses, fmt.Sprintf("concurrency = $%d", len(args)))
 	}

@@ -177,15 +177,18 @@ func (g signupGrantApplication) initialBalance() float64 {
 
 func (g signupGrantApplication) initialConcurrency() int {
 	if g.deferred {
-		return 0
+		// Risk-scored signups stay blocked until ClaimSignupGrant applies the
+		// one-time grant decision.  0 means unlimited and is therefore unsafe.
+		return -1
 	}
-	return g.plan.Concurrency
+	return normalizeUserConcurrency(g.plan.Concurrency)
 }
 
 // prepareSignupGrant defers all automatic free benefits when a request carries
 // a server-derived risk identity. The account is created with zero balance and
-// concurrency first; ClaimSignupGrant decides whether this identity gets the
-// one-time package, preventing concurrent account cycling from racing the grant.
+// deny-all concurrency first; ClaimSignupGrant decides whether this identity
+// gets the one-time package, preventing concurrent account cycling from racing
+// the grant.
 func (s *AuthService) prepareSignupGrant(ctx context.Context, signupSource string) signupGrantApplication {
 	plan := s.resolveSignupGrantPlan(ctx, signupSource)
 	if signupRiskIdentityFromContext(ctx) == "" {
@@ -222,14 +225,25 @@ func (s *AuthService) applySignupGrant(ctx context.Context, user *User, grant si
 			return false, ErrServiceUnavailable
 		}
 	}
-	if grant.plan.Concurrency != 0 {
-		if err := s.userRepo.UpdateConcurrency(ctx, user.ID, grant.plan.Concurrency); err != nil {
+	targetConcurrency := normalizeUserConcurrency(grant.plan.Concurrency)
+	// A deferred signup starts at -1, so apply the approved value as an
+	// absolute update. UpdateConcurrency is additive and would turn a target
+	// value of 0 into a permanent -1 (or under-count every positive target).
+	if grant.deferred {
+		updatedUser := *user
+		updatedUser.Concurrency = targetConcurrency
+		if err := s.userRepo.Update(ctx, &updatedUser, UserUpdateFields{Concurrency: true}); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] failed to apply signup concurrency grant for user %d: %v", user.ID, err)
+			return false, ErrServiceUnavailable
+		}
+	} else if targetConcurrency != 0 {
+		if err := s.userRepo.UpdateConcurrency(ctx, user.ID, targetConcurrency); err != nil {
 			logger.LegacyPrintf("service.auth", "[Auth] failed to apply signup concurrency grant for user %d: %v", user.ID, err)
 			return false, ErrServiceUnavailable
 		}
 	}
 	user.Balance = grant.plan.Balance
-	user.Concurrency = grant.plan.Concurrency
+	user.Concurrency = targetConcurrency
 	return true, nil
 }
 
@@ -1025,7 +1039,7 @@ func (s *AuthService) resolveSignupGrantPlan(ctx context.Context, signupSource s
 	plan := signupGrantPlan{}
 	if s != nil && s.cfg != nil {
 		plan.Balance = s.cfg.Default.UserBalance
-		plan.Concurrency = s.cfg.Default.UserConcurrency
+		plan.Concurrency = normalizeUserConcurrency(s.cfg.Default.UserConcurrency)
 	}
 	if s == nil || s.settingService == nil {
 		return plan

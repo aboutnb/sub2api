@@ -20,9 +20,16 @@ import (
 
 const defaultUserConcurrencyFallback = 5
 
+func normalizeUserConcurrency(value int) int {
+	if value < -1 {
+		return -1
+	}
+	return value
+}
+
 func (s *SettingService) defaultUserConcurrency() int {
 	if s != nil && s.cfg != nil {
-		return s.cfg.Default.UserConcurrency
+		return normalizeUserConcurrency(s.cfg.Default.UserConcurrency)
 	}
 	return defaultUserConcurrencyFallback
 }
@@ -406,7 +413,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.SMTPPort = 587
 	}
 
-	if concurrency, err := strconv.Atoi(settings[SettingKeyDefaultConcurrency]); err == nil {
+	if concurrency, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyDefaultConcurrency])); err == nil && concurrency >= -1 {
 		result.DefaultConcurrency = concurrency
 	} else {
 		result.DefaultConcurrency = s.defaultUserConcurrency()
@@ -1226,7 +1233,7 @@ func parseProviderDefaultGrantSettings(settings map[string]string, keys authSour
 	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[keys.balance]), 64); err == nil {
 		result.Balance = v
 	}
-	if v, err := strconv.Atoi(strings.TrimSpace(settings[keys.concurrency])); err == nil {
+	if v, err := strconv.Atoi(strings.TrimSpace(settings[keys.concurrency])); err == nil && v >= -1 {
 		result.Concurrency = v
 	}
 	if items := parseDefaultSubscriptions(settings[keys.subscriptions]); items != nil {
@@ -1252,6 +1259,7 @@ func parseProviderDefaultGrantSettings(settings map[string]string, keys authSour
 }
 
 func writeProviderDefaultGrantUpdates(updates map[string]string, keys authSourceDefaultKeySet, settings ProviderDefaultGrantSettings) {
+	settings.Concurrency = normalizeUserConcurrency(settings.Concurrency)
 	updates[keys.balance] = strconv.FormatFloat(settings.Balance, 'f', 8, 64)
 	updates[keys.concurrency] = strconv.Itoa(settings.Concurrency)
 
@@ -1295,7 +1303,7 @@ func mergeProviderDefaultGrantSettings(globalDefaults ProviderDefaultGrantSettin
 	if providerDefaults.Balance >= 0 {
 		result.Balance = providerDefaults.Balance
 	}
-	if providerDefaults.Concurrency > 0 {
+	if providerDefaults.Concurrency >= -1 {
 		result.Concurrency = providerDefaults.Concurrency
 	}
 	if len(providerDefaults.Subscriptions) > 0 {

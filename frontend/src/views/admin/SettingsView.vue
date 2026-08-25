@@ -3864,9 +3864,9 @@
                   <input
                     v-model.number="form.default_concurrency"
                     type="number"
-                    min="1"
+                    min="-1"
                     class="input"
-                    placeholder="1"
+                    placeholder="5"
                   />
                   <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                     {{ t("admin.settings.defaults.defaultConcurrencyHint") }}
@@ -4184,7 +4184,7 @@
                             authSourceDefaults[authSource.source].concurrency
                           "
                           type="number"
-                          min="1"
+                          min="-1"
                           class="input"
                           placeholder="5"
                         />

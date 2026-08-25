@@ -150,6 +150,12 @@ const AUTH_SOURCE_TYPES: AuthSourceType[] = [
 ];
 const AUTH_SOURCE_DEFAULT_BALANCE = 0;
 const AUTH_SOURCE_DEFAULT_CONCURRENCY = 5;
+
+function normalizeConcurrency(value: unknown, fallback = AUTH_SOURCE_DEFAULT_CONCURRENCY): number {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.max(-1, Math.trunc(parsed))
+}
 const PAYMENT_VISIBLE_METHOD_SOURCE_OPTIONS: Record<
   PaymentVisibleMethod,
   PaymentVisibleMethodSourceOption[]
@@ -258,12 +264,9 @@ export function buildAuthSourceDefaultsState(
         raw[`auth_source_default_${source}_balance`] ??
           AUTH_SOURCE_DEFAULT_BALANCE,
       ),
-      concurrency: Math.max(
-        1,
-        Number(
-          raw[`auth_source_default_${source}_concurrency`] ??
-            AUTH_SOURCE_DEFAULT_CONCURRENCY,
-        ),
+      concurrency: normalizeConcurrency(
+        raw[`auth_source_default_${source}_concurrency`] ??
+          AUTH_SOURCE_DEFAULT_CONCURRENCY,
       ),
       subscriptions: normalizeDefaultSubscriptionSettings(
         Array.isArray(subscriptions)
@@ -290,11 +293,8 @@ export function appendAuthSourceDefaultsToUpdateRequest(
     const current = authSourceDefaults[source];
     target[`auth_source_default_${source}_balance`] =
       Number(current.balance) || 0;
-    target[`auth_source_default_${source}_concurrency`] = Math.max(
-      1,
-      Math.floor(
-        Number(current.concurrency) || AUTH_SOURCE_DEFAULT_CONCURRENCY,
-      ),
+    target[`auth_source_default_${source}_concurrency`] = normalizeConcurrency(
+      current.concurrency,
     );
     target[`auth_source_default_${source}_subscriptions`] =
       normalizeDefaultSubscriptionSettings(current.subscriptions);

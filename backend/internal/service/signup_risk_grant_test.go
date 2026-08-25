@@ -15,9 +15,78 @@ func TestSignupRiskIdentityFailsClosedWhenGrantStoreIsMissing(t *testing.T) {
 	grant := svc.prepareSignupGrant(ctx, "email")
 	require.True(t, grant.deferred)
 	require.Zero(t, grant.initialBalance())
-	require.Zero(t, grant.initialConcurrency())
+	require.Equal(t, -1, grant.initialConcurrency())
 
 	allowed, err := svc.applySignupGrant(ctx, &User{ID: 42}, grant)
 	require.ErrorIs(t, err, ErrServiceUnavailable)
 	require.False(t, allowed)
+}
+
+type signupRiskGrantStoreStub struct {
+	allowed bool
+}
+
+func (s *signupRiskGrantStoreStub) ClaimSignupGrant(context.Context, int64, string) (bool, error) {
+	return s.allowed, nil
+}
+
+func (s *signupRiskGrantStoreStub) SignupGrantAllowed(context.Context, int64) (bool, error) {
+	return s.allowed, nil
+}
+
+func (s *signupRiskGrantStoreStub) ReleaseSignupGrant(context.Context, int64) error {
+	return nil
+}
+
+type signupGrantUserRepoStub struct {
+	UserRepository
+	updateCalls            int
+	updatedConcurrency     int
+	updateConcurrencyCalls int
+}
+
+func (s *signupGrantUserRepoStub) UpdateConcurrency(_ context.Context, _ int64, amount int) error {
+	s.updateConcurrencyCalls++
+	s.updatedConcurrency = amount
+	return nil
+}
+
+func (s *signupGrantUserRepoStub) Update(_ context.Context, user *User, fields UserUpdateFields) error {
+	s.updateCalls++
+	if fields.Concurrency {
+		s.updatedConcurrency = user.Concurrency
+	}
+	return nil
+}
+
+func TestSignupRiskGrantWritesUnlimitedConcurrencyAfterApproval(t *testing.T) {
+	repo := &signupGrantUserRepoStub{}
+	svc := &AuthService{
+		userRepo:             repo,
+		signupRiskGrantStore: &signupRiskGrantStoreStub{allowed: true},
+	}
+	ctx := WithSignupRiskIdentity(context.Background(), "risk-fingerprint")
+	grant := signupGrantApplication{
+		plan:     signupGrantPlan{Concurrency: 0},
+		deferred: true,
+	}
+	user := &User{ID: 42, Concurrency: -1}
+
+	allowed, err := svc.applySignupGrant(ctx, user, grant)
+
+	require.NoError(t, err)
+	require.True(t, allowed)
+	require.Equal(t, 1, repo.updateCalls)
+	require.Zero(t, repo.updateConcurrencyCalls)
+	require.Equal(t, 0, repo.updatedConcurrency)
+	require.Equal(t, 0, user.Concurrency)
+}
+
+func TestSignupGrantNormalizesInvalidConfiguredConcurrency(t *testing.T) {
+	svc := &AuthService{cfg: &config.Config{Default: config.DefaultConfig{UserConcurrency: -2}}}
+
+	grant := svc.resolveSignupGrantPlan(context.Background(), "email")
+
+	require.Equal(t, -1, grant.Concurrency)
+	require.Equal(t, -1, (signupGrantApplication{plan: grant}).initialConcurrency())
 }
