@@ -16,6 +16,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check FlowAI branch contract
+        shell: bash
+        run: |
+          git fetch --no-tags --force https://github.com/Wei-Shaw/sub2api.git main:refs/remotes/upstream/main
+          make review-flowai-upstream
+          make check-flowai-contract-strict
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
