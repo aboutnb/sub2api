@@ -1363,7 +1363,7 @@ func (s *adminServiceImpl) CreateShadow(ctx context.Context, parentID int64, opt
 		concurrency = parent.Concurrency
 	}
 	// 优先级未指定(<=0)时继承母账号。前端一键创建只传 name，显式写入 0 会绕过
-	// ent 默认值 50，并在“大值优先”的调度规则下意外将影子降到最低优先级。
+	// ent 默认值 50，并在“数值越小越优先”的调度规则下意外抢到最高优先级。
 	// 与上方 Concurrency 一致采用「省略继承母账号」语义(影子的 proxy/分组/并发亦全部继承母账号)。
 	priority := opts.Priority
 	if priority <= 0 {

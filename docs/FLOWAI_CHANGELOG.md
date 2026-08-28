@@ -13,7 +13,7 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 问题：
 
 - 上游同名文件覆盖 FlowAI 的业务逻辑或 i18n key；
-- 账号优先级方向被改回数值越小优先；
+- 账号优先级方向被改回数值越大优先；
 - 已执行迁移被重写，触发生产 checksum 错误；
 - 邮件、支付或签到状态被当作普通重试而重复发送/重复结算；
 - 只更新应用镜像，遗漏 Mihomo、Caddy、locale 或持久化配置；
@@ -106,7 +106,7 @@ FLOWAI_UPSTREAM_REVIEW_ACK=7b693ae4295e20329f18ff451b29a38879cb4705 \
 
 | 功能域 | FlowAI 当前约定 | 主要实现入口 | 主要回归测试 |
 | --- | --- | --- | --- |
-| 账号调度 | 账号 `priority` 数值越大越优先；相同优先级再比较负载、LRU、OAuth 等 | `backend/internal/service/gateway_scheduling.go`、`openai_account_scheduler.go`、`openai_gateway_scheduling.go`、`gemini_messages_compat_service.go`、`backend/internal/repository/account_repo.go` | `gateway_account_selection_test.go`、`scheduler_layered_filter_test.go`、OpenAI scheduler 测试、`account_repo_sort_integration_test.go` |
+| 账号调度 | 账号 `priority` 为 1 时最高，数值越小越优先；相同优先级再比较负载、LRU、OAuth 等 | `backend/internal/service/gateway_scheduling.go`、`openai_account_scheduler.go`、`openai_gateway_scheduling.go`、`gemini_messages_compat_service.go`、`backend/internal/repository/account_repo.go` | `gateway_account_selection_test.go`、`scheduler_layered_filter_test.go`、OpenAI scheduler 测试、`account_repo_sort_integration_test.go` |
 | 用户/账号并发 | `-1` 立即拒绝，`0` 不限，正数为上限；小于 `-1` 不得写入 | `backend/internal/service/concurrency_service.go`、`backend/internal/handler/gateway_helper.go`、设置/用户管理路径 | `concurrency_service_test.go`、`gateway_helper_hotpath_test.go` |
 | 风险注册赠送 | 授权判断前余额为 0、并发为 `-1`；一次性授权成功后才写入实际赠送值 | `backend/internal/service/auth_service.go`、`signup_risk_context.go`、`signup_risk_grant_repo.go` | `signup_risk_grant_test.go`、签到安全测试 |
 | Project Mihomo | 支持 URL/静态源、多源、兼容请求头、节点测速、筛选、自动路由、多 listener 和账号池分配；状态持久化 | `backend/internal/service/project_mihomo_service.go`、admin handler、`deploy/docker-compose.preview.yml` | `project_mihomo_service_test.go`、admin handler 测试 |
@@ -123,14 +123,15 @@ FLOWAI_UPSTREAM_REVIEW_ACK=7b693ae4295e20329f18ff451b29a38879cb4705 \
 
 ### 4.1 账号调度优先级
 
-- 最终规则是**账号优先级数值越大越优先**。当前实现同时覆盖普通 Gateway、分层
+- 最终规则是**账号优先级 1 最高，数值越小越优先**。当前实现同时覆盖普通 Gateway、分层
   调度、OpenAI 高级 scheduler、传统 OpenAI、Gemini、图片账号排序和数据库查询。
-- `account_groups.priority ASC` 是分组成员顺序；`accounts.priority DESC` 是账号自身
+- `account_groups.priority ASC` 是分组成员顺序；`accounts.priority ASC` 是账号自身
   调度顺序。两者不能互换。
 - 错误透传规则的 `priority` 仍是数值越小越先匹配，位于
   `backend/internal/service/error_passthrough_service.go`，不属于账号调度。
-- 历史提交 `562193408` 曾把“1 最高”实现为升序；后续合并和修复恢复为 DESC。这个
-  历史提交必须保留在上下文里，但不能据此把当前代码重新改成 ASC。
+- 历史提交 `562193408` 曾把“1 最高”实现为升序；后续合并和修复恢复为 DESC，本次
+  FlowAI 重新确认升序为当前契约。这个历史过程必须保留在上下文里，避免再次无审阅地
+  接受上游方向。
 
 受保护路径：
 
@@ -222,7 +223,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 - 真正的 locale 来源是 `frontend/src/i18n/locales/zh/`、`frontend/src/i18n/locales/en/`
   及其 `index.ts` 聚合入口；不要因上游同名文件变化删除整个目录或 FlowAI key。
-- 中文和英文必须同时更新。账号管理文案写“优先级越大的账号优先使用”；错误透传
+- 中文和英文必须同时更新。账号管理文案写“1 为最高优先级，数值越小越优先使用”；错误透传
   namespace 才能写“小数值优先”。并发文案必须解释 `-1/0/正数`。
 - 社区群名称/图标/链接、用户订阅页开关、购买订阅入口、充值费用策略和公开设置注入
   是一条完整 API/store/router/UI 链路，缺少任意一层都会导致刷新后回显错误。
@@ -278,7 +279,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 | 冲突区域 | 合并前必须回答的问题 | 放行证据 |
 | --- | --- | --- |
-| 调度代码/SQL | `a.priority` 是否仍为 DESC？`ag.priority` 是否仍独立为 ASC？OpenAI score 是否奖励更大值？ | 目标单测 + `make check-flowai-contract` |
+| 调度代码/SQL | `a.priority` 是否仍为 ASC？`ag.priority` 是否仍独立为 ASC？OpenAI score 是否把较小 priority 映射为更高分？ | 目标单测 + `make check-flowai-contract` |
 | 并发/注册 | `-1` 是否在 Redis/等待队列前拒绝？风险账号是否先创建为 `-1`？ | concurrency、hotpath、signup risk tests |
 | i18n | zh/en key 是否都存在？聚合入口是否仍加载模块？是否把错误透传文案复制到账号文案？ | locale compile/collision/default tests |
 | 迁移/Ent/wire | 是否保留所有完整文件名？是否修改了已执行 SQL？生成代码是否与 schema 一致？ | migration runner、schema、backend tests |

@@ -110,7 +110,7 @@ func TestOpenAIGatewayHandlerImages_ServerErrorFailsOverAndReturnsClearErrorWhen
 			Status:      service.StatusActive,
 			Schedulable: true,
 			Concurrency: 0,
-			Priority:    0,
+			Priority:    2,
 			Credentials: map[string]any{"access_token": "token-2"},
 		},
 	}

@@ -36,25 +36,24 @@
 
 ### 2.1 账号优先级的当前约定
 
-FlowAI 账号调度采用**数值越大越优先**：例如优先级 80 的账号先于优先级 20
-的账号进入调度。1 是可以填写的数值下限/常见初始值，但在这个约定下不是“数值
-最高”的特殊等级。
+FlowAI 账号调度采用**1 为最高优先级，数值越小越优先**：例如优先级 20 的账号
+先于优先级 80 的账号进入调度。前端账号表单的有效起始值为 1。
 
 在优先级相同的情况下，具体调度器再按各自策略比较负载、排队深度、最近使用时间、
 OAuth 类型、重置时间或其他评分因子。不能把这些平局规则误写成优先级方向。
 
-当前必须保持数值越大优先的代码路径包括：
+当前必须保持数值越小优先的代码路径包括：
 
 - backend/internal/service/gateway_scheduling.go 的分层筛选、普通排序和混合调度；
 - backend/internal/service/openai_account_scheduler.go 的评分、Top-K 和 compact 重试；
 - backend/internal/service/openai_gateway_scheduling.go 的传统 OpenAI 选择；
 - backend/internal/service/gemini_messages_compat_service.go 的 Gemini 选择；
 - backend/internal/service/batch_image_public.go 的图片批量账号排序；
-- backend/internal/repository/account_repo.go 中账号字段的 DESC 排序。
+- backend/internal/repository/account_repo.go 中账号字段的 ASC 排序。
 
 账号优先级和分组成员优先级是两个字段：查询中的 ag.priority ASC 是分组成员顺序，
-a.priority DESC 才是账号自身调度优先级。合并 SQL 时必须分别核对，不能因为看到
-一个 ASC 就把账号排序改反。
+a.priority ASC 是账号自身调度优先级。合并 SQL 时必须分别核对，不能因为看到不同
+字段就把账号排序改反。
 
 ### 2.2 不同规则的优先级不能混用
 
@@ -63,8 +62,8 @@ frontend/src/i18n/locales/{zh,en}/admin/settings.ts 的 errorPassthrough 区域�
 它不控制账号调度，不能用它推导账号优先级。
 
 历史提交 562193408 曾将账号调度改成“1 最高”，后续上游合并提交
-bd3b7b205 又恢复为 DESC。这是本分支曾经发生过的语义漂移，今后若出现
-ASC 账号排序，必须停止发布并由业务明确决定，而不是按上游结果直接接受。
+bd3b7b205 又恢复为 DESC。本分支现再次明确采用“1 最高、数值越小越优先”；后续
+若出现 DESC 账号排序，必须停止发布并核对冲突，而不是按上游结果直接接受。
 
 ## 3. 用户和账号并发
 
@@ -168,7 +167,7 @@ HTTP 状态、服务端订单状态、provider 日志和链上证明分别记录
 ### 4.6 i18n 和前端契约
 
 - 中文和英文 locale 必须同时维护；新增功能不得以另一语言的硬编码文本替代 locale key。
-- 账号优先级文案必须表达“数值越大优先使用”；用户并发文案必须明确 -1 拒绝、0
+- 账号优先级文案必须表达“1 为最高优先级，数值越小越优先使用”；用户并发文案必须明确 -1 拒绝、0
   不限制、正数为上限。
 - 错误透传规则的“小数值优先”文案只允许出现在其自身 namespace，不得污染账号管理文案。
 - i18n 目录、locale 注册入口、相关测试和构建产物均属于发布文件。合并冲突时不能因为

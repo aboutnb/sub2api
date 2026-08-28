@@ -436,94 +436,94 @@ else
   fi
 fi
 
-# Account priority: larger account values win. These checks deliberately do
-# not reject ASC globally because group-member priority intentionally uses ASC.
+# Account priority: 1 is highest and lower account values win. These checks
+# deliberately do not reject ASC globally because group-member priority also
+# intentionally uses ASC.
 require_text backend/internal/service/gateway_scheduling.go \
-  'acc.account.Priority > maxPriority' \
-  'gateway layered selection keeps maximum account priority'
+  'acc.account.Priority < minPriority' \
+  'gateway layered selection keeps minimum account priority'
 require_text backend/internal/service/gateway_scheduling.go \
-  'return a.account.Priority > b.account.Priority' \
-  'gateway account sort uses descending priority'
+  'return a.account.Priority < b.account.Priority' \
+  'gateway account sort uses ascending priority'
 require_text backend/internal/service/gateway_scheduling.go \
-  'return a.Priority > b.Priority' \
-  'gateway priority-only sort uses descending priority'
+  'return a.Priority < b.Priority' \
+  'gateway priority-only sort uses ascending priority'
 require_text backend/internal/service/openai_account_scheduler.go \
-  'return left.account.Priority > right.account.Priority' \
-  'OpenAI scheduler tie-break uses larger priority'
+  'return left.account.Priority < right.account.Priority' \
+  'OpenAI scheduler tie-break uses lower priority value'
 require_text backend/internal/service/openai_account_scheduler.go \
-  'priorityFactor = float64(item.priority-minPriority) / float64(maxPriority-minPriority)' \
-  'OpenAI scheduler score rewards larger priority'
+  'priorityFactor = 1 - float64(item.priority-minPriority)/float64(maxPriority-minPriority)' \
+  'OpenAI scheduler score rewards lower priority value'
 require_text backend/internal/service/openai_account_scheduler.go \
-  'priorityFactor = float64(candidate.priority-minPriority) / float64(maxPriority-minPriority)' \
-  'OpenAI scheduler snapshot rewards larger priority'
+  'priorityFactor = 1 - float64(candidate.priority-minPriority)/float64(maxPriority-minPriority)' \
+  'OpenAI scheduler snapshot rewards lower priority value'
 require_text backend/internal/service/openai_gateway_scheduling.go \
-  'Higher priority (larger value)' \
-  'legacy OpenAI scheduler documents larger priority'
+  'Higher priority (lower value)' \
+  'legacy OpenAI scheduler documents lower priority value'
 require_text backend/internal/service/gemini_messages_compat_service.go \
-  'candidate.Priority > current.Priority' \
-  'Gemini scheduler uses larger priority'
+  'candidate.Priority < current.Priority' \
+  'Gemini scheduler uses lower priority value'
 require_first_priority_comparison backend/internal/service/openai_gateway_scheduling.go \
-  'isBetterAccount' 'if candidate.Priority > current.Priority' \
-  'legacy OpenAI selector checks larger priority first'
+  'isBetterAccount' 'if candidate.Priority < current.Priority' \
+  'legacy OpenAI selector checks lower priority value first'
 require_first_priority_comparison backend/internal/service/gemini_messages_compat_service.go \
-  'isBetterGeminiAccount' 'if candidate.Priority > current.Priority' \
-  'Gemini selector checks larger priority first'
+  'isBetterGeminiAccount' 'if candidate.Priority < current.Priority' \
+  'Gemini selector checks lower priority value first'
 require_text backend/internal/service/batch_image_public.go \
-  'accounts[i].Priority > accounts[j].Priority' \
-  'batch image scheduler uses larger priority'
+  'accounts[i].Priority < accounts[j].Priority' \
+  'batch image scheduler uses lower priority value'
 require_text backend/internal/repository/account_repo.go \
-  'Order(dbent.Desc(dbaccount.FieldPriority)' \
-  'account repository uses descending account priority'
+  'Order(dbent.Asc(dbaccount.FieldPriority)' \
+  'account repository uses ascending account priority'
 require_text backend/internal/repository/account_repo.go \
-  'a.priority DESC' \
-  'group query uses descending account priority'
+  'a.priority ASC' \
+  'group query uses ascending account priority'
 require_text frontend/src/i18n/locales/zh/admin/accounts.ts \
-  '优先级越大的账号优先使用' \
+  '1 为最高优先级，数值越小的账号优先使用' \
   'Chinese account priority copy'
 require_text frontend/src/i18n/locales/en/admin/accounts.ts \
-  'Higher value accounts are used first' \
+  'Priority 1 is highest; lower-value accounts are used first' \
   'English account priority copy'
 require_text frontend/src/i18n/locales/zh/admin/overview.ts \
-  '数值越大优先级越高，用于账号调度' \
+  '1 为最高优先级，数值越小越优先，用于账号调度' \
   'Chinese scheduling priority copy'
 require_text frontend/src/i18n/locales/en/admin/overview.ts \
-  'Higher value means higher priority, used for account scheduling' \
+  'Priority 1 is highest; lower values are preferred for account scheduling' \
   'English scheduling priority copy'
 
 # Reverse checks catch the exact upstream regressions that previously passed
 # compilation while silently changing account scheduling semantics.
 forbid_regex backend/internal/service/gateway_scheduling.go \
-  'filterByMinPriority|取优先级最小的集合|a\.account\.Priority[[:space:]]*<[[:space:]]*b\.account\.Priority|a\.Priority[[:space:]]*<[[:space:]]*b\.Priority' \
-  'gateway code contains no lower-priority-first implementation'
+  'filterByMaxPriority|a\.account\.Priority[[:space:]]*>[[:space:]]*b\.account\.Priority|a\.Priority[[:space:]]*>[[:space:]]*b\.Priority' \
+  'gateway code contains no larger-value-first implementation'
 forbid_regex backend/internal/service/openai_account_scheduler.go \
-  'priorityFactor[[:space:]]*=[[:space:]]*1[[:space:]]*-[[:space:]]*float64\(|maxPriority[[:space:]]*-[[:space:]]*(item|candidate)\.priority' \
-  'OpenAI score contains no inverted priority factor'
+  'priorityFactor[[:space:]]*=[[:space:]]*float64\((item|candidate)\.priority-minPriority\)[[:space:]]*/' \
+  'OpenAI score contains no larger-value-first priority factor'
 forbid_regex backend/internal/service/openai_gateway_scheduling.go \
-  'Higher priority \(lower value\)|优先级更高（数值更小）|a\.account\.Priority[[:space:]]*<[[:space:]]*b\.account\.Priority' \
-  'legacy OpenAI scheduler contains no lower-value priority rule'
+  'Higher priority \(larger value\)|优先级更高（数值更大）|a\.account\.Priority[[:space:]]*>[[:space:]]*b\.account\.Priority' \
+  'legacy OpenAI scheduler contains no larger-value priority rule'
 forbid_regex backend/internal/service/batch_image_public.go \
-  'accounts\[i\]\.Priority[[:space:]]*<[[:space:]]*accounts\[j\]\.Priority' \
-  'batch image scheduler contains no ascending account priority sort'
+  'accounts\[i\]\.Priority[[:space:]]*>[[:space:]]*accounts\[j\]\.Priority' \
+  'batch image scheduler contains no descending account priority sort'
 forbid_regex backend/internal/repository/account_repo.go \
-  'a\.priority[[:space:]]+ASC' \
-  'account SQL contains no ascending account priority sort'
+  'a\.priority[[:space:]]+DESC' \
+  'account SQL contains no descending account priority sort'
 forbid_regex frontend/src/i18n/locales/zh/admin/accounts.ts \
-  '数值越小优先级越高|优先级越小.*优先|数值越小.*优先使用' \
-  'Chinese account copy contains no lower-value-first rule'
+  '数值越大优先级越高|优先级越大.*优先|数值越大.*优先使用' \
+  'Chinese account copy contains no larger-value-first rule'
 forbid_regex frontend/src/i18n/locales/en/admin/accounts.ts \
-  'lower value.*priority|lower number.*priority|smaller.*priority|lower-value accounts are used first' \
-  'English account copy contains no lower-value-first rule'
+  'higher value.*priority|higher number.*priority|larger.*priority|Higher value accounts are used first' \
+  'English account copy contains no larger-value-first rule'
 
 # Gemini and the legacy OpenAI selector contain both sides of a comparison in
-# their guard clauses. The positive anchors above and the explicit larger-value
-# comments below keep the first decision direction reviewable without rejecting
-# the legitimate inverse branch.
+# their guard clauses. The positive anchors above check the lower-value branch;
+# these checks retain the legitimate inverse branch used to reject worse candidates.
 require_text backend/internal/service/openai_gateway_scheduling.go \
   'if candidate.Priority > current.Priority' \
-  'legacy OpenAI selector compares larger priority first'
+  'legacy OpenAI selector has an inverse priority guard'
 require_text backend/internal/service/gemini_messages_compat_service.go \
   'if candidate.Priority > current.Priority' \
-  'Gemini selector compares larger priority first'
+  'Gemini selector has an inverse priority guard'
 
 # User concurrency and risk-signup admission.
 require_text backend/internal/service/concurrency_service.go \

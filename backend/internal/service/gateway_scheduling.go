@@ -444,11 +444,11 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 
 			if len(routingAvailable) > 0 {
-				// 排序：优先级 > 负载率 > 最后使用时间
+				// 排序：账号优先级（数值越小越优先）> 负载率 > 最后使用时间
 				sort.SliceStable(routingAvailable, func(i, j int) bool {
 					a, b := routingAvailable[i], routingAvailable[j]
 					if a.account.Priority != b.account.Priority {
-						return a.account.Priority > b.account.Priority
+						return a.account.Priority < b.account.Priority
 					}
 					if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
 						return a.loadInfo.LoadRate < b.loadInfo.LoadRate
@@ -708,10 +708,10 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 		}
 
-		// 分层过滤选择：优先级 →（可选）最早重置 → 负载率 → LRU
+		// 分层过滤选择：账号优先级（数值越小越优先）→（可选）最早重置 → 负载率 → LRU
 		for len(available) > 0 {
-			// 1. 取优先级最高的集合
-			candidates := filterByMaxPriority(available)
+			// 1. 取优先级最小的集合（1 为最高优先级）
+			candidates := filterByMinPriority(available)
 			// 2. （可选）use-it-or-lose-it：优先选用会话窗口最早重置的账号
 			if cfg.PreferSoonestReset {
 				candidates = filterBySoonestReset(candidates)
@@ -1509,20 +1509,20 @@ func (s *GatewayService) newSelectionResult(ctx context.Context, account *Accoun
 	}), nil
 }
 
-// filterByMaxPriority 过滤出优先级最高的账号集合
-func filterByMaxPriority(accounts []accountWithLoad) []accountWithLoad {
+// filterByMinPriority 过滤出优先级最高的账号集合（1 为最高优先级）
+func filterByMinPriority(accounts []accountWithLoad) []accountWithLoad {
 	if len(accounts) == 0 {
 		return accounts
 	}
-	maxPriority := accounts[0].account.Priority
+	minPriority := accounts[0].account.Priority
 	for _, acc := range accounts[1:] {
-		if acc.account.Priority > maxPriority {
-			maxPriority = acc.account.Priority
+		if acc.account.Priority < minPriority {
+			minPriority = acc.account.Priority
 		}
 	}
 	result := make([]accountWithLoad, 0, len(accounts))
 	for _, acc := range accounts {
-		if acc.account.Priority == maxPriority {
+		if acc.account.Priority == minPriority {
 			result = append(result, acc)
 		}
 	}
@@ -1646,7 +1646,7 @@ func sortAccountsByPriorityAndLastUsed(accounts []*Account, preferOAuth bool) {
 	sort.SliceStable(accounts, func(i, j int) bool {
 		a, b := accounts[i], accounts[j]
 		if a.Priority != b.Priority {
-			return a.Priority > b.Priority
+			return a.Priority < b.Priority
 		}
 		switch {
 		case a.LastUsedAt == nil && b.LastUsedAt != nil:
@@ -1775,12 +1775,12 @@ func (s *GatewayService) sortCandidatesForFallback(accounts []*Account, preferOA
 	}
 }
 
-// sortAccountsByPriorityOnly 仅按优先级排序
+// sortAccountsByPriorityOnly 仅按优先级排序（数值越小越优先）
 func sortAccountsByPriorityOnly(accounts []*Account, preferOAuth bool) {
 	sort.SliceStable(accounts, func(i, j int) bool {
 		a, b := accounts[i], accounts[j]
 		if a.Priority != b.Priority {
-			return a.Priority > b.Priority
+			return a.Priority < b.Priority
 		}
 		if preferOAuth && a.Type != b.Type {
 			return a.Type == AccountTypeOAuth
@@ -1922,7 +1922,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 				selected = acc
 				continue
 			}
-			if acc.Priority > selected.Priority {
+			if acc.Priority < selected.Priority {
 				selected = acc
 			} else if acc.Priority == selected.Priority {
 				switch {
@@ -2039,7 +2039,7 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 			selected = acc
 			continue
 		}
-		if acc.Priority > selected.Priority {
+		if acc.Priority < selected.Priority {
 			selected = acc
 		} else if acc.Priority == selected.Priority {
 			switch {
@@ -2188,7 +2188,7 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 				selected = acc
 				continue
 			}
-			if acc.Priority > selected.Priority {
+			if acc.Priority < selected.Priority {
 				selected = acc
 			} else if acc.Priority == selected.Priority {
 				switch {
@@ -2306,7 +2306,7 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 			selected = acc
 			continue
 		}
-		if acc.Priority > selected.Priority {
+		if acc.Priority < selected.Priority {
 			selected = acc
 		} else if acc.Priority == selected.Priority {
 			switch {

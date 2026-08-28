@@ -845,7 +845,7 @@ func newGrokCredentialFailoverHandler(t *testing.T, mode string) (*OpenAIGateway
 	accounts := []service.Account{
 		{
 			ID: 801, Name: "revoked", Platform: service.PlatformGrok, Type: service.AccountTypeOAuth,
-			Status: service.StatusActive, Schedulable: true, Concurrency: 1, Priority: 3,
+			Status: service.StatusActive, Schedulable: true, Concurrency: 1, Priority: 1,
 			Credentials: map[string]any{
 				"access_token": "expired", "refresh_token": "revoked-refresh",
 				"expires_at": time.Now().Add(-time.Minute).UTC().Format(time.RFC3339),
@@ -868,7 +868,7 @@ func newGrokCredentialFailoverHandler(t *testing.T, mode string) (*OpenAIGateway
 	if mode == "all_429" || mode == "mixed_429_500" || mode == "mixed_500_429" || mode == "oauth_429_apikey_500" {
 		accounts = append(accounts, service.Account{
 			ID: 803, Name: "untried-healthy", Platform: service.PlatformGrok, Type: service.AccountTypeOAuth,
-			Status: service.StatusActive, Schedulable: true, Concurrency: 1, Priority: 1,
+			Status: service.StatusActive, Schedulable: true, Concurrency: 1, Priority: 3,
 			Credentials: map[string]any{
 				"access_token": "untried-healthy-access", "refresh_token": "untried-healthy-refresh",
 				"expires_at": time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
