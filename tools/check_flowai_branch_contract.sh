@@ -69,11 +69,13 @@ require_first_priority_comparison() {
   fi
   if awk -v function_name="$function_name" -v expected="$expected" '
     $0 ~ "^func .*" function_name "\\(" { inside = 1; next }
-    inside && $0 ~ /^func / { exit 1 }
+    inside && $0 ~ /^func / { exit !(found && matched) }
     inside && index($0, "Priority") && ($0 ~ />/ || $0 ~ /</) {
-      exit !(index($0, expected) > 0)
+      found = 1
+      matched = index($0, expected) > 0
+      exit !matched
     }
-    END { if (!inside) exit 1 }
+    END { exit !(inside && found && matched) }
   ' "$path"; then
     pass "$label"
   else
@@ -195,7 +197,7 @@ validate_ledger_section() {
 
 governance_path_allowed() {
   case "$1" in
-    .gitignore|Makefile|.github/workflows/preview-image.yml|tools/check_flowai_branch_contract.sh|tools/review_flowai_upstream.sh|docs/FLOWAI_*.md)
+    .gitignore|Makefile|.github/workflows/preview-image.yml|tools/check_flowai_branch_contract.sh|tools/review_flowai_upstream.sh|docs/FLOWAI_*.md|deploy/README.md)
       return 0
       ;;
     *)
@@ -389,19 +391,22 @@ if [[ "$branch" == "main" || "$branch" == "master" ]]; then
   fail "main/master is not a FlowAI release target"
 fi
 
+merge_base=""
 if git show-ref --verify --quiet refs/remotes/upstream/main; then
   pass "upstream/main is available"
+  merge_base="$(git merge-base HEAD upstream/main 2>/dev/null || true)"
   if git merge-base --is-ancestor upstream/main HEAD; then
     pass "HEAD contains upstream/main"
-    merge_base="$(git merge-base HEAD upstream/main)"
-    pass "merge base is $merge_base"
   else
     fail "HEAD is behind or unrelated to upstream/main; review and merge upstream before release"
-    merge_base=""
+  fi
+  if [[ -n "$merge_base" ]]; then
+    pass "merge base is $merge_base"
+  else
+    fail "HEAD and upstream/main have no common merge base"
   fi
 else
   fail "upstream/main is unavailable; fetch it before running the release gate"
-  merge_base=""
 fi
 
 version="$(tr -d '[:space:]' < backend/cmd/server/VERSION 2>/dev/null || true)"
@@ -572,6 +577,7 @@ for path in \
   docs/PAYMENT.md \
   docs/PAYMENT_CN.md \
   BEPUSDT_USDT_INTEGRATION_DESIGN.md \
+  deploy/README.md \
   deploy/docker-compose.preview.yml \
   deploy/deploy-preview-image.sh \
   tools/review_flowai_upstream.sh \
@@ -606,6 +612,12 @@ require_text deploy/docker-compose.preview.yml \
 require_text deploy/docker-compose.preview.yml \
   'GATEWAY_IMAGE_CONCURRENCY_MAX_CONCURRENT_REQUESTS' \
   'image concurrency limit remains separate from user concurrency'
+require_text deploy/README.md \
+  'Use an immutable commit tag for every' \
+  'deployment documentation requires immutable release tags'
+require_text deploy/README.md \
+  'does not build on the server or remove PostgreSQL' \
+  'deployment documentation preserves server data and prebuilt images'
 
 if [[ -n "${merge_base:-}" ]]; then
   check_commit_ledger "$merge_base"

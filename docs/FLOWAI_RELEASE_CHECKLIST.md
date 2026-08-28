@@ -127,6 +127,7 @@ docker compose --env-file deploy/.env.preview -f deploy/docker-compose.preview.y
 - [ ] GHCR 中同时确认可变分支标签和不可变 SHA 标签；生产优先使用 SHA 标签。
 - [ ] 记录镜像 digest、构建时间和提交 SHA，不只记录 latest 或可变标签。
 - [ ] 确认镜像包含当前前端 locale、迁移文件和后端版本。
+- [ ] 23 服务器发布命令显式传入 `sub2api-flowai-<sha12>`，没有依赖可变分支标签。
 
 不要在 23 服务器上运行 docker compose build、pnpm build 或 go build 作为正式发布
 步骤；服务器只拉取已验证镜像。

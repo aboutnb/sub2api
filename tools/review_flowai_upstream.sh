@@ -54,6 +54,11 @@ is_protected_path() {
     frontend/src/i18n/**/*|\
     deploy/docker-compose.preview.yml|\
     deploy/Caddyfile.flowai|\
+    deploy/Dockerfile|\
+    deploy/.env.example|\
+    deploy/.env.preview.example|\
+    deploy/README.md|\
+    deploy/config.example.yaml|\
     deploy/deploy-preview-image.sh|\
     .github/workflows/preview-image.yml)
       return 0

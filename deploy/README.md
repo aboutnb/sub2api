@@ -54,17 +54,21 @@ See [APPLE_CONTAINER.md](./APPLE_CONTAINER.md) for configuration, upgrades, pers
 
 ### Preview Image Deployment
 
-The `sub2api-flowai` branch publishes `ghcr.io/aboutnb/sub2api:sub2api-flowai`
-from GitHub Actions. Preview servers should pull that image instead of building
-on the server:
+The `sub2api-flowai` branch publishes `ghcr.io/aboutnb/sub2api` from GitHub
+Actions. Complete `docs/FLOWAI_RELEASE_CHECKLIST.md` and the FlowAI contract
+checks before updating the 23 server. Use an immutable commit tag for every
+release; the mutable branch tag is for inspection only:
 
 ```bash
 cd /root/flowai-preview/deploy
-./deploy-preview-image.sh
+SUB2API_IMAGE=ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12> \
+  ./deploy-preview-image.sh
 ```
 
 The script runs `docker compose pull sub2api`, recreates only the app service,
-and waits for `/health`.
+and waits for `/health`. It does not build on the server or remove PostgreSQL,
+Redis, Mihomo, or persistent application data. Record the exact SHA tag and
+image digest in the release record for rollback.
 
 ### Method 1: One-Click Deployment (Recommended)
 
