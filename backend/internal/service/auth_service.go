@@ -1352,6 +1352,14 @@ func (s *AuthService) validateRegistrationEmailPolicy(ctx context.Context, email
 	if err := s.validateRegistrationEmailRiskPolicy(ctx, email); err != nil {
 		return err
 	}
+	return s.validateRegistrationEmailSuffixPolicy(ctx, email)
+}
+
+// validateRegistrationEmailSuffixPolicy enforces the configured suffix
+// whitelist without applying registration-only alias and disposable-domain
+// restrictions. Authenticated email binding still performs its own ownership
+// and alias collision checks before changing the identity.
+func (s *AuthService) validateRegistrationEmailSuffixPolicy(ctx context.Context, email string) error {
 	if s == nil || s.settingService == nil {
 		return nil
 	}
