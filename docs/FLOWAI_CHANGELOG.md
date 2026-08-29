@@ -63,13 +63,13 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 | --- | --- |
 | 发布分支 | `sub2api-flowai` |
 | 本次核对日期 | 2026-08-29（Asia/Shanghai） |
-| 业务代码基线 HEAD（本次合并前） | `777b07805` |
-| 本次核对 HEAD（文档更新前） | `8283480481b8f700eb9f55499384b0e4739a0531` |
-| 最后已审并合入的上游基线 | `upstream/main` = `7b693ae42`（0.1.183） |
+| 业务代码基线 HEAD（本次合并前） | `592d28f277b9824617aa657cae755a103909c7bd` |
+| 本次核对 HEAD（文档更新前） | `ea2096d33360f45ddd4ec4142e457c4d648ee493` |
+| 最后已审并合入的上游基线 | `upstream/main` = `b5827cfd54d58c248a9480b800444d0b40f0c6ea`（0.1.183） |
 | 当前抓取但尚未合入的上游 | 无（已合入） |
 | 应用版本 | `0.1.183` |
-| 相对上游的非合并提交 | 93 个功能/修复提交；治理提交按受限规则由脚本动态豁免 |
-| 相对上游的文件差异 | 440 个文件，约 48475 行新增、1634 行删除 |
+| 相对上游的非合并提交 | 94 个功能/修复提交；治理提交按受限规则由脚本动态豁免 |
+| 相对上游的文件差异 | 440 个文件，约 48480 行新增、1634 行删除 |
 | 发布镜像 | `ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12>` |
 | 生产发布目标 | 23 服务器，使用预构建镜像 |
 
@@ -79,23 +79,23 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 ### 2.1 本次上游合并审阅（已完成）
 
 2026-08-29 刷新并审阅 `upstream/main` 完整提交
-`7b693ae4295e20329f18ff451b29a38879cb4705`（0.1.183），随后以
-`8283480481b8f700eb9f55499384b0e4739a0531` 合入 `sub2api-flowai`。
+`b5827cfd54d58c248a9480b800444d0b40f0c6ea`（0.1.183）。本次上游相对已审基线新增
+40 个提交，随后以 `ea2096d33360f45ddd4ec4142e457c4d648ee493` 合入
+`sub2api-flowai`。
 
-- 上游的 117 个待合入提交已完整进入合并提交；`main` 未修改。
-- `gateway_scheduling.go`、`openai_gateway_scheduling.go` 继续保持账号 priority 升序，
-  即 1 最高优先级；zh/en i18n 聚合和 FlowAI 支付、并发、签到、邮件路径均保留。
-- `CreateAccountModal.vue` 保留 FlowAI 的当前代理选择，同时合入上游创建后同步模型能力元数据
-  的行为；`PaymentResultView.spec.ts` 保留手续费到账覆盖，并合入上游完成态刷新余额覆盖。
-- 上游邮箱别名换绑测试与 FlowAI 注册别名风控发生语义冲突；新增后缀白名单专用校验，
-  认证后的邮箱换绑仍执行地址/别名占用查重和事务守卫，但不复用注册阶段的别名禁止规则。
-- 上游新增的两个 231 迁移按完整文件名保留，未修改任何已执行的 FlowAI 历史迁移。
-- 合并后后端全量 unit、前端 lint/typecheck/Vitest、前端生产构建和 Compose 配置校验通过。
+- 上游的 40 个提交已完整进入合并提交；`main` 未修改，且本次没有新增或修改 SQL 迁移。
+- 上游新增的 DeepSeek 定价、Anthropic Fable 阈值、OpenAI/Spark 流式故障转移、模型定价、
+  上游倍率探测、智谱团队版配置及充值币种显示已合入；不改变 FlowAI 的账号调度、并发、
+  GM/EasyPay、签到、邮件和独立部署边界。
+- `PaymentView.vue` 是唯一内容冲突：保留 FlowAI 当前充值/订阅布局和 GM/EasyPay 支付选择，
+  仅吸收上游按所选币种渲染充值倍率的参数；对应中英文 key 和测试均保留。
+- 账号调度仍为 priority 升序，即 1 最高优先级；受保护的中英文 i18n 聚合入口和账号文案
+  未被上游覆盖或删除。后续以契约检查和发布测试结果作为放行证据。
 
 合并前预审确认命令：
 
 ```bash
-FLOWAI_UPSTREAM_REVIEW_ACK=7b693ae4295e20329f18ff451b29a38879cb4705 \
+FLOWAI_UPSTREAM_REVIEW_ACK=b5827cfd54d58c248a9480b800444d0b40f0c6ea \
   make review-flowai-upstream
 ```
 
@@ -406,6 +406,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
 | 日期 | 合并提交 | 说明 |
 | --- | --- | --- |
+| 2026-08-29 | `ea2096d33` | Merge upstream main 0.1.183 updates；保留 FlowAI 支付布局、i18n 和账号调度，吸收上游流式/定价/智谱团队版更新 |
 | 2026-08-29 | `828348048` | Merge upstream main 0.1.183 into sub2api-flowai；保留 FlowAI 调度/i18n/支付/并发，并修正邮箱换绑与注册别名规则冲突 |
 | 2026-08-25 | `1e1b7e9ed` | Merge upstream main 0.1.181 into sub2api-flowai |
 | 2026-08-24 | `bd3b7b205` | merge upstream main 0.1.180 into sub2api-flowai |
