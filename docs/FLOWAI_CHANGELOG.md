@@ -389,6 +389,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | 2026-08-24 | `87ece0b48` | test: align schedulable projection integration order | 调度/SQL测试 |
 | 2026-08-25 | `aeac5e5d3` | fix: preserve production migration checksum | 迁移 |
 | 2026-08-25 | `453ffc9fa` | fix: support deny-all user concurrency | 并发/注册 |
+| 2026-08-29 | `f6828cd9c` | fix: make account priority 1 highest | 账号调度 |
 | 2026-08-29 | `b77636d2c` | feat(payment): replace BEpusdt with GM through EasyPay | 支付/GM |
 <!-- FLOWAI_LEDGER_NON_MERGE_END -->
 
