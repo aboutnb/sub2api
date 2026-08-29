@@ -46,7 +46,6 @@ is_protected_path() {
     backend/internal/repository/migrations_runner.go|\
     backend/internal/repository/email_broadcast_repo.go|\
     backend/internal/service/email_broadcast_service.go|\
-    backend/internal/usdtpayment/*|\
     backend/internal/service/checkin_service.go|\
     backend/internal/service/project_mihomo_service.go|\
     backend/migrations/*.sql|\

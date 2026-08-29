@@ -22,12 +22,7 @@ const showError = vi.hoisted(() => vi.fn())
 const showInfo = vi.hoisted(() => vi.fn())
 const showWarning = vi.hoisted(() => vi.fn())
 const getCheckoutInfo = vi.hoisted(() => vi.fn())
-const getUSDTConfig = vi.hoisted(() => vi.fn())
 const bridgeInvoke = vi.hoisted(() => vi.fn())
-
-beforeEach(() => {
-  getUSDTConfig.mockReset().mockResolvedValue({ data: { enabled: false, networks: [] } })
-})
 
 vi.mock('vue-router', async () => {
   const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
@@ -86,7 +81,6 @@ vi.mock('@/stores', () => ({
 vi.mock('@/api/payment', () => ({
   paymentAPI: {
     getCheckoutInfo,
-    getUSDTConfig,
   },
 }))
 
@@ -126,47 +120,6 @@ function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
     data: { ...data, ...overrides },
   }
 }
-
-describe('PaymentView USDT tab', () => {
-  it('embeds USDT in the shared checkout page', async () => {
-    vi.useRealTimers()
-    routeState.path = '/purchase'
-    routeState.query = { tab: 'usdt' }
-    getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture())
-    getUSDTConfig.mockReset().mockResolvedValue({
-      data: {
-        enabled: true,
-        networks: [{
-          crypto: 'USDT',
-          network: 'tron',
-          network_name: 'TRON',
-          trade_type: 'TRC20',
-          wallet_count: 1,
-          rpc_endpoint_set: true,
-          accepting_orders: true,
-        }],
-      },
-    })
-
-    const wrapper = shallowMount(PaymentView, {
-      global: {
-        stubs: {
-          AppLayout: { template: '<div><slot /></div>' },
-          Teleport: true,
-          Transition: false,
-        },
-      },
-    })
-    await flushPromises()
-
-    const tabs = wrapper.findAll('[role="tab"]')
-    expect(tabs).toHaveLength(3)
-    expect(tabs[1].text()).toContain('nav.usdtRecharge')
-    expect(tabs[2].text()).toContain('payment.tabSubscribe')
-    expect(tabs.find(tab => tab.attributes('aria-selected') === 'true')?.text()).toContain('nav.usdtRecharge')
-    wrapper.unmount()
-  })
-})
 
 async function mountRecharge(checkout: Partial<CheckoutInfoResponse> = {}) {
   vi.useRealTimers()

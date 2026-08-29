@@ -569,7 +569,6 @@ for path in \
   backend/migrations/208_signup_risk_grant_guard.sql \
   backend/internal/repository/email_broadcast_repo.go \
   backend/internal/service/email_broadcast_service.go \
-  backend/internal/usdtpayment/service.go \
   backend/internal/service/checkin_service.go \
   backend/internal/service/project_mihomo_service.go \
   frontend/src/i18n/index.ts \
@@ -591,9 +590,6 @@ require_text backend/internal/repository/email_broadcast_repo.go \
 require_text backend/internal/service/email_broadcast_service.go \
   'an ambiguous broadcast delivery automatically.' \
   'email broadcast ambiguous sends are not auto-retried'
-require_text backend/internal/server/routes/usdt_payment.go \
-  '/usdt/webhook/bepusdt' \
-  'USDT BEpusdt webhook route'
 require_text backend/internal/server/routes/payment.go \
   'invoices := authenticated.Group("/invoices")' \
   'invoice routes remain registered'

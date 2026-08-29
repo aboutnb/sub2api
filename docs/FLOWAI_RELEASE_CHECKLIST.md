@@ -142,6 +142,15 @@ docker compose --env-file deploy/.env.preview -f deploy/docker-compose.preview.y
 - [ ] 迁移执行成功；检查日志中没有 checksum mismatch、migration failed 或数据库连接错误。
 - [ ] 发布后核对健康、公开设置、登录、账号调度、-1 并发拒绝和一个普通正数并发请求。
 - [ ] 若本版本涉及支付/签到/邮件，完成对应的非破坏性 smoke test，并记录数据库/日志证据。
+- [ ] Sub2API 应用仍使用 `flowai-app`、`flowai-postgres`、`flowai-redis` 和
+      `/root/flowai-data/{app,postgres,redis}`；不得误用通用 `docker-compose.yml` 创建
+      另一套 `sub2api*` 容器或空命名卷。
+- [ ] BEpusdt 生产容器和活跃目录不存在，Sub2API 镜像中没有独立 BEpusdt 配置、路由或
+      服务；Caddy 当前配置不再包含 `bepusdt` 上游，历史 206 迁移文件未被改写。
+- [ ] GM 使用独立 `gm-epusdt` Compose、`flowai-gm` 容器和独立数据目录；更新 GM 时不得
+      重建 `flowai-app` 或复用 BEpusdt 数据目录。
+- [ ] 启用 GM/EasyPay USDT 前，`/payments/gmpay/v1/config` 返回非空
+      `supported_assets`，钱包、RPC/监听和回调 smoke test 均有证据；为空时保持前台方式禁用。
 
 服务器命令模板：
 

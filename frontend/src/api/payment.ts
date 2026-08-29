@@ -17,8 +17,6 @@ import type {
   InvoiceTaxStatus,
   InvoiceApplication,
   InvoiceApplyRequest,
-  USDTConfigResponse,
-  USDTOrder,
 } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
@@ -44,25 +42,6 @@ export const paymentAPI = {
   /** Get all checkout page data in a single call */
   getCheckoutInfo() {
     return apiClient.get<CheckoutInfoResponse>('/payment/checkout-info')
-  },
-
-  /** Isolated BEpusdt USDT capabilities; independent from RMB provider config. */
-  getUSDTConfig() {
-    return apiClient.get<USDTConfigResponse>('/usdt/config')
-  },
-
-  createUSDTOrder(data: { amount: string; amount_unit?: 'USDT'; network: string; order_type?: string; plan_id?: number; return_url?: string; payment_source?: string }, idempotencyKey: string) {
-    return apiClient.post<USDTOrder>('/usdt/orders', data, {
-      headers: { 'Idempotency-Key': idempotencyKey }
-    })
-  },
-
-  getUSDTOrder(id: number) {
-    return apiClient.get<USDTOrder>(`/usdt/orders/${id}`)
-  },
-
-  cancelUSDTOrder(id: number) {
-    return apiClient.post(`/usdt/orders/${id}/cancel`)
   },
 
   /** Get payment method limits and fee rates */

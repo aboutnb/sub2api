@@ -316,62 +316,6 @@ export interface CreateOrderResult {
   jsapi_payload?: WechatJSAPIPayload
 }
 
-export interface USDTCapability {
-  crypto: string
-  network: string
-  network_name: string
-  trade_type: string
-  wallet_count: number
-  rpc_endpoint_set: boolean
-  rpc_endpoint_count?: number
-  scanner_block?: string
-  scanner_success?: string
-  last_scan_at?: number
-  chain_head?: number
-  scanner_lag?: number
-  queue_depth?: number
-  accepting_orders: boolean
-  reason?: string
-}
-
-export interface USDTConfigResponse {
-  enabled: boolean
-  checkout_mode?: 'fixed' | 'cashier'
-  networks: USDTCapability[]
-  minimum_amount?: number
-  bonus_percent?: number
-  rate?: string
-  rate_crypto?: string
-  rate_fiat?: string
-  rate_updated_at?: number
-  rate_error?: string
-}
-
-export type USDTOrderStatus = OrderStatus | 'CONFIRMING'
-
-export interface USDTOrder {
-  order_id: number
-  out_trade_no: string
-  amount: number
-  pay_amount: number
-  fee_rate: number
-  status: USDTOrderStatus
-  payment_type: 'usdt'
-  payment_mode?: 'fixed' | 'cashier'
-  fiat_currency: string
-  fiat_amount: string
-  crypto_currency: 'USDT'
-  crypto_amount: string
-  network: string
-  trade_type: string
-  receiving_address: string
-  exchange_rate: string
-  payment_url?: string
-  expires_at: string
-  transaction_hash?: string
-  chain_transfer_at?: string
-}
-
 export type CurrencyAmounts = Record<string, number>
 
 export interface DailyPaymentStats {

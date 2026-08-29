@@ -55,21 +55,6 @@ func GrokBaseURLForMode(mode string) string {
 	}
 }
 
-// GetUSDTPaymentCheckoutMode returns the runtime-selectable BEpusdt checkout
-// mode. Missing or invalid values fail closed to the legacy fixed flow.
-func (s *SettingService) GetUSDTPaymentCheckoutMode(ctx context.Context) string {
-	if s == nil || s.settingRepo == nil {
-		return "fixed"
-	}
-	dbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gatewayForwardingDBTimeout)
-	defer cancel()
-	raw, err := s.settingRepo.GetValue(dbCtx, SettingKeyUSDTPaymentCheckoutMode)
-	if err != nil {
-		return "fixed"
-	}
-	return normalizeUSDTPaymentCheckoutMode(raw)
-}
-
 func (s *SettingService) GetGrokDefaultBaseURLMode(ctx context.Context) string {
 	if s == nil || s.settingRepo == nil {
 		return GrokDefaultBaseURLModeCLI

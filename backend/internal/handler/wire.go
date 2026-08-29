@@ -175,12 +175,11 @@ func ProvidePaymentHandler(paymentService *service.PaymentService, configService
 }
 
 // ProvideAdminSettingHandler creates admin.SettingHandler with notification template APIs.
-func ProvideAdminSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, aliyunCaptchaService *service.AliyunCaptchaService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, invoiceSettingsService *service.InvoiceSettingsService, usdtPaymentSettingsService *service.USDTPaymentSettingsService, userAttributeService *service.UserAttributeService, notificationEmailService *service.NotificationEmailService, totpService *service.TotpService, userService *service.UserService) *admin.SettingHandler {
+func ProvideAdminSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, aliyunCaptchaService *service.AliyunCaptchaService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, invoiceSettingsService *service.InvoiceSettingsService, userAttributeService *service.UserAttributeService, notificationEmailService *service.NotificationEmailService, totpService *service.TotpService, userService *service.UserService) *admin.SettingHandler {
 	h := admin.NewSettingHandler(settingService, emailService, turnstileService, opsService, paymentConfigService, paymentService, userAttributeService)
 	h.SetNotificationEmailService(notificationEmailService)
 	h.SetAliyunCaptchaService(aliyunCaptchaService)
 	h.SetInvoiceSettingsService(invoiceSettingsService)
-	h.SetUSDTPaymentSettingsService(usdtPaymentSettingsService)
 	h.SetStepUpDeps(totpService, userService)
 	return h
 }
@@ -209,7 +208,6 @@ func ProvideHandlers(
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
 	checkinHandler *CheckinHandler,
-	usdtPaymentHandler *USDTPaymentHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
@@ -237,7 +235,6 @@ func ProvideHandlers(
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
 		Checkin:          checkinHandler,
-		USDT:             usdtPaymentHandler,
 	}
 }
 
@@ -265,7 +262,6 @@ var ProviderSet = wire.NewSet(
 	NewAsyncImageHandler,
 	ProvideBatchImageHandler,
 	NewCheckinHandler,
-	NewUSDTPaymentHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,

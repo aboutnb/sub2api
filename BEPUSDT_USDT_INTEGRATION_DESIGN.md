@@ -1,4 +1,10 @@
-# BEpusdt USDT Multi-network Integration Design
+# Archived: BEpusdt USDT Multi-network Integration Design
+
+> This document is retained as historical design context only. The dedicated
+> BEpusdt integration described below has been removed from Sub2API. Production
+> USDT payments use the GM service through the existing EasyPay provider and
+> its custom-method mapping. Do not use this document as an implementation or
+> deployment guide.
 
 ## 1. Decision
 

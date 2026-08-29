@@ -231,18 +231,6 @@ func TestEffectiveOrderFeeRateHonorsSubscriptionSetting(t *testing.T) {
 	}
 }
 
-func TestUSDTBalanceCreditUsesBonusAndIgnoresGenericFee(t *testing.T) {
-	if got := calculateUSDTBalanceCreditedAmount(100, 0); got != 100 {
-		t.Fatalf("zero USDT bonus = %v, want 100", got)
-	}
-	if got := calculateUSDTBalanceCreditedAmount(100, 5); got != 105 {
-		t.Fatalf("5%% USDT bonus = %v, want 105", got)
-	}
-	if got := calculateUSDTBalanceCreditedAmount(10.123, 12.5); got != 11.39 {
-		t.Fatalf("12.5%% USDT bonus = %v, want 11.39", got)
-	}
-}
-
 func TestCalculateCreateOrderPayAmountForSubscriptionConvertsCNYPriceWhenRateConfigured(t *testing.T) {
 	t.Parallel()
 

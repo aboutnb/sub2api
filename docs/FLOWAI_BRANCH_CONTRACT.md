@@ -99,23 +99,28 @@ bd3b7b205 又恢复为 DESC。本分支现再次明确采用“1 最高、数值
 以下功能来自 FlowAI 分支提交或其配套迁移，发布时必须保留后端、前端、文案、测试和
 数据库迁移的完整链路。
 
-### 4.1 USDT / BEP20 支付和发票
+### 4.1 USDT、GM/EasyPay 和发票
 
-- USDT 支付使用独立的 BEpusdt 集成，不复用人民币支付 provider registry。
-- 支持配置的网络包括 Tron 和 BSC/BEP20；具体可用网络以运行时配置和支付服务状态为准。
-- 用户路由位于 /api/v1/usdt/config、/api/v1/usdt/orders、订单查询/取消接口；
-  回调位于 /api/v1/usdt/webhook/bepusdt 和 /api/v1/usdt/webhook/bepusdt/native。
-- 签名回调、旧版 MD5 回调、订单金额/网络/地址/交易证明校验和幂等事件处理属于支付
-  安全边界，不能只保留页面而删除服务端校验。
+- BEpusdt 的独立应用链路已经移除，不再保留专用配置、路由、后台设置、收银台或服务端
+  `usdtpayment` 包；上游合并不得重新引入这条链路。
+- `206_add_usdt_payments.sql` 作为历史数据库迁移保持不变，既有表和数据不在本次代码清理中
+  删除或改写；后续历史数据处置必须单独设计迁移。
+- 当前生产 USDT 方案是独立项目 GM：单独仓库和 `gm-epusdt` 分支、单独镜像、Compose、
+  容器和数据目录。不得把 GM 文件覆盖到 BEpusdt 目录，也不得把 BEpusdt 数据目录直接
+  当作 GM 数据目录使用。
+- Sub2API 通过现有 EasyPay provider registry 接入 GM。自定义支付方式必须显式映射 GM
+  selector，例如前台 `usdt_trc20` 映射上游
+  `usdt.tron`；回调继续使用 /api/v1/payment/webhook/easypay。
+- GM 只有在公开配置返回非空 `supported_assets`，对应钱包、RPC 和链监听均通过检查后，
+  才能在 Sub2API 启用 EasyPay USDT 方式。容器健康或页面 HTTP 200 不能代替收款就绪。
 - 发票申请使用本地 invoice_applications 状态和 XZNOAuth 外部服务；订单校验、税费
   状态、申请、取消和 PDF 下载流程必须一起保留。
-- 迁移入口至少包括 205_add_invoice_applications.sql 和
-  206_add_usdt_payments.sql；完整设计和配置说明见
-  BEPUSDT_USDT_INTEGRATION_DESIGN.md、docs/PAYMENT.md 和 docs/PAYMENT_CN.md。
+- 迁移入口至少包括 205_add_invoice_applications.sql 和历史保留的
+  206_add_usdt_payments.sql；支付配置说明见 docs/PAYMENT.md 和 docs/PAYMENT_CN.md。
 
-钱包存在、支付容器运行或浏览器跳转成功，都不等于链上结算成功。发布验收只能把回调
-HTTP 状态、服务端订单状态、provider 日志和链上证明分别记录，不能用其中一项代替全部
-证据。
+钱包存在、支付容器运行或浏览器跳转成功，都不等于链上结算成功。发布验收只能把 GM
+公开资产/RPC 状态、回调 HTTP 状态、两端订单状态、provider 日志和链上证明分别记录，
+不能用其中一项代替全部证据。
 
 ### 4.2 每日签到和奖励
 

@@ -8342,213 +8342,6 @@
 
           <div class="card overflow-hidden">
             <section
-              data-testid="usdt-payment-settings"
-              class="p-6"
-            >
-              <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <div class="flex items-center gap-2">
-                      <h3 class="font-semibold text-gray-900 dark:text-white">
-                        {{ t("admin.settings.payment.usdt.title") }}
-                      </h3>
-                      <span
-                        class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-dark-700 dark:text-gray-300"
-                      >
-                        BEpusdt
-                      </span>
-                    </div>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.payment.usdt.description") }}
-                    </p>
-                  </div>
-                  <div class="flex items-center gap-3">
-                    <button
-                      type="button"
-                      class="btn btn-secondary btn-sm"
-                      :disabled="testingUSDTConnection"
-                      @click="testUSDTPaymentConnection"
-                    >
-                      <Icon name="refresh" size="xs" :class="{ 'animate-spin': testingUSDTConnection }" />
-                      {{ testingUSDTConnection ? t("admin.settings.payment.usdt.testing") : t("admin.settings.payment.usdt.testConnection") }}
-                    </button>
-                    <Toggle v-model="form.usdt_payment_enabled" />
-                  </div>
-              </div>
-
-              <div class="mt-5 max-w-xl border-t border-gray-100 pt-5 dark:border-dark-700">
-                <label class="input-label">{{ t("admin.settings.payment.usdtCheckoutMode") }}</label>
-                <select v-model="form.usdt_payment_checkout_mode" class="input">
-                  <option value="fixed">{{ t("admin.settings.payment.usdtCheckoutFixed") }}</option>
-                  <option value="cashier">{{ t("admin.settings.payment.usdtCheckoutCashier") }}</option>
-                </select>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t("admin.settings.payment.usdtCheckoutModeHint") }}</p>
-              </div>
-
-              <div
-                v-if="form.usdt_payment_config_warnings?.length"
-                class="mt-5 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
-              >
-                <strong>{{ t("admin.settings.payment.usdt.configWarningsTitle") }}</strong>
-                <ul class="mt-2 list-disc space-y-1 pl-5">
-                  <li v-for="warning in form.usdt_payment_config_warnings" :key="warning">{{ warning }}</li>
-                </ul>
-              </div>
-
-              <div
-                v-if="form.usdt_payment_enabled"
-                class="mt-5 space-y-5 border-t border-gray-100 pt-5 dark:border-dark-700"
-              >
-                  <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.apiBase") }}</label>
-                      <input v-model="form.usdt_payment_api_base" type="url" class="input" placeholder="http://bepusdt:8080" />
-                      <p class="mt-1 text-xs text-gray-400">{{ t("admin.settings.payment.usdt.apiBaseHint") }}</p>
-                    </div>
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.callbackBaseUrl") }}</label>
-                      <input v-model="form.usdt_payment_public_callback_base_url" type="url" class="input" placeholder="https://app.example.com" />
-                      <p class="mt-1 text-xs text-gray-400">{{ t("admin.settings.payment.usdt.callbackBaseUrlHint") }}</p>
-                    </div>
-                  </div>
-
-                  <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.keyId") }}</label>
-                      <input v-model="form.usdt_payment_key_id" type="text" class="input" autocomplete="off" />
-                    </div>
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.apiSecret") }}</label>
-                      <input
-                        v-model="form.usdt_payment_api_secret"
-                        type="password"
-                        class="input"
-                        autocomplete="new-password"
-                        :placeholder="form.usdt_payment_api_secret_configured ? t('admin.settings.payment.usdt.secretConfiguredPlaceholder') : t('admin.settings.payment.usdt.secretPlaceholder')"
-                      />
-                      <p class="mt-1 text-xs text-gray-400">{{ t("admin.settings.payment.usdt.secretHint") }}</p>
-                    </div>
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.fiat") }}</label>
-                      <input v-model="form.usdt_payment_fiat" type="text" class="input" readonly />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label class="input-label">{{ t("admin.settings.payment.usdt.networks") }}</label>
-                    <div class="mt-2 flex flex-wrap gap-2">
-                      <button
-                        v-for="network in usdtNetworkOptions"
-                        :key="network.value"
-                        type="button"
-                        @click="toggleUSDTPaymentNetwork(network.value)"
-                        :class="[
-                          'rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
-                          isUSDTPaymentNetworkEnabled(network.value)
-                            ? 'border-primary-500 bg-primary-500 text-white'
-                            : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300',
-                        ]"
-                      >
-                        {{ network.label }}
-                      </button>
-                    </div>
-                    <p class="mt-1 text-xs text-gray-400">{{ t("admin.settings.payment.usdt.networksHint") }}</p>
-                  </div>
-
-                  <div class="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.minimumAmount") }}</label>
-                      <div class="relative">
-                        <input v-model.number="form.usdt_payment_minimum_amount" type="number" step="0.01" min="0.01" max="1000000" class="input pr-16" />
-                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">USDT</span>
-                      </div>
-                      <p class="mt-1 text-xs text-gray-400">{{ t("admin.settings.payment.usdt.minimumAmountHint") }}</p>
-                    </div>
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.bonusPercent") }}</label>
-                      <div class="relative">
-                        <input
-                          :value="form.usdt_payment_bonus_percent ?? ''"
-                          @input="form.usdt_payment_bonus_percent = Math.min(100, Math.max(0, Math.round(parseFloat(($event.target as HTMLInputElement).value || '0') * 100) / 100))"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="100"
-                          class="input pr-8"
-                        />
-                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">%</span>
-                      </div>
-                      <p class="mt-1 text-xs text-gray-400">{{ t("admin.settings.payment.usdt.bonusPercentHint") }}</p>
-                    </div>
-                  </div>
-
-                  <div
-                    v-if="usdtProbeResult"
-                    class="border-l-4 px-4 py-3 text-sm"
-                    :class="usdtProbeResult.ready
-                      ? 'border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100'
-                      : 'border-amber-500 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100'"
-                  >
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                      <strong>{{ usdtProbeResult.ready ? t("admin.settings.payment.usdt.ready") : t("admin.settings.payment.usdt.degraded") }}</strong>
-                      <span class="tabular-nums">1 USDT = ¥{{ usdtProbeResult.rate }}</span>
-                    </div>
-                    <div class="mt-3 grid gap-2 sm:grid-cols-2">
-                      <div
-                        v-for="network in usdtProbeResult.networks"
-                        :key="network.trade_type"
-                        class="flex items-start justify-between gap-3 border-t border-current/15 pt-2"
-                      >
-                        <span>{{ network.network_name }} · {{ network.trade_type }}</span>
-                        <span class="text-right text-xs">
-                          {{ network.accepting_orders ? t("admin.settings.payment.usdt.networkReady") : (network.reason || t("admin.settings.payment.usdt.networkUnavailable")) }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.orderTimeout") }}</label>
-                      <input v-model.number="form.usdt_payment_order_timeout_seconds" type="number" min="180" max="3600" class="input" />
-                    </div>
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.lateWindow") }}</label>
-                      <input v-model.number="form.usdt_payment_late_payment_window_minutes" type="number" min="0" max="1440" class="input" />
-                    </div>
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.requestTimeout") }}</label>
-                      <input v-model.number="form.usdt_payment_request_timeout_seconds" type="number" min="1" max="30" class="input" />
-                    </div>
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.reconcileInterval") }}</label>
-                      <input v-model.number="form.usdt_payment_reconcile_interval_seconds" type="number" min="1" max="60" class="input" />
-                    </div>
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.reconcileBatch") }}</label>
-                      <input v-model.number="form.usdt_payment_reconcile_batch_size" type="number" min="1" max="1000" class="input" />
-                    </div>
-                    <div>
-                      <label class="input-label">{{ t("admin.settings.payment.usdt.webhookSkew") }}</label>
-                      <input v-model.number="form.usdt_payment_webhook_clock_skew_seconds" type="number" min="30" max="900" class="input" />
-                    </div>
-                  </div>
-
-                  <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                    {{ t("admin.settings.payment.usdt.webhookHint") }}
-                    <code class="mt-1 block break-all text-xs">{{ form.usdt_payment_public_callback_base_url || "https://app.example.com" }}/api/v1/usdt/webhook/bepusdt</code>
-                  </div>
-                  <p
-                    v-if="!form.totp_encryption_key_configured"
-                    class="text-sm text-amber-700 dark:text-amber-300"
-                  >
-                    {{ t("admin.settings.payment.usdt.encryptionKeyHint") }}
-                  </p>
-              </div>
-            </section>
-          </div>
-
-          <div class="card overflow-hidden">
-            <section
               data-testid="invoice-settings"
               class="p-6"
             >
@@ -9415,8 +9208,6 @@ const loading = ref(true);
 const loadFailed = ref(false);
 const saving = ref(false);
 const testingSmtp = ref(false);
-const testingUSDTConnection = ref(false);
-const usdtProbeResult = ref<Awaited<ReturnType<typeof adminAPI.settings.testUSDTPaymentConnection>> | null>(null);
 const sendingTestEmail = ref(false);
 const smtpPasswordManuallyEdited = ref(false);
 const testEmailAddress = ref("");
@@ -9978,7 +9769,6 @@ type SettingsForm = Omit<
   github_oauth_client_secret: string;
   google_oauth_client_secret: string;
   invoice_client_secret: string;
-  usdt_payment_api_secret: string;
   force_email_on_third_party_signup: boolean;
   openai_low_upstream_rate_priority_enabled: boolean;
   openai_oauth_scheduling_rate_multiplier: number;
@@ -10050,7 +9840,6 @@ const form = reactive<SettingsForm>({
   backend_mode_enabled: false,
   hide_ccs_import_button: false,
   payment_enabled: false,
-  usdt_payment_checkout_mode: "fixed",
   risk_control_enabled: false,
   cyber_session_block_enabled: false,
   cyber_session_block_ttl_seconds: 3600,
@@ -10078,24 +9867,6 @@ const form = reactive<SettingsForm>({
   payment_cancel_rate_limit_window_mode: "rolling",
   payment_alipay_force_qrcode: false,
   payment_alipay_mobile_precreate_deep_link: false,
-  usdt_payment_enabled: false,
-  usdt_payment_bonus_percent: 0,
-  usdt_payment_api_base: "",
-  usdt_payment_public_base_url: "",
-  usdt_payment_public_callback_base_url: "",
-  usdt_payment_key_id: "",
-  usdt_payment_api_secret: "",
-  usdt_payment_api_secret_configured: false,
-  usdt_payment_fiat: "CNY",
-  usdt_payment_enabled_networks: ["tron", "bsc"],
-  usdt_payment_minimum_amount: 5,
-  usdt_payment_order_timeout_seconds: 1800,
-  usdt_payment_late_payment_window_minutes: 30,
-  usdt_payment_request_timeout_seconds: 6,
-  usdt_payment_reconcile_interval_seconds: 10,
-  usdt_payment_reconcile_batch_size: 50,
-  usdt_payment_webhook_clock_skew_seconds: 300,
-  usdt_payment_config_warnings: [] as string[],
   invoice_enabled: false,
   invoice_base_url: "https://oauth.xzncraft.cn",
   invoice_client_id: "",
@@ -11934,7 +11705,6 @@ async function saveSettings() {
       ),
       // Payment configuration
       payment_enabled: form.payment_enabled,
-      usdt_payment_checkout_mode: form.usdt_payment_checkout_mode,
       risk_control_enabled: form.risk_control_enabled,
       cyber_session_block_enabled: form.cyber_session_block_enabled,
       cyber_session_block_ttl_seconds:
@@ -11953,7 +11723,6 @@ async function saveSettings() {
       payment_subscription_fee_enabled: form.payment_subscription_fee_enabled,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,
       payment_recharge_fee_credited: form.payment_recharge_fee_credited,
-      usdt_payment_bonus_percent: Number(form.usdt_payment_bonus_percent) || 0,
       payment_enabled_types: form.payment_enabled_types,
       payment_load_balance_strategy: form.payment_load_balance_strategy,
       payment_product_name_prefix: form.payment_product_name_prefix,
@@ -11971,28 +11740,6 @@ async function saveSettings() {
       payment_alipay_force_qrcode: form.payment_alipay_force_qrcode,
       payment_alipay_mobile_precreate_deep_link:
         form.payment_alipay_mobile_precreate_deep_link,
-      usdt_payment_enabled: form.usdt_payment_enabled,
-      usdt_payment_api_base: form.usdt_payment_api_base.trim(),
-      usdt_payment_public_base_url: form.usdt_payment_public_base_url.trim(),
-      usdt_payment_public_callback_base_url:
-        form.usdt_payment_public_callback_base_url.trim(),
-      usdt_payment_key_id: form.usdt_payment_key_id.trim(),
-      usdt_payment_api_secret: form.usdt_payment_api_secret.trim(),
-      usdt_payment_fiat: form.usdt_payment_fiat || "CNY",
-      usdt_payment_enabled_networks: form.usdt_payment_enabled_networks,
-      usdt_payment_minimum_amount: Number(form.usdt_payment_minimum_amount) || 5,
-      usdt_payment_order_timeout_seconds:
-        Number(form.usdt_payment_order_timeout_seconds) || 1800,
-      usdt_payment_late_payment_window_minutes:
-        Number(form.usdt_payment_late_payment_window_minutes) || 0,
-      usdt_payment_request_timeout_seconds:
-        Number(form.usdt_payment_request_timeout_seconds) || 6,
-      usdt_payment_reconcile_interval_seconds:
-        Number(form.usdt_payment_reconcile_interval_seconds) || 10,
-      usdt_payment_reconcile_batch_size:
-        Number(form.usdt_payment_reconcile_batch_size) || 50,
-      usdt_payment_webhook_clock_skew_seconds:
-        Number(form.usdt_payment_webhook_clock_skew_seconds) || 300,
       invoice_enabled: form.invoice_enabled,
       invoice_base_url: form.invoice_base_url.trim(),
       invoice_client_id: form.invoice_client_id.trim(),
@@ -12237,47 +11984,6 @@ async function testSmtpConnection() {
     );
   } finally {
     testingSmtp.value = false;
-  }
-}
-
-async function testUSDTPaymentConnection() {
-  testingUSDTConnection.value = true;
-  usdtProbeResult.value = null;
-  try {
-    usdtProbeResult.value = await adminAPI.settings.testUSDTPaymentConnection({
-      api_base: form.usdt_payment_api_base.trim(),
-      public_base_url: form.usdt_payment_public_base_url.trim(),
-      public_callback_base_url: form.usdt_payment_public_callback_base_url.trim(),
-      key_id: form.usdt_payment_key_id.trim(),
-      api_secret: form.usdt_payment_api_secret.trim(),
-      fiat: form.usdt_payment_fiat || "CNY",
-      enabled_networks: form.usdt_payment_enabled_networks,
-      minimum_amount: Number(form.usdt_payment_minimum_amount) || 5,
-      order_timeout_seconds: Number(form.usdt_payment_order_timeout_seconds) || 900,
-      late_payment_window_minutes: Number(form.usdt_payment_late_payment_window_minutes) || 0,
-      request_timeout_seconds: Number(form.usdt_payment_request_timeout_seconds) || 6,
-      reconcile_interval_seconds: Number(form.usdt_payment_reconcile_interval_seconds) || 2,
-      reconcile_batch_size: Number(form.usdt_payment_reconcile_batch_size) || 100,
-      webhook_clock_skew_seconds: Number(form.usdt_payment_webhook_clock_skew_seconds) || 300,
-    });
-    if (usdtProbeResult.value.ready) {
-      appStore.showSuccess(t("admin.settings.payment.usdt.testSuccess"));
-    } else {
-      appStore.showWarning(t("admin.settings.payment.usdt.testDegraded"));
-    }
-  } catch (error: unknown) {
-    // Keep the backend reason visible so network, credential, and migration
-    // failures do not collapse into a generic "internal error" toast.
-    appStore.showError(
-      extractI18nErrorMessage(
-        error,
-        t,
-        "payment.errors",
-        t("admin.settings.payment.usdt.testFailed"),
-      ),
-    );
-  } finally {
-    testingUSDTConnection.value = false;
   }
 }
 
@@ -12828,29 +12534,6 @@ const allPaymentTypes = computed(() => [
   { value: "stripe", label: t("payment.methods.stripe") },
   { value: "airwallex", label: t("payment.methods.airwallex") },
 ]);
-
-const usdtNetworkOptions = [
-  { value: "tron", label: "TRON (TRC20)" },
-  { value: "bsc", label: "BNB Smart Chain (BEP20)" },
-  { value: "ethereum", label: "Ethereum (ERC20)" },
-  { value: "polygon", label: "Polygon" },
-  { value: "arbitrum", label: "Arbitrum" },
-  { value: "solana", label: "Solana" },
-  { value: "ton", label: "TON" },
-  { value: "aptos", label: "Aptos" },
-  { value: "xlayer", label: "X Layer" },
-  { value: "plasma", label: "Plasma" },
-];
-
-function isUSDTPaymentNetworkEnabled(network: string): boolean {
-  return form.usdt_payment_enabled_networks.includes(network);
-}
-
-function toggleUSDTPaymentNetwork(network: string) {
-  form.usdt_payment_enabled_networks = isUSDTPaymentNetworkEnabled(network)
-    ? form.usdt_payment_enabled_networks.filter((item) => item !== network)
-    : [...form.usdt_payment_enabled_networks, network];
-}
 
 function isPaymentTypeEnabled(type: string): boolean {
   return form.payment_enabled_types.includes(type);

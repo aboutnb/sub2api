@@ -38,12 +38,4 @@ describe('payment api', () => {
     })
   })
 
-  it('requires a stable idempotency key for USDT order creation', async () => {
-    const request = { amount: '10', amount_unit: 'USDT' as const, network: 'bsc' }
-    await paymentAPI.createUSDTOrder(request, 'usdt-order-request-1')
-
-    expect(post).toHaveBeenCalledWith('/usdt/orders', request, {
-      headers: { 'Idempotency-Key': 'usdt-order-request-1' },
-    })
-  })
 })

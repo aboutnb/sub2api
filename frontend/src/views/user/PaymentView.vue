@@ -28,7 +28,7 @@
         <template v-else>
           <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div class="min-w-0">
-              <h1 class="text-2xl font-semibold text-gray-950 dark:text-white">{{ activeTab === 'usdt' ? t('nav.usdtRecharge') : t('payment.title') }}</h1>
+              <h1 class="text-2xl font-semibold text-gray-950 dark:text-white">{{ t('payment.title') }}</h1>
               <div v-if="activeTab === 'recharge'" class="mt-1 flex min-w-0 items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                 <Icon name="userCircle" size="sm" class="shrink-0" />
                 <span class="truncate">{{ user?.username || '' }}</span>
@@ -43,8 +43,7 @@
           <div
             v-if="tabs.length > 1 && !selectedPlan"
             role="tablist"
-            class="grid border-b border-gray-200 dark:border-dark-700"
-            :class="tabs.length === 3 ? 'grid-cols-3' : 'grid-cols-2'"
+            class="grid grid-cols-2 border-b border-gray-200 dark:border-dark-700"
           >
             <button
               v-for="tab in tabs"
@@ -56,7 +55,7 @@
               :class="activeTab === tab.key ? 'text-primary-700 after:bg-primary-500 dark:text-primary-300' : 'text-gray-500 after:bg-transparent hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
               @click="activeTab = tab.key"
             >
-              <Icon :name="tab.key === 'recharge' ? 'creditCard' : tab.key === 'subscription' ? 'gift' : 'dollar'" size="sm" />
+              <Icon :name="tab.key === 'recharge' ? 'creditCard' : 'gift'" size="sm" />
               <span>{{ tab.label }}</span>
             </button>
           </div>
@@ -164,14 +163,6 @@
                 </div>
               </aside>
             </div>
-          </template>
-          <!-- USDT Tab -->
-          <template v-else-if="activeTab === 'usdt'">
-            <div v-if="!usdtConfig.enabled" class="card py-16 text-center">
-              <Icon name="dollar" size="xl" class="mx-auto mb-3 text-gray-300 dark:text-dark-600" />
-              <p class="text-gray-500 dark:text-gray-400">{{ t('payment.usdt.unavailable') }}</p>
-            </div>
-            <USDTCheckoutPanel v-else :config="usdtConfig" />
           </template>
           <!-- Subscribe Tab -->
           <template v-else-if="activeTab === 'subscription'">
@@ -314,7 +305,7 @@
             </template>
           </template>
         </template>
-        <div v-if="activeTab !== 'usdt' && (checkout.help_text || checkout.help_image_url) && paymentPhase === 'select' && !selectedPlan" class="border-t border-gray-200 pt-5 dark:border-dark-700">
+        <div v-if="(checkout.help_text || checkout.help_image_url) && paymentPhase === 'select' && !selectedPlan" class="border-t border-gray-200 pt-5 dark:border-dark-700">
           <div class="flex flex-col items-center gap-3">
             <img v-if="checkout.help_image_url" :src="checkout.help_image_url" alt=""
               class="h-40 max-w-full cursor-pointer rounded-lg object-contain transition-opacity hover:opacity-80"
@@ -352,7 +343,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -363,7 +354,7 @@ import { paymentAPI } from '@/api/payment'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
-import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType, USDTConfigResponse } from '@/types/payment'
+import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
@@ -382,7 +373,6 @@ import {
 import { platformAccentBarClass, platformBadgeLightClass, platformBadgeClass, platformLabel } from '@/utils/platformColors'
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
-import USDTCheckoutPanel from '@/components/payment/USDTCheckoutPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { DEFAULT_PAYMENT_CURRENCY, formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
 import { planValiditySuffix as validitySuffixOf } from '@/components/payment/validity'
@@ -419,16 +409,13 @@ const loading = ref(true)
 const submitting = ref(false)
 const errorMessage = ref('')
 const errorHintMessage = ref('')
-const activeTab = ref<'recharge' | 'subscription' | 'usdt'>('recharge')
+const activeTab = ref<'recharge' | 'subscription'>('recharge')
 const amount = ref<number | null>(null)
 const selectedMethod = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
 const previewImage = ref('')
 
 const paymentPhase = ref<'select' | 'paying'>('select')
-const usdtConfig = ref<USDTConfigResponse>({ enabled: false, networks: [], minimum_amount: 5 })
-let usdtRateTimer: number | undefined
-const USDT_RATE_REFRESH_INTERVAL_MS = 15_000
 
 interface CreateOrderOptions {
   openid?: string
@@ -605,12 +592,9 @@ const checkout = ref<CheckoutInfoResponse>({
   plans: [], balance_disabled: false, balance_recharge_multiplier: 1, subscription_usd_to_cny_rate: 0, subscription_fee_enabled: true, recharge_fee_rate: 0, recharge_fee_credited: false, help_text: '', help_image_url: '', stripe_publishable_key: '',
 })
 
-const isUSDTEntry = computed(() => route.query.tab === 'usdt')
-
 const tabs = computed(() => {
-  const result: { key: 'recharge' | 'subscription' | 'usdt'; label: string }[] = []
+  const result: { key: 'recharge' | 'subscription'; label: string }[] = []
   if (!checkout.value.balance_disabled) result.push({ key: 'recharge', label: t('payment.tabTopUp') })
-  if (usdtConfig.value.enabled) result.push({ key: 'usdt', label: t('nav.usdtRecharge') })
   result.push({ key: 'subscription', label: t('payment.tabSubscribe') })
   return result
 })
@@ -1196,41 +1180,11 @@ async function resumeWechatPaymentFromQuery() {
   }
 }
 
-async function refreshUSDTConfig() {
-  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
-  try {
-    usdtConfig.value = (await paymentAPI.getUSDTConfig()).data
-  } catch {
-    // Keep the last successful quote during a transient refresh failure.
-  }
-}
-
 onMounted(async () => {
   try {
-    const checkoutRequest = paymentAPI.getCheckoutInfo()
-    const usdtRequest = typeof paymentAPI.getUSDTConfig === 'function'
-      ? paymentAPI.getUSDTConfig()
-      : Promise.reject(new Error('USDT_CONFIG_UNAVAILABLE'))
-    const [checkoutResult, usdtResult] = await Promise.allSettled([checkoutRequest, usdtRequest])
+    checkout.value = (await paymentAPI.getCheckoutInfo()).data
 
-    if (checkoutResult.status === 'fulfilled') {
-      checkout.value = checkoutResult.value.data
-    } else if (!isUSDTEntry.value) {
-      throw checkoutResult.reason
-    }
-
-    if (usdtResult.status === 'fulfilled') {
-      usdtConfig.value = usdtResult.value.data
-      if (usdtConfig.value.enabled) {
-        usdtRateTimer = window.setInterval(() => { void refreshUSDTConfig() }, USDT_RATE_REFRESH_INTERVAL_MS)
-        window.addEventListener('focus', refreshUSDTConfig)
-        document.addEventListener('visibilitychange', refreshUSDTConfig)
-      }
-    } else if (isUSDTEntry.value) {
-      throw usdtResult.reason
-    }
-
-    if (checkoutResult.status === 'fulfilled' && enabledMethods.value.length) {
+    if (enabledMethods.value.length) {
       const order: readonly string[] = METHOD_ORDER
       const sorted = [...enabledMethods.value].sort((a, b) => {
         const ai = order.indexOf(a)
@@ -1265,9 +1219,7 @@ onMounted(async () => {
       }
     }
     await resumeWechatPaymentFromQuery()
-    if (isUSDTEntry.value) {
-      activeTab.value = 'usdt'
-    } else if (checkout.value.balance_disabled) {
+    if (checkout.value.balance_disabled) {
       activeTab.value = 'subscription'
     }
     // Handle renewal navigation: ?tab=subscription&group=123
@@ -1290,9 +1242,4 @@ onMounted(async () => {
   subscriptionStore.fetchActiveSubscriptions().catch(() => {})
 })
 
-onBeforeUnmount(() => {
-  if (usdtRateTimer !== undefined) window.clearInterval(usdtRateTimer)
-  window.removeEventListener('focus', refreshUSDTConfig)
-  document.removeEventListener('visibilitychange', refreshUSDTConfig)
-})
 </script>

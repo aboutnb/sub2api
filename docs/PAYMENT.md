@@ -123,6 +123,26 @@ Compatible with any payment service that implements the EasyPay protocol.
 | **Alipay Channel ID** | Specify Alipay channel (optional) | No |
 | **WeChat Channel ID** | Specify WeChat channel (optional) | No |
 
+#### GM (Epusdt) integration
+
+GM is connected through the existing **EasyPay** provider; do not add a native GMPay provider
+instance in Sub2API. GM exposes an EPay-compatible `submit.php` entry, so configure:
+
+- **API Base URL**: `https://<gm-domain>/payments/epay/v1/order/create-transaction`
+- **Payment mode**: `popup`. The current GM project does not expose EasyPay-compatible `/mapi.php`
+  or `/api.php` endpoints, so QR/API mode must not be used.
+- **PID**: the numeric PID of the GM API key; **PKey**: the matching API key secret.
+- **Custom method**: map frontend `usdt_trc20` to upstream `usdt.tron`, with a display name such as
+  `USDT-TRC20`, and enable that supported type.
+- **Notify URL**: keep the generated `/api/v1/payment/webhook/easypay`; GM sends a GET + MD5
+  callback after successful payment.
+- **Refunds**: disable refunds for this instance because the current GM EPay entry does not expose
+  the `/api.php` refund endpoint expected by Sub2API EasyPay.
+
+Before enabling the method, verify that GM returns non-empty `supported_assets` and that the wallet,
+RPC/listener, and callback path are ready. The callback is the primary payment confirmation path; if
+GM has no EPay query API by `out_trade_no`, Sub2API cannot use its upstream query as a payment fallback.
+
 ### Alipay (Direct)
 
 Direct integration with Alipay Open Platform. Mobile flows return an Alipay WAP/app redirect URL. Desktop flows prefer Face-to-Face Precreate QR payloads; if the merchant has not enabled that product, the provider falls back to Computer Website Pay and also returns the cashier URL so the frontend can render a QR code or open the hosted checkout page directly.

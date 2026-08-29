@@ -116,37 +116,6 @@ invoice:
   timeout_seconds: 15
 
 # =============================================================================
-# BEpusdt USDT Payment (Optional, isolated from RMB providers)
-# BEpusdt USDT 支付（可选，与人民币支付通道完全隔离）
-# =============================================================================
-usdt_payment:
-  checkout_mode: fixed
-  enabled: false
-  # Private server-to-server BEpusdt origin.
-  # For a separate local container on macOS use http://host.docker.internal:18080.
-  api_base: ""
-  # Public BEpusdt checkout origin shown to users.
-  public_base_url: "https://usdt-pay.example.com"
-  # Public Sub2API origin used to build the signed webhook URL.
-  public_callback_base_url: "https://sub2api.example.com"
-  key_id: ""
-  # New merchant HMAC secret used by /api/v1/merchant/*.
-  api_secret: ""
-  # Legacy api_auth_token used only by cashier mode and native callbacks.
-  legacy_token: ""
-  fiat: "CNY"
-  enabled_networks: ["tron", "bsc"]
-  minimum_amount: 5
-  order_timeout_seconds: 900
-  # Recovery is allowed only when the proven chain transfer time is before quote expiry.
-  late_payment_window_minutes: 60
-  request_timeout_seconds: 6
-  # Two-second active reconciliation supplements callbacks and browser polling.
-  reconcile_interval_seconds: 2
-  reconcile_batch_size: 100
-  webhook_clock_skew_seconds: 300
-
-# =============================================================================
 # CORS Configuration
 # 跨域资源共享 (CORS) 配置
 # =============================================================================

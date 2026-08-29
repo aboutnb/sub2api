@@ -131,6 +131,22 @@ Sub2API 内置支付系统，支持用户自助充值，无需部署独立的支
 | **支付宝通道 ID** | 指定支付宝通道（可选） | 否 |
 | **微信通道 ID** | 指定微信通道（可选） | 否 |
 
+#### GM（Epusdt）接入
+
+GM 的 Sub2API 接入使用上面的 **EasyPay** 服务商，不新增 GMPay 服务商实例。GM 当前提供
+的是 EPay 兼容的 `submit.php` 入口，因此请按以下方式配置：
+
+- **API 地址**：`https://<GM域名>/payments/epay/v1/order/create-transaction`
+- **支付模式**：选择 `popup`。GM 当前没有 EasyPay 的 `/mapi.php`、`/api.php` 兼容入口，不能使用二维码 API 模式。
+- **PID**：填写 GM 后台 API Key 的数字 PID；**PKey** 填写对应 API Key Secret。
+- **自定义支付方式**：前台类型填写 `usdt_trc20`，上游类型填写 `usdt.tron`，显示名称可填写 `USDT-TRC20`，并在支持类型中启用该方式。
+- **Notify URL**：使用自动生成的 `/api/v1/payment/webhook/easypay`，GM 支付成功后通过 GET + MD5 回调完成订单。
+- **退款**：当前 GM EPay 入口未提供 Sub2API EasyPay 所依赖的 `/api.php` 退款接口，建议关闭该实例的退款开关。
+
+启用前先确认 GM 的 `supported_assets` 非空，且目标钱包、RPC/监听和回调链路均已就绪。GM
+的回调是该接入的主要支付确认来源；GM 未提供按 `out_trade_no` 查询的 EPay API 时，不能把
+Sub2API 的超时查询当作支付成功兜底。
+
 ### 支付宝官方
 
 直接对接支付宝开放平台。移动端默认走支付宝手机网站支付跳转；开启“支付宝移动端当面付唤起”后改为调用当面付，前端尝试打开支付宝 App，失败时显示动态二维码备用页。桌面端优先使用当面付返回扫码串，若商户未开通当面付则回退到电脑网站支付，并将收银台链接同时返回给前端用于渲染二维码或直接打开支付页。

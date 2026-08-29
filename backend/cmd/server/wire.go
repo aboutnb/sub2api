@@ -19,7 +19,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/server"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
-	"github.com/Wei-Shaw/sub2api/internal/usdtpayment"
 
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
@@ -40,8 +39,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		// Business layer ProviderSets
 		repository.ProviderSet,
 		service.ProviderSet,
-		usdtpayment.ProviderSet,
-		wire.Bind(new(usdtpayment.PaymentBridge), new(*service.PaymentService)),
 		securityaudit.ProviderSet,
 		payment.ProviderSet,
 		middleware.ProviderSet,
@@ -131,7 +128,6 @@ func provideCleanup(
 	auditLog *service.AuditLogService,
 	openAIAutoReset *service.OpenAIQuotaAutoResetService,
 	promptAudit *securityaudit.PromptService,
-	usdtPayment *usdtpayment.Service,
 	pluginManager *service.PluginManager,
 ) func() {
 	return func() {
@@ -145,12 +141,6 @@ func provideCleanup(
 
 		// 应用层清理步骤可并行执行，基础设施资源（Redis/Ent）最后按顺序关闭。
 		parallelSteps := []cleanupStep{
-			{"USDTPaymentService", func() error {
-				if usdtPayment != nil {
-					usdtPayment.Stop()
-				}
-				return nil
-			}},
 			{"PluginManager", func() error {
 				if pluginManager != nil {
 					pluginManager.Stop()

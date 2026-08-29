@@ -111,7 +111,7 @@ FLOWAI_UPSTREAM_REVIEW_ACK=7b693ae4295e20329f18ff451b29a38879cb4705 \
 | 风险注册赠送 | 授权判断前余额为 0、并发为 `-1`；一次性授权成功后才写入实际赠送值 | `backend/internal/service/auth_service.go`、`signup_risk_context.go`、`signup_risk_grant_repo.go` | `signup_risk_grant_test.go`、签到安全测试 |
 | Project Mihomo | 支持 URL/静态源、多源、兼容请求头、节点测速、筛选、自动路由、多 listener 和账号池分配；状态持久化 | `backend/internal/service/project_mihomo_service.go`、admin handler、`deploy/docker-compose.preview.yml` | `project_mihomo_service_test.go`、admin handler 测试 |
 | 账号导入/批量测试 | 导入可指定分组/代理池，返回新账号集合；批量测试需人工点击开始，不能自动误发请求 | `backend/internal/handler/admin/account_data.go`、`BatchAccountTestModal.vue`、`AccountsView.vue` | `data-import.spec.ts`、`BatchAccountTestModal.spec.ts`、账号测试 i18n 测试 |
-| USDT/发票 | BEpusdt 独立支付链路；XZNOAuth 发票状态和 PDF 流程；回调、金额、网络、地址、交易证明需一起校验 | `backend/internal/usdtpayment/`、`invoice_service.go`、支付 routes/handlers | USDT service/HMAC 测试、invoice service 测试、支付 API 测试 |
+| USDT/发票 | 生产使用独立 GM 服务并通过 EasyPay 自定义方式接入；BEpusdt 专用应用代码已移除，历史迁移保持不变；XZNOAuth 发票状态和 PDF 流程保持不变 | `backend/internal/payment/provider/easypay.go`、EasyPay provider 配置、`backend/migrations/206_add_usdt_payments.sql`、`invoice_service.go` | EasyPay custom method/provider 测试、invoice service 测试、支付 API 测试 |
 | 签到/奖励 | 每用户每业务日最多结算一次；普通/幸运模式、概率、倍率/固定金额、阶梯、精度和未充值策略均受事务与风控约束 | `backend/internal/service/checkin_service.go`、`checkin_record_repo.go` | `checkin_service_test.go`、精度/安全/handler 测试 |
 | 邮件广播 | 受众和模板快照持久化；`FOR UPDATE SKIP LOCKED` 领取；发送结果不确定时不自动重试 | `email_broadcast_repo.go`、`email_broadcast_service.go` | repository integration tests、service tests |
 | 注册/访问安全 | 注册 challenge、邮箱策略、IP 封禁、公开 POST 发布密钥、上游错误脱敏和 Cloudflare 保护必须保留 | auth handlers/services、middleware、`upstream_error_sanitize.go` | auth/middleware/service 安全测试 |
@@ -182,12 +182,16 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
   管理配置；前端展示和后端结算必须使用同一快照。
 - XZNOAuth 发票流程保存本地 `invoice_applications` 状态，覆盖草稿、校验、税费、
   申请、取消和 PDF 下载；client secret 只能留在服务端。
-- BEpusdt 使用独立的 USDT quote/order/reconcile/webhook 链路，不注册成普通人民币
-  provider。支持 Tron/BSC（实际网络以运行时配置为准）。
-- 签名回调、legacy MD5 回调、订单金额/网络/地址冻结、交易 hash 保留和幂等事件均是
-  安全边界。钱包存在、支付页面打开或 provider HTTP 200 都不能单独证明链上结算。
-- `USDT_PAYMENT_CHECKOUT_MODE` 可在 fixed/cashier 之间切换；CSP、公开回调地址和
-  compose 环境变量必须同步核对。
+- 2026-08-29 起，23 服务器停止生产 BEpusdt；Sub2API 中专用 quote/order/reconcile/webhook
+  代码已移除，`206_add_usdt_payments.sql` 保持原样用于历史数据兼容，不代表生产入口仍启用。
+- GM 是独立项目：使用 `gm-epusdt` 分支的不可变 GHCR 镜像，独立 Compose、容器、配置
+  和数据目录；域名由 Caddy 直接代理到 GM，不在 BEpusdt 目录上改造。
+- Sub2API 使用普通 EasyPay provider 实例接入 GM。USDT 自定义方式需要把前台方式映射为
+  GM 可用 selector，例如 `usdt_trc20 -> usdt.tron`，并使用 EasyPay 回调
+  `/api/v1/payment/webhook/easypay`。
+- GM 的 `supported_assets` 为空时不得启用 Sub2API 支付方式。启用前必须同时验证钱包、
+  RPC/监听、创建订单、回调、两端订单状态和链上证明；容器健康、页面打开或 HTTP 200
+  不能单独证明链上结算。
 
 ### 4.6 签到和奖励
 
@@ -264,7 +268,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | `backend/migrations/203_add_email_broadcast_tasks.sql` | 邮件任务/收件人 | 与状态机和快照一起迁移 |
 | `backend/migrations/204_generalize_email_broadcasts.sql` | 通用广播字段 | 不重置已有 sent 状态 |
 | `backend/migrations/205_add_invoice_applications.sql` | 发票申请 | 与 Ent 生成代码和 XZNOAuth 流程一致 |
-| `backend/migrations/206_add_usdt_payments.sql` | USDT quote/order/event | 与 BEpusdt 回调幂等一起验证 |
+| `backend/migrations/206_add_usdt_payments.sql` | 历史 USDT quote/order/event 表 | 保持迁移内容不变，不再由新的 BEpusdt 应用链路写入 |
 | `backend/migrations/206_checkin_fingerprint_guard.sql` | 签到指纹防护 | 与同编号 USDT 文件并存 |
 | `backend/migrations/207_tighten_checkin_ip_guard_default.sql` | 签到 IP 默认策略 | 不要误认为上游同编号迁移 |
 | `backend/migrations/208_signup_risk_grant_guard.sql` | 注册赠送一次性领取 | 与 `-1` 初始并发顺序一致 |
