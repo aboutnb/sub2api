@@ -149,6 +149,53 @@ func TestPcAggregateMethodLimits(t *testing.T) {
 	})
 }
 
+func TestPcAggregateMethodPaymentMode(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		instances []*dbent.PaymentProviderInstance
+		want      string
+	}{
+		{
+			name: "same mode is exposed",
+			instances: func() []*dbent.PaymentProviderInstance {
+				first := makeInstance(1, payment.TypeEasyPay, "usdt_trc20", "")
+				first.PaymentMode = " popup "
+				second := makeInstance(2, payment.TypeEasyPay, "usdt_trc20", "")
+				second.PaymentMode = "POPUP"
+				return []*dbent.PaymentProviderInstance{first, second}
+			}(),
+			want: "popup",
+		},
+		{
+			name: "mixed modes require order-time resolution",
+			instances: func() []*dbent.PaymentProviderInstance {
+				first := makeInstance(1, payment.TypeEasyPay, "usdt_trc20", "")
+				first.PaymentMode = "popup"
+				second := makeInstance(2, payment.TypeEasyPay, "usdt_trc20", "")
+				second.PaymentMode = "qrcode"
+				return []*dbent.PaymentProviderInstance{first, second}
+			}(),
+		},
+		{
+			name:      "missing mode is not preopened",
+			instances: []*dbent.PaymentProviderInstance{makeInstance(1, payment.TypeEasyPay, "usdt_trc20", "")},
+		},
+		{
+			name:      "nil instance is safe",
+			instances: []*dbent.PaymentProviderInstance{nil},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tt.want, pcAggregateMethodPaymentMode(tt.instances))
+		})
+	}
+}
+
 func TestPcGroupByPaymentType(t *testing.T) {
 	t.Parallel()
 
@@ -264,6 +311,7 @@ func TestGetAvailableMethodLimitsIncludesEasyPayCustomMethodDisplayName(t *testi
 		SetName("EasyPay Custom").
 		SetConfig(`{"customMethods":"[{\"type\":\"ldc\",\"upstreamType\":\"ldc\",\"displayName\":\"LDC Pay\"}]"}`).
 		SetSupportedTypes("alipay,wxpay,ldc").
+		SetPaymentMode("popup").
 		SetEnabled(true).
 		Save(ctx)
 	require.NoError(t, err)
@@ -275,6 +323,7 @@ func TestGetAvailableMethodLimitsIncludesEasyPayCustomMethodDisplayName(t *testi
 	limits, ok := resp.Methods["ldc"]
 	require.True(t, ok, "expected custom EasyPay method limits to be visible")
 	require.Equal(t, "LDC Pay", limits.DisplayName)
+	require.Equal(t, "popup", limits.PaymentMode)
 }
 
 func TestPcComputeGlobalRange(t *testing.T) {

@@ -191,6 +191,9 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 - Sub2API 使用普通 EasyPay provider 实例接入 GM。USDT 自定义方式需要把前台方式映射为
   GM 可用 selector，例如 `usdt_trc20 -> usdt.tron`，并使用 EasyPay 回调
   `/api/v1/payment/webhook/easypay`。
+- GM checkout 使用 `popup` 模式时，桌面端在支付按钮点击事件内预打开窗口，订单创建后
+  导航到 GM checkout；父页面立即并持续轮询本地订单状态，只有验签回调完成服务端入账后
+  才显示成功。移动端、二维码/路由方式和恢复流程不自动创建窗口。
 - GM 的 `supported_assets` 为空时不得启用 Sub2API 支付方式。启用前必须同时验证钱包、
   RPC/监听、创建订单、回调、两端订单状态和链上证明；容器健康、页面打开或 HTTP 200
   不能单独证明链上结算。

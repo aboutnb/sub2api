@@ -139,6 +139,13 @@ instance in Sub2API. GM exposes an EPay-compatible `submit.php` entry, so config
 - **Refunds**: disable refunds for this instance because the current GM EPay entry does not expose
   the `/api.php` refund endpoint expected by Sub2API EasyPay.
 
+On desktop, Sub2API opens a placeholder window synchronously from the payment-button click and
+navigates it to GM's `submit.php` checkout URL after order creation. This preserves popup behavior
+through the asynchronous API call. The parent Sub2API page immediately fetches the order and polls
+`/api/v1/payment/orders/:id`; a payment is considered successful only after the verified GM callback
+has updated and fulfilled the server-side order. Mobile, non-`popup` methods, and resumed flows do not
+create a window automatically.
+
 Before enabling the method, verify that GM returns non-empty `supported_assets` and that the wallet,
 RPC/listener, and callback path are ready. The callback is the primary payment confirmation path; if
 GM has no EPay query API by `out_trade_no`, Sub2API cannot use its upstream query as a payment fallback.

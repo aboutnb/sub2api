@@ -287,6 +287,7 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 let verifyAttempts = 0
 let lastVerifyAt = 0
 let alipayLauncher: AlipayDeepLinkLauncher | null = null
+let visibilityListenerAttached = false
 
 const VERIFY_RETRY_INTERVAL_MS = 15000
 const VERIFY_RETRY_MAX_ATTEMPTS = 6
@@ -443,6 +444,12 @@ async function pollStatus() {
   }
 }
 
+function handleVisibilityChange() {
+  if (!document.hidden) {
+    void pollStatus()
+  }
+}
+
 function startCountdown(seconds: number) {
   remainingSeconds.value = Math.max(0, seconds)
   if (remainingSeconds.value <= 0) { setOutcome('expired'); return }
@@ -471,6 +478,10 @@ function handleDone() { cleanup(); emit('done') }
 function cleanup() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
+  if (visibilityListenerAttached) {
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+    visibilityListenerAttached = false
+  }
   alipayLauncher?.dispose()
   alipayLauncher = null
 }
@@ -489,6 +500,10 @@ renderQR()
 
 watch([() => qrUrl.value, showQRCode], () => renderQR())
 onMounted(() => {
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  visibilityListenerAttached = true
+  void pollStatus()
+
   if (!isMobileAlipayDeepLink.value) return
   alipayLauncher = createAlipayDeepLinkLauncher({
     qrCode: qrUrl.value,

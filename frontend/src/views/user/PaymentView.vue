@@ -343,7 +343,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -367,6 +367,7 @@ import {
   getVisibleMethods,
   normalizeVisibleMethod,
   readPaymentRecoverySnapshot,
+  shouldPreopenPaymentPopup,
   type PaymentRecoverySnapshot,
   writePaymentRecoverySnapshot,
 } from '@/components/payment/paymentFlow'
@@ -492,6 +493,12 @@ async function invokeWechatJsapiPayment(payload: Record<string, unknown>): Promi
 }
 
 const paymentState = ref<PaymentRecoverySnapshot>(emptyPaymentState())
+let disposePendingPaymentPopup: (() => void) | null = null
+
+onBeforeUnmount(() => {
+  disposePendingPaymentPopup?.()
+  disposePendingPaymentPopup = null
+})
 
 function persistRecoverySnapshot(snapshot: PaymentRecoverySnapshot) {
   if (typeof window === 'undefined' || !snapshot.orderId) return
@@ -853,6 +860,63 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
   errorMessage.value = ''
   errorHintMessage.value = ''
   const requestType = normalizeVisibleMethod(options.paymentType || selectedMethod.value) || options.paymentType || selectedMethod.value
+  const mobile = isMobileDevice()
+  const wechatBrowser = typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent)
+  let preopenedPaymentPopup: Window | null = null
+  let paymentPopupNavigated = false
+
+  const closePreopenedPaymentPopup = () => {
+    if (!preopenedPaymentPopup || paymentPopupNavigated) return
+    try {
+      if (!preopenedPaymentPopup.closed) preopenedPaymentPopup.close()
+    } catch {
+      // A browser can revoke access to a popup while the checkout request is in flight.
+    }
+    preopenedPaymentPopup = null
+  }
+  disposePendingPaymentPopup = closePreopenedPaymentPopup
+
+  const usePreopenedPaymentPopup = (url: string): boolean => {
+    const popup = preopenedPaymentPopup
+    if (!popup) return false
+    try {
+      if (popup.closed) return false
+      popup.location.href = url
+      popup.focus()
+      paymentPopupNavigated = true
+      preopenedPaymentPopup = null
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const openWindow = (url: string) => {
+    if (usePreopenedPaymentPopup(url)) return
+    const win = window.open(url, 'paymentPopup', getPaymentPopupFeatures())
+    if (!win || win.closed) {
+      window.location.href = url
+    }
+  }
+
+  // Open the placeholder during the click event so browsers do not block the
+  // later GM checkout navigation after the asynchronous order request.
+  const configuredMethod = normalizeVisibleMethod(requestType) || requestType
+  if (
+    typeof window !== 'undefined'
+    && shouldPreopenPaymentPopup(visibleMethods.value[configuredMethod]?.payment_mode, mobile, options.isResume === true)
+  ) {
+    try {
+      preopenedPaymentPopup = window.open(
+        'about:blank',
+        `paymentPopup-${Date.now()}`,
+        getPaymentPopupFeatures(),
+      )
+    } catch {
+      preopenedPaymentPopup = null
+    }
+  }
+
   try {
     const payload = buildCreateOrderPayload({
       amount: orderAmount,
@@ -860,8 +924,8 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       orderType,
       planId,
       origin: typeof window !== 'undefined' ? window.location.origin : '',
-      isMobile: isMobileDevice(),
-      isWechatBrowser: typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent),
+      isMobile: mobile,
+      isWechatBrowser: wechatBrowser,
       forceQRCode: !!(checkout.value.alipay_force_qrcode && normalizeVisibleMethod(requestType) === 'alipay'),
       mobilePrecreateDeepLink: checkout.value.alipay_mobile_precreate_deep_link === true,
     })
@@ -873,12 +937,6 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     }
 
     const result = await paymentStore.createOrder(payload) as CreateOrderResult & { resume_token?: string }
-    const openWindow = (url: string) => {
-      const win = window.open(url, 'paymentPopup', getPaymentPopupFeatures())
-      if (!win || win.closed) {
-        window.location.href = url
-      }
-    }
     const visibleMethod = normalizeVisibleMethod(requestType) || requestType
     // When user clicks the dedicated Stripe button, leave method blank so the
     // landing page renders Stripe's full Payment Element (card/link/alipay/wxpay).
@@ -909,8 +967,8 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     const decision = decidePaymentLaunch(result, {
       visibleMethod,
       orderType,
-      isMobile: isMobileDevice(),
-      isWechatBrowser: typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent),
+      isMobile: mobile,
+      isWechatBrowser: wechatBrowser,
       forceQRCode: !!(checkout.value.alipay_force_qrcode && visibleMethod === 'alipay'),
       mobilePrecreateDeepLink: checkout.value.alipay_mobile_precreate_deep_link === true,
       stripePopupUrl: stripeRouteUrl,
@@ -919,6 +977,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     })
 
     if (decision.kind === 'wechat_oauth' && decision.oauth?.authorize_url) {
+      closePreopenedPaymentPopup()
       window.location.href = buildWechatOAuthAuthorizeUrl(decision.oauth.authorize_url, {
         paymentType: visibleMethod,
         orderType,
@@ -929,6 +988,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     }
 
     if (decision.kind === 'unhandled') {
+      closePreopenedPaymentPopup()
       applyScenarioError({ reason: 'UNHANDLED_PAYMENT_SCENARIO' }, visibleMethod)
       return
     }
@@ -942,14 +1002,17 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       return
     }
     if (decision.kind === 'stripe_route') {
+      closePreopenedPaymentPopup()
       window.location.href = decision.paymentState.payUrl
       return
     }
     if (decision.kind === 'airwallex_route') {
+      closePreopenedPaymentPopup()
       window.location.href = decision.paymentState.payUrl
       return
     }
     if (decision.kind === 'wechat_jsapi' && decision.jsapi) {
+      closePreopenedPaymentPopup()
       try {
         const jsapiResult = await invokeWechatJsapiPayment(decision.jsapi as Record<string, unknown>)
         const errMsg = String(jsapiResult.err_msg || '').toLowerCase()
@@ -992,7 +1055,8 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       return
     }
     if (decision.kind === 'redirect_waiting' && decision.paymentState.payUrl) {
-      if (isMobileDevice()) {
+      if (mobile) {
+        closePreopenedPaymentPopup()
         window.location.href = decision.paymentState.payUrl
         return
       }
@@ -1030,6 +1094,10 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     }
     appStore.showError(buildPaymentErrorToastMessage(errorMessage.value, errorHintMessage.value))
   } finally {
+    closePreopenedPaymentPopup()
+    if (disposePendingPaymentPopup === closePreopenedPaymentPopup) {
+      disposePendingPaymentPopup = null
+    }
     submitting.value = false
   }
 }

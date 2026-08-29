@@ -27,6 +27,7 @@ const showWarning = vi.hoisted(() => vi.fn())
 const getCheckoutInfo = vi.hoisted(() => vi.fn())
 const bridgeInvoke = vi.hoisted(() => vi.fn())
 const translate = vi.hoisted(() => vi.fn((key: string) => key))
+const mobileDevice = vi.hoisted(() => vi.fn(() => true))
 
 vi.mock('vue-router', async () => {
   const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
@@ -89,8 +90,12 @@ vi.mock('@/api/payment', () => ({
 }))
 
 vi.mock('@/utils/device', () => ({
-  isMobileDevice: () => true,
+  isMobileDevice: mobileDevice,
 }))
+
+beforeEach(() => {
+  mobileDevice.mockReturnValue(true)
+})
 
 function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
   const wxpayMethod: MethodLimit = {
@@ -180,6 +185,67 @@ describe('PaymentView balance recharge credited fee', () => {
     expect(wrapper.text()).not.toContain('payment.creditedBalance')
     expect(wrapper.text()).not.toContain('payment.feeCreditedNotice')
     expect(wrapper.text()).toContain(formatPaymentAmount(102, 'CNY'))
+  })
+})
+
+describe('PaymentView GM popup flow', () => {
+  beforeEach(() => {
+    createOrder.mockReset()
+    mobileDevice.mockReturnValue(false)
+  })
+
+  it('opens GM checkout during the click and navigates the same window after order creation', async () => {
+    let resolveOrder: (value: Record<string, unknown>) => void = () => {}
+    createOrder.mockReturnValue(new Promise(resolve => {
+      resolveOrder = resolve
+    }))
+
+    const popupLocation = { href: 'about:blank' }
+    const popup = {
+      closed: false,
+      location: popupLocation,
+      focus: vi.fn(),
+      close: vi.fn(),
+    } as unknown as Window
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(popup)
+
+    const wrapper = await mountRecharge({
+      methods: {
+        usdt_trc20: {
+          ...checkoutInfoFixture().data.methods.wxpay,
+          display_name: 'USDT-TRC20',
+          payment_mode: 'popup',
+        },
+      },
+    })
+
+    const submitButton = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submitButton).toBeDefined()
+
+    const click = submitButton!.trigger('click')
+    await nextTick()
+    expect(openSpy).toHaveBeenCalledWith('about:blank', expect.stringContaining('paymentPopup-'), expect.any(String))
+
+    resolveOrder({
+      order_id: 901,
+      amount: 100,
+      pay_amount: 100,
+      fee_rate: 0,
+      expires_at: '2099-01-01T00:10:00.000Z',
+      payment_type: 'usdt_trc20',
+      out_trade_no: 'sub2_gm_901',
+      pay_url: 'https://gm.example.com/checkout/901',
+      payment_mode: 'popup',
+    })
+    await click
+    await flushPromises()
+
+    expect(openSpy).toHaveBeenCalledTimes(1)
+    expect(popupLocation.href).toBe('https://gm.example.com/checkout/901')
+    expect(popup.focus).toHaveBeenCalled()
+
+    wrapper.unmount()
+    openSpy.mockRestore()
   })
 })
 

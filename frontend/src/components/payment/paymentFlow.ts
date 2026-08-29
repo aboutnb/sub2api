@@ -101,6 +101,19 @@ export function normalizeVisibleMethod(method: string): VisiblePaymentMethod | '
   return normalized ?? ''
 }
 
+/**
+ * A popup must be opened while the checkout button still has user activation.
+ * Resume flows are initiated by page navigation, so they must never create a
+ * new window without an explicit user action.
+ */
+export function shouldPreopenPaymentPopup(
+  paymentMode: string | null | undefined,
+  isMobile: boolean,
+  isResume = false,
+): boolean {
+  return !isMobile && !isResume && (paymentMode || '').trim().toLowerCase() === 'popup'
+}
+
 export function getVisibleMethods(methods: Record<string, MethodLimit>): Record<string, MethodLimit> {
   const visible: Record<string, MethodLimit> = {}
 

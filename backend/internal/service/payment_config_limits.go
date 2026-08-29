@@ -34,6 +34,7 @@ func (s *PaymentConfigService) GetAvailableMethodLimits(ctx context.Context) (*M
 		ml := pcAggregateMethodLimits(pt, insts)
 		ml.DisplayName = s.pcAggregateMethodDisplayName(pt, insts)
 		ml.Currency = currency
+		ml.PaymentMode = pcAggregateMethodPaymentMode(insts)
 		resp.Methods[ml.PaymentType] = ml
 	}
 	resp.GlobalMin, resp.GlobalMax = pcComputeGlobalRange(resp.Methods)
@@ -97,6 +98,7 @@ func (s *PaymentConfigService) GetMethodLimits(ctx context.Context, types []stri
 		ml := pcAggregateMethodLimits(pt, matching)
 		ml.DisplayName = s.pcAggregateMethodDisplayName(pt, matching)
 		ml.Currency = currency
+		ml.PaymentMode = pcAggregateMethodPaymentMode(matching)
 		result = append(result, ml)
 	}
 	return result, nil
@@ -314,6 +316,30 @@ func pcAggregateMethodLimits(pt string, instances []*dbent.PaymentProviderInstan
 		ml.DailyLimit = 0
 	}
 	return ml
+}
+
+// pcAggregateMethodPaymentMode returns a mode only when every candidate uses
+// the same explicit mode. An empty result means the caller must wait for order
+// creation to determine the concrete launch path.
+func pcAggregateMethodPaymentMode(instances []*dbent.PaymentProviderInstance) string {
+	mode := ""
+	for _, inst := range instances {
+		if inst == nil {
+			return ""
+		}
+		next := strings.ToLower(strings.TrimSpace(inst.PaymentMode))
+		if next == "" {
+			return ""
+		}
+		if mode == "" {
+			mode = next
+			continue
+		}
+		if mode != next {
+			return ""
+		}
+	}
+	return mode
 }
 
 // pcComputeGlobalRange computes the widest [min, max] across all methods.

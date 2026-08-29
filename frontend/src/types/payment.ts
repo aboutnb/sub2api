@@ -44,6 +44,8 @@ export interface PaymentConfig {
 export interface MethodLimit {
   currency?: string
   display_name?: string
+  /** Explicit provider launch mode when all candidate instances agree. */
+  payment_mode?: string
   daily_limit: number
   daily_used: number
   daily_remaining: number

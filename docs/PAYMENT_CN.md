@@ -143,6 +143,12 @@ GM 的 Sub2API 接入使用上面的 **EasyPay** 服务商，不新增 GMPay 服
 - **Notify URL**：使用自动生成的 `/api/v1/payment/webhook/easypay`，GM 支付成功后通过 GET + MD5 回调完成订单。
 - **退款**：当前 GM EPay 入口未提供 Sub2API EasyPay 所依赖的 `/api.php` 退款接口，建议关闭该实例的退款开关。
 
+桌面端点击支付按钮时，Sub2API 会在点击事件内预打开一个窗口，订单创建完成后将 GM 的
+`submit.php` checkout 地址写入该窗口，避免浏览器因异步请求而拦截弹窗。支付页所在的
+Sub2API 页面会立即查询订单，并在支付过程中持续轮询 `/api/v1/payment/orders/:id`；GM
+的成功回调先由服务端验签并完成入账，前端只把服务端订单状态作为成功依据。移动端或未明确
+配置为 `popup` 的方式不使用这个预打开流程，恢复支付页面也不会自动创建新窗口。
+
 启用前先确认 GM 的 `supported_assets` 非空，且目标钱包、RPC/监听和回调链路均已就绪。GM
 的回调是该接入的主要支付确认来源；GM 未提供按 `out_trade_no` 查询的 EPay API 时，不能把
 Sub2API 的超时查询当作支付成功兜底。
