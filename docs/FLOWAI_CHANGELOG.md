@@ -62,14 +62,14 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 | 项目 | 值 |
 | --- | --- |
 | 发布分支 | `sub2api-flowai` |
-| 本次核对日期 | 2026-08-29（Asia/Shanghai） |
+| 本次核对日期 | 2026-08-30（Asia/Shanghai） |
 | 业务代码基线 HEAD（本次合并前） | `592d28f277b9824617aa657cae755a103909c7bd` |
-| 本次核对 HEAD（文档更新前） | `ea2096d33360f45ddd4ec4142e457c4d648ee493` |
+| 本次核对 HEAD（文档更新前） | `52d8138e27d8e64a377d414d5173e25d9ef9b5ff` |
 | 最后已审并合入的上游基线 | `upstream/main` = `b5827cfd54d58c248a9480b800444d0b40f0c6ea`（0.1.183） |
 | 当前抓取但尚未合入的上游 | 无（已合入） |
 | 应用版本 | `0.1.183` |
-| 相对上游的非合并提交 | 94 个功能/修复提交；治理提交按受限规则由脚本动态豁免 |
-| 相对上游的文件差异 | 440 个文件，约 48480 行新增、1634 行删除 |
+| 相对上游的非合并提交 | 88 个功能/修复提交、8 个治理提交；治理提交按受限规则由脚本动态豁免 |
+| 相对上游的文件差异 | 440 个文件，约 48481 行新增、1633 行删除 |
 | 发布镜像 | `ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12>` |
 | 生产发布目标 | 23 服务器，使用预构建镜像 |
 
@@ -91,6 +91,8 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
   仅吸收上游按所选币种渲染充值倍率的参数；对应中英文 key 和测试均保留。
 - 账号调度仍为 priority 升序，即 1 最高优先级；受保护的中英文 i18n 聚合入口和账号文案
   未被上游覆盖或删除。后续以契约检查和发布测试结果作为放行证据。
+- 为对齐当前调度契约，提交 `52d8138e2` 修正 schedulable projection 集成测试中与
+  priority 升序相反的断言；目标用例已在本地 PostgreSQL/Redis 测试容器中通过。
 
 合并前预审确认命令：
 
@@ -395,6 +397,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | 2026-08-25 | `453ffc9fa` | fix: support deny-all user concurrency | 并发/注册 |
 | 2026-08-29 | `f6828cd9c` | fix: make account priority 1 highest | 账号调度 |
 | 2026-08-29 | `b77636d2c` | feat(payment): replace BEpusdt with GM through EasyPay | 支付/GM |
+| 2026-08-30 | `52d8138e2` | test: align schedulable projection with priority policy | 调度/SQL测试 |
 <!-- FLOWAI_LEDGER_NON_MERGE_END -->
 
 ## 8. 历史合并提交索引
