@@ -93,7 +93,8 @@ func TestListSchedulableAccountLoadsMatchesListSchedulable(t *testing.T) {
 			targetOrder = append(targetOrder, id)
 		}
 	}
-	require.Equal(t, []int64{positiveLoad.ID, zeroFallback.ID, concurrencyFallback.ID}, targetOrder)
+	// Account priority is ascending: priority 1 is highest and lower values win.
+	require.Equal(t, []int64{concurrencyFallback.ID, zeroFallback.ID, positiveLoad.ID}, targetOrder)
 	require.Equal(t, wantByID, byID)
 	require.Equal(t, 9, byID[positiveLoad.ID])
 	require.Equal(t, 4, byID[concurrencyFallback.ID])
