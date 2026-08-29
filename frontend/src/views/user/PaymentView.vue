@@ -142,7 +142,7 @@
                     </dl>
 
                     <p v-if="balanceRechargeMultiplier !== 1" class="text-xs leading-5 text-gray-500 dark:text-gray-400">
-                      {{ t('payment.rechargeRatePreview', { usd: balanceRechargeMultiplier.toFixed(2) }) }}
+                      {{ t('payment.rechargeRatePreview', { currency: selectedCurrency, usd: balanceRechargeMultiplier.toFixed(2) }) }}
                     </p>
                   </div>
                   <div v-else class="flex min-h-40 flex-col items-center justify-center text-center text-gray-400 dark:text-gray-500">
