@@ -63,36 +63,36 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 | --- | --- |
 | 发布分支 | `sub2api-flowai` |
 | 本次核对日期 | 2026-08-29（Asia/Shanghai） |
-| 业务代码基线 HEAD（治理提交前） | `453ffc9fa` |
-| 本次核对 HEAD（文档更新前） | `f8fce88dbcf9cc346dedf5195156dd37bae5b953` |
-| 最后已审并合入的上游基线 | `upstream/main` = `3b7753a8e`（0.1.181） |
-| 当前抓取但尚未合入的上游 | `7b693ae42`（0.1.183，117 个提交） |
-| 应用版本 | `0.1.181` |
-| 相对上游的非合并提交 | 85 个功能/修复提交；治理提交按受限规则由脚本动态豁免 |
-| 相对上游的文件差异 | 451 个文件，约 52871 行新增、1699 行删除 |
+| 业务代码基线 HEAD（本次合并前） | `777b07805` |
+| 本次核对 HEAD（文档更新前） | `8283480481b8f700eb9f55499384b0e4739a0531` |
+| 最后已审并合入的上游基线 | `upstream/main` = `7b693ae42`（0.1.183） |
+| 当前抓取但尚未合入的上游 | 无（已合入） |
+| 应用版本 | `0.1.183` |
+| 相对上游的非合并提交 | 93 个功能/修复提交；治理提交按受限规则由脚本动态豁免 |
+| 相对上游的文件差异 | 440 个文件，约 48475 行新增、1634 行删除 |
 | 发布镜像 | `ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12>` |
 | 生产发布目标 | 23 服务器，使用预构建镜像 |
 
 快照值会变化，当前行为契约不会因上游版本号变化而自动变化。下一次发布必须重新
 记录 HEAD、上游基线、版本、镜像 digest 和实际验收结果。
 
-### 2.1 当前待审上游（阻断发布）
+### 2.1 本次上游合并审阅（已完成）
 
-2026-08-29 刷新 `upstream/main` 后确认它已前进到
-`7b693ae4295e20329f18ff451b29a38879cb4705`（0.1.183）。只读预审结果如下：
+2026-08-29 刷新并审阅 `upstream/main` 完整提交
+`7b693ae4295e20329f18ff451b29a38879cb4705`（0.1.183），随后以
+`8283480481b8f700eb9f55499384b0e4739a0531` 合入 `sub2api-flowai`。
 
-- `HEAD..upstream/main` 有 117 个待合入提交；当前分支没有合入其中任何一个。
-- 上游与 FlowAI 都修改了调度、i18n、用户/账号管理、支付结果和请求处理等路径；受保护
-  路径包括 `gateway_scheduling.go`、`openai_gateway_scheduling.go`、zh/en 账号文案和两条
-  231 号迁移。
-- `git merge-tree --write-tree HEAD upstream/main` 报告
-  `frontend/src/components/account/CreateAccountModal.vue` 和
-  `frontend/src/views/user/__tests__/PaymentResultView.spec.ts` 内容冲突。
-- 当前决策：**不合并、不生成镜像、不连接 23 服务器**。必须逐项核对冲突矩阵，确认保留
-  FlowAI 调度、并发、i18n、支付、签到、邮件和迁移行为后，才可以用完整 SHA 显式确认并
-  重新预审。
+- 上游的 117 个待合入提交已完整进入合并提交；`main` 未修改。
+- `gateway_scheduling.go`、`openai_gateway_scheduling.go` 继续保持账号 priority 升序，
+  即 1 最高优先级；zh/en i18n 聚合和 FlowAI 支付、并发、签到、邮件路径均保留。
+- `CreateAccountModal.vue` 保留 FlowAI 的当前代理选择，同时合入上游创建后同步模型能力元数据
+  的行为；`PaymentResultView.spec.ts` 保留手续费到账覆盖，并合入上游完成态刷新余额覆盖。
+- 上游邮箱别名换绑测试与 FlowAI 注册别名风控发生语义冲突；新增后缀白名单专用校验，
+  认证后的邮箱换绑仍执行地址/别名占用查重和事务守卫，但不复用注册阶段的别名禁止规则。
+- 上游新增的两个 231 迁移按完整文件名保留，未修改任何已执行的 FlowAI 历史迁移。
+- 合并后后端全量 unit、前端 lint/typecheck/Vitest、前端生产构建和 Compose 配置校验通过。
 
-预审确认命令（仅在人工完成上面核对后执行）：
+合并前预审确认命令：
 
 ```bash
 FLOWAI_UPSTREAM_REVIEW_ACK=7b693ae4295e20329f18ff451b29a38879cb4705 \
@@ -216,6 +216,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 - 注册 challenge 绑定请求指纹、最短耗时、陷阱字段和一次性消费；邮箱域名/别名/一次性
   邮箱策略在注册和 OAuth 补全流程都生效。
+- 已认证邮箱换绑不属于新账号注册：仍执行注册后缀白名单、精确地址/别名占用查重和事务
+  原子守卫，允许已验证的自身新别名参与换绑，但不会放宽其他用户已占用的收件箱。
 - 登录失败 IP（或 IP+UA）封禁使用独立 Redis counter 和管理页面；清理或改 key 时
   不能影响并发槽位。
 - 公开访问 guard 只保护配置指定的公开 POST/API 场景；发布密钥不得写入日志或客户端
@@ -272,6 +274,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | `backend/migrations/206_checkin_fingerprint_guard.sql` | 签到指纹防护 | 与同编号 USDT 文件并存 |
 | `backend/migrations/207_tighten_checkin_ip_guard_default.sql` | 签到 IP 默认策略 | 不要误认为上游同编号迁移 |
 | `backend/migrations/208_signup_risk_grant_guard.sql` | 注册赠送一次性领取 | 与 `-1` 初始并发顺序一致 |
+| `backend/migrations/231_add_usage_log_requested_reasoning_effort.sql` | 记录映射前请求推理强度 | 本次上游 0.1.183 新增；可空字段，不改历史数据 |
+| `backend/migrations/231_user_restrict_public_groups.sql` | 用户公开分组访问限制 | 本次上游 0.1.183 新增；默认 false，保留现有用户行为 |
 <!-- FLOWAI_MIGRATION_LEDGER_END -->
 
 `backend/migrations/001_init.sql` 的内容曾为保留生产 checksum 做兼容性修复（提交
@@ -402,6 +406,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
 | 日期 | 合并提交 | 说明 |
 | --- | --- | --- |
+| 2026-08-29 | `828348048` | Merge upstream main 0.1.183 into sub2api-flowai；保留 FlowAI 调度/i18n/支付/并发，并修正邮箱换绑与注册别名规则冲突 |
 | 2026-08-25 | `1e1b7e9ed` | Merge upstream main 0.1.181 into sub2api-flowai |
 | 2026-08-24 | `bd3b7b205` | merge upstream main 0.1.180 into sub2api-flowai |
 | 2026-08-24 | `75c324cf3` | Merge branch Wei-Shaw main into sub2api-flowai |
