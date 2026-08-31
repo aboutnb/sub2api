@@ -480,6 +480,7 @@ const baseSettingsResponse = {
   openai_codex_user_agent: "",
   payment_enabled: true,
   payment_min_amount: 1,
+  payment_usdt_min_amount: 50,
   payment_max_amount: 10000,
   payment_daily_limit: 50000,
   payment_order_timeout_minutes: 30,
@@ -487,6 +488,10 @@ const baseSettingsResponse = {
   payment_enabled_types: [],
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
+  payment_recharge_bonus_tiers: [
+    { min_amount: 50, bonus_percent: 5 },
+    { min_amount: 100, bonus_percent: 10 },
+  ],
   payment_subscription_usd_to_cny_rate: 0,
   payment_subscription_fee_enabled: true,
   payment_recharge_fee_rate: 0,
@@ -1100,6 +1105,30 @@ describe("admin SettingsView payment visible method controls", () => {
 
     expect(updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({ payment_recharge_fee_credited: true }),
+    );
+  });
+
+  it("submits configurable recharge bonus tiers", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      payment_recharge_bonus_tiers: [
+        { min_amount: 80, bonus_percent: 6.5 },
+        { min_amount: 150, bonus_percent: 12 },
+      ],
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_recharge_bonus_tiers: [
+          { min_amount: 80, bonus_percent: 6.5 },
+          { min_amount: 150, bonus_percent: 12 },
+        ],
+      }),
     );
   });
 

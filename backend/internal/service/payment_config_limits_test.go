@@ -326,6 +326,34 @@ func TestGetAvailableMethodLimitsIncludesEasyPayCustomMethodDisplayName(t *testi
 	require.Equal(t, "popup", limits.PaymentMode)
 }
 
+func TestGetAvailableMethodLimitsAppliesUSDTMinimum(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	_, err := client.PaymentProviderInstance.Create().
+		SetProviderKey(payment.TypeEasyPay).
+		SetName("GM USDT").
+		SetConfig(`{"customMethods":"[{\"type\":\"usdt_trc20\",\"upstreamType\":\"usdt.tron\",\"displayName\":\"USDT-TRC20\"}]"}`).
+		SetSupportedTypes("usdt_trc20").
+		SetLimits(`{"usdt_trc20":{"singleMin":20,"singleMax":500}}`).
+		SetPaymentMode("popup").
+		SetEnabled(true).
+		Save(ctx)
+	require.NoError(t, err)
+
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{SettingUSDTMinRechargeAmount: "50"}}
+	svc := &PaymentConfigService{entClient: client, settingRepo: repo}
+	resp, err := svc.GetAvailableMethodLimits(ctx)
+	require.NoError(t, err)
+	require.Equal(t, float64(50), resp.Methods["usdt_trc20"].SingleMin)
+	require.Equal(t, float64(500), resp.Methods["usdt_trc20"].SingleMax)
+
+	repo.values[SettingUSDTMinRechargeAmount] = "0"
+	resp, err = svc.GetAvailableMethodLimits(ctx)
+	require.NoError(t, err)
+	require.Equal(t, float64(20), resp.Methods["usdt_trc20"].SingleMin)
+}
+
 func TestPcComputeGlobalRange(t *testing.T) {
 	t.Parallel()
 

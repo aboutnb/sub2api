@@ -111,6 +111,18 @@ bd3b7b205 又恢复为 DESC。本分支现再次明确采用“1 最高、数值
 - Sub2API 通过现有 EasyPay provider registry 接入 GM。自定义支付方式必须显式映射 GM
   selector，例如前台 `usdt_trc20` 映射上游
   `usdt.tron`；回调继续使用 /api/v1/payment/webhook/easypay。
+- Sub2API 的 `USDT_MIN_RECHARGE_AMOUNT` 默认是 50，`0` 表示关闭 USDT 专属下限。
+  用户可见 method limits 和创建订单后端必须同时执行该限制，不能只依赖前端禁用状态。
+- GM checkout 桌面弹窗首选尺寸固定为 `625x900`，仍需根据可用屏幕空间缩小并居中；
+  不得在上游合并时恢复为原 `1250x900`。
+- TRON 链上 TRC20 资源费由付款方使用 TRX/能量承担，不从收款 USDT 中固定扣除；交易所
+  提现费动态变化，不得写死或估算后放宽订单匹配。GM 保持原有精确金额匹配、按最小金额
+  精度递增冲突订单，并严格执行 `chain_tokens.min_amount`，不启用少到账容差或网络费补偿。
+- 余额充值赠送使用 Sub2API `RECHARGE_BONUS_TIERS` JSON 配置，默认 50 赠 5%、100 赠
+  10%，显式空数组关闭。按充值本金满足的最高门槛生效，手续费不参与赠送；订单创建时
+  必须把最终到账余额固化到订单，后续配置变化不得改写已创建订单，重复回调不得重复赠送。
+- `/api/v1/payment/checkout-info`、后台设置、快捷金额角标和到账预览必须使用同一档位数据；
+  后端仍是最终结算权威，不能依赖前端展示决定赠送金额。
 - GM 只有在公开配置返回非空 `supported_assets`，对应钱包、RPC 和链监听均通过检查后，
   才能在 Sub2API 启用 EasyPay USDT 方式。容器健康或页面 HTTP 200 不能代替收款就绪。
 - 发票申请使用本地 invoice_applications 状态和 XZNOAuth 外部服务；订单校验、税费

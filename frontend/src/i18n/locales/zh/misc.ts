@@ -313,6 +313,8 @@ export default {
     amountLabel: '充值金额',
     paymentAmount: '支付金额',
     creditedBalance: '到账余额',
+    rechargeBonus: '充值赠送（{percent}%）',
+    bonusBadge: '赠{percent}%',
     quickAmounts: '快捷金额',
     customAmount: '自定义金额',
     enterAmount: '输入金额',

@@ -26,6 +26,7 @@ func (s *PaymentConfigService) GetAvailableMethodLimits(ctx context.Context) (*M
 	resp := &MethodLimitsResponse{
 		Methods: make(map[string]MethodLimits, len(typeInstances)),
 	}
+	usdtMinAmount := s.getUSDTMinRechargeAmount(ctx)
 	for pt, insts := range typeInstances {
 		currency, ok := s.pcAggregateMethodCurrency(insts)
 		if !ok {
@@ -35,6 +36,7 @@ func (s *PaymentConfigService) GetAvailableMethodLimits(ctx context.Context) (*M
 		ml.DisplayName = s.pcAggregateMethodDisplayName(pt, insts)
 		ml.Currency = currency
 		ml.PaymentMode = pcAggregateMethodPaymentMode(insts)
+		ml = pcApplyUSDTMinAmount(ml, usdtMinAmount)
 		resp.Methods[ml.PaymentType] = ml
 	}
 	resp.GlobalMin, resp.GlobalMax = pcComputeGlobalRange(resp.Methods)
@@ -84,6 +86,7 @@ func (s *PaymentConfigService) GetMethodLimits(ctx context.Context, types []stri
 		return nil, fmt.Errorf("query provider instances: %w", err)
 	}
 	result := make([]MethodLimits, 0, len(types))
+	usdtMinAmount := s.getUSDTMinRechargeAmount(ctx)
 	for _, pt := range types {
 		var matching []*dbent.PaymentProviderInstance
 		for _, inst := range instances {
@@ -99,9 +102,17 @@ func (s *PaymentConfigService) GetMethodLimits(ctx context.Context, types []stri
 		ml.DisplayName = s.pcAggregateMethodDisplayName(pt, matching)
 		ml.Currency = currency
 		ml.PaymentMode = pcAggregateMethodPaymentMode(matching)
+		ml = pcApplyUSDTMinAmount(ml, usdtMinAmount)
 		result = append(result, ml)
 	}
 	return result, nil
+}
+
+func pcApplyUSDTMinAmount(limits MethodLimits, configuredMin float64) MethodLimits {
+	if isUSDTPaymentType(limits.PaymentType) && configuredMin > limits.SingleMin {
+		limits.SingleMin = configuredMin
+	}
+	return limits
 }
 
 func (s *PaymentConfigService) ValidateMethodCurrencyConsistency(ctx context.Context, paymentType string) (string, error) {

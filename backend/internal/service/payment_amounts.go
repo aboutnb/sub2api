@@ -32,6 +32,20 @@ func calculateCreditedBalance(paymentAmount, multiplier float64) float64 {
 		InexactFloat64()
 }
 
+func calculateCreditedBalanceWithBonus(creditBase, rechargePrincipal, multiplier, bonusPercent float64) float64 {
+	bonus := decimal.Zero
+	if isFinitePositive(rechargePrincipal) && isFinitePositive(bonusPercent) {
+		bonus = decimal.NewFromFloat(rechargePrincipal).
+			Mul(decimal.NewFromFloat(bonusPercent)).
+			Div(decimal.NewFromInt(100))
+	}
+	return decimal.NewFromFloat(creditBase).
+		Add(bonus).
+		Mul(decimal.NewFromFloat(normalizeBalanceRechargeMultiplier(multiplier))).
+		Round(2).
+		InexactFloat64()
+}
+
 func calculateGatewayRefundAmount(orderAmount, payAmount, refundAmount float64, currency string) float64 {
 	if orderAmount <= 0 || payAmount <= 0 || refundAmount <= 0 {
 		return 0

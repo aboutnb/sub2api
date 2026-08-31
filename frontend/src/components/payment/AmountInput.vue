@@ -23,14 +23,15 @@
       <label class="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
         {{ t('payment.quickAmounts') }}
       </label>
-      <div data-testid="quick-amounts" class="scrollbar-hide grid grid-flow-col auto-cols-[minmax(4.5rem,1fr)] gap-1.5 overflow-x-auto pb-0.5">
+      <div data-testid="quick-amounts" class="scrollbar-hide grid grid-flow-col auto-cols-[minmax(4.5rem,1fr)] gap-1.5 overflow-x-auto pb-0.5 pr-1 pt-2">
         <button
           v-for="amt in filteredAmounts"
           :key="amt"
           type="button"
           :aria-pressed="modelValue === amt"
+          :aria-label="amountAriaLabel(amt)"
           :class="[
-            'h-9 rounded-md border px-2 text-center text-sm font-semibold tabular-nums transition-colors',
+            'relative h-9 rounded-md border px-2 text-center text-sm font-semibold tabular-nums transition-colors',
             modelValue === amt
               ? 'border-primary-500 bg-primary-50/70 text-primary-700 ring-1 ring-primary-500/20 dark:border-primary-400 dark:bg-dark-900 dark:text-primary-300'
               : 'border-gray-300 bg-transparent text-gray-700 hover:border-gray-500 dark:border-dark-600 dark:text-gray-200 dark:hover:border-dark-500',
@@ -38,6 +39,14 @@
           @click="selectAmount(amt)"
         >
           {{ currencySymbol }}{{ amt }}
+          <span
+            v-if="amountBadges[amt]"
+            aria-hidden="true"
+            data-testid="quick-amount-badge"
+            class="absolute right-0 top-0 -translate-y-1/2 translate-x-1/4 whitespace-nowrap rounded-sm bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm dark:bg-emerald-500 dark:text-emerald-950"
+          >
+            {{ amountBadges[amt] }}
+          </span>
         </button>
       </div>
     </div>
@@ -54,11 +63,13 @@ const props = withDefaults(defineProps<{
   min?: number
   max?: number
   currencySymbol?: string
+  amountBadges?: Record<number, string>
 }>(), {
   amounts: () => [10, 20, 50, 100, 200, 500],
   min: 0,
   max: 0,
   currencySymbol: '$',
+  amountBadges: () => ({}),
 })
 
 const emit = defineEmits<{
@@ -86,6 +97,11 @@ const AMOUNT_PATTERN = /^\d*(\.\d{0,2})?$/
 function selectAmount(amt: number) {
   customText.value = String(amt)
   emit('update:modelValue', amt)
+}
+
+function amountAriaLabel(amt: number): string {
+  const badge = props.amountBadges[amt]
+  return badge ? `${props.currencySymbol}${amt}, ${badge}` : `${props.currencySymbol}${amt}`
 }
 
 function handleInput(e: Event) {

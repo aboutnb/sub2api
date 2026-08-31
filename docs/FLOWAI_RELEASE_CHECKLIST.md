@@ -107,6 +107,12 @@ make check-flowai-contract-strict
 - [ ] Docker Compose 配置渲染通过，环境变量没有把生产密钥写入仓库。
 - [ ] 若涉及上游协议或支付回调，已做真实配置下的连通性/回调状态核对；没有把 HTTP
       200、钱包存在或浏览器跳转当作链上结算证据。
+- [ ] GM 保持精确金额匹配、最小精度递增和严格 `chain_tokens.min_amount`；不存在
+      `system.usdt_underpayment_tolerance`、固定网络费或少到账补偿逻辑。
+- [ ] 充值赠送默认档位为 50 赠 5%、100 赠 10%，后台可增删配置且空数组可关闭；快捷
+      金额角标、到账预览和 `/api/v1/payment/checkout-info` 返回值一致。
+- [ ] 已验证门槛前后、最高档位、手续费不参与赠送、余额倍率换算、重复回调幂等和配置
+      修改不影响既有订单。
 
 建议命令：
 
@@ -151,6 +157,10 @@ docker compose --env-file deploy/.env.preview -f deploy/docker-compose.preview.y
       重建 `flowai-app` 或复用 BEpusdt 数据目录。
 - [ ] 启用 GM/EasyPay USDT 前，`/payments/gmpay/v1/config` 返回非空
       `supported_assets`，钱包、RPC/监听和回调 smoke test 均有证据；为空时保持前台方式禁用。
+- [ ] `/api/v1/payment/limits` 中 USDT 方式的 `single_min` 与后台
+      `payment_usdt_min_amount` 一致（默认 50），低于下限的直接创建订单请求也被后端拒绝。
+- [ ] 桌面端 GM checkout 弹窗约为 `625x900` 且居中；小屏会自适应缩小，父页面订单轮询
+      和服务端回调同步未受影响。
 
 服务器命令模板：
 

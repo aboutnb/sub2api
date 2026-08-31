@@ -116,6 +116,7 @@ function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
     plans: [],
     balance_disabled: false,
     balance_recharge_multiplier: 1,
+    recharge_bonus_tiers: [],
     subscription_usd_to_cny_rate: 0,
     subscription_fee_enabled: true,
     recharge_fee_rate: 0,
@@ -159,6 +160,26 @@ describe('PaymentView balance recharge credited fee', () => {
     const amountInput = wrapper.findComponent({ name: 'AmountInput' })
 
     expect(amountInput.props('amounts')).toEqual([10, 20, 50, 100, 200, 500])
+  })
+
+  it('shows configured bonus badges and previews the highest matching tier', async () => {
+    const wrapper = await mountRecharge({
+      recharge_bonus_tiers: [
+        { min_amount: 50, bonus_percent: 5 },
+        { min_amount: 100, bonus_percent: 10 },
+      ],
+    })
+    const amountInput = wrapper.findComponent({ name: 'AmountInput' })
+
+    expect(amountInput.props('amountBadges')).toEqual({
+      50: 'payment.bonusBadge',
+      100: 'payment.bonusBadge',
+      200: 'payment.bonusBadge',
+      500: 'payment.bonusBadge',
+    })
+    expect(wrapper.text()).toContain('payment.rechargeBonus')
+    expect(wrapper.text()).toContain('+$10.00')
+    expect(wrapper.text()).toContain('$110.00')
   })
 
   it('shows the full paid amount as credited balance when enabled', async () => {

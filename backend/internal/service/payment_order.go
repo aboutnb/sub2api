@@ -71,6 +71,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if err != nil {
 		return nil, err
 	}
+	if err := validateUSDTMinimumPaymentAmount(req.PaymentType, payAmount, cfg.USDTMinAmount); err != nil {
+		return nil, err
+	}
 	sel, err := s.selectCreateOrderInstance(ctx, req, cfg, payAmount)
 	if err != nil {
 		return nil, err
@@ -94,6 +97,7 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 			payAmount,
 			cfg.BalanceRechargeMultiplier,
 			cfg.RechargeFeeCredited,
+			cfg.RechargeBonusTiers,
 		)
 	}
 	if err := validateSelectedCreateOrderAmountCurrency(payAmountStr, sel); err != nil {
@@ -120,6 +124,18 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	return resp, nil
 }
 
+func validateUSDTMinimumPaymentAmount(paymentType string, payAmount, minimum float64) error {
+	if !isUSDTPaymentType(paymentType) || minimum <= 0 || payAmount >= minimum {
+		return nil
+	}
+	return infraerrors.BadRequest(
+		"PAYMENT_AMOUNT_BELOW_USDT_MINIMUM",
+		"payment amount is below the configured USDT minimum",
+	).WithMetadata(map[string]string{
+		"min": fmt.Sprintf("%.2f", minimum),
+	})
+}
+
 func effectiveOrderFeeRate(cfg *PaymentConfig, orderType string) float64 {
 	if cfg == nil {
 		return 0
@@ -130,12 +146,13 @@ func effectiveOrderFeeRate(cfg *PaymentConfig, orderType string) float64 {
 	return cfg.RechargeFeeRate
 }
 
-func calculateBalanceCreditedAmount(requestAmount, payAmount, multiplier float64, feeCredited bool) float64 {
+func calculateBalanceCreditedAmount(requestAmount, payAmount, multiplier float64, feeCredited bool, bonusTiers []RechargeBonusTier) float64 {
 	creditBase := requestAmount
 	if feeCredited {
 		creditBase = payAmount
 	}
-	return calculateCreditedBalance(creditBase, multiplier)
+	bonusPercent := resolveRechargeBonusPercent(requestAmount, bonusTiers)
+	return calculateCreditedBalanceWithBonus(creditBase, requestAmount, multiplier, bonusPercent)
 }
 
 func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig) (*dbent.SubscriptionPlan, error) {

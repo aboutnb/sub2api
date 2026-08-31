@@ -87,7 +87,8 @@
                   </div>
                   <AmountInput
                     v-model="amount"
-                    :amounts="[10, 20, 50, 100, 200, 500]"
+                    :amounts="rechargeQuickAmounts"
+                    :amount-badges="quickAmountBadges"
                     :min="globalMinAmount"
                     :max="globalMaxAmount"
                   />
@@ -134,6 +135,10 @@
                       <div v-if="feeRate > 0" class="flex justify-between gap-4">
                         <dt class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</dt>
                         <dd class="font-medium tabular-nums text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(feeAmount) }}</dd>
+                      </div>
+                      <div v-if="activeRechargeBonusPercent > 0" class="flex justify-between gap-4">
+                        <dt class="text-gray-500 dark:text-gray-400">{{ t('payment.rechargeBonus', { percent: formatRechargeBonusPercent(activeRechargeBonusPercent) }) }}</dt>
+                        <dd class="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">+${{ bonusCreditedAmount.toFixed(2) }}</dd>
                       </div>
                       <div v-if="showCreditedAmount" class="flex items-center justify-between gap-4 border-t border-gray-200 pt-3 dark:border-dark-700">
                         <dt class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.creditedBalance') }}</dt>
@@ -358,7 +363,14 @@ import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderTy
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
-import { METHOD_ORDER, getPaymentPopupFeatures } from '@/components/payment/providerConfig'
+import { METHOD_ORDER, getPaymentPopupFeaturesForMethod } from '@/components/payment/providerConfig'
+import {
+  calculateRechargeBonusCredit,
+  calculateRechargeCreditedAmount,
+  formatRechargeBonusPercent,
+  normalizeRechargeBonusTiers,
+  resolveRechargeBonusPercent,
+} from '@/components/payment/rechargeBonus'
 import {
   PAYMENT_RECOVERY_STORAGE_KEY,
   buildCreateOrderPayload,
@@ -596,8 +608,10 @@ function onPaymentSettled() {
 // All checkout data from single API call
 const checkout = ref<CheckoutInfoResponse>({
   methods: {}, global_min: 0, global_max: 0,
-  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, subscription_usd_to_cny_rate: 0, subscription_fee_enabled: true, recharge_fee_rate: 0, recharge_fee_credited: false, help_text: '', help_image_url: '', stripe_publishable_key: '',
+  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, recharge_bonus_tiers: [], subscription_usd_to_cny_rate: 0, subscription_fee_enabled: true, recharge_fee_rate: 0, recharge_fee_credited: false, help_text: '', help_image_url: '', stripe_publishable_key: '',
 })
+
+const rechargeQuickAmounts = [10, 20, 50, 100, 200, 500]
 
 const tabs = computed(() => {
   const result: { key: 'recharge' | 'subscription'; label: string }[] = []
@@ -614,6 +628,18 @@ const balanceRechargeMultiplier = computed(() => {
   return Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1
 })
 const rechargeFeeCredited = computed(() => checkout.value.recharge_fee_credited === true)
+const rechargeBonusTiers = computed(() => normalizeRechargeBonusTiers(checkout.value.recharge_bonus_tiers))
+const activeRechargeBonusPercent = computed(() => resolveRechargeBonusPercent(validAmount.value, rechargeBonusTiers.value))
+const quickAmountBadges = computed<Record<number, string>>(() => {
+  const badges: Record<number, string> = {}
+  for (const quickAmount of rechargeQuickAmounts) {
+    const percent = resolveRechargeBonusPercent(quickAmount, rechargeBonusTiers.value)
+    if (percent > 0) {
+      badges[quickAmount] = t('payment.bonusBadge', { percent: formatRechargeBonusPercent(percent) })
+    }
+  }
+  return badges
+})
 // 订阅 CNY 换算汇率（1 USD = X CNY）。0 = 未配置，订阅保持 price 直付（与后端 opt-in 条件严格镜像）。
 const subscriptionUsdToCnyRate = computed(() => {
   const rate = checkout.value.subscription_usd_to_cny_rate
@@ -726,11 +752,23 @@ const totalAmount = computed(() =>
     : validAmount.value
 )
 const creditedAmount = computed(() => {
-  const creditBase = rechargeFeeCredited.value ? totalAmount.value : validAmount.value
-  return Math.round((creditBase * balanceRechargeMultiplier.value) * 100) / 100
+  return calculateRechargeCreditedAmount(
+    validAmount.value,
+    totalAmount.value,
+    balanceRechargeMultiplier.value,
+    rechargeFeeCredited.value,
+    rechargeBonusTiers.value,
+  )
 })
+const bonusCreditedAmount = computed(() => calculateRechargeBonusCredit(
+  validAmount.value,
+  balanceRechargeMultiplier.value,
+  rechargeBonusTiers.value,
+))
 const showCreditedAmount = computed(() =>
-  balanceRechargeMultiplier.value !== 1 || (rechargeFeeCredited.value && feeRate.value > 0)
+  balanceRechargeMultiplier.value !== 1
+    || (rechargeFeeCredited.value && feeRate.value > 0)
+    || activeRechargeBonusPercent.value > 0
 )
 
 const amountError = computed(() => {
@@ -893,7 +931,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
 
   const openWindow = (url: string) => {
     if (usePreopenedPaymentPopup(url)) return
-    const win = window.open(url, 'paymentPopup', getPaymentPopupFeatures())
+    const win = window.open(url, 'paymentPopup', getPaymentPopupFeaturesForMethod(requestType))
     if (!win || win.closed) {
       window.location.href = url
     }
@@ -910,7 +948,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       preopenedPaymentPopup = window.open(
         'about:blank',
         `paymentPopup-${Date.now()}`,
-        getPaymentPopupFeatures(),
+        getPaymentPopupFeaturesForMethod(requestType),
       )
     } catch {
       preopenedPaymentPopup = null

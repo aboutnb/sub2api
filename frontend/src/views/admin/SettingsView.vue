@@ -7887,6 +7887,25 @@
                   </div>
                   <div>
                     <label class="input-label">{{
+                      t("admin.settings.payment.usdtMinAmount")
+                    }}</label
+                    ><input
+                      :value="form.payment_usdt_min_amount ?? ''"
+                      @input="
+                        form.payment_usdt_min_amount =
+                          parseFloat(
+                            ($event.target as HTMLInputElement).value,
+                          ) || 0
+                      "
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input"
+                      placeholder="50"
+                    />
+                  </div>
+                  <div>
+                    <label class="input-label">{{
                       t("admin.settings.payment.maxAmount")
                     }}</label
                     ><input
@@ -8073,6 +8092,77 @@
                       {{ t("admin.settings.payment.orderTimeoutHint") }}
                     </p>
                   </div>
+                </div>
+                <div class="border-t border-gray-100 pt-5 dark:border-dark-700" data-testid="recharge-bonus-tiers">
+                  <div class="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        {{ t("admin.settings.payment.rechargeBonusTiers") }}
+                      </h3>
+                      <p class="mt-1 text-xs leading-5 text-gray-400">
+                        {{ t("admin.settings.payment.rechargeBonusTiersHint") }}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm shrink-0"
+                      :disabled="form.payment_recharge_bonus_tiers.length >= 20"
+                      :title="t('admin.settings.payment.addRechargeBonusTier')"
+                      :aria-label="t('admin.settings.payment.addRechargeBonusTier')"
+                      data-testid="add-recharge-bonus-tier"
+                      @click="addRechargeBonusTier"
+                    >
+                      <Icon name="plus" size="sm" />
+                    </button>
+                  </div>
+                  <div v-if="form.payment_recharge_bonus_tiers.length > 0" class="mt-3 divide-y divide-gray-100 border-y border-gray-100 dark:divide-dark-700 dark:border-dark-700">
+                    <div
+                      v-for="(tier, index) in form.payment_recharge_bonus_tiers"
+                      :key="index"
+                      class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-end gap-3 py-3"
+                      data-testid="recharge-bonus-tier"
+                    >
+                      <label class="min-w-0">
+                        <span class="input-label">{{ t("admin.settings.payment.rechargeBonusThreshold") }}</span>
+                        <input
+                          v-model.number="tier.min_amount"
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          class="input"
+                          :aria-label="`${t('admin.settings.payment.rechargeBonusThreshold')} ${index + 1}`"
+                        />
+                      </label>
+                      <label class="min-w-0">
+                        <span class="input-label">{{ t("admin.settings.payment.rechargeBonusPercent") }}</span>
+                        <div class="relative">
+                          <input
+                            v-model.number="tier.bonus_percent"
+                            type="number"
+                            min="0.01"
+                            max="100"
+                            step="0.01"
+                            class="input pr-8"
+                            :aria-label="`${t('admin.settings.payment.rechargeBonusPercent')} ${index + 1}`"
+                          />
+                          <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">%</span>
+                        </div>
+                      </label>
+                      <button
+                        type="button"
+                        class="flex h-9 w-9 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                        :title="t('admin.settings.payment.removeRechargeBonusTier')"
+                        :aria-label="t('admin.settings.payment.removeRechargeBonusTier')"
+                        data-testid="remove-recharge-bonus-tier"
+                        @click="removeRechargeBonusTier(index)"
+                      >
+                        <Icon name="trash" size="sm" />
+                      </button>
+                    </div>
+                  </div>
+                  <p v-else class="mt-3 text-xs text-gray-400">
+                    {{ t("admin.settings.payment.rechargeBonusDisabled") }}
+                  </p>
                 </div>
                 <!-- Row 3: Pending orders + load balance + cancel rate limit (all in one row) -->
                 <div class="flex items-center gap-3 border-t border-gray-100 pt-5 dark:border-dark-700">
@@ -9844,12 +9934,17 @@ const form = reactive<SettingsForm>({
   cyber_session_block_enabled: false,
   cyber_session_block_ttl_seconds: 3600,
   payment_min_amount: 1,
+  payment_usdt_min_amount: 50,
   payment_max_amount: 10000,
   payment_daily_limit: 50000,
   payment_max_pending_orders: 3,
   payment_order_timeout_minutes: 30,
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
+  payment_recharge_bonus_tiers: [
+    { min_amount: 50, bonus_percent: 5 },
+    { min_amount: 100, bonus_percent: 10 },
+  ],
   payment_subscription_usd_to_cny_rate: 0,
   payment_subscription_fee_enabled: true,
   payment_recharge_fee_rate: 0,
@@ -10891,6 +10986,19 @@ function removeEndpoint(index: number) {
   form.custom_endpoints.splice(index, 1);
 }
 
+function addRechargeBonusTier() {
+  if (form.payment_recharge_bonus_tiers.length >= 20) return;
+  const last = form.payment_recharge_bonus_tiers.at(-1);
+  form.payment_recharge_bonus_tiers.push({
+    min_amount: Math.round(((Number(last?.min_amount) || 0) + 50) * 100) / 100,
+    bonus_percent: Number(last?.bonus_percent) || 5,
+  });
+}
+
+function removeRechargeBonusTier(index: number) {
+  form.payment_recharge_bonus_tiers.splice(index, 1);
+}
+
 function addLoginAgreementDocument() {
   form.login_agreement_documents.push({
     id: `custom-${Date.now().toString(36)}`,
@@ -11710,6 +11818,7 @@ async function saveSettings() {
       cyber_session_block_ttl_seconds:
         Number(form.cyber_session_block_ttl_seconds) || 3600,
       payment_min_amount: Number(form.payment_min_amount) || 0,
+      payment_usdt_min_amount: Number(form.payment_usdt_min_amount) || 0,
       payment_max_amount: Number(form.payment_max_amount) || 0,
       payment_daily_limit: Number(form.payment_daily_limit) || 0,
       payment_max_pending_orders: Number(form.payment_max_pending_orders) || 0,
@@ -11718,6 +11827,10 @@ async function saveSettings() {
       payment_balance_disabled: form.payment_balance_disabled,
       payment_balance_recharge_multiplier:
         Number(form.payment_balance_recharge_multiplier) || 1,
+      payment_recharge_bonus_tiers: form.payment_recharge_bonus_tiers.map((tier) => ({
+        min_amount: Number(tier.min_amount),
+        bonus_percent: Number(tier.bonus_percent),
+      })),
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,
       payment_subscription_fee_enabled: form.payment_subscription_fee_enabled,

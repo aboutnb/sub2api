@@ -113,7 +113,7 @@ FLOWAI_UPSTREAM_REVIEW_ACK=b5827cfd54d58c248a9480b800444d0b40f0c6ea \
 | 风险注册赠送 | 授权判断前余额为 0、并发为 `-1`；一次性授权成功后才写入实际赠送值 | `backend/internal/service/auth_service.go`、`signup_risk_context.go`、`signup_risk_grant_repo.go` | `signup_risk_grant_test.go`、签到安全测试 |
 | Project Mihomo | 支持 URL/静态源、多源、兼容请求头、节点测速、筛选、自动路由、多 listener 和账号池分配；状态持久化 | `backend/internal/service/project_mihomo_service.go`、admin handler、`deploy/docker-compose.preview.yml` | `project_mihomo_service_test.go`、admin handler 测试 |
 | 账号导入/批量测试 | 导入可指定分组/代理池，返回新账号集合；批量测试需人工点击开始，不能自动误发请求 | `backend/internal/handler/admin/account_data.go`、`BatchAccountTestModal.vue`、`AccountsView.vue` | `data-import.spec.ts`、`BatchAccountTestModal.spec.ts`、账号测试 i18n 测试 |
-| USDT/发票 | 生产使用独立 GM 服务并通过 EasyPay 自定义方式接入；BEpusdt 专用应用代码已移除，历史迁移保持不变；XZNOAuth 发票状态和 PDF 流程保持不变 | `backend/internal/payment/provider/easypay.go`、EasyPay provider 配置、`backend/migrations/206_add_usdt_payments.sql`、`invoice_service.go` | EasyPay custom method/provider 测试、invoice service 测试、支付 API 测试 |
+| USDT/发票 | 独立 GM 通过 EasyPay 接入；USDT 最低金额默认 50；GM 保持精确金额匹配且不做网络费补偿；checkout 弹窗为 625x900；余额充值默认 50 赠 5%、100 赠 10%；BEpusdt 专用代码已移除；发票流程保持不变 | `payment_config_service.go`、`payment_recharge_bonus.go`、`payment_config_limits.go`、`payment_order.go`、`providerConfig.ts`、`rechargeBonus.ts`、EasyPay provider、`invoice_service.go` | USDT minimum/method limit、recharge bonus、popup、EasyPay custom method、invoice service 和支付 API 测试 |
 | 签到/奖励 | 每用户每业务日最多结算一次；普通/幸运模式、概率、倍率/固定金额、阶梯、精度和未充值策略均受事务与风控约束 | `backend/internal/service/checkin_service.go`、`checkin_record_repo.go` | `checkin_service_test.go`、精度/安全/handler 测试 |
 | 邮件广播 | 受众和模板快照持久化；`FOR UPDATE SKIP LOCKED` 领取；发送结果不确定时不自动重试 | `email_broadcast_repo.go`、`email_broadcast_service.go` | repository integration tests、service tests |
 | 注册/访问安全 | 注册 challenge、邮箱策略、IP 封禁、公开 POST 发布密钥、上游错误脱敏和 Cloudflare 保护必须保留 | auth handlers/services、middleware、`upstream_error_sanitize.go` | auth/middleware/service 安全测试 |
@@ -182,6 +182,9 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 - 人民币支付的充值手续费率、手续费是否计入余额、订阅购买是否收手续费是独立的
   管理配置；前端展示和后端结算必须使用同一快照。
+- 余额充值赠送档位由 `RECHARGE_BONUS_TIERS` 配置，默认 50 赠 5%、100 赠 10%，空数组
+  关闭。按充值本金达到的最高门槛计算，手续费不参与赠送；最终到账金额在创建订单时固化，
+  前端角标和预览只展示后端公开的同一档位配置。
 - XZNOAuth 发票流程保存本地 `invoice_applications` 状态，覆盖草稿、校验、税费、
   申请、取消和 PDF 下载；client secret 只能留在服务端。
 - 2026-08-29 起，23 服务器停止生产 BEpusdt；Sub2API 中专用 quote/order/reconcile/webhook
@@ -194,6 +197,11 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 - GM checkout 使用 `popup` 模式时，桌面端在支付按钮点击事件内预打开窗口，订单创建后
   导航到 GM checkout；父页面立即并持续轮询本地订单状态，只有验签回调完成服务端入账后
   才显示成功。移动端、二维码/路由方式和恢复流程不自动创建窗口。
+- 功能变更（2026-08-30）：Sub2API 新增 `payment_usdt_min_amount` 管理配置，后端键
+  `USDT_MIN_RECHARGE_AMOUNT` 默认 50，`0` 可关闭；method limits 与创建订单后端共同拦截。
+  GM checkout 桌面弹窗宽度由 1250 缩为 625，高度保持 900。
+- 2026-08-31 取消 GM 网络费/少到账处理：`gm-epusdt` 恢复原有精确金额匹配、最小精度
+  递增和严格 `chain_tokens.min_amount` 判断，不保留 `system.usdt_underpayment_tolerance`。
 - GM 的 `supported_assets` 为空时不得启用 Sub2API 支付方式。启用前必须同时验证钱包、
   RPC/监听、创建订单、回调、两端订单状态和链上证明；容器健康、页面打开或 HTTP 200
   不能单独证明链上结算。

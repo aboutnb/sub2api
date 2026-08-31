@@ -311,14 +311,46 @@ func TestCalculateCreditedBalanceStillUsesRechargeMultiplier(t *testing.T) {
 func TestCalculateBalanceCreditedAmountOptionallyIncludesRechargeFee(t *testing.T) {
 	t.Parallel()
 
-	if got := calculateBalanceCreditedAmount(100, 102, 1, false); got != 100 {
+	if got := calculateBalanceCreditedAmount(100, 102, 1, false, nil); got != 100 {
 		t.Fatalf("fee excluded credited amount = %v, want 100", got)
 	}
-	if got := calculateBalanceCreditedAmount(100, 102, 1, true); got != 102 {
+	if got := calculateBalanceCreditedAmount(100, 102, 1, true, nil); got != 102 {
 		t.Fatalf("fee included credited amount = %v, want 102", got)
 	}
-	if got := calculateBalanceCreditedAmount(100, 102, 0.14, true); got != 14.28 {
+	if got := calculateBalanceCreditedAmount(100, 102, 0.14, true, nil); got != 14.28 {
 		t.Fatalf("fee included credited amount with multiplier = %v, want 14.28", got)
+	}
+}
+
+func TestCalculateBalanceCreditedAmountAppliesHighestRechargeBonusTier(t *testing.T) {
+	t.Parallel()
+
+	tiers := []RechargeBonusTier{
+		{MinAmount: 50, BonusPercent: 5},
+		{MinAmount: 100, BonusPercent: 10},
+	}
+	tests := []struct {
+		name         string
+		amount       float64
+		payAmount    float64
+		multiplier   float64
+		feeCredited  bool
+		wantCredited float64
+	}{
+		{name: "below first tier", amount: 49.99, payAmount: 49.99, multiplier: 1, wantCredited: 49.99},
+		{name: "first tier boundary", amount: 50, payAmount: 50, multiplier: 1, wantCredited: 52.5},
+		{name: "highest tier boundary", amount: 100, payAmount: 100, multiplier: 1, wantCredited: 110},
+		{name: "fee is credited but not bonused", amount: 100, payAmount: 102, multiplier: 1, feeCredited: true, wantCredited: 112},
+		{name: "bonus follows balance multiplier", amount: 100, payAmount: 102, multiplier: 0.14, feeCredited: true, wantCredited: 15.68},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := calculateBalanceCreditedAmount(tt.amount, tt.payAmount, tt.multiplier, tt.feeCredited, tiers)
+			if got != tt.wantCredited {
+				t.Fatalf("credited amount = %v, want %v", got, tt.wantCredited)
+			}
+		})
 	}
 }
 

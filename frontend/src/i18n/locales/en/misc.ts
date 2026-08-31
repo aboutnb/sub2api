@@ -289,6 +289,8 @@ export default {
     amountLabel: 'Amount',
     paymentAmount: 'Payment Amount',
     creditedBalance: 'Credited Balance',
+    rechargeBonus: 'Recharge bonus ({percent}%)',
+    bonusBadge: '+{percent}%',
     quickAmounts: 'Quick Amounts',
     customAmount: 'Custom Amount',
     enterAmount: 'Enter amount',
