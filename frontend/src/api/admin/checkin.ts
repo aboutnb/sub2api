@@ -30,6 +30,7 @@ export interface AdminCheckinConfig {
   unrecharged_reduction_enabled: boolean
   unrecharged_checkin_threshold: number
   unrecharged_normal_reward_percent: string
+  turnstile_enabled: boolean
   config_version: number
   updated_at: string
 }
@@ -57,6 +58,7 @@ export interface AdminCheckinConfigUpdate {
   unrecharged_reduction_enabled: boolean
   unrecharged_checkin_threshold: number
   unrecharged_normal_reward_percent: string
+  turnstile_enabled: boolean
   expected_config_version: number
   change_reason: string
 }

@@ -72,7 +72,7 @@ func (h *CheckinHandler) CheckIn(c *gin.Context) {
 		identity.UserAgent = c.Request.UserAgent()
 	}
 	executeUserIdempotentJSON(c, "user.checkin.claim", req, 26*time.Hour, func(ctx context.Context) (any, error) {
-		record, newlyCheckedIn, checkinErr := h.service.CheckInWithIdentity(ctx, subject.UserID, req.Mode, identity)
+		record, newlyCheckedIn, checkinErr := h.service.CheckInWithIdentityAndCaptcha(ctx, subject.UserID, req.Mode, identity, checkinTurnstileToken(c))
 		if checkinErr != nil {
 			middleware2.SetAuditExtra(c, map[string]any{
 				"result":     "rejected",
@@ -86,6 +86,16 @@ func (h *CheckinHandler) CheckIn(c *gin.Context) {
 			"record":           record,
 		}, nil
 	})
+}
+
+func checkinTurnstileToken(c *gin.Context) string {
+	if c == nil {
+		return ""
+	}
+	if token := c.GetHeader("X-Turnstile-Token"); token != "" {
+		return token
+	}
+	return c.GetHeader("CF-Turnstile-Response")
 }
 
 func scopedCheckinIdempotencyKey(userID int64, raw string) string {

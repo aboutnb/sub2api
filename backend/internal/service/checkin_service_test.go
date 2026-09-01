@@ -25,8 +25,12 @@ func (s *checkinSettingRepoStub) Get(context.Context, string) (*Setting, error) 
 	return nil, ErrSettingNotFound
 }
 
-func (s *checkinSettingRepoStub) GetValue(context.Context, string) (string, error) {
-	return "", ErrSettingNotFound
+func (s *checkinSettingRepoStub) GetValue(_ context.Context, key string) (string, error) {
+	value, ok := s.values[key]
+	if !ok {
+		return "", ErrSettingNotFound
+	}
+	return value, nil
 }
 
 func (s *checkinSettingRepoStub) Set(_ context.Context, key, value string) error {
@@ -91,6 +95,22 @@ type checkinAbuseGuardStub struct {
 type checkinMultiSourceGuardStub struct {
 	*checkinAbuseGuardStub
 	sources []CheckinSourceLimit
+}
+
+type checkinTurnstileStub struct {
+	err       error
+	secret    string
+	token     string
+	remoteIP  string
+	callCount int
+}
+
+func (s *checkinTurnstileStub) VerifyTokenWithSecret(_ context.Context, secret, token, remoteIP string) error {
+	s.callCount++
+	s.secret = secret
+	s.token = token
+	s.remoteIP = remoteIP
+	return s.err
 }
 
 func (s *checkinMultiSourceGuardStub) CheckAndRecordSources(_ context.Context, sources []CheckinSourceLimit, _ int64) (bool, int64, time.Duration, error) {
@@ -225,6 +245,73 @@ func TestCheckinServiceNormalRewardUsesConfiguredRange(t *testing.T) {
 	require.LessOrEqual(t, repo.reward, 0.05)
 	require.Equal(t, repo.reward, repo.randomValue)
 	require.Equal(t, CheckinRewardTypeAmount, record.RewardType)
+}
+
+func TestCheckinServiceTurnstileIsRequiredOnlyForNewHTTPSettlements(t *testing.T) {
+	settings := checkinSettings(map[string]string{
+		SettingKeyCheckinTurnstileEnabled: "true",
+		SettingKeyTurnstileSiteKey:        "site-key",
+		SettingKeyTurnstileSecretKey:      "secret",
+	})
+	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 10}}
+	turnstile := &checkinTurnstileStub{}
+	svc := newCheckinServiceForTest(repo, settings)
+	svc.SetTurnstileService(turnstile)
+
+	_, _, err := svc.CheckInWithIdentityAndCaptcha(context.Background(), 7, "normal", CheckinIdentity{IP: "127.0.0.1"}, "")
+
+	require.ErrorIs(t, err, ErrCheckinTurnstileRequired)
+	require.Zero(t, turnstile.callCount)
+	require.Zero(t, repo.applyCalls)
+
+	repo.existing = &CheckinRecord{UserID: 7, Mode: "normal"}
+	record, newlyCheckedIn, err := svc.CheckInWithIdentityAndCaptcha(context.Background(), 7, "normal", CheckinIdentity{IP: "127.0.0.1"}, "")
+
+	require.NoError(t, err)
+	require.False(t, newlyCheckedIn)
+	require.Same(t, repo.existing, record)
+	require.Zero(t, turnstile.callCount)
+}
+
+func TestCheckinServiceTurnstileSuccessUsesServerSecretAndClientIP(t *testing.T) {
+	stubCheckinRandom(t, 50_000_000)
+	settings := checkinSettings(map[string]string{
+		SettingKeyCheckinTurnstileEnabled: "true",
+		SettingKeyTurnstileSiteKey:        "site-key",
+		SettingKeyTurnstileSecretKey:      "secret",
+	})
+	turnstile := &checkinTurnstileStub{}
+	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 10}}
+	svc := newCheckinServiceForTest(repo, settings)
+	svc.SetTurnstileService(turnstile)
+
+	record, newlyCheckedIn, err := svc.CheckInWithIdentityAndCaptcha(context.Background(), 7, "normal", CheckinIdentity{IP: " 127.0.0.1 ", UserAgent: "browser"}, "proof")
+
+	require.NoError(t, err)
+	require.True(t, newlyCheckedIn)
+	require.NotNil(t, record)
+	require.Equal(t, 1, turnstile.callCount)
+	require.Equal(t, "secret", turnstile.secret)
+	require.Equal(t, "proof", turnstile.token)
+	require.Equal(t, "127.0.0.1", turnstile.remoteIP)
+}
+
+func TestCheckinServiceMapsTurnstileFailureWithoutExposingUpstreamError(t *testing.T) {
+	settings := checkinSettings(map[string]string{
+		SettingKeyCheckinTurnstileEnabled: "true",
+		SettingKeyTurnstileSiteKey:        "site-key",
+		SettingKeyTurnstileSecretKey:      "secret",
+	})
+	turnstile := &checkinTurnstileStub{err: ErrTurnstileVerificationFailed}
+	repo := &checkinRepoStub{state: &CheckinUserState{Role: RoleUser, Status: StatusActive, Balance: 10}}
+	svc := newCheckinServiceForTest(repo, settings)
+	svc.SetTurnstileService(turnstile)
+
+	_, _, err := svc.CheckInWithIdentityAndCaptcha(context.Background(), 7, "normal", CheckinIdentity{IP: "127.0.0.1"}, "proof")
+
+	require.ErrorIs(t, err, ErrCheckinTurnstileFailed)
+	require.NotContains(t, err.Error(), "TURNSTILE_VERIFICATION_FAILED")
+	require.Zero(t, repo.applyCalls)
 }
 
 func TestCheckinServiceRejectsRestrictedUnrechargedAccount(t *testing.T) {
@@ -703,7 +790,7 @@ func TestCheckinServiceUsesIPAndUserAgentFingerprintRiskSources(t *testing.T) {
 		SettingKeyCheckinRiskEnabled:         "true",
 		SettingKeyCheckinMinAccountAge:       "24",
 		SettingKeyCheckinIPWindow:            "10",
-		SettingKeyCheckinIPMaxUsers:          "20",
+		SettingKeyCheckinIPMaxUsers:          "3",
 		SettingKeyCheckinFingerprintWindow:   "1440",
 		SettingKeyCheckinFingerprintMaxUsers: "1",
 	})
@@ -720,13 +807,13 @@ func TestCheckinServiceUsesIPAndUserAgentFingerprintRiskSources(t *testing.T) {
 	require.Len(t, guard.sources, 2)
 	require.Equal(t, "2001:db8::1", guard.sources[0].Source)
 	require.Equal(t, 10*time.Minute, guard.sources[0].Window)
-	require.Equal(t, 20, guard.sources[0].MaxUsers)
+	require.Equal(t, 3, guard.sources[0].MaxUsers)
 	require.Equal(t, "2001:db8::1\x00browser-a", guard.sources[1].Source)
 	require.Equal(t, 24*time.Hour, guard.sources[1].Window)
 	require.Equal(t, 1, guard.sources[1].MaxUsers)
 }
 
-func TestCheckinServiceRiskDisabledBypassesCampaignChecksButNotSecurityGuard(t *testing.T) {
+func TestCheckinServiceRiskDisabledKeepsHardSourceProtection(t *testing.T) {
 	guard := &checkinAbuseGuardStub{allowed: false}
 	repo := &checkinRepoStub{state: &CheckinUserState{
 		Role: RoleUser, Status: StatusActive, Balance: 10, CreatedAt: time.Now(),
@@ -739,10 +826,68 @@ func TestCheckinServiceRiskDisabledBypassesCampaignChecksButNotSecurityGuard(t *
 
 	_, newlyCheckedIn, err := svc.CheckIn(context.Background(), 7, "normal", "192.0.2.10")
 
+	require.ErrorIs(t, err, ErrCheckinSourceLimited)
+	require.False(t, newlyCheckedIn)
+	require.Equal(t, 1, guard.calls)
+	require.Equal(t, 1, guard.requestCalls)
+	require.Zero(t, repo.applyCalls)
+}
+
+func TestCheckinServiceRiskDisabledUsesFixedSourceLimits(t *testing.T) {
+	guard := &checkinMultiSourceGuardStub{checkinAbuseGuardStub: &checkinAbuseGuardStub{allowed: true}}
+	repo := &checkinRepoStub{state: &CheckinUserState{
+		Role: RoleUser, Status: StatusActive, Balance: 10, CreatedAt: time.Now().Add(-48 * time.Hour),
+	}}
+	settings := checkinSettings(map[string]string{
+		SettingKeyCheckinRiskEnabled:         "false",
+		SettingKeyCheckinIPWindow:            "1440",
+		SettingKeyCheckinIPMaxUsers:          "10000",
+		SettingKeyCheckinFingerprintWindow:   "10080",
+		SettingKeyCheckinFingerprintMaxUsers: "100",
+	})
+	svc := NewCheckinService(repo, settings, &config.Config{RunMode: config.RunModeStandard}, nil, guard)
+
+	_, newlyCheckedIn, err := svc.CheckInWithIdentity(context.Background(), 7, "normal", CheckinIdentity{
+		IP:        "192.0.2.10",
+		UserAgent: "browser-a",
+	})
+
 	require.NoError(t, err)
 	require.True(t, newlyCheckedIn)
-	require.Zero(t, guard.calls)
-	require.Equal(t, 1, guard.requestCalls)
+	require.Len(t, guard.sources, 2)
+	require.Equal(t, CheckinHardSourceWindow, guard.sources[0].Window)
+	require.Equal(t, CheckinHardSourceMaxUsers, guard.sources[0].MaxUsers)
+	require.Equal(t, CheckinHardFingerprintWindow, guard.sources[1].Window)
+	require.Equal(t, CheckinHardFingerprintMaxUsers, guard.sources[1].MaxUsers)
+}
+
+func TestCheckinServiceRiskSettingsCannotRelaxHardSourceLimits(t *testing.T) {
+	guard := &checkinMultiSourceGuardStub{checkinAbuseGuardStub: &checkinAbuseGuardStub{allowed: true}}
+	repo := &checkinRepoStub{state: &CheckinUserState{
+		Role: RoleUser, Status: StatusActive, Balance: 10, CreatedAt: time.Now().Add(-48 * time.Hour),
+	}}
+	settings := checkinSettings(map[string]string{
+		SettingKeyCheckinRiskEnabled:         "true",
+		SettingKeyCheckinMinAccountAge:       "0",
+		SettingKeyCheckinIPWindow:            "1",
+		SettingKeyCheckinIPMaxUsers:          "10000",
+		SettingKeyCheckinFingerprintWindow:   "1",
+		SettingKeyCheckinFingerprintMaxUsers: "100",
+	})
+	svc := NewCheckinService(repo, settings, &config.Config{RunMode: config.RunModeStandard}, nil, guard)
+
+	_, newlyCheckedIn, err := svc.CheckInWithIdentity(context.Background(), 7, "normal", CheckinIdentity{
+		IP:        "192.0.2.10",
+		UserAgent: "browser-a",
+	})
+
+	require.NoError(t, err)
+	require.True(t, newlyCheckedIn)
+	require.Len(t, guard.sources, 2)
+	require.Equal(t, CheckinHardSourceWindow, guard.sources[0].Window)
+	require.Equal(t, CheckinHardSourceMaxUsers, guard.sources[0].MaxUsers)
+	require.Equal(t, CheckinHardFingerprintWindow, guard.sources[1].Window)
+	require.Equal(t, CheckinHardFingerprintMaxUsers, guard.sources[1].MaxUsers)
 }
 
 func TestCheckinServiceDuplicateBypassesChangedRiskRules(t *testing.T) {
@@ -1017,6 +1162,7 @@ func TestAdminCheckinConfigRequiresReasonAndMatchingVersion(t *testing.T) {
 func TestAdminCheckinConfigUpdateIncrementsVersion(t *testing.T) {
 	settings := checkinSettings(map[string]string{SettingKeyCheckinConfigVersion: "3"})
 	svc := NewAdminCheckinService(adminCheckinRepoStub{settings: settings}, settings)
+	turnstileEnabled := true
 
 	result, err := svc.UpdateConfig(context.Background(), AdminCheckinConfigUpdate{
 		Enabled:                  false,
@@ -1045,6 +1191,7 @@ func TestAdminCheckinConfigUpdateIncrementsVersion(t *testing.T) {
 		UnrechargedEnabled:          true,
 		UnrechargedCheckinThreshold: 3,
 		UnrechargedNormalPercent:    "50",
+		TurnstileEnabled:            &turnstileEnabled,
 		ExpectedVersion:             3,
 		ChangeReason:                "adjust test range",
 	})
@@ -1063,6 +1210,8 @@ func TestAdminCheckinConfigUpdateIncrementsVersion(t *testing.T) {
 	require.Equal(t, "true", settings.values[SettingKeyCheckinUnrechargedEnabled])
 	require.Equal(t, "3", settings.values[SettingKeyCheckinUnrechargedThreshold])
 	require.Equal(t, "50", settings.values[SettingKeyCheckinUnrechargedNormalPercent])
+	require.Equal(t, "true", settings.values[SettingKeyCheckinTurnstileEnabled])
+	require.True(t, result.TurnstileEnabled)
 	require.Equal(t, "4", settings.values[SettingKeyCheckinConfigVersion])
 }
 

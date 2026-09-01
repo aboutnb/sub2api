@@ -25,6 +25,7 @@ func TestUpdateCheckinConfigRequestAcceptsDecimalStringsAndNumbers(t *testing.T)
 		"lucky_max_multiplier":2,
 		"lucky_amount_min":"-0.05",
 		"lucky_amount_max":0.10,
+		"turnstile_enabled":true,
 		"change_reason":"test"
 	}`), &request)
 
@@ -43,6 +44,8 @@ func TestUpdateCheckinConfigRequestAcceptsDecimalStringsAndNumbers(t *testing.T)
 	require.Equal(t, "2", string(request.LuckyMaxMultiply))
 	require.Equal(t, "-0.05", string(request.LuckyAmountMin))
 	require.Equal(t, "0.10", string(request.LuckyAmountMax))
+	require.NotNil(t, request.TurnstileEnabled)
+	require.True(t, *request.TurnstileEnabled)
 }
 
 func TestUpdateCheckinConfigRequestRejectsNonDecimalValues(t *testing.T) {

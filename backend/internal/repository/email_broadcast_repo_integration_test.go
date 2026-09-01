@@ -9,8 +9,67 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 )
+
+func TestEmailBroadcastRepositoryCountsOnlyEnabledSiteUsersForInactiveFilter(t *testing.T) {
+	ctx := context.Background()
+	stamp := time.Now().UnixNano()
+	createUser := func(label string) *service.User {
+		return mustCreateUser(t, integrationEntClient, &service.User{
+			Email:        fmt.Sprintf("email-broadcast-audience-%s-%d@example.com", label, stamp),
+			PasswordHash: "hash",
+			Role:         service.RoleUser,
+			Status:       service.StatusActive,
+		})
+	}
+
+	inactiveUnrelated := createUser("inactive")
+	recent := createUser("recent")
+	disabled := createUser("disabled")
+	t.Cleanup(func() {
+		for _, userID := range []int64{inactiveUnrelated.ID, recent.ID, disabled.ID} {
+			_, _ = integrationDB.ExecContext(context.Background(), `DELETE FROM users WHERE id = $1`, userID)
+		}
+	})
+
+	_, err := integrationDB.ExecContext(ctx, `
+		UPDATE users
+		SET last_active_at = NULL, last_login_at = NULL,
+			created_at = CASE WHEN id = $1 THEN NOW() - INTERVAL '10 days' ELSE NOW() - INTERVAL '1 day' END
+		WHERE id = ANY($2)`, inactiveUnrelated.ID, pq.Array([]int64{inactiveUnrelated.ID, recent.ID, disabled.ID}))
+	require.NoError(t, err)
+	_, err = integrationDB.ExecContext(ctx, `UPDATE users SET status = 'disabled' WHERE id = $1`, disabled.ID)
+	require.NoError(t, err)
+
+	repo := &emailBroadcastRepository{db: integrationDB}
+	testUserIDs := []int64{inactiveUnrelated.ID, recent.ID, disabled.ID}
+	var baselineCount int64
+	err = integrationDB.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM users
+		WHERE status = 'active' AND deleted_at IS NULL AND BTRIM(email) <> ''
+		  AND COALESCE(last_active_at, last_login_at, created_at) <= NOW() - INTERVAL '7 days'
+		  AND id <> ALL($1)`, pq.Array(testUserIDs)).Scan(&baselineCount)
+	require.NoError(t, err)
+
+	inactiveCount, err := repo.CountEligibleRecipients(ctx, service.EmailBroadcastAudience{
+		Mode: service.EmailBroadcastAudienceInactive, InactiveDays: 7,
+	})
+	require.NoError(t, err)
+	require.Equal(t, baselineCount+1, inactiveCount)
+
+	activeSelectedCount, err := repo.CountEligibleRecipients(ctx, service.EmailBroadcastAudience{
+		Mode: service.EmailBroadcastAudienceSelected, Emails: []string{inactiveUnrelated.Email},
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(1), activeSelectedCount)
+	disabledSelectedCount, err := repo.CountEligibleRecipients(ctx, service.EmailBroadcastAudience{
+		Mode: service.EmailBroadcastAudienceSelected, Emails: []string{disabled.Email},
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(0), disabledSelectedCount)
+}
 
 func TestEmailBroadcastRepositoryFinishRecipientPersistsDeliveryState(t *testing.T) {
 	tests := []struct {

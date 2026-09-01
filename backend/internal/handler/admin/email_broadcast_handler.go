@@ -24,6 +24,7 @@ func NewEmailBroadcastHandler(broadcastService *service.EmailBroadcastService) *
 
 type emailBroadcastRequest struct {
 	Title       string                         `json:"title"`
+	Event       string                         `json:"event"`
 	ScheduledAt *string                        `json:"scheduled_at"`
 	Email       string                         `json:"email"`
 	Locale      string                         `json:"locale"`
@@ -151,7 +152,7 @@ func (h *EmailBroadcastHandler) Create(c *gin.Context) {
 		scheduledAt = parsed.UTC()
 	}
 	input := service.EmailBroadcastCreateInput{
-		Title: request.Title, ScheduledAt: scheduledAt, Variables: request.variables(), Audience: request.Audience,
+		Title: request.Title, Event: request.Event, ScheduledAt: scheduledAt, Variables: request.variables(), Audience: request.Audience,
 	}
 	executeAdminIdempotentJSON(c, "admin.email_broadcasts.create", request, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		task, err := h.service.CreateTask(ctx, input, subject.UserID)
@@ -168,7 +169,7 @@ func (h *EmailBroadcastHandler) Test(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-	if err := h.service.SendTest(c.Request.Context(), request.Email, request.Locale, request.variables()); err != nil {
+	if err := h.service.SendTest(c.Request.Context(), request.Email, request.Locale, request.Event, request.variables()); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}

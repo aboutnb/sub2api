@@ -42,6 +42,13 @@
             </div>
             <Toggle v-model="form.enabled" />
           </div>
+          <div class="flex items-center justify-between rounded-xl border border-cyan-200 bg-cyan-50/60 p-4 dark:border-cyan-900/50 dark:bg-cyan-950/20">
+            <div>
+              <p class="font-medium text-gray-900 dark:text-white">{{ t('admin.checkin.turnstileEnabled') }}</p>
+              <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('admin.checkin.turnstileEnabledHint') }}</p>
+            </div>
+            <Toggle v-model="form.turnstile_enabled" data-testid="checkin-turnstile-toggle" :aria-label="t('admin.checkin.turnstileEnabled')" />
+          </div>
           <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <div class="rounded-xl border border-gray-200 p-4 dark:border-dark-700">
               <div class="flex items-center justify-between gap-4">
@@ -286,6 +293,7 @@ const form = reactive({
   unrecharged_reduction_enabled: true,
   unrecharged_checkin_threshold: 3,
   unrecharged_normal_reward_percent: '50',
+  turnstile_enabled: false,
   change_reason: ''
 })
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
@@ -376,6 +384,7 @@ function applyConfig(value: AdminCheckinConfig) {
   form.unrecharged_reduction_enabled = value.unrecharged_reduction_enabled
   form.unrecharged_checkin_threshold = value.unrecharged_checkin_threshold
   form.unrecharged_normal_reward_percent = value.unrecharged_normal_reward_percent
+  form.turnstile_enabled = value.turnstile_enabled
 }
 function saveErrorMessage(value: unknown) {
   return extractApiErrorMessage(value, t('admin.checkin.saveFailed'), {

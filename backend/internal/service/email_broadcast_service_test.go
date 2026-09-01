@@ -97,6 +97,28 @@ func TestEmailBroadcastCreateTaskSnapshotsBothLocales(t *testing.T) {
 	require.Equal(t, "自定义：{{broadcast_subject_zh}}", repo.created.TemplateSnapshots["zh"].Subject)
 }
 
+func TestEmailBroadcastCreateTaskSnapshotsReactivationTemplate(t *testing.T) {
+	ctx := context.Background()
+	settings := newNotificationEmailMemorySettingRepo()
+	notification := NewNotificationEmailService(settings, nil)
+	_, err := notification.UpdateTemplate(ctx, NotificationEmailEventReactivation, "zh", "召回：{{broadcast_subject_zh}}", "<p>{{broadcast_body_zh}}</p>")
+	require.NoError(t, err)
+	repo := &emailBroadcastRepositoryStub{count: 12}
+	broadcastService := NewEmailBroadcastService(repo, notification)
+
+	task, err := broadcastService.CreateTask(ctx, EmailBroadcastCreateInput{
+		Title:       "Inactive user reactivation",
+		Event:       NotificationEmailEventReactivation,
+		ScheduledAt: time.Now().UTC().Add(time.Hour),
+		Variables:   validEmailBroadcastVariables(),
+		Audience:    EmailBroadcastAudience{Mode: EmailBroadcastAudienceInactive, InactiveDays: 7},
+	}, 9)
+	require.NoError(t, err)
+	require.Equal(t, NotificationEmailEventReactivation, task.Event)
+	require.Equal(t, "召回：{{broadcast_subject_zh}}", task.TemplateSnapshots["zh"].Subject)
+	require.Equal(t, 7, task.Audience.InactiveDays)
+}
+
 func TestEmailBroadcastCreateTaskRequiresBroadcastContent(t *testing.T) {
 	repo := &emailBroadcastRepositoryStub{count: 1}
 	service := NewEmailBroadcastService(repo, NewNotificationEmailService(newNotificationEmailMemorySettingRepo(), nil))
@@ -123,6 +145,29 @@ func TestNormalizeEmailBroadcastAudience(t *testing.T) {
 	require.Equal(t, []string{"user@example.com"}, audience.Emails)
 
 	_, err = normalizeEmailBroadcastAudience(EmailBroadcastAudience{Mode: EmailBroadcastAudienceGroups})
+	require.Error(t, err)
+
+	for _, days := range []int{1, 3650} {
+		inactive, err := normalizeEmailBroadcastAudience(EmailBroadcastAudience{Mode: EmailBroadcastAudienceInactive, InactiveDays: days})
+		require.NoError(t, err)
+		require.Equal(t, days, inactive.InactiveDays)
+	}
+	for _, days := range []int{0, 3651} {
+		_, err := normalizeEmailBroadcastAudience(EmailBroadcastAudience{Mode: EmailBroadcastAudienceInactive, InactiveDays: days})
+		require.Error(t, err)
+	}
+}
+
+func TestNormalizeEmailBroadcastEvent(t *testing.T) {
+	event, err := normalizeEmailBroadcastEvent("")
+	require.NoError(t, err)
+	require.Equal(t, NotificationEmailEventBroadcast, event)
+
+	event, err = normalizeEmailBroadcastEvent(" SYSTEM.REACTIVATION ")
+	require.NoError(t, err)
+	require.Equal(t, NotificationEmailEventReactivation, event)
+
+	_, err = normalizeEmailBroadcastEvent(NotificationEmailEventMaintenance)
 	require.Error(t, err)
 }
 

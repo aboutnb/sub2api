@@ -62,4 +62,21 @@ describe('admin email broadcast API', () => {
       audience: { mode: 'role', roles: ['user'] }
     })
   })
+
+  it('submits reactivation events and the new audience filters', async () => {
+    const reactivationPayload: EmailBroadcastPayload = {
+      ...payload,
+      event: 'system.reactivation',
+      audience: { mode: 'inactive', inactive_days: 7 }
+    }
+
+    await create(reactivationPayload)
+    expect(post.mock.calls[0][1]).toEqual(reactivationPayload)
+
+    post.mockResolvedValueOnce({ data: { eligible_recipients: 3 } })
+    await estimate({ mode: 'inactive', inactive_days: 7 })
+    expect(post).toHaveBeenLastCalledWith('/admin/email-broadcasts/estimate', {
+      audience: { mode: 'inactive', inactive_days: 7 }
+    })
+  })
 })

@@ -35,6 +35,17 @@ describe('check-in API security', () => {
     expect(sessionStorage.length).toBe(0)
   })
 
+  it('sends the optional Turnstile token in a request header', async () => {
+    await checkIn('normal', '2026-07-26', 'turnstile-proof')
+
+    expect(post).toHaveBeenCalledWith('/user/checkin', { mode: 'normal' }, {
+      headers: {
+        'Idempotency-Key': 'checkin-2026-07-26-11111111-1111-4111-8111-111111111111',
+        'X-Turnstile-Token': 'turnstile-proof'
+      }
+    })
+  })
+
   it('reuses the same key after an ambiguous failure and a page reload', async () => {
     post.mockRejectedValueOnce(new Error('network timeout'))
     await expect(checkIn('lucky', '2026-07-26')).rejects.toThrow('network timeout')

@@ -132,6 +132,8 @@ export interface CheckinStatus {
   today_record?: CheckinRecord | null
   days_in_month: number
   first_weekday: number
+  turnstile_enabled?: boolean
+  turnstile_site_key?: string
 }
 
 export interface AdminUser extends User {

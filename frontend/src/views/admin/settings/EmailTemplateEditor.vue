@@ -410,6 +410,11 @@ const eventDisplayMeta: Record<string, EventDisplayMeta> = {
     timing: "管理员创建通用邮件任务时，使用任务内的中英文内容向收件人快照发送。",
     categoryLabel: "系统通知",
   },
+  "system.reactivation": {
+    label: "用户召回邮件",
+    timing: "管理员创建用户召回任务时，使用独立的召回模板向收件人快照发送。",
+    categoryLabel: "系统通知",
+  },
 };
 
 const eventDisplayMetaEn: Record<string, EventDisplayMeta> = {
@@ -481,6 +486,11 @@ const eventDisplayMetaEn: Record<string, EventDisplayMeta> = {
   "system.broadcast": {
     label: "General Email Broadcast",
     timing: "Uses the task's Chinese and English content when an administrator creates a general email broadcast.",
+    categoryLabel: "System",
+  },
+  "system.reactivation": {
+    label: "User Reactivation Email",
+    timing: "Uses the dedicated reactivation template when an administrator creates a user reactivation task.",
     categoryLabel: "System",
   },
 };

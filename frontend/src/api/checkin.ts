@@ -52,7 +52,7 @@ export async function getStatus(): Promise<CheckinStatus> {
   return data
 }
 
-export async function checkIn(mode: 'normal' | 'lucky', businessDate: string): Promise<{
+export async function checkIn(mode: 'normal' | 'lucky', businessDate: string, turnstileToken?: string): Promise<{
   newly_checked_in: boolean
   record: CheckinRecord
 }> {
@@ -60,9 +60,9 @@ export async function checkIn(mode: 'normal' | 'lucky', businessDate: string): P
   const requestID = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
   const idempotencyKey = getPendingKey(scope) ?? `checkin-${businessDate}-${requestID}`
   storePendingKey(scope, idempotencyKey)
-  const { data } = await apiClient.post('/user/checkin', { mode }, {
-    headers: { 'Idempotency-Key': idempotencyKey }
-  })
+  const headers: Record<string, string> = { 'Idempotency-Key': idempotencyKey }
+  if (turnstileToken) headers['X-Turnstile-Token'] = turnstileToken
+  const { data } = await apiClient.post('/user/checkin', { mode }, { headers })
   storePendingKey(scope, null)
   return data
 }

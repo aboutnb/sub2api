@@ -75,6 +75,7 @@ type updateCheckinConfigRequest struct {
 	UnrechargedEnabled           bool                               `json:"unrecharged_reduction_enabled"`
 	UnrechargedCheckinThreshold  int                                `json:"unrecharged_checkin_threshold"`
 	UnrechargedNormalPercent     checkinDecimalString               `json:"unrecharged_normal_reward_percent"`
+	TurnstileEnabled             *bool                              `json:"turnstile_enabled"`
 	ExpectedVersion              int64                              `json:"expected_config_version"`
 	ChangeReason                 string                             `json:"change_reason"`
 }
@@ -112,6 +113,7 @@ func (h *CheckinHandler) UpdateConfig(c *gin.Context) {
 		UnrechargedEnabled:           req.UnrechargedEnabled,
 		UnrechargedCheckinThreshold:  req.UnrechargedCheckinThreshold,
 		UnrechargedNormalPercent:     string(req.UnrechargedNormalPercent),
+		TurnstileEnabled:             req.TurnstileEnabled,
 		ExpectedVersion:              req.ExpectedVersion,
 		ChangeReason:                 req.ChangeReason,
 	})
@@ -131,6 +133,7 @@ func (h *CheckinHandler) UpdateConfig(c *gin.Context) {
 		"unrecharged_reduction_enabled":     config.UnrechargedEnabled,
 		"unrecharged_checkin_threshold":     config.UnrechargedCheckinThreshold,
 		"unrecharged_normal_reward_percent": config.UnrechargedNormalPercent,
+		"turnstile_enabled":                 config.TurnstileEnabled,
 		"config_version":                    config.ConfigVersion,
 	})
 	response.Success(c, config)

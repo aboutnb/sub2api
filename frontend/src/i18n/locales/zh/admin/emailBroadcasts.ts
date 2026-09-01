@@ -20,6 +20,8 @@ export default {
     groups: '用户分组（可多选）',
     selectedEmails: '指定用户邮箱',
     selectedEmailsPlaceholder: '每行填写一个邮箱，也可用逗号分隔',
+    inactiveDays: '连续未活跃天数',
+    inactiveDaysHelp: '按最后活跃、最后登录或注册时间判断，可填写 1–3650 天。',
     maintenanceTitle: '维护主题',
     maintenanceStart: '维护开始时间',
     maintenanceEnd: '维护结束时间',
@@ -73,13 +75,18 @@ export default {
       domainMigration: '服务器升级与域名迁移',
       maintenance: '服务器维护',
       serviceNotice: '服务通知',
+      reactivation: '未活跃用户召回',
       custom: '自定义空白邮件'
     },
     audiences: {
       all: '全部活跃用户',
       role: '按用户角色',
       groups: '按允许分组',
-      selected: '指定邮箱'
+      selected: '指定邮箱',
+      inactive: '连续未活跃用户'
+    },
+    audienceDetails: {
+      inactive: '连续 {days} 天未活跃'
     },
     roles: {
       user: '普通用户',

@@ -137,6 +137,7 @@
               <option value="domain_migration">{{ t('admin.emailBroadcasts.presets.domainMigration') }}</option>
               <option value="maintenance">{{ t('admin.emailBroadcasts.presets.maintenance') }}</option>
               <option value="service_notice">{{ t('admin.emailBroadcasts.presets.serviceNotice') }}</option>
+              <option value="reactivation">{{ t('admin.emailBroadcasts.presets.reactivation') }}</option>
               <option value="custom">{{ t('admin.emailBroadcasts.presets.custom') }}</option>
             </select>
           </div>
@@ -214,6 +215,7 @@
                 <option value="role">{{ t('admin.emailBroadcasts.audiences.role') }}</option>
                 <option value="groups">{{ t('admin.emailBroadcasts.audiences.groups') }}</option>
                 <option value="selected">{{ t('admin.emailBroadcasts.audiences.selected') }}</option>
+                <option value="inactive">{{ t('admin.emailBroadcasts.audiences.inactive') }}</option>
               </select>
             </div>
             <div v-if="form.audience_mode === 'role'">
@@ -232,6 +234,11 @@
             <div v-if="form.audience_mode === 'selected'" class="md:col-span-2">
               <label class="input-label">{{ t('admin.emailBroadcasts.selectedEmails') }}</label>
               <textarea v-model="form.audience_emails" class="input font-mono" rows="4" :placeholder="t('admin.emailBroadcasts.selectedEmailsPlaceholder')" @blur="loadEstimate"></textarea>
+            </div>
+            <div v-if="form.audience_mode === 'inactive'">
+              <label class="input-label">{{ t('admin.emailBroadcasts.inactiveDays') }}</label>
+              <input v-model.number="form.inactive_days" type="number" min="1" max="3650" step="1" class="input" @change="loadEstimate" />
+              <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.emailBroadcasts.inactiveDaysHelp') }}</div>
             </div>
           </div>
         </div>
@@ -313,6 +320,7 @@ import { adminAPI } from '@/api/admin'
 import type {
   EmailBroadcastAudience,
   EmailBroadcastAudienceMode,
+  EmailBroadcastEvent,
   EmailBroadcastPayload,
   EmailBroadcastRecipient,
   EmailBroadcastStatus,
@@ -351,7 +359,7 @@ function localInput(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-type BroadcastPreset = 'domain_migration' | 'maintenance' | 'service_notice' | 'custom'
+type BroadcastPreset = 'domain_migration' | 'maintenance' | 'service_notice' | 'reactivation' | 'custom'
 
 const presetContent: Record<Exclude<BroadcastPreset, 'custom'>, Record<string, string>> = {
   domain_migration: {
@@ -386,6 +394,17 @@ const presetContent: Record<Exclude<BroadcastPreset, 'custom'>, Record<string, s
     heading_en: 'Service update',
     body_en: 'We have a service update to share. Edit this content before sending.',
     action_en: ''
+  },
+  reactivation: {
+    title: '未活跃用户召回',
+    subject_zh: '好久不见，欢迎回来',
+    heading_zh: '我们期待您的再次使用',
+    body_zh: '您好！您已有一段时间未使用我们的服务。平台近期持续优化了稳定性和使用体验，欢迎回来看看最新变化。',
+    action_zh: '访问 https://aivoza.com/ 登录原账号即可继续使用，原有账号信息和配置保持不变。',
+    subject_en: 'It has been a while — welcome back',
+    heading_en: 'We would love to see you again',
+    body_en: 'You have not used our service for a while. We have continued improving reliability and the overall experience, and invite you to see what is new.',
+    action_en: 'Visit https://aivoza.com/ and sign in with your existing account. Your account information and configuration remain unchanged.'
   }
 }
 
@@ -402,10 +421,12 @@ function initialForm() {
     heading_en: presetContent.domain_migration.heading_en,
     body_en: presetContent.domain_migration.body_en,
     action_en: presetContent.domain_migration.action_en,
+    event: 'system.broadcast' as EmailBroadcastEvent,
     audience_mode: 'all' as EmailBroadcastAudienceMode,
     audience_role: 'user' as 'admin' | 'user',
     audience_group_ids: [] as number[],
     audience_emails: '',
+    inactive_days: 7,
     delivery_mode: 'immediate' as 'immediate' | 'scheduled',
     scheduled_at: localInput(scheduled),
     test_email: '',
@@ -424,11 +445,18 @@ function applyPreset(preset: BroadcastPreset) {
   if (preset === 'custom') {
     Object.assign(form, {
       title: '', subject_zh: '', heading_zh: '', body_zh: '', action_zh: '',
-      subject_en: '', heading_en: '', body_en: '', action_en: ''
+      subject_en: '', heading_en: '', body_en: '', action_en: '', event: 'system.broadcast'
     })
     return
   }
-  Object.assign(form, presetContent[preset])
+  Object.assign(form, presetContent[preset], {
+    event: preset === 'reactivation' ? 'system.reactivation' : 'system.broadcast'
+  })
+  if (preset === 'reactivation') {
+    form.audience_mode = 'inactive'
+    form.inactive_days = 7
+    void loadEstimate()
+  }
 }
 
 const previewContent = computed(() => contentLocale.value === 'zh'
@@ -444,6 +472,7 @@ function audiencePayload(): EmailBroadcastAudience {
       emails: form.audience_emails.split(/[\n,;]+/).map(email => email.trim()).filter(Boolean)
     }
   }
+  if (form.audience_mode === 'inactive') return { mode: 'inactive', inactive_days: Number(form.inactive_days) }
   return { mode: 'all' }
 }
 
@@ -451,11 +480,13 @@ function audienceReady() {
   const audience = audiencePayload()
   if (audience.mode === 'groups') return Boolean(audience.group_ids?.length)
   if (audience.mode === 'selected') return Boolean(audience.emails?.length)
+  if (audience.mode === 'inactive') return Number(audience.inactive_days) >= 1 && Number(audience.inactive_days) <= 3650
   return true
 }
 
 function broadcastPayload(): EmailBroadcastPayload {
   return {
+    event: form.event,
     subject_zh: form.subject_zh,
     heading_zh: form.heading_zh,
     body_zh: form.body_zh,
@@ -566,6 +597,7 @@ async function createTask() {
 
 function audienceLabel(task: EmailBroadcastTask) {
   const mode = task.audience?.mode || 'all'
+  if (mode === 'inactive') return t('admin.emailBroadcasts.audienceDetails.inactive', { days: task.audience.inactive_days })
   return t(`admin.emailBroadcasts.audiences.${mode}`)
 }
 

@@ -25,8 +25,59 @@ interface TurnstileAPI {
 declare global {
   interface Window {
     turnstile?: TurnstileAPI
-    onTurnstileLoad?: () => void
   }
+}
+
+const turnstileScriptURL = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+let turnstileScriptPromise: Promise<void> | null = null
+
+function loadTurnstileScript(): Promise<void> {
+  if (window.turnstile) return Promise.resolve()
+  if (turnstileScriptPromise) return turnstileScriptPromise
+
+  turnstileScriptPromise = new Promise<void>((resolve, reject) => {
+    let script = Array.from(document.scripts).find((candidate) =>
+      candidate.src.includes('challenges.cloudflare.com/turnstile/v0/api.js'),
+    )
+    const cleanup = () => {
+      script?.removeEventListener('load', handleLoad)
+      script?.removeEventListener('error', handleError)
+    }
+    const handleLoad = () => {
+      cleanup()
+      if (window.turnstile) {
+        resolve()
+      } else {
+        reject(new Error('Turnstile API is unavailable after script load'))
+      }
+    }
+    const handleError = () => {
+      cleanup()
+      reject(new Error('Failed to load Turnstile script'))
+    }
+
+    if (!script) {
+      script = document.createElement('script')
+      script.src = turnstileScriptURL
+      script.async = true
+      script.defer = true
+      script.dataset.sub2apiTurnstile = 'true'
+    }
+
+    script.addEventListener('load', handleLoad, { once: true })
+    script.addEventListener('error', handleError, { once: true })
+
+    if (!script.parentNode) document.head.appendChild(script)
+
+    // A script added by another integration may have finished before this
+    // instance attached listeners. The API check makes that case resolve.
+    if (window.turnstile) handleLoad()
+  }).catch((error) => {
+    turnstileScriptPromise = null
+    throw error
+  })
+
+  return turnstileScriptPromise
 }
 
 const props = withDefaults(
@@ -50,42 +101,6 @@ const emit = defineEmits<{
 const containerRef = ref<HTMLElement | null>(null)
 const widgetId = ref<string | null>(null)
 const scriptLoaded = ref(false)
-
-const loadScript = (): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    if (window.turnstile) {
-      scriptLoaded.value = true
-      resolve()
-      return
-    }
-
-    // Check if script is already loading
-    const existingScript = document.querySelector('script[src*="turnstile"]')
-    if (existingScript) {
-      window.onTurnstileLoad = () => {
-        scriptLoaded.value = true
-        resolve()
-      }
-      return
-    }
-
-    const script = document.createElement('script')
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad'
-    script.async = true
-    script.defer = true
-
-    window.onTurnstileLoad = () => {
-      scriptLoaded.value = true
-      resolve()
-    }
-
-    script.onerror = () => {
-      reject(new Error('Failed to load Turnstile script'))
-    }
-
-    document.head.appendChild(script)
-  })
-}
 
 const renderWidget = () => {
   if (!window.turnstile || !containerRef.value || !props.siteKey) {
@@ -136,7 +151,8 @@ onMounted(async () => {
   }
 
   try {
-    await loadScript()
+    await loadTurnstileScript()
+    scriptLoaded.value = true
     renderWidget()
   } catch (error) {
     console.error('Failed to initialize Turnstile:', error)

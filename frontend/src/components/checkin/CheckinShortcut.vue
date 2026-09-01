@@ -73,13 +73,23 @@
         @click.stop
         @keydown.esc="closeMenu"
       >
+        <div v-if="status?.turnstile_enabled && status.turnstile_site_key" data-testid="checkin-shortcut-turnstile" class="border-b border-gray-100 px-3 py-2 dark:border-dark-700">
+          <TurnstileWidget
+            ref="turnstileRef"
+            :site-key="status.turnstile_site_key"
+            size="compact"
+            @verify="handleTurnstileVerify"
+            @expire="handleTurnstileExpire"
+            @error="handleTurnstileError"
+          />
+        </div>
         <button
           v-if="status?.normal_enabled"
           type="button"
           role="menuitem"
           data-testid="quick-checkin-menu-normal"
           class="flex h-11 w-full items-center gap-3 px-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-amber-50 hover:text-amber-700 focus:bg-amber-50 focus:outline-none dark:text-dark-200 dark:hover:bg-amber-900/20 dark:hover:text-amber-300"
-          :disabled="submitting"
+          :disabled="submitting || (status?.turnstile_enabled && !turnstileToken)"
           @click="requestCheckin('normal')"
         >
           <span class="flex h-7 w-7 items-center justify-center rounded-md bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
@@ -94,7 +104,7 @@
           role="menuitem"
           data-testid="quick-checkin-menu-lucky"
           class="flex h-11 w-full items-center gap-3 px-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-violet-50 hover:text-violet-700 focus:bg-violet-50 focus:outline-none dark:text-dark-200 dark:hover:bg-violet-900/20 dark:hover:text-violet-300"
-          :disabled="submitting"
+          :disabled="submitting || (status?.turnstile_enabled && !turnstileToken)"
           @click="requestCheckin('lucky')"
         >
           <span class="flex h-7 w-7 items-center justify-center rounded-md bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
@@ -138,6 +148,7 @@ import { checkinAPI } from '@/api/checkin'
 import LuckyCheckinConfirmDialog from '@/components/checkin/LuckyCheckinConfirmDialog.vue'
 import CheckinCenterIcon from '@/components/icons/CheckinCenterIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
+import TurnstileWidget from '@/components/TurnstileWidget.vue'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import type { CheckinStatus } from '@/types'
@@ -154,6 +165,8 @@ const menuOpen = ref(false)
 const submitting = ref(false)
 const submittingMode = ref<'normal' | 'lucky' | null>(null)
 const luckyConfirmOpen = ref(false)
+const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
+const turnstileToken = ref('')
 let statusRequest = 0
 
 const hasAvailableMode = computed(() => Boolean(status.value?.normal_enabled || status.value?.lucky_enabled))
@@ -171,6 +184,24 @@ const shortcutLabel = computed(() => {
 
 function closeMenu() {
   menuOpen.value = false
+}
+
+function handleTurnstileVerify(token: string) {
+  turnstileToken.value = token
+}
+
+function handleTurnstileExpire() {
+  turnstileToken.value = ''
+}
+
+function handleTurnstileError() {
+  turnstileToken.value = ''
+  appStore.showError(t('checkin.turnstileFailed'))
+}
+
+function resetTurnstile() {
+  turnstileRef.value?.reset()
+  turnstileToken.value = ''
 }
 
 function handleShortcutClick() {
@@ -220,12 +251,18 @@ async function submit(mode: 'normal' | 'lucky') {
   const currentStatus = status.value
   const modeEnabled = mode === 'normal' ? currentStatus?.normal_enabled : currentStatus?.lucky_enabled
   if (!currentStatus?.can_check_in || !modeEnabled || submitting.value) return
+  if (currentStatus.turnstile_enabled && !turnstileToken.value) {
+    appStore.showError(t('checkin.turnstileRequired'))
+    return
+  }
 
   submitting.value = true
   submittingMode.value = mode
   closeMenu()
   try {
-    const response = await checkinAPI.checkIn(mode, currentStatus.business_date)
+    const response = currentStatus.turnstile_enabled
+      ? await checkinAPI.checkIn(mode, currentStatus.business_date, turnstileToken.value)
+      : await checkinAPI.checkIn(mode, currentStatus.business_date)
     status.value = {
       ...currentStatus,
       can_check_in: false,
@@ -234,9 +271,11 @@ async function submit(mode: 'normal' | 'lucky') {
       today_record: response.record,
     }
     appStore.showSuccess(t('checkin.success'))
+    resetTurnstile()
     await Promise.allSettled([authStore.refreshUser()])
     window.dispatchEvent(new CustomEvent('checkin:updated'))
   } catch (error) {
+    if (currentStatus.turnstile_enabled) resetTurnstile()
     appStore.showError(checkinErrorMessage(error, t, t('checkin.failedDescription')))
     void loadStatus()
   } finally {
@@ -247,6 +286,11 @@ async function submit(mode: 'normal' | 'lucky') {
 
 function requestCheckin(mode: 'normal' | 'lucky') {
   closeMenu()
+  if (status.value?.turnstile_enabled && !turnstileToken.value) {
+    menuOpen.value = true
+    appStore.showError(t('checkin.turnstileRequired'))
+    return
+  }
   if (mode === 'lucky') {
     if (status.value?.can_check_in && status.value.lucky_enabled && !submitting.value) luckyConfirmOpen.value = true
     return

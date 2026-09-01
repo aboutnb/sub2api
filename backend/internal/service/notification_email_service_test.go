@@ -69,6 +69,41 @@ func TestNotificationEmailTemplateOverrideAndRestore(t *testing.T) {
 	require.ErrorIs(t, err, ErrSettingNotFound)
 }
 
+func TestReactivationTemplateIsListedPreviewableAndCustomizable(t *testing.T) {
+	ctx := context.Background()
+	repo := newNotificationEmailMemorySettingRepo()
+	svc := NewNotificationEmailService(repo, nil)
+
+	var reactivation *NotificationEmailEventInfo
+	for _, info := range svc.ListEventInfos() {
+		if info.Event == NotificationEmailEventReactivation {
+			copy := info
+			reactivation = &copy
+			break
+		}
+	}
+	require.NotNil(t, reactivation)
+	require.Contains(t, reactivation.Placeholders, "broadcast_body_zh")
+
+	preview, err := svc.PreviewTemplate(ctx, NotificationEmailPreviewInput{
+		Event:  NotificationEmailEventReactivation,
+		Locale: "zh-CN",
+		Variables: map[string]string{
+			"broadcast_subject_zh": "好久不见",
+			"broadcast_heading_zh": "欢迎回来",
+			"broadcast_body_zh":    "平台最近有不少更新。",
+			"broadcast_action_zh":  "登录后即可继续使用。",
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "好久不见", preview.Subject)
+	require.Contains(t, preview.HTML, "平台最近有不少更新")
+
+	updated, err := svc.UpdateTemplate(ctx, NotificationEmailEventReactivation, "zh", "{{broadcast_subject_zh}}", "<p>{{broadcast_action_zh}}</p>")
+	require.NoError(t, err)
+	require.True(t, updated.IsCustom)
+}
+
 func TestNotificationEmailTemplateRejectsUnsupportedPlaceholder(t *testing.T) {
 	ctx := context.Background()
 	svc := NewNotificationEmailService(newNotificationEmailMemorySettingRepo(), nil)

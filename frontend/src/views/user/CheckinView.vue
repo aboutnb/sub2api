@@ -30,6 +30,17 @@
               </div>
             </div>
 
+            <div v-if="status.turnstile_enabled && status.turnstile_site_key" data-testid="checkin-turnstile" class="w-full shrink-0 sm:w-[300px]">
+              <TurnstileWidget
+                ref="turnstileRef"
+                :site-key="status.turnstile_site_key"
+                size="flexible"
+                @verify="handleTurnstileVerify"
+                @expire="handleTurnstileExpire"
+                @error="handleTurnstileError"
+              />
+            </div>
+
             <div
               v-if="status.enabled && status.eligible && availableModeCount > 0"
               data-testid="checkin-mode-actions"
@@ -41,8 +52,8 @@
                 type="button"
                 data-testid="checkin-mode-normal"
                 class="group flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:min-w-36"
-                :disabled="submitting || !status.can_check_in"
-                :class="{ 'cursor-not-allowed opacity-50': submitting || !status.can_check_in }"
+                :disabled="submitting || !status.can_check_in || (status.turnstile_enabled && !turnstileToken)"
+                :class="{ 'cursor-not-allowed opacity-50': submitting || !status.can_check_in || (status.turnstile_enabled && !turnstileToken) }"
                 @click="requestCheckin('normal')"
               >
                 <Icon v-if="submittingMode === 'normal'" name="refresh" size="sm" class="shrink-0 animate-spin" />
@@ -56,8 +67,8 @@
                 type="button"
                 data-testid="checkin-mode-lucky"
                 class="group flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-semibold text-gray-800 transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100 dark:hover:border-cyan-700 dark:hover:bg-cyan-900/20 dark:hover:text-cyan-200 sm:min-w-36"
-                :disabled="submitting || !status.can_check_in"
-                :class="{ 'cursor-not-allowed opacity-50': submitting || !status.can_check_in }"
+                :disabled="submitting || !status.can_check_in || (status.turnstile_enabled && !turnstileToken)"
+                :class="{ 'cursor-not-allowed opacity-50': submitting || !status.can_check_in || (status.turnstile_enabled && !turnstileToken) }"
                 @click="requestCheckin('lucky')"
               >
                 <Icon v-if="submittingMode === 'lucky'" name="refresh" size="sm" class="shrink-0 animate-spin" />
@@ -298,6 +309,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import LuckyCheckinConfirmDialog from '@/components/checkin/LuckyCheckinConfirmDialog.vue'
 import CheckinCenterIcon from '@/components/icons/CheckinCenterIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
+import TurnstileWidget from '@/components/TurnstileWidget.vue'
 import type { CheckinRecord, CheckinStatus } from '@/types'
 import { checkinErrorMessage } from '@/utils/checkinError'
 
@@ -316,6 +328,7 @@ const unavailableMessage = computed(() => {
   if (status.value?.unavailable_reason === 'negative_balance') return t('checkin.negativeBalance')
   if (status.value?.unavailable_reason === 'grant_restricted') return t('checkin.grantRestricted')
   if (status.value?.unavailable_reason === 'no_modes_enabled') return t('checkin.noModesAvailable')
+  if (status.value?.unavailable_reason === 'turnstile_not_configured') return t('checkin.turnstileNotConfigured')
   return t('checkin.unavailable')
 })
 const availableModeCount = computed(() => Number(Boolean(status.value?.normal_enabled)) + Number(Boolean(status.value?.lucky_enabled)))
@@ -327,6 +340,8 @@ const result = ref<CheckinRecord | null>(null)
 const statusError = ref('')
 const recordsError = ref('')
 const recordsPageSize = 10
+const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
+const turnstileToken = ref('')
 
 interface CalendarCell {
   day: number
@@ -479,20 +494,46 @@ async function load() {
   await Promise.all([fetchStatus(), fetchRecords(1), fetchCalendarRecords()])
 }
 
+function handleTurnstileVerify(token: string) {
+  turnstileToken.value = token
+}
+
+function handleTurnstileExpire() {
+  turnstileToken.value = ''
+}
+
+function handleTurnstileError() {
+  turnstileToken.value = ''
+  appStore.showError(t('checkin.turnstileFailed'))
+}
+
+function resetTurnstile() {
+  turnstileRef.value?.reset()
+  turnstileToken.value = ''
+}
+
 async function submit(mode: 'normal' | 'lucky') {
   const currentStatus = status.value
   const modeEnabled = mode === 'normal' ? currentStatus?.normal_enabled : currentStatus?.lucky_enabled
   if (!currentStatus?.can_check_in || !modeEnabled || submitting.value) return
+  if (currentStatus.turnstile_enabled && !turnstileToken.value) {
+    appStore.showError(t('checkin.turnstileRequired'))
+    return
+  }
   submitting.value = true
   submittingMode.value = mode
   try {
-    const response = await checkinAPI.checkIn(mode, currentStatus.business_date)
+    const response = currentStatus.turnstile_enabled
+      ? await checkinAPI.checkIn(mode, currentStatus.business_date, turnstileToken.value)
+      : await checkinAPI.checkIn(mode, currentStatus.business_date)
     result.value = response.record
+    resetTurnstile()
     await authStore.refreshUser()
     await Promise.all([fetchStatus(), fetchRecords(1), fetchCalendarRecords()])
     appStore.showSuccess(t('checkin.success'))
     window.dispatchEvent(new CustomEvent('checkin:updated'))
   } catch (error) {
+    if (currentStatus.turnstile_enabled) resetTurnstile()
     appStore.showError(checkinErrorMessage(error, t, t('checkin.failedDescription')))
   } finally {
     submitting.value = false

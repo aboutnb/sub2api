@@ -55,6 +55,10 @@ export default {
     riskUnavailable: '签到安全校验暂时不可用，请稍后再试。',
     securityUnavailable: '签到安全服务暂时不可用，请稍后再试。',
     entropyUnavailable: '签到结算暂时不可用，请稍后再试。',
-    invalidRequest: '签到请求已失效，请刷新页面后重试。'
+    invalidRequest: '签到请求已失效，请刷新页面后重试。',
+    turnstileRequired: '请先完成人机验证。',
+    turnstileFailed: '人机验证失败，请重试。',
+    turnstileUnavailable: '人机验证服务暂时不可用，请稍后再试。',
+    turnstileNotConfigured: '签到验证尚未配置完成，请联系管理员。'
   }
 }

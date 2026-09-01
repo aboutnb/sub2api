@@ -55,6 +55,10 @@ export default {
     riskUnavailable: 'Check-in security verification is temporarily unavailable. Please try again later.',
     securityUnavailable: 'The check-in security service is temporarily unavailable. Please try again later.',
     entropyUnavailable: 'Check-in settlement is temporarily unavailable. Please try again later.',
-    invalidRequest: 'This check-in request is no longer valid. Refresh the page and try again.'
+    invalidRequest: 'This check-in request is no longer valid. Refresh the page and try again.',
+    turnstileRequired: 'Please complete the verification first.',
+    turnstileFailed: 'Verification failed. Please try again.',
+    turnstileUnavailable: 'The verification service is temporarily unavailable. Please try again later.',
+    turnstileNotConfigured: 'Check-in verification is not configured yet. Please contact an administrator.'
   }
 }

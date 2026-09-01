@@ -44,6 +44,7 @@ const (
 	SettingKeyCheckinUnrechargedEnabled           = "checkin_unrecharged_reduction_enabled"
 	SettingKeyCheckinUnrechargedThreshold         = "checkin_unrecharged_checkin_threshold"
 	SettingKeyCheckinUnrechargedNormalPercent     = "checkin_unrecharged_normal_reward_percent"
+	SettingKeyCheckinTurnstileEnabled             = "checkin_turnstile_enabled"
 	SettingKeyCheckinConfigVersion                = "checkin_config_version"
 
 	// These hard safety ceilings are intentionally separate from the editable
@@ -53,6 +54,13 @@ const (
 	CheckinUserRequestLimit   = 10
 	CheckinSourceRequestLimit = 60
 	CheckinUserAgentMaxBytes  = 512
+
+	// These minimum source limits always remain active. The editable risk
+	// settings can add stricter checks, but must not disable bulk protection.
+	CheckinHardSourceWindow        = 10 * time.Minute
+	CheckinHardSourceMaxUsers      = 5
+	CheckinHardFingerprintWindow   = 24 * time.Hour
+	CheckinHardFingerprintMaxUsers = 1
 
 	CheckinRewardTypeAmount     = "amount"
 	CheckinRewardTypeMultiplier = "multiplier"
@@ -80,6 +88,18 @@ var (
 	ErrCheckinEntropyUnavailable = infraerrors.ServiceUnavailable(
 		"CHECKIN_ENTROPY_UNAVAILABLE",
 		"daily check-in reward generation is temporarily unavailable",
+	)
+	ErrCheckinTurnstileRequired = infraerrors.BadRequest(
+		"CHECKIN_TURNSTILE_REQUIRED",
+		"daily check-in verification is required",
+	)
+	ErrCheckinTurnstileFailed = infraerrors.BadRequest(
+		"CHECKIN_TURNSTILE_FAILED",
+		"daily check-in verification failed",
+	)
+	ErrCheckinTurnstileUnavailable = infraerrors.ServiceUnavailable(
+		"CHECKIN_TURNSTILE_UNAVAILABLE",
+		"daily check-in verification is temporarily unavailable",
 	)
 )
 
@@ -167,6 +187,8 @@ type CheckinConfig struct {
 	UnrechargedEnabled           bool
 	UnrechargedThreshold         int64
 	UnrechargedNormalPercent     float64
+	TurnstileEnabled             bool
+	TurnstileSiteKey             string
 }
 
 type CheckinPositiveTier struct {
@@ -206,6 +228,7 @@ type AdminCheckinConfig struct {
 	UnrechargedEnabled           bool                       `json:"unrecharged_reduction_enabled"`
 	UnrechargedCheckinThreshold  int                        `json:"unrecharged_checkin_threshold"`
 	UnrechargedNormalPercent     string                     `json:"unrecharged_normal_reward_percent"`
+	TurnstileEnabled             bool                       `json:"turnstile_enabled"`
 	ConfigVersion                int64                      `json:"config_version"`
 	UpdatedAt                    time.Time                  `json:"updated_at"`
 }
@@ -233,6 +256,7 @@ type AdminCheckinConfigUpdate struct {
 	UnrechargedEnabled           bool
 	UnrechargedCheckinThreshold  int
 	UnrechargedNormalPercent     string
+	TurnstileEnabled             *bool
 	ExpectedVersion              int64
 	ChangeReason                 string
 }
@@ -271,10 +295,27 @@ type CheckinService struct {
 	cfg          *config.Config
 	billingCache BillingCache
 	abuseGuard   CheckinAbuseGuard
+	turnstile    CheckinTurnstileVerifier
+}
+
+// CheckinTurnstileVerifier keeps the check-in flow testable while the live
+// application uses the shared TurnstileService.
+type CheckinTurnstileVerifier interface {
+	VerifyTokenWithSecret(context.Context, string, string, string) error
 }
 
 func NewCheckinService(repo CheckinRepository, settings SettingRepository, cfg *config.Config, billingCache BillingCache, abuseGuard CheckinAbuseGuard) *CheckinService {
 	return &CheckinService{repo: repo, settings: settings, cfg: cfg, billingCache: billingCache, abuseGuard: abuseGuard}
+}
+
+func ProvideCheckinService(repo CheckinRepository, settings SettingRepository, cfg *config.Config, billingCache BillingCache, abuseGuard CheckinAbuseGuard, turnstile *TurnstileService) *CheckinService {
+	svc := NewCheckinService(repo, settings, cfg, billingCache, abuseGuard)
+	svc.SetTurnstileService(turnstile)
+	return svc
+}
+
+func (s *CheckinService) SetTurnstileService(turnstile CheckinTurnstileVerifier) {
+	s.turnstile = turnstile
 }
 
 func (s *CheckinService) Status(ctx context.Context, userID int64) (*CheckinStatus, error) {
@@ -311,6 +352,8 @@ func (s *CheckinService) Status(ctx context.Context, userID int64) (*CheckinStat
 		result.LuckyRewardType = checkinConfig.LuckyRewardType
 		result.LuckyMinMultiplier = checkinConfig.LuckyMinMultiply
 		result.LuckyMaxMultiplier = checkinConfig.LuckyMaxMultiply
+		result.TurnstileEnabled = checkinConfig.TurnstileEnabled
+		result.TurnstileSiteKey = checkinConfig.TurnstileSiteKey
 		if result.Eligible && !result.Enabled {
 			result.UnavailableReason = "disabled"
 		} else if result.Eligible && !result.NormalEnabled && !result.LuckyEnabled {
@@ -340,6 +383,10 @@ func (s *CheckinService) Status(ctx context.Context, userID int64) (*CheckinStat
 		} else {
 			result.CanCheckIn = result.Enabled
 		}
+		if result.CanCheckIn && result.TurnstileEnabled && result.TurnstileSiteKey == "" {
+			result.CanCheckIn = false
+			result.UnavailableReason = "turnstile_not_configured"
+		}
 	}
 	return result, nil
 }
@@ -362,6 +409,8 @@ type CheckinStatus struct {
 	TodayRecord        *CheckinRecord `json:"today_record,omitempty"`
 	DaysInMonth        int            `json:"days_in_month"`
 	FirstWeekday       int            `json:"first_weekday"`
+	TurnstileEnabled   bool           `json:"turnstile_enabled"`
+	TurnstileSiteKey   string         `json:"turnstile_site_key,omitempty"`
 }
 
 // CheckIn preserves the service API used by non-HTTP callers. HTTP handlers
@@ -371,6 +420,17 @@ func (s *CheckinService) CheckIn(ctx context.Context, userID int64, mode, source
 }
 
 func (s *CheckinService) CheckInWithIdentity(ctx context.Context, userID int64, mode string, identity CheckinIdentity) (*CheckinRecord, bool, error) {
+	return s.checkInWithIdentityAndCaptcha(ctx, userID, mode, identity, "", false)
+}
+
+// CheckInWithIdentityAndCaptcha is the HTTP-facing check-in method. The
+// verification token is only required for a new settlement; an existing
+// settlement is returned idempotently without consuming another token.
+func (s *CheckinService) CheckInWithIdentityAndCaptcha(ctx context.Context, userID int64, mode string, identity CheckinIdentity, token string) (*CheckinRecord, bool, error) {
+	return s.checkInWithIdentityAndCaptcha(ctx, userID, mode, identity, token, true)
+}
+
+func (s *CheckinService) checkInWithIdentityAndCaptcha(ctx context.Context, userID int64, mode string, identity CheckinIdentity, token string, enforceCaptcha bool) (*CheckinRecord, bool, error) {
 	if mode != "normal" && mode != "lucky" {
 		return nil, false, ErrCheckinInvalidMode
 	}
@@ -426,13 +486,17 @@ func (s *CheckinService) CheckInWithIdentity(ctx context.Context, userID int64, 
 	if checkinConfig.RiskEnabled && accountTooNew(state.CreatedAt, timezone.Now(), checkinConfig.MinAccountAge) {
 		return nil, false, ErrCheckinAccountTooNew
 	}
-	if checkinConfig.RiskEnabled {
-		allowed, _, _, guardErr := s.checkinSourceRisk(ctx, userID, normalizedSource.String(), identity.UserAgent, checkinConfig)
-		if guardErr != nil {
-			return nil, false, ErrCheckinRiskUnavailable
-		}
-		if !allowed {
-			return nil, false, ErrCheckinSourceLimited
+	sourceRiskConfig := effectiveCheckinSourceRiskConfig(checkinConfig)
+	sourceAllowed, _, _, guardErr := s.checkinSourceRisk(ctx, userID, normalizedSource.String(), identity.UserAgent, sourceRiskConfig)
+	if guardErr != nil {
+		return nil, false, ErrCheckinRiskUnavailable
+	}
+	if !sourceAllowed {
+		return nil, false, ErrCheckinSourceLimited
+	}
+	if enforceCaptcha && checkinConfig.TurnstileEnabled {
+		if err := s.verifyCheckinTurnstile(ctx, token, normalizedSource.String()); err != nil {
+			return nil, false, err
 		}
 	}
 	record, newlyCheckedIn, err := s.repo.Apply(ctx, userID, businessDate, mode, func(settlement CheckinSettlementState) (decimal.Decimal, decimal.Decimal, string, error) {
@@ -479,6 +543,26 @@ func (s *CheckinService) CheckInWithIdentity(ctx context.Context, userID int64, 
 	return record, newlyCheckedIn, nil
 }
 
+func (s *CheckinService) verifyCheckinTurnstile(ctx context.Context, token, remoteIP string) error {
+	if strings.TrimSpace(token) == "" {
+		return ErrCheckinTurnstileRequired
+	}
+	if s.turnstile == nil || s.settings == nil {
+		return ErrCheckinTurnstileUnavailable
+	}
+	secretKey, err := s.settings.GetValue(ctx, SettingKeyTurnstileSecretKey)
+	if err != nil || strings.TrimSpace(secretKey) == "" {
+		return ErrCheckinTurnstileUnavailable
+	}
+	if err := s.turnstile.VerifyTokenWithSecret(ctx, strings.TrimSpace(secretKey), token, remoteIP); err != nil {
+		if errors.Is(err, ErrTurnstileVerificationFailed) {
+			return ErrCheckinTurnstileFailed
+		}
+		return ErrCheckinTurnstileUnavailable
+	}
+	return nil
+}
+
 func (s *CheckinService) checkinSourceRisk(ctx context.Context, userID int64, normalizedIP, rawUserAgent string, cfg CheckinConfig) (bool, int64, time.Duration, error) {
 	userAgent := normalizeCheckinUserAgent(rawUserAgent)
 	if multiGuard, ok := s.abuseGuard.(CheckinMultiSourceAbuseGuard); ok && userAgent != "" {
@@ -493,6 +577,35 @@ func (s *CheckinService) checkinSourceRisk(ctx context.Context, userID int64, no
 		)
 	}
 	return s.abuseGuard.CheckAndRecord(ctx, normalizedIP, userID, cfg.IPWindow, cfg.IPMaxUsers)
+}
+
+func hardCheckinSourceRiskConfig() CheckinConfig {
+	return CheckinConfig{
+		IPWindow:            CheckinHardSourceWindow,
+		IPMaxUsers:          CheckinHardSourceMaxUsers,
+		FingerprintWindow:   CheckinHardFingerprintWindow,
+		FingerprintMaxUsers: CheckinHardFingerprintMaxUsers,
+	}
+}
+
+func effectiveCheckinSourceRiskConfig(cfg CheckinConfig) CheckinConfig {
+	hard := hardCheckinSourceRiskConfig()
+	if !cfg.RiskEnabled {
+		return hard
+	}
+	if cfg.IPWindow > hard.IPWindow {
+		hard.IPWindow = cfg.IPWindow
+	}
+	if cfg.IPMaxUsers < hard.IPMaxUsers {
+		hard.IPMaxUsers = cfg.IPMaxUsers
+	}
+	if cfg.FingerprintWindow > hard.FingerprintWindow {
+		hard.FingerprintWindow = cfg.FingerprintWindow
+	}
+	if cfg.FingerprintMaxUsers < hard.FingerprintMaxUsers {
+		hard.FingerprintMaxUsers = cfg.FingerprintMaxUsers
+	}
+	return hard
 }
 
 func normalizeCheckinUserAgent(value string) string {
@@ -548,6 +661,8 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 		SettingKeyCheckinUnrechargedEnabled,
 		SettingKeyCheckinUnrechargedThreshold,
 		SettingKeyCheckinUnrechargedNormalPercent,
+		SettingKeyCheckinTurnstileEnabled,
+		SettingKeyTurnstileSiteKey,
 	})
 	if err != nil {
 		return CheckinConfig{}, ErrCheckinConfigInvalid
@@ -579,9 +694,10 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 	unrechargedEnabled, unrechargedEnabledErr := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinUnrechargedEnabled]))
 	unrechargedThreshold, err13 := parseCheckinInt(values[SettingKeyCheckinUnrechargedThreshold])
 	unrechargedNormalPercent, err14 := parse(SettingKeyCheckinUnrechargedNormalPercent)
+	turnstileEnabled, turnstileEnabledErr := parseOptionalCheckinBool(values[SettingKeyCheckinTurnstileEnabled])
 	multiplierPositiveTiers, _, err11 := parseStoredCheckinPositiveTiers(values[SettingKeyCheckinLuckyMultiplierPositiveTiers], luckyMax)
 	amountPositiveTiers, _, err12 := parseStoredCheckinPositiveTiers(values[SettingKeyCheckinLuckyAmountPositiveTiers], luckyAmountMax)
-	if enabledErr != nil || normalEnabledErr != nil || luckyEnabledErr != nil || riskEnabledErr != nil || unrechargedEnabledErr != nil || err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || err9 != nil ||
+	if enabledErr != nil || normalEnabledErr != nil || luckyEnabledErr != nil || riskEnabledErr != nil || unrechargedEnabledErr != nil || turnstileEnabledErr != nil || err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || err9 != nil ||
 		err10 != nil || err11 != nil || err12 != nil || err13 != nil || err14 != nil || err15 != nil || err16 != nil || normalMin < 0 || normalMax < normalMin || normalMax > 100 || !validCheckinLuckyRewardType(luckyRewardType) ||
 		luckyPositive < 0 || luckyPositive > 100 || luckyMin < -1 || luckyMin >= 0 || luckyMax <= 0 || luckyMax > 10 ||
 		luckyAmountMin < -100 || luckyAmountMin >= 0 || luckyAmountMax <= 0 || luckyAmountMax > 100 ||
@@ -612,6 +728,8 @@ func (s *CheckinService) loadConfig(ctx context.Context) (CheckinConfig, error) 
 		UnrechargedEnabled:           unrechargedEnabled,
 		UnrechargedThreshold:         int64(unrechargedThreshold),
 		UnrechargedNormalPercent:     unrechargedNormalPercent,
+		TurnstileEnabled:             turnstileEnabled,
+		TurnstileSiteKey:             strings.TrimSpace(values[SettingKeyTurnstileSiteKey]),
 	}, nil
 }
 
@@ -621,6 +739,13 @@ func validCheckinLuckyRewardType(value string) bool {
 
 func parseCheckinInt(raw string) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(raw))
+}
+
+func parseOptionalCheckinBool(raw string) (bool, error) {
+	if strings.TrimSpace(raw) == "" {
+		return false, nil
+	}
+	return strconv.ParseBool(strings.TrimSpace(raw))
 }
 
 func accountTooNew(createdAt, now time.Time, minAge time.Duration) bool {

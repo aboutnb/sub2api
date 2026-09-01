@@ -34,6 +34,14 @@ vi.mock('vue-i18n', async () => {
 
 const AppLayoutStub = defineComponent({ template: '<main><slot /></main>' })
 const IconStub = defineComponent({ props: ['name'], template: '<i :data-icon="name" />' })
+const TurnstileStub = defineComponent({
+  props: ['siteKey', 'size'],
+  emits: ['verify', 'expire', 'error'],
+  setup(_, { expose }) {
+    expose({ reset: vi.fn() })
+  },
+  template: '<button data-testid="turnstile-stub" type="button" @click="$emit(\'verify\', \'turnstile-proof\')" />',
+})
 
 const negativeRecord: CheckinRecord = {
   id: 1,
@@ -89,6 +97,7 @@ function mountView() {
         AppLayout: AppLayoutStub,
         Icon: IconStub,
         LoadingSpinner: true,
+        TurnstileWidget: TurnstileStub,
       },
     },
   })
@@ -260,5 +269,23 @@ describe('user CheckinView', () => {
 
     expect(wrapper.text()).toContain('checkin.noModesAvailable')
     expect(wrapper.find('[data-testid="checkin-mode-actions"]').exists()).toBe(false)
+  })
+
+  it('requires and submits a Turnstile token when check-in protection is enabled', async () => {
+    getStatus.mockResolvedValue({
+      ...status,
+      turnstile_enabled: true,
+      turnstile_site_key: 'site-key',
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="checkin-turnstile"]').exists()).toBe(true)
+    expect(checkIn).not.toHaveBeenCalled()
+    await wrapper.get('[data-testid="turnstile-stub"]').trigger('click')
+    await wrapper.get('[data-testid="checkin-mode-normal"]').trigger('click')
+    await flushPromises()
+
+    expect(checkIn).toHaveBeenCalledWith('normal', status.business_date, 'turnstile-proof')
   })
 })

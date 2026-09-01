@@ -29,13 +29,16 @@ export interface EmailBroadcastTask {
   updated_at: string
 }
 
-export type EmailBroadcastAudienceMode = 'all' | 'role' | 'groups' | 'selected'
+export type EmailBroadcastAudienceMode = 'all' | 'role' | 'groups' | 'selected' | 'inactive'
+
+export type EmailBroadcastEvent = 'system.broadcast' | 'system.reactivation'
 
 export interface EmailBroadcastAudience {
   mode: EmailBroadcastAudienceMode
   roles?: Array<'admin' | 'user'>
   group_ids?: number[]
   emails?: string[]
+  inactive_days?: number
 }
 
 export interface EmailBroadcastRecipient {
@@ -55,6 +58,7 @@ export interface EmailBroadcastRecipient {
 
 export interface EmailBroadcastPayload {
   title?: string
+  event?: EmailBroadcastEvent
   scheduled_at?: string
   email?: string
   locale?: 'zh' | 'en'

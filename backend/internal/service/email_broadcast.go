@@ -24,6 +24,7 @@ const (
 	EmailBroadcastAudienceRole     = "role"
 	EmailBroadcastAudienceGroups   = "groups"
 	EmailBroadcastAudienceSelected = "selected"
+	EmailBroadcastAudienceInactive = "inactive"
 )
 
 type EmailBroadcastTemplateSnapshot struct {
@@ -53,10 +54,11 @@ type EmailBroadcastTask struct {
 }
 
 type EmailBroadcastAudience struct {
-	Mode     string   `json:"mode"`
-	Roles    []string `json:"roles,omitempty"`
-	GroupIDs []int64  `json:"group_ids,omitempty"`
-	Emails   []string `json:"emails,omitempty"`
+	Mode         string   `json:"mode"`
+	Roles        []string `json:"roles,omitempty"`
+	GroupIDs     []int64  `json:"group_ids,omitempty"`
+	Emails       []string `json:"emails,omitempty"`
+	InactiveDays int      `json:"inactive_days,omitempty"`
 }
 
 type EmailBroadcastRecipient struct {

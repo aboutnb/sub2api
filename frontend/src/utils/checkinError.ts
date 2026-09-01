@@ -13,6 +13,9 @@ const errorTranslationKeys: Record<string, string> = {
   CHECKIN_GRANT_RESTRICTED: 'checkin.grantRestricted',
   CHECKIN_MODE_DISABLED: 'checkin.modeDisabled',
   CHECKIN_INVALID_REQUEST: 'checkin.invalidRequest',
+  CHECKIN_TURNSTILE_REQUIRED: 'checkin.turnstileRequired',
+  CHECKIN_TURNSTILE_FAILED: 'checkin.turnstileFailed',
+  CHECKIN_TURNSTILE_UNAVAILABLE: 'checkin.turnstileUnavailable',
 }
 
 export function checkinErrorMessage(error: unknown, t: TranslateFn, fallback: string): string {

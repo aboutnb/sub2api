@@ -49,6 +49,14 @@ const IconStub = defineComponent({
   props: ['name'],
   template: '<i :data-icon="name" />',
 })
+const TurnstileStub = defineComponent({
+  props: ['siteKey', 'size'],
+  emits: ['verify', 'expire', 'error'],
+  setup(_, { expose }) {
+    expose({ reset: vi.fn() })
+  },
+  template: '<button data-testid="turnstile-stub" type="button" @click="$emit(\'verify\', \'turnstile-proof\')" />',
+})
 
 const status: CheckinStatus = {
   enabled: true,
@@ -94,6 +102,7 @@ function mountShortcut() {
           props: ['to'],
           template: '<a :href="to"><slot /></a>',
         }),
+        TurnstileWidget: TurnstileStub,
       },
     },
   })
@@ -261,5 +270,25 @@ describe('check-in header shortcut', () => {
 
     expect(showError).toHaveBeenCalledWith('checkin.sourceLimited')
     expect(refreshUser).not.toHaveBeenCalled()
+  })
+
+  it('requires a Turnstile token before quick check-in', async () => {
+    getStatus.mockResolvedValue({
+      ...status,
+      turnstile_enabled: true,
+      turnstile_site_key: 'site-key',
+    })
+    const wrapper = mountShortcut()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
+    expect(wrapper.get('[data-testid="checkin-shortcut-turnstile"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="quick-checkin-menu-normal"]').attributes('disabled')).toBeDefined()
+
+    await wrapper.get('[data-testid="turnstile-stub"]').trigger('click')
+    await wrapper.get('[data-testid="quick-checkin-menu-normal"]').trigger('click')
+    await flushPromises()
+
+    expect(checkIn).toHaveBeenCalledWith('normal', status.business_date, 'turnstile-proof')
   })
 })

@@ -57,3 +57,14 @@ func TestScopedCheckinIdempotencyKeySeparatesUsers(t *testing.T) {
 	require.NotEqual(t, first, scopedCheckinIdempotencyKey(8, "same-client-key"))
 	require.Len(t, first, 64)
 }
+
+func TestCheckinTurnstileTokenReadsDedicatedHeaderWithCompatibilityFallback(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest("POST", "/api/v1/user/checkin", nil)
+	ctx.Request.Header.Set("CF-Turnstile-Response", "fallback-token")
+	require.Equal(t, "fallback-token", checkinTurnstileToken(ctx))
+
+	ctx.Request.Header.Set("X-Turnstile-Token", "dedicated-token")
+	require.Equal(t, "dedicated-token", checkinTurnstileToken(ctx))
+}

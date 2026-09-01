@@ -145,6 +145,8 @@ func emailBroadcastAudienceWhere(audience service.EmailBroadcastAudience, firstA
 		where += " AND EXISTS (SELECT 1 FROM user_allowed_groups uag WHERE uag.user_id = u.id AND uag.group_id = ANY(" + placeholder(pq.Array(audience.GroupIDs)) + "))"
 	case service.EmailBroadcastAudienceSelected:
 		where += " AND LOWER(BTRIM(u.email)) = ANY(" + placeholder(pq.Array(audience.Emails)) + ")"
+	case service.EmailBroadcastAudienceInactive:
+		where += " AND COALESCE(u.last_active_at, u.last_login_at, u.created_at) <= NOW() - make_interval(days => " + placeholder(audience.InactiveDays) + "::int)"
 	}
 	return where, args
 }

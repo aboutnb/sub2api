@@ -137,7 +137,8 @@ export type {
   EmailBroadcastPayload,
   EmailBroadcastStatus,
   EmailBroadcastAudience,
-  EmailBroadcastAudienceMode
+  EmailBroadcastAudienceMode,
+  EmailBroadcastEvent
 } from './emailBroadcasts'
 export type {
   PluginInstallation,

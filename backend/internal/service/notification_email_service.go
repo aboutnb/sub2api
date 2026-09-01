@@ -35,6 +35,7 @@ const (
 	NotificationEmailEventOpsScheduledReport          = "ops.scheduled_report"
 	NotificationEmailEventMaintenance                 = "system.maintenance"
 	NotificationEmailEventBroadcast                   = "system.broadcast"
+	NotificationEmailEventReactivation                = "system.reactivation"
 
 	notificationEmailTemplateKeyPrefix    = "notification_email_template:"
 	notificationEmailPreferenceKeyPrefix  = "notification_email_preference:"
@@ -1066,6 +1067,7 @@ var notificationEmailEventOrder = []string{
 	NotificationEmailEventOpsScheduledReport,
 	NotificationEmailEventMaintenance,
 	NotificationEmailEventBroadcast,
+	NotificationEmailEventReactivation,
 }
 
 var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
@@ -1203,6 +1205,16 @@ var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
 			"broadcast_subject_zh", "broadcast_heading_zh", "broadcast_body_zh", "broadcast_action_zh",
 			"broadcast_subject_en", "broadcast_heading_en", "broadcast_body_en", "broadcast_action_en"),
 	},
+	NotificationEmailEventReactivation: {
+		Event:       NotificationEmailEventReactivation,
+		Label:       "User reactivation email",
+		Description: "A flexible administrator-authored reactivation email for users who have not been active recently.",
+		Category:    "system",
+		Optional:    false,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...),
+			"broadcast_subject_zh", "broadcast_heading_zh", "broadcast_body_zh", "broadcast_action_zh",
+			"broadcast_subject_en", "broadcast_heading_en", "broadcast_body_en", "broadcast_action_en"),
+	},
 }
 
 var notificationEmailOfficialTemplates = map[string]map[string]notificationEmailOfficialTemplate{
@@ -1218,6 +1230,24 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
 		notificationEmailLocaleChinese: {
 			Subject: "{{broadcast_subject_zh}}",
 			HTML: notificationEmailCardZH("服务通知", `
+	<p>{{recipient_name}}，您好：</p>
+	<h2 style="margin:0 0 14px 0;font-size:22px;line-height:1.35;">{{broadcast_heading_zh}}</h2>
+	<div style="white-space:pre-line;">{{broadcast_body_zh}}</div>
+	<p style="margin-top:18px;">{{broadcast_action_zh}}</p>`),
+		},
+	},
+	NotificationEmailEventReactivation: {
+		notificationEmailDefaultLocale: {
+			Subject: "{{broadcast_subject_en}}",
+			HTML: notificationEmailCard("Welcome back", `
+	<p>Hello {{recipient_name}},</p>
+	<h2 style="margin:0 0 14px 0;font-size:22px;line-height:1.35;">{{broadcast_heading_en}}</h2>
+	<div style="white-space:pre-line;">{{broadcast_body_en}}</div>
+	<p style="margin-top:18px;">{{broadcast_action_en}}</p>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "{{broadcast_subject_zh}}",
+			HTML: notificationEmailCardZH("欢迎回来", `
 	<p>{{recipient_name}}，您好：</p>
 	<h2 style="margin:0 0 14px 0;font-size:22px;line-height:1.35;">{{broadcast_heading_zh}}</h2>
 	<div style="white-space:pre-line;">{{broadcast_body_zh}}</div>

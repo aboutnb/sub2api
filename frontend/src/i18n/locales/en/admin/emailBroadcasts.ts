@@ -20,6 +20,8 @@ export default {
     groups: 'User Groups (multiple)',
     selectedEmails: 'Selected User Emails',
     selectedEmailsPlaceholder: 'One email per line, or separate with commas',
+    inactiveDays: 'Consecutive Inactive Days',
+    inactiveDaysHelp: 'Uses last activity, last login, or registration time. Enter 1–3650 days.',
     maintenanceTitle: 'Maintenance Title',
     maintenanceStart: 'Maintenance Start',
     maintenanceEnd: 'Maintenance End',
@@ -73,13 +75,18 @@ export default {
       domainMigration: 'Server and Domain Migration',
       maintenance: 'Server Maintenance',
       serviceNotice: 'Service Notice',
+      reactivation: 'Inactive User Reactivation',
       custom: 'Blank Custom Email'
     },
     audiences: {
       all: 'All Active Users',
       role: 'By User Role',
       groups: 'By Allowed Group',
-      selected: 'Selected Emails'
+      selected: 'Selected Emails',
+      inactive: 'Inactive Users'
+    },
+    audienceDetails: {
+      inactive: 'Inactive for {days} days'
     },
     roles: {
       user: 'Regular Users',

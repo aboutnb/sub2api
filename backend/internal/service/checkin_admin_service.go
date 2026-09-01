@@ -53,6 +53,7 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 		SettingKeyCheckinUnrechargedEnabled,
 		SettingKeyCheckinUnrechargedThreshold,
 		SettingKeyCheckinUnrechargedNormalPercent,
+		SettingKeyCheckinTurnstileEnabled,
 		SettingKeyCheckinConfigVersion,
 	})
 	if err != nil {
@@ -76,11 +77,12 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 	unrechargedEnabled, err8 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinUnrechargedEnabled]))
 	unrechargedThreshold, err9 := parseCheckinInt(values[SettingKeyCheckinUnrechargedThreshold])
 	_, err10 := parseCheckinDecimal(values[SettingKeyCheckinUnrechargedNormalPercent])
+	turnstileEnabled, err13 := parseOptionalCheckinBool(values[SettingKeyCheckinTurnstileEnabled])
 	enabled, err4 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinEnabled]))
 	riskEnabled, err5 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinRiskEnabled]))
 	normalEnabled, err6 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinNormalEnabled]))
 	luckyEnabled, err7 := strconv.ParseBool(strings.TrimSpace(values[SettingKeyCheckinLuckyEnabled]))
-	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || err9 != nil || err10 != nil || err11 != nil || err12 != nil ||
+	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || err7 != nil || err8 != nil || err9 != nil || err10 != nil || err11 != nil || err12 != nil || err13 != nil ||
 		validateCheckinConfigValues(
 			values[SettingKeyCheckinNormalMin], values[SettingKeyCheckinNormalMax],
 			values[SettingKeyCheckinLuckyRewardType],
@@ -123,6 +125,7 @@ func (s *AdminCheckinService) Config(ctx context.Context) (*AdminCheckinConfig, 
 		UnrechargedEnabled:           unrechargedEnabled,
 		UnrechargedCheckinThreshold:  unrechargedThreshold,
 		UnrechargedNormalPercent:     values[SettingKeyCheckinUnrechargedNormalPercent],
+		TurnstileEnabled:             turnstileEnabled,
 		ConfigVersion:                version,
 		UpdatedAt:                    updatedAt,
 	}, nil
@@ -179,6 +182,10 @@ func (s *AdminCheckinService) UpdateConfig(ctx context.Context, input AdminCheck
 	if input.ExpectedVersion != current.ConfigVersion {
 		return nil, ErrCheckinConfigVersion
 	}
+	turnstileEnabled := current.TurnstileEnabled
+	if input.TurnstileEnabled != nil {
+		turnstileEnabled = *input.TurnstileEnabled
+	}
 	updated, err := s.repo.UpdateConfigIfVersion(ctx, current.ConfigVersion, map[string]string{
 		SettingKeyCheckinEnabled:                      strconv.FormatBool(input.Enabled),
 		SettingKeyCheckinNormalEnabled:                strconv.FormatBool(input.NormalEnabled),
@@ -202,6 +209,7 @@ func (s *AdminCheckinService) UpdateConfig(ctx context.Context, input AdminCheck
 		SettingKeyCheckinUnrechargedEnabled:           strconv.FormatBool(input.UnrechargedEnabled),
 		SettingKeyCheckinUnrechargedThreshold:         strconv.Itoa(input.UnrechargedCheckinThreshold),
 		SettingKeyCheckinUnrechargedNormalPercent:     strings.TrimSpace(input.UnrechargedNormalPercent),
+		SettingKeyCheckinTurnstileEnabled:             strconv.FormatBool(turnstileEnabled),
 	})
 	if err != nil {
 		return nil, err

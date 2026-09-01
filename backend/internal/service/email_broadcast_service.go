@@ -17,7 +17,6 @@ import (
 )
 
 const (
-	emailBroadcastEvent         = NotificationEmailEventBroadcast
 	emailBroadcastRateInterval  = 200 * time.Millisecond
 	emailBroadcastUpdateTimeout = 10 * time.Second
 )
@@ -229,9 +228,13 @@ func (s *EmailBroadcastService) CreateTask(ctx context.Context, input EmailBroad
 	if err != nil {
 		return nil, err
 	}
+	event, err := normalizeEmailBroadcastEvent(input.Event)
+	if err != nil {
+		return nil, err
+	}
 	snapshots := make(map[string]EmailBroadcastTemplateSnapshot, 2)
 	for _, locale := range []string{notificationEmailDefaultLocale, notificationEmailLocaleChinese} {
-		template, err := s.notification.GetTemplate(ctx, emailBroadcastEvent, locale)
+		template, err := s.notification.GetTemplate(ctx, event, locale)
 		if err != nil {
 			return nil, infraerrors.BadRequest("EMAIL_BROADCAST_TEMPLATE_INVALID", err.Error())
 		}
@@ -241,7 +244,7 @@ func (s *EmailBroadcastService) CreateTask(ctx context.Context, input EmailBroad
 	if input.ScheduledAt.After(time.Now().UTC().Add(30 * time.Second)) {
 		status = EmailBroadcastStatusScheduled
 	}
-	task := &EmailBroadcastTask{Title: title, Event: emailBroadcastEvent, Status: status, Variables: variables, Audience: audience, TemplateSnapshots: snapshots, CreatedBy: createdBy, ScheduledAt: input.ScheduledAt.UTC()}
+	task := &EmailBroadcastTask{Title: title, Event: event, Status: status, Variables: variables, Audience: audience, TemplateSnapshots: snapshots, CreatedBy: createdBy, ScheduledAt: input.ScheduledAt.UTC()}
 	if err := s.repo.CreateTask(ctx, task); err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no active recipients") {
 			return nil, infraerrors.BadRequest("EMAIL_BROADCAST_NO_RECIPIENTS", "no active users with an email address")
@@ -253,12 +256,13 @@ func (s *EmailBroadcastService) CreateTask(ctx context.Context, input EmailBroad
 
 type EmailBroadcastCreateInput struct {
 	Title       string
+	Event       string
 	ScheduledAt time.Time
 	Variables   map[string]string
 	Audience    EmailBroadcastAudience
 }
 
-func (s *EmailBroadcastService) SendTest(ctx context.Context, email, locale string, variables map[string]string) error {
+func (s *EmailBroadcastService) SendTest(ctx context.Context, email, locale, event string, variables map[string]string) error {
 	if s == nil || s.notification == nil {
 		return infraerrors.New(http.StatusServiceUnavailable, "EMAIL_BROADCAST_UNAVAILABLE", "email broadcast service is not configured")
 	}
@@ -270,13 +274,28 @@ func (s *EmailBroadcastService) SendTest(ctx context.Context, email, locale stri
 	if err != nil {
 		return err
 	}
+	event, err = normalizeEmailBroadcastEvent(event)
+	if err != nil {
+		return err
+	}
 	return s.notification.Send(ctx, NotificationEmailSendInput{
-		Event:          emailBroadcastEvent,
+		Event:          event,
 		Locale:         normalizeNotificationLocale(locale),
 		RecipientEmail: address.Address,
 		RecipientName:  emailRecipientName(address.Address),
 		Variables:      variables,
 	})
+}
+
+func normalizeEmailBroadcastEvent(event string) (string, error) {
+	event = strings.ToLower(strings.TrimSpace(event))
+	if event == "" {
+		return NotificationEmailEventBroadcast, nil
+	}
+	if event != NotificationEmailEventBroadcast && event != NotificationEmailEventReactivation {
+		return "", infraerrors.BadRequest("EMAIL_BROADCAST_INVALID_EVENT", "unsupported email broadcast event")
+	}
+	return event, nil
 }
 
 func normalizeEmailBroadcastVariables(input map[string]string) (map[string]string, error) {
@@ -388,6 +407,11 @@ func normalizeEmailBroadcastAudience(input EmailBroadcastAudience) (EmailBroadca
 		if len(audience.Emails) == 0 {
 			return EmailBroadcastAudience{}, infraerrors.BadRequest("EMAIL_BROADCAST_INVALID_AUDIENCE", "at least one email address is required")
 		}
+	case EmailBroadcastAudienceInactive:
+		if input.InactiveDays < 1 || input.InactiveDays > 3650 {
+			return EmailBroadcastAudience{}, infraerrors.BadRequest("EMAIL_BROADCAST_INVALID_AUDIENCE", "inactive_days must be between 1 and 3650")
+		}
+		audience.InactiveDays = input.InactiveDays
 	default:
 		return EmailBroadcastAudience{}, infraerrors.BadRequest("EMAIL_BROADCAST_INVALID_AUDIENCE", "unsupported audience mode")
 	}
