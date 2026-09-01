@@ -141,8 +141,13 @@ bd3b7b205 又恢复为 DESC。本分支现再次明确采用“1 最高、数值
   奖励策略均可由管理员配置。
 - 余额结算、历史记录、配置版本、审计和防批量/防滥用检查必须保持事务和幂等性。
 - 风控配置读取或参数损坏时 fail closed；关闭某个模式不能绕过每日唯一和账务约束。
+- 签到批量防护不能被后台风险开关完全关闭：即使可编辑风控关闭，仍保留 10 分钟内同源
+  最多 5 个用户、24 小时内同指纹最多 1 个用户的硬下限；后台配置只能收紧该限制。
+- 签到可单独启用 Cloudflare Turnstile，并复用全局 Turnstile site key/secret。新结算必须
+  先验证 token；缺少密钥、验证服务异常或验证失败时 fail closed。当天已结算请求继续按
+  原有幂等路径返回，不额外消费 token。
 - 相关迁移为 191_daily_checkin.sql 至 202_checkin_unrecharged_reward_policy.sql
-  中的签到文件（迁移编号与上游同编号文件交错存在），产品规则见
+  中的签到文件以及 232_checkin_turnstile.sql（迁移编号与上游同编号文件交错存在），产品规则见
   docs/DAILY_CHECK_IN_PRD.md。
 
 ### 4.3 管理员邮件广播
@@ -162,6 +167,9 @@ bd3b7b205 又恢复为 DESC。本分支现再次明确采用“1 最高、数值
   204_generalize_email_broadcasts.sql；重复发送保护实现位于
   backend/internal/repository/email_broadcast_repo.go 和
   backend/internal/service/email_broadcast_service.go。
+- 管理员可使用 `system.reactivation` 模板向未活跃用户发送召回广播；未活跃受众按
+  `COALESCE(last_active_at, last_login_at, created_at)` 与配置天数筛选，创建任务时仍固定
+  收件人和模板快照，并复用同一 at-most-once 状态机。该功能不能绕过已发送防重规则。
 
 ### 4.4 注册风控和安全控制
 

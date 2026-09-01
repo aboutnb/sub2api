@@ -114,8 +114,8 @@ FLOWAI_UPSTREAM_REVIEW_ACK=52374af94031f04df8de6fc91deb77a179e04b06 \
 | Project Mihomo | 支持 URL/静态源、多源、兼容请求头、节点测速、筛选、自动路由、多 listener 和账号池分配；状态持久化 | `backend/internal/service/project_mihomo_service.go`、admin handler、`deploy/docker-compose.preview.yml` | `project_mihomo_service_test.go`、admin handler 测试 |
 | 账号导入/批量测试 | 导入可指定分组/代理池，返回新账号集合；批量测试需人工点击开始，不能自动误发请求 | `backend/internal/handler/admin/account_data.go`、`BatchAccountTestModal.vue`、`AccountsView.vue` | `data-import.spec.ts`、`BatchAccountTestModal.spec.ts`、账号测试 i18n 测试 |
 | USDT/发票 | 独立 GM 通过 EasyPay 接入；USDT 最低金额默认 50；GM 保持精确金额匹配且不做网络费补偿；checkout 弹窗为 625x900；余额充值默认 50 赠 5%、100 赠 10%；BEpusdt 专用代码已移除；发票流程保持不变 | `payment_config_service.go`、`payment_recharge_bonus.go`、`payment_config_limits.go`、`payment_order.go`、`providerConfig.ts`、`rechargeBonus.ts`、EasyPay provider、`invoice_service.go` | USDT minimum/method limit、recharge bonus、popup、EasyPay custom method、invoice service 和支付 API 测试 |
-| 签到/奖励 | 每用户每业务日最多结算一次；普通/幸运模式、概率、倍率/固定金额、阶梯、精度和未充值策略均受事务与风控约束 | `backend/internal/service/checkin_service.go`、`checkin_record_repo.go` | `checkin_service_test.go`、精度/安全/handler 测试 |
-| 邮件广播 | 受众和模板快照持久化；`FOR UPDATE SKIP LOCKED` 领取；发送结果不确定时不自动重试 | `email_broadcast_repo.go`、`email_broadcast_service.go` | repository integration tests、service tests |
+| 签到/奖励 | 每用户每业务日最多结算一次；普通/幸运模式、概率、倍率/固定金额、阶梯、精度和未充值策略均受事务与风控约束；可单独启用 Turnstile，硬性同源/指纹防护不能被后台开关关闭 | `backend/internal/service/checkin_service.go`、`checkin_record_repo.go`、`TurnstileWidget.vue` | `checkin_service_test.go`、Turnstile widget、精度/安全/handler 测试 |
+| 邮件广播 | 受众和模板快照持久化；`FOR UPDATE SKIP LOCKED` 领取；发送结果不确定时不自动重试；召回广播可按未活跃天数固定受众快照 | `email_broadcast_repo.go`、`email_broadcast_service.go` | repository integration tests、service tests、email broadcast API tests |
 | 注册/访问安全 | 注册 challenge、邮箱策略、IP 封禁、公开 POST 发布密钥、上游错误脱敏和 Cloudflare 保护必须保留 | auth handlers/services、middleware、`upstream_error_sanitize.go` | auth/middleware/service 安全测试 |
 | i18n | 中文和英文模块、聚合入口、key 级合并都必须保留；账号优先级文案必须与调度方向一致 | `frontend/src/i18n/index.ts`、`frontend/src/i18n/locales/{zh,en}/` | locale compile/collision/default/account/checkin 测试 |
 | 站点配置 | 社区群、订阅页开关、充值/订阅费用策略、主题、品牌 logo、公告和法律文档是分支功能 | settings service、`App.vue`、`useThemeMode.ts`、相关 views | Settings、router、branding、announcement 测试 |
@@ -214,6 +214,10 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
   未充值用户折减是独立配置；未充值策略不应误伤幸运签到。
 - 配置版本和管理员确认/并发更新检查必须保留；损坏配置、风控依赖不可用时 fail
   closed。
+- 可编辑风控关闭时仍执行硬性批量保护：10 分钟同源最多 5 个用户、24 小时同指纹最多
+  1 个用户；管理员配置只允许收紧窗口或人数，不能放宽到硬下限之外。
+- `checkin_turnstile_enabled` 默认关闭。启用后，新签到结算必须提交并服务端验证 Turnstile
+  token；密钥未配置或验证依赖异常时不结算。当天已完成的幂等请求不重复消费 token。
 
 ### 4.7 邮件广播和通知
 
@@ -224,6 +228,9 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
   provider/SMTP 证据再人工处理。
 - 通知邮件模板、维护公告、登录/注册邮件和公告弹窗均属于用户可见功能，不能只合并
   后端发送逻辑而丢掉模板或 locale。
+- `system.reactivation` 召回模板使用独立中英文官方模板；`inactive` 受众以最后活跃、最后
+  登录、创建时间的首个非空值计算未活跃天数。任务创建后仍使用固定收件人/模板快照，
+  不允许因受众类型不同而重发 `sent` 或结果不确定的 `sending` 收件人。
 
 ### 4.8 注册、访问和上游错误安全
 
@@ -290,6 +297,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | `backend/migrations/231_add_usage_log_requested_reasoning_effort.sql` | 记录映射前请求推理强度 | 本次上游 0.1.183 新增；可空字段，不改历史数据 |
 | `backend/migrations/231_user_restrict_public_groups.sql` | 用户公开分组访问限制 | 本次上游 0.1.183 新增；默认 false，保留现有用户行为 |
 | `backend/migrations/231_add_usage_log_native_compaction_v2.sql` | 标记原生 OpenAI remote compaction v2 请求 | 本次上游 0.1.184 新增；默认 false，不改历史请求状态 |
+| `backend/migrations/232_checkin_turnstile.sql` | 签到独立 Turnstile 开关 | 默认 false；只新增设置，不覆盖现有全局 Turnstile 配置或签到状态 |
 <!-- FLOWAI_MIGRATION_LEDGER_END -->
 
 `backend/migrations/001_init.sql` 的内容曾为保留生产 checksum 做兼容性修复（提交
@@ -412,6 +420,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | 2026-08-30 | `52d8138e2` | test: align schedulable projection with priority policy | 调度/SQL测试 |
 | 2026-08-30 | `e3fd418b7` | feat(payment): open GM checkout popup and sync status | 支付/GM |
 | 2026-08-31 | `444c961a4` | feat(payment): add recharge bonus tiers and USDT limits | 支付/GM |
+| 2026-09-01 | `213b3fcf7` | feat(flowai): harden check-in and add reactivation broadcasts | 签到风控/邮件召回 |
 <!-- FLOWAI_LEDGER_NON_MERGE_END -->
 
 ## 8. 历史合并提交索引
