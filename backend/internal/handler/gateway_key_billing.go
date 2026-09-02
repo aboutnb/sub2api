@@ -30,6 +30,13 @@ type keyBillingInfoResponse struct {
 	ObservedAt              time.Time `json:"observed_at"`
 }
 
+type smartRouteBillingGroup struct {
+	GroupID  int64                  `json:"group_id"`
+	Name     string                 `json:"name"`
+	Platform string                 `json:"platform"`
+	Billing  keyBillingInfoResponse `json:"billing"`
+}
+
 // KeyBillingInfo returns the token billing multiplier effective for the authenticated API key.
 // GET /v1/sub2api/billing
 func (h *GatewayHandler) KeyBillingInfo(c *gin.Context) {
@@ -48,6 +55,30 @@ func (h *GatewayHandler) KeyBillingInfo(c *gin.Context) {
 	}
 	if apiKey.Group == nil {
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "Billing information is unavailable")
+		return
+	}
+	if routing, smart := middleware2.GetSmartRouteFromContext(c); smart {
+		groups := make([]smartRouteBillingGroup, 0, len(routing.RuntimeGroups))
+		now := timezone.Now()
+		for _, group := range routing.RuntimeGroups {
+			if group == nil {
+				continue
+			}
+			candidate := cloneAPIKeyWithGroup(apiKey, group)
+			resolvedRate, resolved := h.resolveKeyBillingRate(c, candidate)
+			if !resolved {
+				continue
+			}
+			groups = append(groups, smartRouteBillingGroup{
+				GroupID: group.ID, Name: group.Name, Platform: group.Platform,
+				Billing: buildKeyBillingInfo(candidate, resolvedRate, now),
+			})
+		}
+		c.Header("Cache-Control", "no-store")
+		c.JSON(http.StatusOK, gin.H{
+			"object": "sub2api.smart_route_billing", "schema_version": keyBillingInfoSchemaVersion,
+			"billing_scope": "smart_route", "strategy": routing.Strategy, "groups": groups,
+		})
 		return
 	}
 

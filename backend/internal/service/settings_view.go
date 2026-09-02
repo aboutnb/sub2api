@@ -214,6 +214,9 @@ type SystemSettings struct {
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
+	// Smart routing feature switch (opt-in; existing single-group keys are unaffected).
+	SmartRoutingEnabled bool `json:"smart_routing_enabled"`
+
 	// User-facing subscription page and sidebar entry
 	UserSubscriptionsEnabled bool `json:"user_subscriptions_enabled"`
 
@@ -400,6 +403,9 @@ type PublicSettings struct {
 
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+
+	// Smart routing feature switch (opt-in).
+	SmartRoutingEnabled bool `json:"smart_routing_enabled"`
 
 	// User-facing subscription page and sidebar entry
 	UserSubscriptionsEnabled bool `json:"user_subscriptions_enabled"`

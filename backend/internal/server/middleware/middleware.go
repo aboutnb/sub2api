@@ -29,6 +29,9 @@ const (
 	// apiKey 已加载但尚未写入 ContextKeyAPIKey；该键让 Ops 错误日志仍能取到
 	// user/group/platform。仅供 Ops 错误日志读取，不代表请求已通过鉴权。
 	ContextKeyOpsFallbackAPIKey ContextKey = "ops_fallback_api_key"
+	// ContextKeySmartRoute carries request-local routing metadata for models,
+	// usage and billing introspection handlers.
+	ContextKeySmartRoute ContextKey = "smart_route"
 )
 
 // ForcePlatform 返回设置强制平台的中间件
@@ -58,6 +61,15 @@ func GetForcePlatformFromContext(c *gin.Context) (string, bool) {
 	}
 	platform, ok := value.(string)
 	return platform, ok
+}
+
+func GetSmartRouteFromContext(c *gin.Context) (*service.SmartRouteConfig, bool) {
+	value, exists := c.Get(string(ContextKeySmartRoute))
+	if !exists {
+		return nil, false
+	}
+	config, ok := value.(*service.SmartRouteConfig)
+	return config, ok && config != nil
 }
 
 // ErrorResponse 标准错误响应结构
@@ -125,6 +137,15 @@ func RequireGroupAssignment(settingService *service.SettingService, writeError G
 	return func(c *gin.Context) {
 		apiKey, ok := GetAPIKeyFromContext(c)
 		if !ok || apiKey.GroupID != nil {
+			c.Next()
+			return
+		}
+		_, smartRouteConfigured := GetSmartRouteFromContext(c)
+		// Historical image reads are owner-scoped and do not need a live
+		// candidate group. Async tasks are checked by (user_id, api_key_id,
+		// task_id), while smart batches use the same key ownership in storage.
+		if isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path) ||
+			(smartRouteConfigured && isHistoricalBatchImageRead(c.Request.Method, c.Request.URL.Path)) {
 			c.Next()
 			return
 		}

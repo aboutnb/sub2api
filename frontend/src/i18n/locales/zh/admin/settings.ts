@@ -42,6 +42,12 @@ export default {
           enabled: '启用可用渠道',
           enabledHint: '关闭后用户端侧边栏入口隐藏，接口返回空数组。',
         },
+        smartRouting: {
+          title: '智能路由',
+          description: '控制智能路由 API Key 的创建和请求级候选组选择。关闭后已有单分组 Key 不受影响。',
+          enabled: '启用智能路由',
+          enabledHint: '建议确认后端迁移和全量部署完成再开启；关闭后智能 Key 将暂停请求，历史任务仍可查询。',
+        },
         userSubscriptions: {
           title: '用户订阅入口',
           description: '控制用户侧“我的订阅”菜单和页面访问，不影响管理员订阅管理、订阅计费及已有订阅数据。',

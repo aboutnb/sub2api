@@ -51,6 +51,29 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		c.JSON(http.StatusOK, antigravity.FallbackGeminiModelsList())
 		return
 	}
+	if routing, smart := middleware.GetSmartRouteFromContext(c); smart {
+		modelIDs := make([]string, 0)
+		for _, group := range routing.RuntimeGroups {
+			if group == nil {
+				continue
+			}
+			groupID := group.ID
+			available := h.gatewayService.GetAvailableModels(c.Request.Context(), &groupID, group.Platform)
+			fallback := defaultModelIDsForPlatform(group.Platform)
+			if group.CustomModelsListEnabled() {
+				available = filterModelsByCustomList(customModelsListSource(group.Platform, available, fallback), fallback, group.ModelsListConfig.Models)
+			} else if len(available) == 0 {
+				available = fallback
+			}
+			modelIDs = mergeModelIDs(modelIDs, available)
+		}
+		models := make([]gemini.Model, 0, len(modelIDs))
+		for _, modelID := range modelIDs {
+			models = append(models, gemini.FallbackModel(modelID))
+		}
+		c.JSON(http.StatusOK, gemini.ModelsListResponse{Models: models})
+		return
+	}
 
 	account, err := h.geminiCompatService.SelectAccountForAIStudioEndpoints(c.Request.Context(), apiKey.GroupID)
 	if err != nil {

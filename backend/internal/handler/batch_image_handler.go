@@ -134,6 +134,31 @@ func (h *BatchImageHandler) Models(c *gin.Context) {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
+	if routing, smart := middleware.GetSmartRouteFromContext(c); smart {
+		seen := make(map[string]struct{})
+		merged := &service.BatchImagePublicModelsResponse{Object: "list"}
+		for _, group := range routing.RuntimeGroups {
+			if group == nil || !group.AllowBatchImageGeneration {
+				continue
+			}
+			groupID := group.ID
+			owner.GroupID = &groupID
+			result, err := h.service.ListModels(c.Request.Context(), owner)
+			if err != nil {
+				continue
+			}
+			for _, model := range result.Data {
+				key := model.Provider + "\x00" + model.ID
+				if _, exists := seen[key]; exists {
+					continue
+				}
+				seen[key] = struct{}{}
+				merged.Data = append(merged.Data, model)
+			}
+		}
+		c.JSON(http.StatusOK, merged)
+		return
+	}
 	got, err := h.service.ListModels(c.Request.Context(), owner)
 	if err != nil {
 		batchImageError(c, err)

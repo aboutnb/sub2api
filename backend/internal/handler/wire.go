@@ -238,12 +238,18 @@ func ProvideHandlers(
 	}
 }
 
+func ProvideAPIKeyHandler(apiKeyService *service.APIKeyService, smartRouteService *service.SmartRouteService) *APIKeyHandler {
+	h := NewAPIKeyHandler(apiKeyService)
+	h.SetSmartRouteService(smartRouteService)
+	return h
+}
+
 // ProviderSet is the Wire provider set for all handlers
 var ProviderSet = wire.NewSet(
 	// Top-level handlers
 	NewAuthHandler,
 	NewUserHandler,
-	NewAPIKeyHandler,
+	ProvideAPIKeyHandler,
 	NewUsageHandler,
 	NewRedeemHandler,
 	NewSubscriptionHandler,

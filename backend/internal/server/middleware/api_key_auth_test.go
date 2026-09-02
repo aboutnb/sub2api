@@ -333,6 +333,35 @@ func TestAPIKeyAuthSetsGroupContext(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestAPIKeyAuthLegacyGroupBypassesSmartRouteResolver(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	group := &service.Group{ID: 101, Status: service.StatusActive, Hydrated: true}
+	user := &service.User{ID: 7, Status: service.StatusActive, Balance: 10, Concurrency: 3}
+	apiKey := &service.APIKey{
+		ID: 100, UserID: user.ID, Key: "test-key", Status: service.StatusActive,
+		User: user, GroupID: &group.ID, Group: group,
+	}
+	apiKeyRepo := &stubApiKeyRepo{getByKey: func(context.Context, string) (*service.APIKey, error) {
+		clone := *apiKey
+		return &clone, nil
+	}}
+	cfg := &config.Config{RunMode: config.RunModeSimple}
+	apiKeyService := service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, cfg)
+	resolver := &countingAPIKeyGroupResolver{}
+	router := gin.New()
+	router.Use(apiKeyAuthWithSubscription(apiKeyService, nil, cfg, resolver))
+	router.GET("/t", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/t", nil)
+	req.Header.Set("x-api-key", apiKey.Key)
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Zero(t, resolver.calls.Load())
+}
+
 func TestAPIKeyAuthRejectsExclusiveGroupWhenUserNoLongerAllowed(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -1520,6 +1549,15 @@ func requireAPIKeyAuthError(t *testing.T, w *httptest.ResponseRecorder, code, me
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	require.Equal(t, code, resp.Code)
 	require.Equal(t, message, resp.Message)
+}
+
+type countingAPIKeyGroupResolver struct {
+	calls atomic.Int32
+}
+
+func (r *countingAPIKeyGroupResolver) Resolve(_ *gin.Context, apiKey *service.APIKey) (*service.APIKey, error) {
+	r.calls.Add(1)
+	return apiKey, nil
 }
 
 type stubApiKeyRepo struct {

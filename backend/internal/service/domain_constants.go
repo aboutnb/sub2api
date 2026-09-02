@@ -507,6 +507,10 @@ const (
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled = "available_channels_enabled"
 
+	// SettingKeySmartRoutingEnabled gates creation and execution of smart-routed API keys.
+	// It is opt-in so mixed-version deployments cannot send a smart key to an old node.
+	SettingKeySmartRoutingEnabled = "smart_routing_enabled"
+
 	// SettingKeyUserSubscriptionsEnabled controls the user-facing "My Subscriptions"
 	// page and sidebar entry. Admin subscription management and billing remain available.
 	SettingKeyUserSubscriptionsEnabled = "user_subscriptions_enabled"

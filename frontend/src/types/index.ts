@@ -2,6 +2,9 @@
  * Core Type Definitions for Sub2API Frontend
  */
 
+import type { SmartRouteConfig, SmartRouteInput } from './smart-routing'
+export type * from './smart-routing'
+
 // ==================== Common Types ====================
 
 export interface SelectOption {
@@ -323,6 +326,7 @@ export interface PublicSettings {
   /** When true, user monitor shows account quota/balance snapshots (default off). */
   channel_monitor_show_quota?: boolean
   available_channels_enabled: boolean
+  smart_routing_enabled: boolean
   user_subscriptions_enabled: boolean
   model_plaza_enabled: boolean
   model_plaza_require_auth: boolean
@@ -794,6 +798,7 @@ export interface ApiKey {
   reset_5h_at: string | null
   reset_1d_at: string | null
   reset_7d_at: string | null
+  routing?: SmartRouteConfig | null
 }
 
 export interface CreateApiKeyRequest {
@@ -807,6 +812,7 @@ export interface CreateApiKeyRequest {
   rate_limit_5h?: number
   rate_limit_1d?: number
   rate_limit_7d?: number
+  routing?: SmartRouteInput
 }
 
 export interface UpdateApiKeyRequest {
@@ -822,6 +828,7 @@ export interface UpdateApiKeyRequest {
   rate_limit_1d?: number
   rate_limit_7d?: number
   reset_rate_limit_usage?: boolean
+  routing?: SmartRouteInput
 }
 
 export interface CreateGroupRequest {

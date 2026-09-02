@@ -55,6 +55,7 @@ func newGatewayRoutesTestRouterWithConfig(cfg *config.Config, authCalled *bool, 
 		nil,
 		nil,
 		nil,
+		nil,
 		cfg,
 	)
 

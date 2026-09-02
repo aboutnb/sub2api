@@ -358,6 +358,9 @@ type UpdateSettingsRequest struct {
 	// Available Channels feature switch (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
 
+	// Smart routing feature switch (opt-in)
+	SmartRoutingEnabled *bool `json:"smart_routing_enabled"`
+
 	// User-facing subscription page and sidebar entry
 	UserSubscriptionsEnabled *bool `json:"user_subscriptions_enabled"`
 
@@ -1952,6 +1955,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AvailableChannelsEnabled
 		}(),
+		SmartRoutingEnabled: func() bool {
+			if req.SmartRoutingEnabled != nil {
+				return *req.SmartRoutingEnabled
+			}
+			return previousSettings.SmartRoutingEnabled
+		}(),
 		UserSubscriptionsEnabled: func() bool {
 			if req.UserSubscriptionsEnabled != nil {
 				return *req.UserSubscriptionsEnabled
@@ -2456,6 +2465,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		GrokDefaultBaseURLMode:         updatedSettings.GrokDefaultBaseURLMode,
 
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
+		SmartRoutingEnabled:      updatedSettings.SmartRoutingEnabled,
 		UserSubscriptionsEnabled: updatedSettings.UserSubscriptionsEnabled,
 
 		ModelPlazaEnabled:       updatedSettings.ModelPlazaEnabled,

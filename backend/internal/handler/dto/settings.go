@@ -330,6 +330,7 @@ type SystemSettings struct {
 
 	// Available Channels feature switch (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+	SmartRoutingEnabled      bool `json:"smart_routing_enabled"`
 
 	// User-facing subscription page and sidebar entry
 	UserSubscriptionsEnabled bool `json:"user_subscriptions_enabled"`
@@ -441,6 +442,7 @@ type PublicSettings struct {
 	ChannelMonitorShowQuota              bool   `json:"channel_monitor_show_quota"`
 
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+	SmartRoutingEnabled      bool `json:"smart_routing_enabled"`
 
 	UserSubscriptionsEnabled bool `json:"user_subscriptions_enabled"`
 	ModelPlazaEnabled        bool `json:"model_plaza_enabled"`

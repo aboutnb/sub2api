@@ -26,6 +26,7 @@ func RegisterGatewayRoutes(
 	r *gin.Engine,
 	h *handler.Handlers,
 	apiKeyAuth middleware.APIKeyAuthMiddleware,
+	apiKeyGroupResolver middleware.APIKeyGroupResolver,
 	apiKeyService *service.APIKeyService,
 	subscriptionService *service.SubscriptionService,
 	opsService *service.OpsService,
@@ -68,6 +69,10 @@ func RegisterGatewayRoutes(
 		}
 	}
 	codexModelsHandler := func(c *gin.Context) {
+		if _, smart := middleware.GetSmartRouteFromContext(c); smart {
+			h.Gateway.CodexModels(c)
+			return
+		}
 		dispatchCodexModelsGateway(c, h.OpenAIGateway.CodexModels, h.Gateway.CodexModels)
 	}
 	modelsHandler := func(c *gin.Context) {
@@ -344,7 +349,7 @@ func RegisterGatewayRoutes(
 	gemini.Use(opsErrorLogger)
 	gemini.Use(endpointNorm)
 	gemini.Use(rejectMalformedGoogleKey)
-	gemini.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	gemini.Use(middleware.APIKeyAuthWithSubscriptionGoogleAndResolver(apiKeyService, subscriptionService, cfg, apiKeyGroupResolver))
 	gemini.Use(compositeGeminiTarget)
 	gemini.Use(requireGroupGoogle)
 	{
@@ -500,7 +505,7 @@ func RegisterGatewayRoutes(
 	antigravityV1Beta.Use(endpointNorm)
 	antigravityV1Beta.Use(middleware.ForcePlatform(service.PlatformAntigravity))
 	antigravityV1Beta.Use(rejectMalformedGoogleKey)
-	antigravityV1Beta.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	antigravityV1Beta.Use(middleware.APIKeyAuthWithSubscriptionGoogleAndResolver(apiKeyService, subscriptionService, cfg, apiKeyGroupResolver))
 	antigravityV1Beta.Use(requireGroupGoogle)
 	{
 		antigravityV1Beta.GET("/models", h.Gateway.GeminiV1BetaListModels)

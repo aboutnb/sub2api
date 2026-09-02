@@ -42,6 +42,12 @@ export default {
           enabled: 'Enable Available Channels',
           enabledHint: 'When off, the sidebar entry is hidden and the endpoint returns an empty list.',
         },
+        smartRouting: {
+          title: 'Smart Routing',
+          description: 'Controls smart-routed API key creation and request-level candidate selection. Existing single-group keys are unaffected when this is off.',
+          enabled: 'Enable Smart Routing',
+          enabledHint: 'Enable only after the migration and all backend nodes are deployed. Disabling pauses smart-key requests while historical tasks remain readable.',
+        },
         userSubscriptions: {
           title: 'User Subscription Entry',
           description: 'Control the user-facing My Subscriptions menu and page without affecting admin management, billing, or existing subscription data.',

@@ -101,7 +101,13 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 	}
 
 	taskCtx, recorder, cancel := newAsyncImageContext(c, body, h.tasks.ExecutionTimeout())
-	task, err := h.tasks.Create(c.Request.Context(), service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
+	groupID := int64(0)
+	if apiKey.GroupID != nil {
+		groupID = *apiKey.GroupID
+	}
+	task, err := h.tasks.Create(c.Request.Context(), service.ImageTaskOwner{
+		UserID: apiKey.UserID, APIKeyID: apiKey.ID, GroupID: groupID, Platform: platform,
+	})
 	if err != nil {
 		cancel()
 		imageTaskError(c, err)

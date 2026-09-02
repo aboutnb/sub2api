@@ -387,6 +387,7 @@ export const useAppStore = defineStore('app', () => {
         risk_control_enabled: false,
         service_quota_enabled: false,
         affiliate_enabled: false,
+        smart_routing_enabled: false,
         allow_user_view_error_requests: false,
         public_access_guard_enabled: false,
         public_access_publish_key: '',

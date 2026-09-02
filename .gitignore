@@ -148,6 +148,7 @@ docs/*
 !docs/COMPOSITE_GROUPS.md
 !docs/PLUGIN_DEVELOPMENT.md
 !docs/channel-monitor-v2-safe-defaults.md
+!docs/CHANNEL_MONITOR_V2_FLOWAI_PRD.md
 !docs/legal/
 !docs/legal/*.md
 !docs/screenshots/

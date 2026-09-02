@@ -225,6 +225,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
 
+		// Smart routing feature (default disabled; opt-in)
+		SettingKeySmartRoutingEnabled: "false",
+
 		// User subscription page (default enabled; opt-out)
 		SettingKeyUserSubscriptionsEnabled: "true",
 
@@ -846,6 +849,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Available channels feature (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"
+	result.SmartRoutingEnabled = settings[SettingKeySmartRoutingEnabled] == "true"
 
 	// User subscription page (default: enabled; fail open for existing installs)
 	result.UserSubscriptionsEnabled = !isFalseSettingValue(settings[SettingKeyUserSubscriptionsEnabled])

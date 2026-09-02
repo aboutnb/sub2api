@@ -434,6 +434,8 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	// Available channels feature switch
 	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
+	// Smart routing feature switch (opt-in; single-group keys do not depend on it)
+	updates[SettingKeySmartRoutingEnabled] = strconv.FormatBool(settings.SmartRoutingEnabled)
 
 	// User subscription page feature switch
 	updates[SettingKeyUserSubscriptionsEnabled] = strconv.FormatBool(settings.UserSubscriptionsEnabled)

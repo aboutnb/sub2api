@@ -739,6 +739,7 @@ export interface SystemSettings {
 
   // Available Channels feature switch
   available_channels_enabled: boolean;
+  smart_routing_enabled: boolean;
 
   // User-facing subscription page and sidebar entry
   user_subscriptions_enabled: boolean;
@@ -1056,6 +1057,7 @@ export interface UpdateSettingsRequest {
 
   // Available Channels feature switch
   available_channels_enabled?: boolean;
+  smart_routing_enabled?: boolean;
 
   // User-facing subscription page and sidebar entry
   user_subscriptions_enabled?: boolean;

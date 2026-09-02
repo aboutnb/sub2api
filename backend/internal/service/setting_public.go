@@ -239,6 +239,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorHideThroughput,
 		SettingKeyChannelMonitorShowQuota,
 		SettingKeyAvailableChannelsEnabled,
+		SettingKeySmartRoutingEnabled,
 		SettingKeyUserSubscriptionsEnabled,
 		SettingKeyModelPlazaEnabled,
 		SettingKeyModelPlazaRequireAuth,
@@ -380,6 +381,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorShowQuota:              settings[SettingKeyChannelMonitorShowQuota] == "true",
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
+		SmartRoutingEnabled:      settings[SettingKeySmartRoutingEnabled] == "true",
 
 		UserSubscriptionsEnabled: !isFalseSettingValue(settings[SettingKeyUserSubscriptionsEnabled]),
 		ModelPlazaEnabled:        settings[SettingKeyModelPlazaEnabled] == "true",
@@ -520,6 +522,16 @@ func (s *SettingService) GetAvailableChannelsRuntime(ctx context.Context) Availa
 	}
 }
 
+// IsSmartRoutingEnabled reads the opt-in smart-routing feature switch.
+// Fail closed so a settings outage cannot activate a mixed-version feature.
+func (s *SettingService) IsSmartRoutingEnabled(ctx context.Context) bool {
+	if s == nil || s.settingRepo == nil {
+		return false
+	}
+	vals, err := s.settingRepo.GetMultiple(ctx, []string{SettingKeySmartRoutingEnabled})
+	return err == nil && vals[SettingKeySmartRoutingEnabled] == "true"
+}
+
 // ModelPlazaRuntime is the lightweight view of the model-plaza feature consumed
 // by the public plaza handler.
 type ModelPlazaRuntime struct {
@@ -648,6 +660,7 @@ type PublicSettingsInjectionPayload struct {
 	// monitors; fail-closed (absent/false = hidden). Admin UI always shows it.
 	ChannelMonitorShowQuota    bool   `json:"channel_monitor_show_quota"`
 	AvailableChannelsEnabled   bool   `json:"available_channels_enabled"`
+	SmartRoutingEnabled        bool   `json:"smart_routing_enabled"`
 	UserSubscriptionsEnabled   bool   `json:"user_subscriptions_enabled"`
 	ModelPlazaEnabled          bool   `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth      bool   `json:"model_plaza_require_auth"`
@@ -737,6 +750,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorHideThroughput:         settings.ChannelMonitorHideThroughput,
 		ChannelMonitorShowQuota:              settings.ChannelMonitorShowQuota,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
+		SmartRoutingEnabled:                  settings.SmartRoutingEnabled,
 		UserSubscriptionsEnabled:             settings.UserSubscriptionsEnabled,
 		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,
