@@ -6,6 +6,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import CheckinShortcut from '@/components/checkin/CheckinShortcut.vue'
+import LuckyCheckinConfirmDialog from '@/components/checkin/LuckyCheckinConfirmDialog.vue'
 import type { CheckinRecord, CheckinStatus } from '@/types'
 
 const {
@@ -110,6 +111,11 @@ function mountShortcut() {
   return wrapper
 }
 
+function latestFromBody<T extends Element>(selector: string) {
+  const elements = document.body.querySelectorAll<T>(selector)
+  return elements.item(elements.length - 1)
+}
+
 describe('check-in header shortcut', () => {
   beforeEach(() => {
     for (const fn of [getStatus, checkIn, refreshUser, fetchPublicSettings, showSuccess, showError, push]) fn.mockReset()
@@ -178,10 +184,8 @@ describe('check-in header shortcut', () => {
 
     await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
     await wrapper.get(`[data-testid="quick-checkin-${mode}"]`).trigger('click')
-    if (mode === 'lucky') {
-      expect(checkIn).not.toHaveBeenCalled()
-      document.body.querySelector<HTMLButtonElement>('[data-testid="confirm-lucky-checkin"]')?.click()
-    }
+    expect(checkIn).not.toHaveBeenCalled()
+    latestFromBody<HTMLButtonElement>(`[data-testid="confirm-${mode}-checkin"]`)?.click()
     await flushPromises()
 
     expect(checkIn).toHaveBeenCalledWith(mode, status.business_date)
@@ -222,8 +226,11 @@ describe('check-in header shortcut', () => {
 
     await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
     const normal = wrapper.get('[data-testid="quick-checkin-normal"]')
-    void normal.trigger('click')
-    void normal.trigger('click')
+    await normal.trigger('click')
+    await flushPromises()
+    const confirm = latestFromBody<HTMLButtonElement>('[data-testid="confirm-normal-checkin"]')
+    confirm?.click()
+    confirm?.click()
 
     expect(checkIn).toHaveBeenCalledTimes(1)
     resolveCheckin({ newly_checked_in: true, record: { ...record } })
@@ -239,6 +246,8 @@ describe('check-in header shortcut', () => {
 
     await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
     await wrapper.get('[data-testid="quick-checkin-normal"]').trigger('click')
+    await flushPromises()
+    wrapper.getComponent(LuckyCheckinConfirmDialog).vm.$emit('confirm')
     await flushPromises()
 
     const shortcut = wrapper.get('[data-testid="checkin-shortcut"]')
@@ -267,12 +276,14 @@ describe('check-in header shortcut', () => {
     await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
     await wrapper.get('[data-testid="quick-checkin-normal"]').trigger('click')
     await flushPromises()
+    wrapper.getComponent(LuckyCheckinConfirmDialog).vm.$emit('confirm')
+    await flushPromises()
 
     expect(showError).toHaveBeenCalledWith('checkin.sourceLimited')
     expect(refreshUser).not.toHaveBeenCalled()
   })
 
-  it('requires a Turnstile token before quick check-in', async () => {
+  it('opens normal verification inside the quick confirmation dialog', async () => {
     getStatus.mockResolvedValue({
       ...status,
       turnstile_enabled: true,
@@ -282,13 +293,46 @@ describe('check-in header shortcut', () => {
     await flushPromises()
 
     await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
-    expect(wrapper.get('[data-testid="checkin-shortcut-turnstile"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="quick-checkin-menu-normal"]').attributes('disabled')).toBeDefined()
-
-    await wrapper.get('[data-testid="turnstile-stub"]').trigger('click')
+    expect(wrapper.find('[data-testid="checkin-shortcut-turnstile"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="checkin-shortcut-normal-verification"]').exists()).toBe(false)
     await wrapper.get('[data-testid="quick-checkin-menu-normal"]').trigger('click')
     await flushPromises()
 
+    const verification = latestFromBody<HTMLElement>('[data-testid="normal-checkin-verification"]')
+    const confirm = latestFromBody<HTMLButtonElement>('[data-testid="confirm-normal-checkin"]')
+    expect(verification).not.toBeNull()
+    expect(confirm?.disabled).toBe(true)
+    verification?.querySelector<HTMLButtonElement>('[data-testid="turnstile-stub"]')?.click()
+    await flushPromises()
+    expect(confirm?.disabled).toBe(false)
+    confirm?.click()
+    await flushPromises()
+
     expect(checkIn).toHaveBeenCalledWith('normal', status.business_date, 'turnstile-proof')
+  })
+
+  it('keeps lucky verification inside the quick confirmation dialog', async () => {
+    getStatus.mockResolvedValue({
+      ...status,
+      turnstile_enabled: true,
+      turnstile_site_key: 'site-key',
+    })
+    const wrapper = mountShortcut()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="quick-checkin-lucky"]').trigger('click')
+    await flushPromises()
+
+    const verification = latestFromBody<HTMLElement>('[data-testid="lucky-checkin-verification"]')
+    const confirm = latestFromBody<HTMLButtonElement>('[data-testid="confirm-lucky-checkin"]')
+    expect(verification).not.toBeNull()
+    expect(confirm?.disabled).toBe(true)
+    verification?.querySelector<HTMLButtonElement>('[data-testid="turnstile-stub"]')?.click()
+    await flushPromises()
+    expect(confirm?.disabled).toBe(false)
+    confirm?.click()
+    await flushPromises()
+
+    expect(checkIn).toHaveBeenCalledWith('lucky', status.business_date, 'turnstile-proof')
   })
 })

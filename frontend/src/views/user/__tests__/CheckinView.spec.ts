@@ -271,7 +271,7 @@ describe('user CheckinView', () => {
     expect(wrapper.find('[data-testid="checkin-mode-actions"]').exists()).toBe(false)
   })
 
-  it('requires and submits a Turnstile token when check-in protection is enabled', async () => {
+  it('opens normal verification inside the confirmation dialog and submits its token', async () => {
     getStatus.mockResolvedValue({
       ...status,
       turnstile_enabled: true,
@@ -280,12 +280,48 @@ describe('user CheckinView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="checkin-turnstile"]').exists()).toBe(true)
-    expect(checkIn).not.toHaveBeenCalled()
-    await wrapper.get('[data-testid="turnstile-stub"]').trigger('click')
+    expect(wrapper.find('[data-testid="checkin-turnstile"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="checkin-normal-verification"]').exists()).toBe(false)
     await wrapper.get('[data-testid="checkin-mode-normal"]').trigger('click')
     await flushPromises()
 
+    const verification = document.body.querySelector<HTMLElement>('[data-testid="normal-checkin-verification"]')
+    const confirm = document.body.querySelector<HTMLButtonElement>('[data-testid="confirm-normal-checkin"]')
+    expect(verification).not.toBeNull()
+    expect(confirm?.disabled).toBe(true)
+    expect(checkIn).not.toHaveBeenCalled()
+    verification?.querySelector<HTMLButtonElement>('[data-testid="turnstile-stub"]')?.click()
+    await flushPromises()
+    expect(confirm?.disabled).toBe(false)
+    confirm?.click()
+    await flushPromises()
+
     expect(checkIn).toHaveBeenCalledWith('normal', status.business_date, 'turnstile-proof')
+  })
+
+  it('places lucky verification inside the confirmation dialog', async () => {
+    getStatus.mockResolvedValue({
+      ...status,
+      turnstile_enabled: true,
+      turnstile_site_key: 'site-key',
+    })
+    checkIn.mockResolvedValue({ newly_checked_in: true, record: negativeRecord })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="checkin-mode-lucky"]').trigger('click')
+    await flushPromises()
+
+    const verification = document.body.querySelector<HTMLElement>('[data-testid="lucky-checkin-verification"]')
+    const confirm = document.body.querySelector<HTMLButtonElement>('[data-testid="confirm-lucky-checkin"]')
+    expect(verification).not.toBeNull()
+    expect(confirm?.disabled).toBe(true)
+    verification?.querySelector<HTMLButtonElement>('[data-testid="turnstile-stub"]')?.click()
+    await flushPromises()
+    expect(confirm?.disabled).toBe(false)
+    confirm?.click()
+    await flushPromises()
+
+    expect(checkIn).toHaveBeenCalledWith('lucky', status.business_date, 'turnstile-proof')
   })
 })

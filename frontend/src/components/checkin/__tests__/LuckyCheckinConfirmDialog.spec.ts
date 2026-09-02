@@ -50,4 +50,60 @@ describe('LuckyCheckinConfirmDialog', () => {
     expect(wrapper.find('[data-testid="lucky-positive-probability"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('checkin.luckyAmountRisk')
   })
+
+  it('renders normal check-in copy without the lucky multiplier section', () => {
+    const wrapper = mount(LuckyCheckinConfirmDialog, {
+      props: {
+        show: true,
+        mode: 'normal',
+        rewardType: 'multiplier',
+        minMultiplier: -0.05,
+        maxMultiplier: 0.1,
+        submitting: false,
+      },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          Icon: true,
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('checkin.normalConfirmTitle')
+    expect(wrapper.text()).toContain('checkin.normalHint')
+    expect(wrapper.find('[data-testid="lucky-multiplier-range"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="confirm-normal-checkin"]').text()).toContain('checkin.normalConfirmAction')
+  })
+
+  it('renders verification inside the dialog and blocks confirmation until complete', async () => {
+    const wrapper = mount(LuckyCheckinConfirmDialog, {
+      props: {
+        show: true,
+        rewardType: 'multiplier',
+        minMultiplier: -0.05,
+        maxMultiplier: 0.1,
+        submitting: false,
+        verificationRequired: true,
+        verificationComplete: false,
+      },
+      slots: {
+        verification: '<div data-testid="verification-slot" />',
+      },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          Icon: true,
+        },
+      },
+    })
+
+    expect(wrapper.get('[data-testid="lucky-checkin-verification"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="verification-slot"]')).toBeTruthy()
+    expect(wrapper.get('[data-testid="confirm-lucky-checkin"]').attributes('disabled')).toBeDefined()
+
+    await wrapper.setProps({ verificationComplete: true })
+
+    expect(wrapper.get('[data-testid="confirm-lucky-checkin"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.text()).toContain('checkin.verificationComplete')
+  })
 })

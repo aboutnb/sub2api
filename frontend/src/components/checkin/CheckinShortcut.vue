@@ -69,34 +69,25 @@
         id="checkin-shortcut-menu"
         data-testid="checkin-shortcut-menu"
         role="menu"
-        class="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-xl dark:border-dark-700 dark:bg-dark-800"
+        class="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-xl dark:border-dark-700 dark:bg-dark-800"
         @click.stop
         @keydown.esc="closeMenu"
       >
-        <div v-if="status?.turnstile_enabled && status.turnstile_site_key" data-testid="checkin-shortcut-turnstile" class="border-b border-gray-100 px-3 py-2 dark:border-dark-700">
-          <TurnstileWidget
-            ref="turnstileRef"
-            :site-key="status.turnstile_site_key"
-            size="compact"
-            @verify="handleTurnstileVerify"
-            @expire="handleTurnstileExpire"
-            @error="handleTurnstileError"
-          />
+        <div v-if="status?.normal_enabled">
+          <button
+            type="button"
+            role="menuitem"
+            data-testid="quick-checkin-menu-normal"
+            class="flex h-11 w-full items-center gap-3 px-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-amber-50 hover:text-amber-700 focus:bg-amber-50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:text-dark-200 dark:hover:bg-amber-900/20 dark:hover:text-amber-300"
+            :disabled="submitting"
+            @click="requestCheckin('normal')"
+          >
+            <span class="flex h-7 w-7 items-center justify-center rounded-md bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+              <Icon name="checkCircle" size="sm" />
+            </span>
+            <span>{{ t('checkin.normal') }}</span>
+          </button>
         </div>
-        <button
-          v-if="status?.normal_enabled"
-          type="button"
-          role="menuitem"
-          data-testid="quick-checkin-menu-normal"
-          class="flex h-11 w-full items-center gap-3 px-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-amber-50 hover:text-amber-700 focus:bg-amber-50 focus:outline-none dark:text-dark-200 dark:hover:bg-amber-900/20 dark:hover:text-amber-300"
-          :disabled="submitting || (status?.turnstile_enabled && !turnstileToken)"
-          @click="requestCheckin('normal')"
-        >
-          <span class="flex h-7 w-7 items-center justify-center rounded-md bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-            <Icon name="checkCircle" size="sm" />
-          </span>
-          <span>{{ t('checkin.normal') }}</span>
-        </button>
 
         <button
           v-if="status?.lucky_enabled"
@@ -104,7 +95,7 @@
           role="menuitem"
           data-testid="quick-checkin-menu-lucky"
           class="flex h-11 w-full items-center gap-3 px-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-violet-50 hover:text-violet-700 focus:bg-violet-50 focus:outline-none dark:text-dark-200 dark:hover:bg-violet-900/20 dark:hover:text-violet-300"
-          :disabled="submitting || (status?.turnstile_enabled && !turnstileToken)"
+          :disabled="submitting"
           @click="requestCheckin('lucky')"
         >
           <span class="flex h-7 w-7 items-center justify-center rounded-md bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
@@ -130,14 +121,38 @@
     </transition>
   </div>
   <LuckyCheckinConfirmDialog
-    :show="luckyConfirmOpen"
+    :show="confirmOpen !== null"
+    :mode="confirmOpen || 'lucky'"
     :reward-type="status?.lucky_reward_type || 'multiplier'"
     :min-multiplier="status?.lucky_min_multiplier || 0"
     :max-multiplier="status?.lucky_max_multiplier || 0"
-    :submitting="submittingMode === 'lucky'"
-    @confirm="confirmLuckyCheckin"
-    @cancel="luckyConfirmOpen = false"
-  />
+    :submitting="Boolean(confirmOpen && submittingMode === confirmOpen)"
+    :verification-required="Boolean(status?.turnstile_enabled && status.turnstile_site_key)"
+    :verification-complete="Boolean(activeTurnstileToken)"
+    @confirm="confirmCheckin"
+    @cancel="closeConfirm"
+  >
+    <template #verification>
+      <TurnstileWidget
+        v-if="confirmOpen === 'normal' && status?.turnstile_enabled && status.turnstile_site_key"
+        ref="normalTurnstileRef"
+        :site-key="status.turnstile_site_key"
+        size="compact"
+        @verify="handleTurnstileVerify('normal', $event)"
+        @expire="handleTurnstileExpire('normal')"
+        @error="handleTurnstileError('normal')"
+      />
+      <TurnstileWidget
+        v-else-if="confirmOpen === 'lucky' && status?.turnstile_enabled && status.turnstile_site_key"
+        ref="luckyTurnstileRef"
+        :site-key="status.turnstile_site_key"
+        size="flexible"
+        @verify="handleTurnstileVerify('lucky', $event)"
+        @expire="handleTurnstileExpire('lucky')"
+        @error="handleTurnstileError('lucky')"
+      />
+    </template>
+  </LuckyCheckinConfirmDialog>
 </template>
 
 <script setup lang="ts">
@@ -164,9 +179,13 @@ const status = ref<CheckinStatus | null>(null)
 const menuOpen = ref(false)
 const submitting = ref(false)
 const submittingMode = ref<'normal' | 'lucky' | null>(null)
-const luckyConfirmOpen = ref(false)
-const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
-const turnstileToken = ref('')
+type CheckinMode = 'normal' | 'lucky'
+const confirmOpen = ref<CheckinMode | null>(null)
+const normalTurnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
+const luckyTurnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
+const normalTurnstileToken = ref('')
+const luckyTurnstileToken = ref('')
+const activeTurnstileToken = computed(() => confirmOpen.value ? turnstileTokenFor(confirmOpen.value).value : '')
 let statusRequest = 0
 
 const hasAvailableMode = computed(() => Boolean(status.value?.normal_enabled || status.value?.lucky_enabled))
@@ -186,22 +205,30 @@ function closeMenu() {
   menuOpen.value = false
 }
 
-function handleTurnstileVerify(token: string) {
-  turnstileToken.value = token
+function turnstileTokenFor(mode: CheckinMode) {
+  return mode === 'normal' ? normalTurnstileToken : luckyTurnstileToken
 }
 
-function handleTurnstileExpire() {
-  turnstileToken.value = ''
+function turnstileRefFor(mode: CheckinMode) {
+  return mode === 'normal' ? normalTurnstileRef : luckyTurnstileRef
 }
 
-function handleTurnstileError() {
-  turnstileToken.value = ''
+function handleTurnstileVerify(mode: CheckinMode, token: string) {
+  turnstileTokenFor(mode).value = token
+}
+
+function handleTurnstileExpire(mode: CheckinMode) {
+  turnstileTokenFor(mode).value = ''
+}
+
+function handleTurnstileError(mode: CheckinMode) {
+  turnstileTokenFor(mode).value = ''
   appStore.showError(t('checkin.turnstileFailed'))
 }
 
-function resetTurnstile() {
-  turnstileRef.value?.reset()
-  turnstileToken.value = ''
+function resetTurnstile(mode: CheckinMode) {
+  turnstileRefFor(mode).value?.reset()
+  turnstileTokenFor(mode).value = ''
 }
 
 function handleShortcutClick() {
@@ -229,7 +256,8 @@ async function loadStatus() {
     if (request !== statusRequest) return
     status.value = nextStatus
     if (!nextStatus.can_check_in) closeMenu()
-    if (!nextStatus.lucky_enabled) luckyConfirmOpen.value = false
+    if (!nextStatus.lucky_enabled && confirmOpen.value === 'lucky') closeConfirm()
+    if (!nextStatus.normal_enabled && confirmOpen.value === 'normal') closeConfirm()
   } catch {
     if (request === statusRequest) {
       status.value = null
@@ -251,7 +279,8 @@ async function submit(mode: 'normal' | 'lucky') {
   const currentStatus = status.value
   const modeEnabled = mode === 'normal' ? currentStatus?.normal_enabled : currentStatus?.lucky_enabled
   if (!currentStatus?.can_check_in || !modeEnabled || submitting.value) return
-  if (currentStatus.turnstile_enabled && !turnstileToken.value) {
+  const turnstileToken = turnstileTokenFor(mode).value
+  if (currentStatus.turnstile_enabled && !turnstileToken) {
     appStore.showError(t('checkin.turnstileRequired'))
     return
   }
@@ -261,7 +290,7 @@ async function submit(mode: 'normal' | 'lucky') {
   closeMenu()
   try {
     const response = currentStatus.turnstile_enabled
-      ? await checkinAPI.checkIn(mode, currentStatus.business_date, turnstileToken.value)
+      ? await checkinAPI.checkIn(mode, currentStatus.business_date, turnstileToken)
       : await checkinAPI.checkIn(mode, currentStatus.business_date)
     status.value = {
       ...currentStatus,
@@ -271,11 +300,11 @@ async function submit(mode: 'normal' | 'lucky') {
       today_record: response.record,
     }
     appStore.showSuccess(t('checkin.success'))
-    resetTurnstile()
+    resetTurnstile(mode)
     await Promise.allSettled([authStore.refreshUser()])
     window.dispatchEvent(new CustomEvent('checkin:updated'))
   } catch (error) {
-    if (currentStatus.turnstile_enabled) resetTurnstile()
+    if (currentStatus.turnstile_enabled) resetTurnstile(mode)
     appStore.showError(checkinErrorMessage(error, t, t('checkin.failedDescription')))
     void loadStatus()
   } finally {
@@ -286,22 +315,25 @@ async function submit(mode: 'normal' | 'lucky') {
 
 function requestCheckin(mode: 'normal' | 'lucky') {
   closeMenu()
-  if (status.value?.turnstile_enabled && !turnstileToken.value) {
-    menuOpen.value = true
-    appStore.showError(t('checkin.turnstileRequired'))
-    return
+  const modeEnabled = mode === 'normal' ? status.value?.normal_enabled : status.value?.lucky_enabled
+  if (status.value?.can_check_in && modeEnabled && !submitting.value) {
+    resetTurnstile(mode)
+    confirmOpen.value = mode
   }
-  if (mode === 'lucky') {
-    if (status.value?.can_check_in && status.value.lucky_enabled && !submitting.value) luckyConfirmOpen.value = true
-    return
-  }
-  void submit('normal')
 }
 
-async function confirmLuckyCheckin() {
+async function confirmCheckin() {
+  const mode = confirmOpen.value
+  if (!mode || submitting.value) return
+  await submit(mode)
+  confirmOpen.value = null
+}
+
+function closeConfirm() {
   if (submitting.value) return
-  await submit('lucky')
-  luckyConfirmOpen.value = false
+  const mode = confirmOpen.value
+  confirmOpen.value = null
+  if (mode) resetTurnstile(mode)
 }
 
 function handleCheckinUpdated() {

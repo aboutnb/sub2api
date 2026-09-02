@@ -30,52 +30,47 @@
               </div>
             </div>
 
-            <div v-if="status.turnstile_enabled && status.turnstile_site_key" data-testid="checkin-turnstile" class="w-full shrink-0 sm:w-[300px]">
-              <TurnstileWidget
-                ref="turnstileRef"
-                :site-key="status.turnstile_site_key"
-                size="flexible"
-                @verify="handleTurnstileVerify"
-                @expire="handleTurnstileExpire"
-                @error="handleTurnstileError"
-              />
-            </div>
-
             <div
               v-if="status.enabled && status.eligible && availableModeCount > 0"
-              data-testid="checkin-mode-actions"
-              class="grid w-full gap-2 border-t border-gray-100 pt-4 sm:w-auto sm:border-l sm:border-t-0 sm:py-1 sm:pl-5 dark:border-dark-700"
-              :class="availableModeCount === 1 ? 'grid-cols-1' : 'grid-cols-2'"
+              data-testid="checkin-action-panel"
+              class="w-full border-t border-gray-100 pt-4 sm:w-auto sm:border-l sm:border-t-0 sm:py-1 sm:pl-5 dark:border-dark-700"
             >
-              <button
-                v-if="status.normal_enabled"
-                type="button"
-                data-testid="checkin-mode-normal"
-                class="group flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:min-w-36"
-                :disabled="submitting || !status.can_check_in || (status.turnstile_enabled && !turnstileToken)"
-                :class="{ 'cursor-not-allowed opacity-50': submitting || !status.can_check_in || (status.turnstile_enabled && !turnstileToken) }"
-                @click="requestCheckin('normal')"
+              <div
+                data-testid="checkin-mode-actions"
+                class="grid w-full gap-2"
+                :class="availableModeCount === 1 ? 'grid-cols-1' : 'grid-cols-2'"
               >
-                <Icon v-if="submittingMode === 'normal'" name="refresh" size="sm" class="shrink-0 animate-spin" />
-                <Icon v-else name="gift" size="sm" class="shrink-0" />
-                <span class="truncate">{{ submittingMode === 'normal' ? t('checkin.submitting') : t('checkin.normal') }}</span>
-                <Icon v-if="!submitting && status.can_check_in" name="chevronRight" size="xs" class="hidden shrink-0 opacity-70 transition group-hover:translate-x-0.5 sm:block" />
-              </button>
+                <button
+                  v-if="status.normal_enabled"
+                  type="button"
+                  data-testid="checkin-mode-normal"
+                  class="group flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:min-w-36"
+                  :disabled="submitting || !status.can_check_in"
+                  :class="{ 'cursor-not-allowed opacity-50': submitting || !status.can_check_in }"
+                  @click="requestCheckin('normal')"
+                >
+                  <Icon v-if="submittingMode === 'normal'" name="refresh" size="sm" class="shrink-0 animate-spin" />
+                  <Icon v-else name="gift" size="sm" class="shrink-0" />
+                  <span class="truncate">{{ submittingMode === 'normal' ? t('checkin.submitting') : t('checkin.normal') }}</span>
+                  <Icon v-if="!submitting && status.can_check_in" name="chevronRight" size="xs" class="hidden shrink-0 opacity-70 transition group-hover:translate-x-0.5 sm:block" />
+                </button>
 
-              <button
-                v-if="status.lucky_enabled"
-                type="button"
-                data-testid="checkin-mode-lucky"
-                class="group flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-semibold text-gray-800 transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100 dark:hover:border-cyan-700 dark:hover:bg-cyan-900/20 dark:hover:text-cyan-200 sm:min-w-36"
-                :disabled="submitting || !status.can_check_in || (status.turnstile_enabled && !turnstileToken)"
-                :class="{ 'cursor-not-allowed opacity-50': submitting || !status.can_check_in || (status.turnstile_enabled && !turnstileToken) }"
-                @click="requestCheckin('lucky')"
-              >
-                <Icon v-if="submittingMode === 'lucky'" name="refresh" size="sm" class="shrink-0 animate-spin" />
-                <Icon v-else name="sparkles" size="sm" class="shrink-0 text-cyan-600 dark:text-cyan-400" />
-                <span class="truncate">{{ submittingMode === 'lucky' ? t('checkin.submitting') : t('checkin.lucky') }}</span>
-                <Icon v-if="!submitting && status.can_check_in" name="chevronRight" size="xs" class="hidden shrink-0 text-gray-400 transition group-hover:translate-x-0.5 group-hover:text-cyan-600 sm:block" />
-              </button>
+                <button
+                  v-if="status.lucky_enabled"
+                  type="button"
+                  data-testid="checkin-mode-lucky"
+                  class="group flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-semibold text-gray-800 transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100 dark:hover:border-cyan-700 dark:hover:bg-cyan-900/20 dark:hover:text-cyan-200 sm:min-w-36"
+                  :disabled="submitting || !status.can_check_in"
+                  :class="{ 'cursor-not-allowed opacity-50': submitting || !status.can_check_in }"
+                  @click="requestCheckin('lucky')"
+                >
+                  <Icon v-if="submittingMode === 'lucky'" name="refresh" size="sm" class="shrink-0 animate-spin" />
+                  <Icon v-else name="sparkles" size="sm" class="shrink-0 text-cyan-600 dark:text-cyan-400" />
+                  <span class="truncate">{{ submittingMode === 'lucky' ? t('checkin.submitting') : t('checkin.lucky') }}</span>
+                  <Icon v-if="!submitting && status.can_check_in" name="chevronRight" size="xs" class="hidden shrink-0 text-gray-400 transition group-hover:translate-x-0.5 group-hover:text-cyan-600 sm:block" />
+                </button>
+              </div>
+
             </div>
           </div>
         </section>
@@ -287,14 +282,38 @@
       </section>
     </div>
     <LuckyCheckinConfirmDialog
-      :show="luckyConfirmOpen"
+      :show="confirmOpen !== null"
+      :mode="confirmOpen || 'lucky'"
       :reward-type="status?.lucky_reward_type || 'multiplier'"
       :min-multiplier="status?.lucky_min_multiplier || 0"
       :max-multiplier="status?.lucky_max_multiplier || 0"
-      :submitting="submittingMode === 'lucky'"
-      @confirm="confirmLuckyCheckin"
-      @cancel="luckyConfirmOpen = false"
-    />
+      :submitting="Boolean(confirmOpen && submittingMode === confirmOpen)"
+      :verification-required="Boolean(status?.turnstile_enabled && status.turnstile_site_key)"
+      :verification-complete="Boolean(activeTurnstileToken)"
+      @confirm="confirmCheckin"
+      @cancel="closeConfirm"
+    >
+      <template #verification>
+        <TurnstileWidget
+          v-if="confirmOpen === 'normal' && status?.turnstile_enabled && status.turnstile_site_key"
+          ref="normalTurnstileRef"
+          :site-key="status.turnstile_site_key"
+          size="flexible"
+          @verify="handleTurnstileVerify('normal', $event)"
+          @expire="handleTurnstileExpire('normal')"
+          @error="handleTurnstileError('normal')"
+        />
+        <TurnstileWidget
+          v-else-if="confirmOpen === 'lucky' && status?.turnstile_enabled && status.turnstile_site_key"
+          ref="luckyTurnstileRef"
+          :site-key="status.turnstile_site_key"
+          size="flexible"
+          @verify="handleTurnstileVerify('lucky', $event)"
+          @expire="handleTurnstileExpire('lucky')"
+          @error="handleTurnstileError('lucky')"
+        />
+      </template>
+    </LuckyCheckinConfirmDialog>
   </AppLayout>
 </template>
 
@@ -321,7 +340,6 @@ const loadingStatus = ref(true)
 const loadingRecords = ref(true)
 const submitting = ref(false)
 const submittingMode = ref<'normal' | 'lucky' | null>(null)
-const luckyConfirmOpen = ref(false)
 const status = ref<CheckinStatus | null>(null)
 const unavailableMessage = computed(() => {
   if (status.value?.unavailable_reason === 'account_too_new') return t('checkin.accountTooNew')
@@ -340,8 +358,13 @@ const result = ref<CheckinRecord | null>(null)
 const statusError = ref('')
 const recordsError = ref('')
 const recordsPageSize = 10
-const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
-const turnstileToken = ref('')
+type CheckinMode = 'normal' | 'lucky'
+
+const confirmOpen = ref<CheckinMode | null>(null)
+const normalTurnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
+const luckyTurnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
+const normalTurnstileToken = ref('')
+const luckyTurnstileToken = ref('')
 
 interface CalendarCell {
   day: number
@@ -389,6 +412,7 @@ const monthSummary = computed(() => {
   }
   return summary
 })
+const activeTurnstileToken = computed(() => confirmOpen.value ? turnstileTokenFor(confirmOpen.value).value : '')
 
 function formatMoney(value: number) {
   return `$${Number(value || 0).toFixed(2)}`
@@ -494,29 +518,38 @@ async function load() {
   await Promise.all([fetchStatus(), fetchRecords(1), fetchCalendarRecords()])
 }
 
-function handleTurnstileVerify(token: string) {
-  turnstileToken.value = token
+function turnstileTokenFor(mode: CheckinMode) {
+  return mode === 'normal' ? normalTurnstileToken : luckyTurnstileToken
 }
 
-function handleTurnstileExpire() {
-  turnstileToken.value = ''
+function turnstileRefFor(mode: CheckinMode) {
+  return mode === 'normal' ? normalTurnstileRef : luckyTurnstileRef
 }
 
-function handleTurnstileError() {
-  turnstileToken.value = ''
+function handleTurnstileVerify(mode: CheckinMode, token: string) {
+  turnstileTokenFor(mode).value = token
+}
+
+function handleTurnstileExpire(mode: CheckinMode) {
+  turnstileTokenFor(mode).value = ''
+}
+
+function handleTurnstileError(mode: CheckinMode) {
+  turnstileTokenFor(mode).value = ''
   appStore.showError(t('checkin.turnstileFailed'))
 }
 
-function resetTurnstile() {
-  turnstileRef.value?.reset()
-  turnstileToken.value = ''
+function resetTurnstile(mode: CheckinMode) {
+  turnstileRefFor(mode).value?.reset()
+  turnstileTokenFor(mode).value = ''
 }
 
 async function submit(mode: 'normal' | 'lucky') {
   const currentStatus = status.value
   const modeEnabled = mode === 'normal' ? currentStatus?.normal_enabled : currentStatus?.lucky_enabled
   if (!currentStatus?.can_check_in || !modeEnabled || submitting.value) return
-  if (currentStatus.turnstile_enabled && !turnstileToken.value) {
+  const turnstileToken = turnstileTokenFor(mode).value
+  if (currentStatus.turnstile_enabled && !turnstileToken) {
     appStore.showError(t('checkin.turnstileRequired'))
     return
   }
@@ -524,16 +557,16 @@ async function submit(mode: 'normal' | 'lucky') {
   submittingMode.value = mode
   try {
     const response = currentStatus.turnstile_enabled
-      ? await checkinAPI.checkIn(mode, currentStatus.business_date, turnstileToken.value)
+      ? await checkinAPI.checkIn(mode, currentStatus.business_date, turnstileToken)
       : await checkinAPI.checkIn(mode, currentStatus.business_date)
     result.value = response.record
-    resetTurnstile()
+    resetTurnstile(mode)
     await authStore.refreshUser()
     await Promise.all([fetchStatus(), fetchRecords(1), fetchCalendarRecords()])
     appStore.showSuccess(t('checkin.success'))
     window.dispatchEvent(new CustomEvent('checkin:updated'))
   } catch (error) {
-    if (currentStatus.turnstile_enabled) resetTurnstile()
+    if (currentStatus.turnstile_enabled) resetTurnstile(mode)
     appStore.showError(checkinErrorMessage(error, t, t('checkin.failedDescription')))
   } finally {
     submitting.value = false
@@ -542,17 +575,25 @@ async function submit(mode: 'normal' | 'lucky') {
 }
 
 function requestCheckin(mode: 'normal' | 'lucky') {
-  if (mode === 'lucky') {
-    if (status.value?.can_check_in && status.value.lucky_enabled && !submitting.value) luckyConfirmOpen.value = true
-    return
+  const modeEnabled = mode === 'normal' ? status.value?.normal_enabled : status.value?.lucky_enabled
+  if (status.value?.can_check_in && modeEnabled && !submitting.value) {
+    resetTurnstile(mode)
+    confirmOpen.value = mode
   }
-  void submit('normal')
 }
 
-async function confirmLuckyCheckin() {
+async function confirmCheckin() {
+  const mode = confirmOpen.value
+  if (!mode || submitting.value) return
+  await submit(mode)
+  confirmOpen.value = null
+}
+
+function closeConfirm() {
   if (submitting.value) return
-  await submit('lucky')
-  luckyConfirmOpen.value = false
+  const mode = confirmOpen.value
+  confirmOpen.value = null
+  if (mode) resetTurnstile(mode)
 }
 
 onMounted(load)
