@@ -471,7 +471,7 @@ func (r SmartRouteRequest) NeedsAccount() bool {
 	if r.Method == "GET" && (strings.HasSuffix(path, "/models") || strings.HasSuffix(path, "/usage") || strings.HasSuffix(path, "/sub2api/billing")) {
 		return false
 	}
-	return !(r.Method == "GET" && (strings.Contains(path, "/images/batches") || strings.Contains(path, "/images/tasks/")))
+	return r.Method != "GET" || (!strings.Contains(path, "/images/batches") && !strings.Contains(path, "/images/tasks/"))
 }
 
 func (s *SmartRouteService) Resolve(ctx context.Context, apiKey *APIKey, request SmartRouteRequest) (*APIKey, *SmartRouteConfig, error) {

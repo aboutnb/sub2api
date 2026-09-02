@@ -102,7 +102,9 @@ func TestAbortSmartRouteModelUnsupportedUsesEndpointProtocol(t *testing.T) {
 				require.Equal(t, test.wantTopLevel, body["type"])
 			}
 			if test.wantNestedCode != "" {
-				require.Equal(t, test.wantNestedCode, body["error"].(map[string]any)["code"])
+				errorBody, ok := body["error"].(map[string]any)
+				require.True(t, ok)
+				require.Equal(t, test.wantNestedCode, errorBody["code"])
 			}
 		})
 	}
