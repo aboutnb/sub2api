@@ -62,14 +62,14 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 | 项目 | 值 |
 | --- | --- |
 | 发布分支 | `sub2api-flowai` |
-| 本次核对日期 | 2026-09-02（Asia/Shanghai） |
+| 本次核对日期 | 2026-09-03（Asia/Shanghai） |
 | 业务代码基线 HEAD（本次上游合并前） | `4dc03354ac6acec9e24abf474e8785fa587e203f` |
-| 本次核对 HEAD（文档更新前） | `88ad9b765e9a3fbeb7ea3265c9ef1f2874d4c037` |
+| 本次核对 HEAD（业务代码提交后） | `beed8a2f412befb4fd3b31c99184c0993bd77e33` |
 | 最后已审并合入的上游基线 | `upstream/main` = `5097b31457e6dc9f49e5f5c9c72b925ce79543b3`（0.2.0） |
 | 当前抓取但尚未合入的上游 | 无（已合入） |
 | 应用版本 | `0.2.0` |
-| 相对上游的非合并提交 | 合并 HEAD 时 106 个，其中 14 个治理提交按受限规则动态豁免 |
-| 相对上游的文件差异 | 459 个文件，约 50976 行新增、1766 行删除 |
+| 相对上游的非合并提交 | 当前业务代码提交后 108 个，其中 15 个治理提交按受限规则动态豁免 |
+| 相对上游的文件差异 | 业务代码提交后 502 个文件，约 54945 行新增、1984 行删除 |
 | 发布镜像 | `ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12>` |
 | 生产发布目标 | 23 服务器，使用预构建镜像 |
 
@@ -99,6 +99,8 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
   `sent`/`sending` 防重、签到幂等和迁移 checksum 约束没有改变。
 - 账号调度仍为 priority 升序，即 1 最高优先级；`-1` 并发拒绝、风险注册、GM/EasyPay、
   充值赠送、签到、邮件、i18n 和独立部署边界未被上游覆盖。
+- 本次发布候选提交 `beed8a2f4` 增加 API key 智能路由和渠道监控 V3 展示层；该提交未改变
+  账号优先级、用户并发、支付结算或历史邮件/签到状态机。
 
 合并前预审确认命令：
 
@@ -117,6 +119,8 @@ FLOWAI_UPSTREAM_REVIEW_ACK=5097b31457e6dc9f49e5f5c9c72b925ce79543b3 \
 | 账号调度 | 账号 `priority` 为 1 时最高，数值越小越优先；相同优先级再比较负载、LRU、OAuth 等 | `backend/internal/service/gateway_scheduling.go`、`openai_account_scheduler.go`、`openai_gateway_scheduling.go`、`gemini_messages_compat_service.go`、`backend/internal/repository/account_repo.go` | `gateway_account_selection_test.go`、`scheduler_layered_filter_test.go`、OpenAI scheduler 测试、`account_repo_sort_integration_test.go` |
 | 用户/账号并发 | `-1` 立即拒绝，`0` 不限，正数为上限；小于 `-1` 不得写入 | `backend/internal/service/concurrency_service.go`、`backend/internal/handler/gateway_helper.go`、设置/用户管理路径 | `concurrency_service_test.go`、`gateway_helper_hotpath_test.go` |
 | 风险注册赠送 | 授权判断前余额为 0、并发为 `-1`；一次性授权成功后才写入实际赠送值 | `backend/internal/service/auth_service.go`、`signup_risk_context.go`、`signup_risk_grant_repo.go` | `signup_risk_grant_test.go`、签到安全测试 |
+| API key 智能路由 | 默认保持单分组兼容模式；显式开启 `smart_routing_enabled` 后支持最多 20 个同平台/计费类型候选组，按价格、速度、成功率或自定义权重评分，并保留速率护栏 | `backend/internal/service/smart_route.go`、`backend/internal/server/middleware/smart_route_resolver.go`、`SmartRouteEditor.vue` | `smart_route_test.go`、`smart_route_resolver_test.go`、API key handler 测试 |
+| 渠道监控 V3 | V2 后端聚合和权限边界不变；V2 模式默认使用紧凑卡片视图，可用 `monitor_view=v2` 回退完整 V2 页面 | `ChannelStatusV3View.vue`、`ChannelMonitorV3Card.vue`、`ChannelMonitorV3Timeline.vue` | `ChannelStatusView.mode.spec.ts`、V3 组件测试、`monitorFormat` 测试 |
 | Project Mihomo | 支持 URL/静态源、多源、兼容请求头、节点测速、筛选、自动路由、多 listener 和账号池分配；状态持久化 | `backend/internal/service/project_mihomo_service.go`、admin handler、`deploy/docker-compose.preview.yml` | `project_mihomo_service_test.go`、admin handler 测试 |
 | 账号导入/批量测试 | 导入可指定分组/代理池，返回新账号集合；批量测试需人工点击开始，不能自动误发请求 | `backend/internal/handler/admin/account_data.go`、`BatchAccountTestModal.vue`、`AccountsView.vue` | `data-import.spec.ts`、`BatchAccountTestModal.spec.ts`、账号测试 i18n 测试 |
 | USDT/发票 | 独立 GM 通过 EasyPay 接入；USDT 最低金额默认 50；GM 保持精确金额匹配且不做网络费补偿；checkout 弹窗为 625x900；余额充值默认 50 赠 5%、100 赠 10%；BEpusdt 专用代码已移除；发票流程保持不变 | `payment_config_service.go`、`payment_recharge_bonus.go`、`payment_config_limits.go`、`payment_order.go`、`providerConfig.ts`、`rechargeBonus.ts`、EasyPay provider、`invoice_service.go` | USDT minimum/method limit、recharge bonus、popup、EasyPay custom method、invoice service 和支付 API 测试 |
@@ -262,7 +266,26 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 - 主题初始化、主题切换、FlowAI logo/favicon、法律文档构建输入和公告弹窗属于品牌
   约定；Docker ignore 变更要确保法律文档和 locale 仍进入镜像。
 
-### 4.10 构建与发布
+### 4.10 API key 智能路由与渠道监控 V3
+
+- API key 未配置智能路由时继续使用原有单分组路径；智能模式只有在
+  `smart_routing_enabled=true` 时可创建或更新，设置默认值为 `false`，因此本次发布不会
+  自动改变现有 key 的路由行为。
+- 智能模式候选组最多 20 个，必须属于当前用户可用的活跃非 composite 分组，且平台和
+  计费类型一致。支持 `auto`、`price`、`speed`、`success` 和 `custom` 策略；自定义权重
+  必须为 0-100 且总和为 100。速率护栏拒绝无效或超限倍率，不能用猜测值绕过价格约束。
+- 候选组会同时检查订阅额度、图片能力、账号可调度性和请求模型支持；没有可用候选时
+  fail closed。历史图片任务/批量任务读取按用户与 API key 所有权及已记录分组解析，不能
+  因智能路由配置删除或缓存失效而使历史结果不可读。
+- 智能路由请求只覆盖已声明的文本、消息、Responses、聊天、嵌入、Gemini 内容和图片
+  入口；视频、音频、实时、搜索及其他未支持端点必须返回协议兼容错误，不得静默改路由。
+- 渠道监控 V3 只替换用户端展示层，复用现有 V2 API、权限裁剪、聚合器和 locale；V2 模式
+  默认显示 V3，`?monitor_view=v2` 仅回退展示，不绕过后端模式守卫。V1 模式和 V2 后端
+  数据管线保持不变。
+- 本次新增迁移为 `234_api_key_smart_routing.sql`，只新增智能路由配置表、候选组表和
+  默认关闭的设置；已执行迁移仍按 checksum 保护，回滚应用镜像不逆向删除数据。
+
+### 4.11 构建与发布
 
 - `.github/workflows/preview-image.yml` 只接受 `sub2api-flowai`，先执行契约检查，再
   构建 `linux/amd64` 镜像，并同时推送可变分支 tag 和短 SHA 不可变 tag。
@@ -308,6 +331,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | `backend/migrations/232_group_force_openai_fast.sql` | 上游 0.2.0 分组 OpenAI Fast 强制策略 | 新增字段迁移，不改 FlowAI 账号优先级或并发语义 |
 | `backend/migrations/232_group_reasoning_effort_over_limit.sql` | 上游 0.2.0 分组推理强度超限策略 | 新增字段迁移，按完整文件名执行并保留历史迁移不可变性 |
 | `backend/migrations/233_group_free_openai_fast.sql` | 上游 0.2.0 分组免费 OpenAI Fast 策略 | 新增字段迁移，不覆盖支付/充值赠送配置 |
+| `backend/migrations/234_api_key_smart_routing.sql` | API key 智能路由配置、候选组和功能开关 | 新增表和 `smart_routing_enabled=false` 默认值；只追加迁移，回滚镜像不得逆向删除 |
 <!-- FLOWAI_MIGRATION_LEDGER_END -->
 
 `backend/migrations/001_init.sql` 的内容曾为保留生产 checksum 做兼容性修复（提交
@@ -333,7 +357,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 ## 7. 历史提交索引（非合并提交）
 
-下面的索引覆盖当前快照中相对 `upstream/main` 的全部 106 个功能/修复非合并提交。治理
+下面的索引覆盖当前快照中相对 `upstream/main` 的全部 108 个非合并提交，其中 15 个治理
 文档提交按上面的受限规则动态豁免，但仍会被路径检查；脚本会逐个检查功能提交 hash
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
@@ -432,6 +456,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | 2026-08-31 | `444c961a4` | feat(payment): add recharge bonus tiers and USDT limits | 支付/GM |
 | 2026-09-01 | `213b3fcf7` | feat(flowai): harden check-in and add reactivation broadcasts | 签到风控/邮件召回 |
 | 2026-09-02 | `4dc03354a` | feat(flowai): verify check-in modes in confirmation dialog；普通/幸运签到确认弹窗分别完成 Turnstile 校验 | 签到/i18n |
+| 2026-09-03 | `beed8a2f4` | feat(flowai): add API key smart routing；新增智能路由、渠道监控 V3 展示层和中英文 locale | API key/渠道监控/i18n |
 <!-- FLOWAI_LEDGER_NON_MERGE_END -->
 
 ## 8. 历史合并提交索引

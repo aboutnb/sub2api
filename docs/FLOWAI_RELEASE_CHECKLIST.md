@@ -86,6 +86,10 @@ git diff --check
 - [ ] 风险注册在授权判断前仍为 -1，授权成功后才应用实际并发。
 - [ ] i18n、FlowAI 迁移、预构建镜像脚本和工作流文件均存在。
 - [ ] 已执行迁移的 checksum 保护代码仍存在。
+- [ ] API key 智能路由默认关闭；启用时候选组不超过 20 个、平台/计费类型一致，且无效
+      权重、倍率、模型或账号状态会被拒绝或安全排除。
+- [ ] 渠道监控 V3 只改变用户端展示层；V2 API/权限裁剪不变，`monitor_view=v2` 回退路径
+      可用且不会绕过后端模式守卫。
 
 本地默认检查允许存在未提交的跟踪文件改动，但会明确警告。正式发布前使用严格模式：
 
@@ -136,6 +140,8 @@ docker compose --env-file deploy/.env.preview -f deploy/docker-compose.preview.y
 - [ ] GHCR 中同时确认可变分支标签和不可变 SHA 标签；生产优先使用 SHA 标签。
 - [ ] 记录镜像 digest、构建时间和提交 SHA，不只记录 latest 或可变标签。
 - [ ] 确认镜像包含当前前端 locale、迁移文件和后端版本。
+- [ ] 已确认 `backend/migrations/234_api_key_smart_routing.sql` 在镜像中，且
+      `smart_routing_enabled` 默认值为 `false`；未启用前不改变既有 API key 路由。
 - [ ] 23 服务器发布命令显式传入 `sub2api-flowai-<sha12>`，没有依赖可变分支标签。
 
 不要在 23 服务器上运行 docker compose build、pnpm build 或 go build 作为正式发布
