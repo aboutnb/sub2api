@@ -64,12 +64,12 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 | 发布分支 | `sub2api-flowai` |
 | 本次核对日期 | 2026-09-03（Asia/Shanghai） |
 | 业务代码基线 HEAD（本次上游合并前） | `4dc03354ac6acec9e24abf474e8785fa587e203f` |
-| 本次核对 HEAD（业务修复提交后） | `46d3b617e96768669340eb21e05c28efb2e3851a` |
+| 本次核对 HEAD（业务修复提交后） | `6c16703c7450935f9346b7bf0a6b7cfadfcfbbda` |
 | 最后已审并合入的上游基线 | `upstream/main` = `5097b31457e6dc9f49e5f5c9c72b925ce79543b3`（0.2.0） |
 | 当前抓取但尚未合入的上游 | 无（已合入） |
 | 应用版本 | `0.2.0` |
-| 相对上游的非合并提交 | 当前业务修复提交后 110 个，其中 16 个治理提交按受限规则动态豁免 |
-| 相对上游的文件差异 | 业务修复提交后 502 个文件，约 54999 行新增、1984 行删除 |
+| 相对上游的非合并提交 | 当前业务修复提交后 112 个，其中 17 个治理提交按受限规则动态豁免 |
+| 相对上游的文件差异 | 业务修复提交后 502 个文件，约 55002 行新增、1984 行删除 |
 | 发布镜像 | `ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12>` |
 | 生产发布目标 | 23 服务器，使用预构建镜像 |
 
@@ -357,7 +357,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 ## 7. 历史提交索引（非合并提交）
 
-下面的索引覆盖当前快照中相对 `upstream/main` 的全部 110 个非合并提交，其中 16 个治理
+下面的索引覆盖当前快照中相对 `upstream/main` 的全部 112 个非合并提交，其中 17 个治理
 文档提交按上面的受限规则动态豁免，但仍会被路径检查；脚本会逐个检查功能提交 hash
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
@@ -458,6 +458,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | 2026-09-02 | `4dc03354a` | feat(flowai): verify check-in modes in confirmation dialog；普通/幸运签到确认弹窗分别完成 Turnstile 校验 | 签到/i18n |
 | 2026-09-03 | `beed8a2f4` | feat(flowai): add API key smart routing；新增智能路由、渠道监控 V3 展示层和中英文 locale | API key/渠道监控/i18n |
 | 2026-09-03 | `46d3b617e` | fix(flowai): satisfy smart routing lint；修正 De Morgan 表达式和测试类型断言错误检查，不改变运行时路由语义 | CI/智能路由 |
+| 2026-09-03 | `6c16703c7` | fix(flowai): update settings API contract；补齐 `smart_routing_enabled=false` 的公开设置契约测试 | CI/智能路由 |
 <!-- FLOWAI_LEDGER_NON_MERGE_END -->
 
 ## 8. 历史合并提交索引
