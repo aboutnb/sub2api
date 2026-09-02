@@ -62,14 +62,14 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 | 项目 | 值 |
 | --- | --- |
 | 发布分支 | `sub2api-flowai` |
-| 本次核对日期 | 2026-09-01（Asia/Shanghai） |
-| 业务代码基线 HEAD（本次补丁合并前） | `fdd81b085af2396e8d3bfb0c471b5d03b41ee6fa` |
-| 本次核对 HEAD（文档更新前） | `651b922091f1cf786eccb184631abd851ab891c1` |
-| 最后已审并合入的上游基线 | `upstream/main` = `0d27f45ead1b58908548ec21afd923ecaf7339bc`（0.1.185） |
+| 本次核对日期 | 2026-09-02（Asia/Shanghai） |
+| 业务代码基线 HEAD（本次上游合并前） | `4dc03354ac6acec9e24abf474e8785fa587e203f` |
+| 本次核对 HEAD（文档更新前） | `88ad9b765e9a3fbeb7ea3265c9ef1f2874d4c037` |
+| 最后已审并合入的上游基线 | `upstream/main` = `5097b31457e6dc9f49e5f5c9c72b925ce79543b3`（0.2.0） |
 | 当前抓取但尚未合入的上游 | 无（已合入） |
-| 应用版本 | `0.1.185` |
-| 相对上游的非合并提交 | 合并 HEAD 时 104 个，其中 13 个治理提交按受限规则动态豁免 |
-| 相对上游的文件差异 | 459 个文件，约 50711 行新增、1766 行删除 |
+| 应用版本 | `0.2.0` |
+| 相对上游的非合并提交 | 合并 HEAD 时 106 个，其中 14 个治理提交按受限规则动态豁免 |
+| 相对上游的文件差异 | 459 个文件，约 50976 行新增、1766 行删除 |
 | 发布镜像 | `ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12>` |
 | 生产发布目标 | 23 服务器，使用预构建镜像 |
 
@@ -78,32 +78,32 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 
 ### 2.1 本次上游合并审阅（已完成）
 
-2026-09-01 刷新并审阅 `upstream/main` 完整提交
-`0d27f45ead1b58908548ec21afd923ecaf7339bc`（0.1.185）。本次上游相对 0.1.184 已审基线共新增
-33 个提交：前 29 个以 `41fda3b266d83b0a7297f5e000e268021ea674d0` 合入，随后 4 个
-0.1.185 补丁提交以 `651b922091f1cf786eccb184631abd851ab891c1` 合入
-`sub2api-flowai`。
+2026-09-02 刷新并审阅 `upstream/main` 完整提交
+`5097b31457e6dc9f49e5f5c9c72b925ce79543b3`（0.2.0）。本次上游相对上一已审基线
+`0d27f45ead1b58908548ec21afd923ecaf7339bc` 共新增 53 个提交，以
+`88ad9b765e9a3fbeb7ea3265c9ef1f2874d4c037` 合并进入 `sub2api-flowai`。
 
-- 上游的 33 个提交已完整进入两个明确的合并提交；本地 `main` 未修改。本次上游没有新增或改写
-  SQL 迁移，FlowAI 新增的 `232_checkin_turnstile.sql` 以独立完整文件名保留。
-- 上游 0.1.185 的价格目录覆盖、长上下文动态计费、账号统计成本、数据库启动重试、
-  Codex priority tier、图像能力、automation/delegation bootstrap、WebSocket 稳定性、Kimi 原生
-  Responses 转发和 Anthropic fallbacks 清理已合入。
-- 实际内容冲突仅为 `deploy/README.md`：同时保留 FlowAI 预构建镜像/固定数据目录说明和
-  上游数据库启动恢复说明。`config.go`、网关、模型测试、Gemini 用量测试和 WebSocket
-  ingress 的路径重叠均自动合并后人工逐项核对，双方语义均保留。补丁合并没有文本冲突；
-  `openai_gateway_chat_completions.go`、`openai_gateway_passthrough.go` 和
-  `CreateAccountModal.vue` 的双方改动位于独立逻辑块，FlowAI 错误脱敏/请求追踪和 Project
-  Mihomo 代理选择与上游 Kimi Responses 行为同时保留。
-- 提交 `213b3fcf7` 的签到 Turnstile、硬性批量防护和未活跃用户召回广播已在合并前独立
-  提交并登记；邮件 `sent`/`sending` 防重、签到幂等和迁移 checksum 约束没有改变。
+- 上游的 53 个提交已完整进入一个明确的合并提交；本地 `main` 未修改。上游相对该基线实际
+  变更 125 个文件（新增 4008 行、删除 433 行），没有 incoming 删除。新增的 4 个 SQL
+  文件使用独立完整文件名保留，与 FlowAI 的 `232_checkin_turnstile.sql` 不冲突：
+  `232_channel_cache_write_1h_pricing.sql`、`232_group_force_openai_fast.sql`、
+  `232_group_reasoning_effort_over_limit.sql` 和 `233_group_free_openai_fast.sql`。
+- 上游 0.2.0 的分组模型定价、按模型推理强度策略、OpenAI Fast/free Fast 控制、缓存定价、
+  API key 缓存身份、WebSocket/Responses 转发和模型映射修复已合入；相关 Ent、handler、
+  service、前端管理页和中英文 locale 均按 key/逻辑块合并。
+- 合并没有文本冲突，也没有使用上游整树覆盖。重叠路径（Ent group、网关、DTO、迁移测试、
+  dashboard/overview locale 等）已逐项核对；`deploy/README.md` 同时保留 FlowAI 预构建镜像/
+  固定数据目录说明和上游数据库启动恢复说明。
+- 提交 `213b3fcf7` 的签到 Turnstile、硬性批量防护和未活跃用户召回广播，以及
+  `4dc03354a` 的普通/幸运签到确认弹窗校验，均在合并前独立提交并登记；邮件
+  `sent`/`sending` 防重、签到幂等和迁移 checksum 约束没有改变。
 - 账号调度仍为 priority 升序，即 1 最高优先级；`-1` 并发拒绝、风险注册、GM/EasyPay、
   充值赠送、签到、邮件、i18n 和独立部署边界未被上游覆盖。
 
 合并前预审确认命令：
 
 ```bash
-FLOWAI_UPSTREAM_REVIEW_ACK=0d27f45ead1b58908548ec21afd923ecaf7339bc \
+FLOWAI_UPSTREAM_REVIEW_ACK=5097b31457e6dc9f49e5f5c9c72b925ce79543b3 \
   make review-flowai-upstream
 ```
 
@@ -304,6 +304,10 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | `backend/migrations/231_user_restrict_public_groups.sql` | 用户公开分组访问限制 | 本次上游 0.1.183 新增；默认 false，保留现有用户行为 |
 | `backend/migrations/231_add_usage_log_native_compaction_v2.sql` | 标记原生 OpenAI remote compaction v2 请求 | 本次上游 0.1.184 新增；默认 false，不改历史请求状态 |
 | `backend/migrations/232_checkin_turnstile.sql` | 签到独立 Turnstile 开关 | 默认 false；只新增设置，不覆盖现有全局 Turnstile 配置或签到状态 |
+| `backend/migrations/232_channel_cache_write_1h_pricing.sql` | 上游 0.2.0 渠道缓存写入定价 | 与同编号 FlowAI 签到迁移按完整文件名并存，执行前核对 checksum |
+| `backend/migrations/232_group_force_openai_fast.sql` | 上游 0.2.0 分组 OpenAI Fast 强制策略 | 新增字段迁移，不改 FlowAI 账号优先级或并发语义 |
+| `backend/migrations/232_group_reasoning_effort_over_limit.sql` | 上游 0.2.0 分组推理强度超限策略 | 新增字段迁移，按完整文件名执行并保留历史迁移不可变性 |
+| `backend/migrations/233_group_free_openai_fast.sql` | 上游 0.2.0 分组免费 OpenAI Fast 策略 | 新增字段迁移，不覆盖支付/充值赠送配置 |
 <!-- FLOWAI_MIGRATION_LEDGER_END -->
 
 `backend/migrations/001_init.sql` 的内容曾为保留生产 checksum 做兼容性修复（提交
@@ -329,7 +333,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 ## 7. 历史提交索引（非合并提交）
 
-下面的索引覆盖当前快照中相对 `upstream/main` 的全部 90 个功能/修复非合并提交。治理
+下面的索引覆盖当前快照中相对 `upstream/main` 的全部 106 个功能/修复非合并提交。治理
 文档提交按上面的受限规则动态豁免，但仍会被路径检查；脚本会逐个检查功能提交 hash
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
@@ -427,6 +431,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | 2026-08-30 | `e3fd418b7` | feat(payment): open GM checkout popup and sync status | 支付/GM |
 | 2026-08-31 | `444c961a4` | feat(payment): add recharge bonus tiers and USDT limits | 支付/GM |
 | 2026-09-01 | `213b3fcf7` | feat(flowai): harden check-in and add reactivation broadcasts | 签到风控/邮件召回 |
+| 2026-09-02 | `4dc03354a` | feat(flowai): verify check-in modes in confirmation dialog；普通/幸运签到确认弹窗分别完成 Turnstile 校验 | 签到/i18n |
 <!-- FLOWAI_LEDGER_NON_MERGE_END -->
 
 ## 8. 历史合并提交索引
@@ -438,6 +443,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
 | 日期 | 合并提交 | 说明 |
 | --- | --- | --- |
+| 2026-09-02 | `88ad9b765` | Merge upstream main 0.2.0；完整合入 53 个上游提交，无文本冲突和 incoming 删除；保留 FlowAI 优先级、并发、GM/赠送、签到 Turnstile、邮件防重、i18n 和预构建部署，吸收分组定价、推理强度、Fast/free Fast、缓存定价及 WebSocket/Responses 修复 |
 | 2026-09-01 | `651b92209` | Merge upstream main 0.1.185 hotfixes；保留 FlowAI 错误脱敏、Project Mihomo、优先级、并发和支付行为，吸收 Kimi 原生 Responses 与 Anthropic fallbacks 清理 |
 | 2026-09-01 | `41fda3b26` | Merge upstream main 0.1.185；保留 FlowAI 优先级、并发、GM/赠送、签到 Turnstile、邮件召回和 i18n，吸收定价目录、数据库重试及 Codex/WebSocket 修复 |
 | 2026-08-31 | `03c0c8289` | Merge upstream main 0.1.184；保留 FlowAI 优先级、并发、GM/充值赠送和 i18n，吸收 TTFT、compaction、Ollama 与稳定性更新 |

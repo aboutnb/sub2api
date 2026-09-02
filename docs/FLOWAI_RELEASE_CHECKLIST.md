@@ -145,7 +145,7 @@ docker compose --env-file deploy/.env.preview -f deploy/docker-compose.preview.y
 
 - [ ] 通过 Termius 连接目标 23 服务器，确认主机、用户和部署目录无误。
 - [ ] 发布前查看容器、磁盘、最近错误日志和当前镜像标签。
-- [ ] 已确认 .env.preview 仍使用生产配置，未用示例文件覆盖它。
+- [ ] 已确认 23 服务器 `/root/flowai/deploy/.env` 仍使用生产配置，未用示例文件覆盖它。
 - [ ] 使用要发布的不可变 SHA 镜像执行 deploy/deploy-preview-image.sh。
 - [ ] 脚本完成 pull、应用服务重建并通过 /health；依赖容器和持久化目录未被删除。
 - [ ] 迁移执行成功；检查日志中没有 checksum mismatch、migration failed 或数据库连接错误。
@@ -168,16 +168,18 @@ docker compose --env-file deploy/.env.preview -f deploy/docker-compose.preview.y
 服务器命令模板：
 
 ~~~bash
-cd /root/flowai-preview/deploy
-docker compose --env-file .env.preview -f docker-compose.preview.yml ps
-docker compose --env-file .env.preview -f docker-compose.preview.yml logs --tail 200 sub2api
+cd /root/flowai/deploy
+docker compose --env-file .env -f docker-compose.preview.yml ps
+docker compose --env-file .env -f docker-compose.preview.yml logs --tail 200 sub2api
+ENV_FILE=.env \
 SUB2API_IMAGE=ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12> \
+SERVICE=sub2api \
   ./deploy-preview-image.sh
-curl -fsS https://flowai.cyou/health
-curl -fsS https://flowai.cyou/api/v1/settings/public
+curl -fsS https://aivoza.com/health
+curl -fsS https://aivoza.com/api/v1/settings/public
 ~~~
 
-实际域名、目录和端口以服务器 .env.preview、Caddy 配置及变更记录为准；不要把密码、
+实际域名、目录和端口以服务器 `.env`、Caddy 配置及变更记录为准；不要把密码、
 JWT、TOTP、支付密钥或 SSH 私钥写入本清单。
 
 ## 7. 回滚和异常处理

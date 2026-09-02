@@ -28,7 +28,7 @@
 6. 每个新增或修改的功能提交都必须在变更台账中登记提交 hash、行为、受保护路径和
    验证方式；合并提交还必须记录冲突结论。没有台账记录的提交不得发布。
 
-当前代码检查基线是最后已审并合入的上游 0.1.185（`0d27f45ea`）。上游引用可以暂时
+当前代码检查基线是最后已审并合入的上游 0.2.0（`5097b31457e6dc9f49e5f5c9c72b925ce79543b3`）。上游引用可以暂时
 前进，但在预审、冲突结论和契约检查完成前，不能把新上游当作已同步版本发布。版本号会
 继续变化，行为契约不会因为版本号变化而自动变化。
 
@@ -222,13 +222,16 @@ FlowAI 使用 GitHub Actions 在构建机打包，服务器只拉取镜像，不
 - 服务器脚本：deploy/deploy-preview-image.sh，执行 pull、只重建 sub2api 应用服务、
   等待 /health，不删除 PostgreSQL、Redis、Mihomo 数据目录。
 - 默认持久化路径包括 /root/flowai-preview-data/app、postgres、redis 和 Caddy
-  目录；实际生产路径以服务器 .env.preview 为准。
+  目录；23 服务器当前实际发布目录为 /root/flowai/deploy，环境文件为 .env，不能用
+  .env.preview 替代生产配置。
 
 通过 Termius 连接服务器时，发布命令应指向已验证的 SHA 标签，例如：
 
 ~~~bash
-cd /root/flowai-preview/deploy
+cd /root/flowai/deploy
+ENV_FILE=.env \
 SUB2API_IMAGE=ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12> \
+SERVICE=sub2api \
   ./deploy-preview-image.sh
 ~~~
 
