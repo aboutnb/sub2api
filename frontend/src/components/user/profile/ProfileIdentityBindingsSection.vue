@@ -2,22 +2,22 @@
   <div :class="props.embedded ? 'space-y-4' : 'card overflow-hidden'">
     <div
       v-if="!props.embedded"
-      class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"
+      class="border-b border-line px-6 py-4 dark:border-line"
     >
-      <h2 class="text-lg font-medium text-gray-900 dark:text-white">
+      <h2 class="text-lg font-medium text-ink-strong dark:text-white">
         {{ t('profile.authBindings.title') }}
       </h2>
-      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+      <p class="mt-1 text-sm text-ink-muted dark:text-ink-muted">
         {{ t('profile.authBindings.description') }}
       </p>
     </div>
 
-    <div :class="props.embedded ? 'space-y-4' : 'divide-y divide-gray-100 dark:divide-dark-700'">
+    <div :class="props.embedded ? 'space-y-4' : 'divide-y divide-line dark:divide-line'">
       <div v-if="props.embedded">
-        <p class="text-sm font-semibold text-gray-900 dark:text-white">
+        <p class="text-sm font-semibold text-ink-strong dark:text-white">
           {{ t('profile.authBindings.title') }}
         </p>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <p class="mt-1 text-sm text-ink-muted dark:text-ink-muted">
           {{ t('profile.authBindings.description') }}
         </p>
       </div>
@@ -44,7 +44,7 @@
 
             <div class="min-w-0 flex-1 space-y-3">
               <div class="flex flex-wrap items-center gap-2">
-                <h3 class="font-medium text-gray-900 dark:text-white">
+                <h3 class="font-medium text-ink-strong dark:text-white">
                   {{ item.label }}
                 </h3>
                 <span
@@ -61,18 +61,18 @@
 
               <p
                 v-if="providerSummary(item.provider)"
-                class="text-sm text-gray-600 dark:text-gray-300"
+                class="text-sm text-ink dark:text-ink-muted"
               >
                 {{ providerSummary(item.provider) }}
               </p>
 
               <div
                 v-if="hasBindingDetails(item.provider, item.details)"
-                class="grid gap-1 text-sm text-gray-500 dark:text-gray-400"
+                class="grid gap-1 text-sm text-ink-muted dark:text-ink-muted"
               >
                 <p
                   v-if="item.provider !== 'email' && item.details?.display_name"
-                  class="font-medium text-gray-700 dark:text-gray-200"
+                  class="font-medium text-ink dark:text-gray-200"
                 >
                   {{ item.details.display_name }}
                 </p>
@@ -284,8 +284,8 @@ const compact = computed(() => props.compact)
 const rowClass = computed(() =>
   props.embedded
     ? compact.value
-      ? 'rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900/40'
-      : 'rounded-2xl border border-gray-100 bg-gray-50/70 p-4 dark:border-dark-700 dark:bg-dark-900/30'
+      ? 'rounded-2xl border border-line bg-white p-4 shadow-sm dark:border-line dark:bg-canvas/40'
+      : 'rounded-2xl border border-line bg-surface-muted/70 p-4 dark:border-line dark:bg-canvas/30'
     : 'px-6 py-5'
 )
 const emailBound = computed(() => getBindingStatus('email'))

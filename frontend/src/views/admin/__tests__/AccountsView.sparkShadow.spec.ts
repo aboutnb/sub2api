@@ -334,7 +334,7 @@ describe('admin AccountsView — 账号行展示', () => {
     })
     expect(link.classes()).toEqual(expect.arrayContaining([
       'border-dotted',
-      'text-gray-900',
+      'text-ink-strong',
       'dark:text-white',
     ]))
     expect(link.classes()).not.toContain('text-primary-600')

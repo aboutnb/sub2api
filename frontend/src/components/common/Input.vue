@@ -1,21 +1,22 @@
 <template>
   <div class="w-full">
-    <label v-if="label" :for="id" class="input-label mb-1.5 block">
+    <label v-if="label" :for="inputId" class="input-label mb-1.5 block">
       {{ label }}
-      <span v-if="required" class="text-red-500">*</span>
+      <span v-if="required" class="text-red-500" aria-hidden="true">*</span>
     </label>
     <div class="relative">
       <!-- Prefix Icon Slot -->
       <div
         v-if="$slots.prefix"
-        class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 dark:text-dark-400"
+        class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-ink-muted dark:text-ink-muted"
       >
         <slot name="prefix"></slot>
       </div>
 
       <input
-        :id="id"
+        :id="inputId"
         ref="inputRef"
+        :name="name"
         :type="type"
         :value="modelValue"
         :disabled="disabled"
@@ -23,12 +24,16 @@
         :placeholder="placeholderText"
         :autocomplete="autocomplete"
         :readonly="readonly"
+        :aria-label="ariaLabel || (!label ? placeholderText : undefined)"
+        :aria-required="required || undefined"
+        :aria-invalid="error ? 'true' : undefined"
+        :aria-describedby="describedBy"
         :class="[
           'input w-full transition-all duration-200',
           $slots.prefix ? 'pl-11' : '',
           $slots.suffix ? 'pr-11' : '',
           error ? 'input-error ring-2 ring-red-500/20' : '',
-          disabled ? 'cursor-not-allowed bg-gray-100 opacity-60 dark:bg-dark-900' : ''
+          disabled ? 'cursor-not-allowed bg-surface-muted opacity-60 dark:bg-canvas' : ''
         ]"
         @input="onInput"
         @change="$emit('change', ($event.target as HTMLInputElement).value)"
@@ -40,23 +45,23 @@
       <!-- Suffix Slot (e.g. Password Toggle or Clear Button) -->
       <div
         v-if="$slots.suffix"
-        class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 dark:text-dark-400"
+        class="absolute inset-y-0 right-0 flex items-center pr-3 text-ink-muted dark:text-ink-muted"
       >
         <slot name="suffix"></slot>
       </div>
     </div>
     <!-- Hint / Error Text -->
-    <p v-if="error" class="input-error-text mt-1.5">
+    <p v-if="error" :id="supportTextId" class="input-error-text mt-1.5" role="alert">
       {{ error }}
     </p>
-    <p v-else-if="hint" class="input-hint mt-1.5">
+    <p v-else-if="hint" :id="supportTextId" class="input-hint mt-1.5">
       {{ hint }}
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, getCurrentInstance, ref } from 'vue'
 
 interface Props {
   modelValue: string | number | null | undefined
@@ -69,6 +74,9 @@ interface Props {
   error?: string
   hint?: string
   id?: string
+  name?: string
+  ariaLabel?: string
+  ariaDescribedby?: string
   autocomplete?: string
 }
 
@@ -88,7 +96,16 @@ const emit = defineEmits<{
 }>()
 
 const inputRef = ref<HTMLInputElement | null>(null)
+const instanceUid = getCurrentInstance()?.uid ?? 0
+const inputId = computed(() => props.id || `input-${instanceUid}`)
 const placeholderText = computed(() => props.placeholder || '')
+const supportTextId = computed(() => {
+  if (!props.error && !props.hint) return undefined
+  return `${inputId.value}-${props.error ? 'error' : 'hint'}`
+})
+const describedBy = computed(() =>
+  [props.ariaDescribedby, supportTextId.value].filter(Boolean).join(' ') || undefined
+)
 
 const onInput = (event: Event) => {
   const value = (event.target as HTMLInputElement).value

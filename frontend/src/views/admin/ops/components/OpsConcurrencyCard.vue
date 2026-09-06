@@ -341,10 +341,10 @@ watch(
 </script>
 
 <template>
-  <div class="flex h-full flex-col rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 dark:bg-dark-800 dark:ring-dark-700">
+  <div class="flex h-full flex-col rounded-2xl border-2 border-line bg-white p-6 shadow-card dark:border-line dark:bg-surface">
     <!-- 头部 -->
     <div class="mb-4 flex shrink-0 items-center justify-between gap-3">
-      <h3 class="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
+      <h3 class="flex items-center gap-2 text-sm font-bold text-ink-strong dark:text-white">
         <svg class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
@@ -356,7 +356,7 @@ watch(
           class="flex items-center justify-center rounded-lg px-2 py-1 transition-colors"
           :class="showByUser
             ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-            : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:bg-dark-700 dark:text-gray-400 dark:hover:bg-dark-600 dark:hover:text-gray-300'"
+            : 'bg-surface-muted text-ink-muted hover:bg-line hover:text-ink dark:bg-surface-muted dark:text-ink-muted dark:hover:bg-dark-600 dark:hover:text-ink-muted'"
           :title="showByUser ? t('admin.ops.concurrency.switchToPlatform') : t('admin.ops.concurrency.switchToUser')"
           @click="showByUser = !showByUser"
         >
@@ -366,7 +366,7 @@ watch(
         </button>
         <!-- 刷新按钮 -->
         <button
-          class="flex items-center gap-1 rounded-lg bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-dark-700 dark:text-gray-300 dark:hover:bg-dark-600"
+          class="flex items-center gap-1 rounded-lg bg-surface-muted px-2 py-1 text-[11px] font-semibold text-ink transition-colors hover:bg-line disabled:cursor-not-allowed disabled:opacity-50 dark:bg-surface-muted dark:text-ink-muted dark:hover:bg-dark-600"
           :disabled="loading"
           :title="t('common.refresh')"
           @click="loadData"
@@ -386,49 +386,49 @@ watch(
     <!-- 禁用状态 -->
     <div
       v-if="!realtimeEnabled"
-      class="flex flex-1 items-center justify-center rounded-xl border border-dashed border-gray-200 text-sm text-gray-500 dark:border-dark-700 dark:text-gray-400"
+      class="flex flex-1 items-center justify-center rounded-xl border border-dashed border-line text-sm text-ink-muted dark:border-line dark:text-ink-muted"
     >
       {{ t('admin.ops.concurrency.disabledHint') }}
     </div>
 
     <!-- 数据展示区域 -->
-    <div v-else class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-dark-700">
+    <div v-else class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line dark:border-line">
       <!-- 维度标题栏 -->
-      <div class="flex shrink-0 items-center justify-between border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-dark-700 dark:bg-dark-900">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+      <div class="flex shrink-0 items-center justify-between border-b border-line bg-surface-muted px-3 py-2 dark:border-line dark:bg-canvas">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
           {{ displayTitle }}
         </span>
-        <span class="text-[10px] text-gray-500 dark:text-gray-400">
+        <span class="text-[10px] text-ink-muted dark:text-ink-muted">
           {{ t('admin.ops.concurrency.totalRows', { count: displayRows.length }) }}
         </span>
       </div>
 
       <!-- 空状态 -->
-      <div v-if="displayRows.length === 0" class="flex flex-1 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+      <div v-if="displayRows.length === 0" class="flex flex-1 items-center justify-center text-sm text-ink-muted dark:text-ink-muted">
         {{ t('admin.ops.concurrency.empty') }}
       </div>
 
       <!-- 用户视图 -->
       <div v-else-if="displayDimension === 'user'" class="custom-scrollbar max-h-[360px] flex-1 space-y-2 overflow-y-auto p-3">
-        <div v-for="row in (displayRows as UserRow[])" :key="row.key" class="rounded-lg bg-gray-50 p-2.5 dark:bg-dark-900">
+        <div v-for="row in (displayRows as UserRow[])" :key="row.key" class="rounded-lg bg-surface-muted p-2.5 dark:bg-canvas">
           <!-- 用户信息和并发 -->
           <div class="mb-1.5 flex items-center justify-between gap-2">
             <div class="flex min-w-0 flex-1 items-center gap-1.5">
-              <span class="truncate text-[11px] font-bold text-gray-900 dark:text-white" :title="row.username || row.user_email">
+              <span class="truncate text-[11px] font-bold text-ink-strong dark:text-white" :title="row.username || row.user_email">
                 {{ row.username || row.user_email }}
               </span>
-              <span v-if="row.username" class="shrink-0 truncate text-[10px] text-gray-400 dark:text-gray-500" :title="row.user_email">
+              <span v-if="row.username" class="shrink-0 truncate text-[10px] text-ink-muted dark:text-ink-muted" :title="row.user_email">
                 {{ row.user_email }}
               </span>
             </div>
             <div class="flex shrink-0 items-center gap-2 text-[10px]">
-              <span class="font-mono font-bold text-gray-900 dark:text-white"> {{ row.current_in_use }}/{{ row.max_capacity }} </span>
+              <span class="font-mono font-bold text-ink-strong dark:text-white"> {{ row.current_in_use }}/{{ row.max_capacity }} </span>
               <span :class="['font-bold', getLoadTextClass(row.load_percentage)]"> {{ Math.round(row.load_percentage) }}% </span>
             </div>
           </div>
 
           <!-- 进度条 -->
-          <div class="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-700">
+          <div class="h-1.5 w-full overflow-hidden rounded-full bg-line dark:bg-surface-muted">
             <div class="h-full rounded-full transition-all duration-300" :class="getLoadBarClass(row.load_percentage)" :style="getLoadBarStyle(row.load_percentage)"></div>
           </div>
 
@@ -443,25 +443,25 @@ watch(
 
       <!-- 汇总视图（平台/分组） -->
       <div v-else-if="displayDimension === 'platform' || displayDimension === 'group'" class="custom-scrollbar max-h-[360px] flex-1 space-y-2 overflow-y-auto p-3">
-        <div v-for="row in (displayRows as SummaryRow[])" :key="row.key" class="rounded-lg bg-gray-50 p-3 dark:bg-dark-900">
+        <div v-for="row in (displayRows as SummaryRow[])" :key="row.key" class="rounded-lg bg-surface-muted p-3 dark:bg-canvas">
           <!-- 标题行 -->
           <div class="mb-2 flex items-center justify-between gap-2">
             <div class="flex items-center gap-2">
-              <div class="truncate text-[11px] font-bold text-gray-900 dark:text-white" :title="row.name">
+              <div class="truncate text-[11px] font-bold text-ink-strong dark:text-white" :title="row.name">
                 {{ row.name }}
               </div>
-              <span v-if="displayDimension === 'group' && row.platform" class="text-[10px] text-gray-400 dark:text-gray-500">
+              <span v-if="displayDimension === 'group' && row.platform" class="text-[10px] text-ink-muted dark:text-ink-muted">
                 {{ row.platform.toUpperCase() }}
               </span>
             </div>
             <div class="flex shrink-0 items-center gap-2 text-[10px]">
-              <span class="font-mono font-bold text-gray-900 dark:text-white"> {{ row.used_concurrency }}/{{ row.total_concurrency }} </span>
+              <span class="font-mono font-bold text-ink-strong dark:text-white"> {{ row.used_concurrency }}/{{ row.total_concurrency }} </span>
               <span :class="['font-bold', getLoadTextClass(row.concurrency_percentage)]"> {{ row.concurrency_percentage }}% </span>
             </div>
           </div>
 
           <!-- 进度条 -->
-          <div class="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-700">
+          <div class="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-line dark:bg-surface-muted">
             <div
               class="h-full rounded-full transition-all duration-300"
               :class="getLoadBarClass(row.concurrency_percentage)"
@@ -473,7 +473,7 @@ watch(
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
             <!-- 账号统计 -->
             <div class="flex items-center gap-1">
-              <svg class="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg class="h-3 w-3 text-ink-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -481,11 +481,11 @@ watch(
                   d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                 />
               </svg>
-              <span class="text-gray-600 dark:text-gray-300">
+              <span class="text-ink dark:text-ink-muted">
                 <span class="font-bold text-green-600 dark:text-green-400">{{ row.available_accounts }}</span
                 >/{{ row.total_accounts }}
               </span>
-              <span class="text-gray-400 dark:text-gray-500">{{ row.availability_percentage }}%</span>
+              <span class="text-ink-muted dark:text-ink-muted">{{ row.availability_percentage }}%</span>
             </div>
 
             <!-- 限流账号 -->
@@ -517,20 +517,20 @@ watch(
 
       <!-- 账号详细视图 -->
       <div v-else class="custom-scrollbar max-h-[360px] flex-1 space-y-2 overflow-y-auto p-3">
-        <div v-for="row in (displayRows as AccountRow[])" :key="row.key" class="rounded-lg bg-gray-50 p-2.5 dark:bg-dark-900">
+        <div v-for="row in (displayRows as AccountRow[])" :key="row.key" class="rounded-lg bg-surface-muted p-2.5 dark:bg-canvas">
           <!-- 账号名称和并发 -->
           <div class="mb-1.5 flex items-center justify-between gap-2">
             <div class="min-w-0 flex-1">
-              <div class="truncate text-[11px] font-bold text-gray-900 dark:text-white" :title="row.name">
+              <div class="truncate text-[11px] font-bold text-ink-strong dark:text-white" :title="row.name">
                 {{ row.name }}
               </div>
-              <div class="mt-0.5 text-[9px] text-gray-400 dark:text-gray-500">
+              <div class="mt-0.5 text-[9px] text-ink-muted dark:text-ink-muted">
                 {{ row.group_name }}
               </div>
             </div>
             <div class="flex shrink-0 items-center gap-2">
               <!-- 并发使用 -->
-              <span class="font-mono text-[11px] font-bold text-gray-900 dark:text-white"> {{ row.current_in_use }}/{{ row.max_capacity }} </span>
+              <span class="font-mono text-[11px] font-bold text-ink-strong dark:text-white"> {{ row.current_in_use }}/{{ row.max_capacity }} </span>
               <!-- 状态徽章 -->
               <span
                 v-if="row.is_available"
@@ -575,7 +575,7 @@ watch(
               </span>
               <span
                 v-else
-                class="inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                class="inline-flex items-center gap-1 rounded bg-surface-muted px-1.5 py-0.5 text-[10px] font-medium text-ink dark:bg-surface dark:text-ink-muted"
               >
                 {{ t('admin.ops.accountAvailability.unavailable') }}
               </span>
@@ -583,7 +583,7 @@ watch(
           </div>
 
           <!-- 进度条 -->
-          <div class="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-700">
+          <div class="h-1.5 w-full overflow-hidden rounded-full bg-line dark:bg-surface-muted">
             <div class="h-full rounded-full transition-all duration-300" :class="getLoadBarClass(row.load_percentage)" :style="getLoadBarStyle(row.load_percentage)"></div>
           </div>
 

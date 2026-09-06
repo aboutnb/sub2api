@@ -333,7 +333,8 @@ type SystemSettings struct {
 	SmartRoutingEnabled      bool `json:"smart_routing_enabled"`
 
 	// User-facing subscription page and sidebar entry
-	UserSubscriptionsEnabled bool `json:"user_subscriptions_enabled"`
+	UserSubscriptionsEnabled      bool `json:"user_subscriptions_enabled"`
+	SubscriptionExpirationEnabled bool `json:"subscription_expiration_enabled"`
 
 	// Model Plaza feature (public group/model pricing showcase)
 	ModelPlazaEnabled       bool   `json:"model_plaza_enabled"`
@@ -444,10 +445,11 @@ type PublicSettings struct {
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 	SmartRoutingEnabled      bool `json:"smart_routing_enabled"`
 
-	UserSubscriptionsEnabled bool `json:"user_subscriptions_enabled"`
-	ModelPlazaEnabled        bool `json:"model_plaza_enabled"`
-	ModelPlazaRequireAuth    bool `json:"model_plaza_require_auth"`
-	PluginManagementEnabled  bool `json:"plugin_management_enabled"`
+	UserSubscriptionsEnabled      bool `json:"user_subscriptions_enabled"`
+	SubscriptionExpirationEnabled bool `json:"subscription_expiration_enabled"`
+	ModelPlazaEnabled             bool `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth         bool `json:"model_plaza_require_auth"`
+	PluginManagementEnabled       bool `json:"plugin_management_enabled"`
 
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 

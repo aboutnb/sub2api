@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import AnnouncementPopup from '../AnnouncementPopup.vue'
+import BaseDialog from '../BaseDialog.vue'
 import { useAnnouncementStore } from '@/stores/announcements'
 
 const announcementMarkdownStyles = readFileSync(
@@ -96,6 +97,15 @@ describe('AnnouncementPopup', () => {
     expect(document.body.querySelector('.markdown-body script')).toBeNull()
     expect(document.body.textContent).toContain('common.close')
 
+    const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')!
+    expect(dialog.getAttribute('aria-modal')).toBe('true')
+    expect(dialog.getAttribute('aria-labelledby')).toBeTruthy()
+    expect(dialog.getAttribute('aria-describedby')).toBeTruthy()
+    expect(document.activeElement).toBe(
+      document.body.querySelector('[data-testid="announcement-popup-dismiss"]'),
+    )
+    expect(document.body.classList.contains('modal-open')).toBe(true)
+
     const dismissButton = document.body.querySelector<HTMLButtonElement>(
       '[data-testid="announcement-popup-dismiss"]',
     )
@@ -107,7 +117,44 @@ describe('AnnouncementPopup', () => {
 
     await wrapper.setProps({ announcement: null })
     expect(document.body.style.overflow).toBe('')
+    expect(document.body.classList.contains('modal-open')).toBe(false)
     wrapper.unmount()
+  })
+
+  it('dismisses only the topmost popup with Escape', async () => {
+    const store = useAnnouncementStore()
+    store.currentPopup = announcement
+    const dismissPopup = vi.spyOn(store, 'dismissPopup').mockResolvedValue()
+    const wrapper = mount(AnnouncementPopup)
+    await wrapper.vm.$nextTick()
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(dismissPopup).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+  })
+
+  it('stays visually and semantically above an existing shared dialog', async () => {
+    const baseDialog = mount(BaseDialog, {
+      attachTo: document.body,
+      props: { show: true, title: 'Compliance', zIndex: 80 },
+      global: { stubs: { Icon: true } },
+    })
+    const popup = mount(AnnouncementPopup, {
+      props: { announcement, preview: true },
+    })
+    await popup.vm.$nextTick()
+
+    const dialogs = document.body.querySelectorAll<HTMLElement>('[role="dialog"]')
+    expect(dialogs).toHaveLength(2)
+    expect(dialogs[0].getAttribute('aria-hidden')).toBe('true')
+    expect(dialogs[0].hasAttribute('inert')).toBe(true)
+    expect(Number(dialogs[1].style.zIndex)).toBeGreaterThan(Number(dialogs[0].style.zIndex))
+
+    popup.unmount()
+    await baseDialog.vm.$nextTick()
+    expect(dialogs[0].hasAttribute('inert')).toBe(false)
+    baseDialog.unmount()
   })
 
   it('keeps the existing user popup dismissal behavior', async () => {

@@ -8,7 +8,7 @@
               <div class="w-full sm:min-w-[280px] sm:flex-1">
                 <label class="input-label">{{ t('common.search') }}</label>
                 <div class="relative">
-                  <Icon name="search" size="md" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Icon name="search" size="md" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
                   <input
                     v-model.trim="filters.q"
                     type="search"
@@ -34,20 +34,20 @@
             </div>
           </div>
 
-          <div v-if="policies.length" class="mt-4 border-t border-gray-100 pt-4 dark:border-dark-700">
-            <div class="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+          <div v-if="policies.length" class="mt-4 border-t border-line pt-4 dark:border-line">
+            <div class="mb-2 text-xs font-semibold text-ink-muted dark:text-ink-muted">
               {{ t('admin.authIPBan.policy.title') }}
             </div>
             <div class="flex flex-wrap gap-2">
               <div
                 v-for="policy in policies"
                 :key="policy.ua_category"
-                class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300"
+                class="rounded-md border border-line bg-surface-muted px-3 py-2 text-xs text-ink dark:border-line-strong dark:bg-surface dark:text-ink-muted"
               >
-                <span class="font-semibold text-gray-900 dark:text-white">{{ categoryLabel(policy.ua_category) }}</span>
-                <span class="mx-1 text-gray-300 dark:text-dark-500">·</span>
+                <span class="font-semibold text-ink-strong dark:text-white">{{ categoryLabel(policy.ua_category) }}</span>
+                <span class="mx-1 text-ink-muted dark:text-ink-muted">·</span>
                 {{ policySummary(policy) }}
-                <span class="ml-1 text-gray-400">({{ scopeLabel(policy.ban_scope) }})</span>
+                <span class="ml-1 text-ink-muted">({{ scopeLabel(policy.ban_scope) }})</span>
               </div>
             </div>
           </div>
@@ -58,10 +58,10 @@
         <DataTable :columns="columns" :data="records" :loading="loading" row-key="id">
           <template #cell-source="{ row }">
             <div class="min-w-0 max-w-[220px]">
-              <div class="whitespace-nowrap font-mono text-sm font-semibold text-gray-900 dark:text-white">
+              <div class="whitespace-nowrap font-mono text-sm font-semibold text-ink-strong dark:text-white">
                 {{ row.ip_address }}
               </div>
-              <div class="mt-1 truncate text-xs text-gray-400" :title="row.trigger_path">
+              <div class="mt-1 truncate text-xs text-ink-muted" :title="row.trigger_path">
                 {{ row.trigger_path }}
               </div>
             </div>
@@ -71,11 +71,11 @@
             <div class="min-w-0 max-w-[280px]">
               <div class="flex flex-wrap items-center gap-1.5">
                 <span :class="categoryBadgeClass(row.ua_category)">{{ categoryLabel(row.ua_category) }}</span>
-                <span class="rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-dark-700 dark:text-gray-300">
+                <span class="rounded-md bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-ink dark:bg-surface-muted dark:text-ink-muted">
                   {{ scopeLabel(row.ban_scope) }}
                 </span>
               </div>
-              <div class="mt-1.5 truncate font-mono text-xs text-gray-500 dark:text-gray-400" :title="row.user_agent || '—'">
+              <div class="mt-1.5 truncate font-mono text-xs text-ink-muted dark:text-ink-muted" :title="row.user_agent || '—'">
                 {{ row.user_agent || '—' }}
               </div>
             </div>
@@ -83,10 +83,10 @@
 
           <template #cell-target="{ row }">
             <div class="min-w-0 max-w-[240px]">
-              <div class="truncate text-sm font-medium text-gray-800 dark:text-gray-200" :title="row.target_identifier">
+              <div class="truncate text-sm font-medium text-ink-strong dark:text-gray-200" :title="row.target_identifier">
                 {{ row.target_identifier || '—' }}
               </div>
-              <div class="mt-1 truncate text-xs text-gray-400" :title="reasonLabel(row.reason)">
+              <div class="mt-1 truncate text-xs text-ink-muted" :title="reasonLabel(row.reason)">
                 {{ reasonLabel(row.reason) }}
               </div>
             </div>
@@ -94,15 +94,15 @@
 
           <template #cell-failure_count="{ row }">
             <div class="whitespace-nowrap text-center">
-              <div class="text-base font-bold text-gray-900 dark:text-white">{{ row.failure_count }}</div>
-              <div v-if="row.ban_count > 1" class="text-[11px] text-gray-400">× {{ row.ban_count }}</div>
+              <div class="text-base font-bold text-ink-strong dark:text-white">{{ row.failure_count }}</div>
+              <div v-if="row.ban_count > 1" class="text-[11px] text-ink-muted">× {{ row.ban_count }}</div>
             </div>
           </template>
 
           <template #cell-timeline="{ row }">
-            <div class="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+            <div class="whitespace-nowrap text-xs text-ink-muted dark:text-ink-muted">
               <div>{{ formatDateTime(row.banned_at) }}</div>
-              <div class="mt-1 text-gray-400">{{ formatDateTime(row.expires_at) }}</div>
+              <div class="mt-1 text-ink-muted">{{ formatDateTime(row.expires_at) }}</div>
             </div>
           </template>
 
@@ -130,8 +130,8 @@
 
           <template #empty>
             <div class="flex flex-col items-center py-10">
-              <Icon name="shield" size="xl" class="mb-3 h-12 w-12 text-gray-300 dark:text-dark-600" />
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ t('admin.authIPBan.empty') }}</p>
+              <Icon name="shield" size="xl" class="mb-3 h-12 w-12 text-ink-muted dark:text-dark-600" />
+              <p class="text-sm font-medium text-ink-muted dark:text-ink-muted">{{ t('admin.authIPBan.empty') }}</p>
             </div>
           </template>
         </DataTable>
@@ -151,13 +151,13 @@
 
     <BaseDialog :show="detailVisible" :title="t('admin.authIPBan.detail.title')" width="wide" @close="detailVisible = false">
       <div v-if="detail" class="space-y-5 py-1">
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4 dark:border-dark-700">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4 dark:border-line">
           <div>
-            <div class="font-mono text-lg font-bold text-gray-900 dark:text-white">{{ detail.ip_address }}</div>
+            <div class="font-mono text-lg font-bold text-ink-strong dark:text-white">{{ detail.ip_address }}</div>
             <div class="mt-1 flex flex-wrap items-center gap-2">
               <span :class="statusBadgeClass(detail.status)">{{ statusLabel(detail.status) }}</span>
               <span :class="categoryBadgeClass(detail.ua_category)">{{ categoryLabel(detail.ua_category) }}</span>
-              <span class="text-xs text-gray-400">{{ scopeLabel(detail.ban_scope) }}</span>
+              <span class="text-xs text-ink-muted">{{ scopeLabel(detail.ban_scope) }}</span>
             </div>
           </div>
           <button v-if="detail.status === 'active'" type="button" class="btn btn-danger btn-sm" @click="openRelease(detail)">
@@ -166,17 +166,17 @@
         </div>
 
         <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-          <div v-for="field in detailFields" :key="field.label" class="min-w-0 border-b border-gray-100 pb-3 dark:border-dark-700">
-            <dt class="text-xs font-semibold text-gray-400">{{ field.label }}</dt>
-            <dd class="mt-1 break-words text-sm text-gray-800 dark:text-gray-200" :class="field.mono ? 'font-mono' : ''">
+          <div v-for="field in detailFields" :key="field.label" class="min-w-0 border-b border-line pb-3 dark:border-line">
+            <dt class="text-xs font-semibold text-ink-muted">{{ field.label }}</dt>
+            <dd class="mt-1 break-words text-sm text-ink-strong dark:text-gray-200" :class="field.mono ? 'font-mono' : ''">
               {{ field.value || '—' }}
             </dd>
           </div>
         </dl>
 
         <div>
-          <div class="text-xs font-semibold text-gray-400">{{ t('admin.authIPBan.detail.userAgent') }}</div>
-          <div class="mt-2 break-all rounded-md bg-gray-50 p-3 font-mono text-xs leading-5 text-gray-600 dark:bg-dark-800 dark:text-gray-300">
+          <div class="text-xs font-semibold text-ink-muted">{{ t('admin.authIPBan.detail.userAgent') }}</div>
+          <div class="mt-2 break-all rounded-md bg-surface-muted p-3 font-mono text-xs leading-5 text-ink dark:bg-surface dark:text-ink-muted">
             {{ detail.user_agent || '—' }}
           </div>
         </div>
@@ -320,7 +320,7 @@ function statusBadgeClass(status: string): string {
   const base = 'inline-flex rounded-md px-2 py-1 text-xs font-semibold '
   if (status === 'active') return base + 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
   if (status === 'expired') return base + 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-  return base + 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300'
+  return base + 'bg-surface-muted text-ink dark:bg-surface-muted dark:text-ink-muted'
 }
 
 function categoryBadgeClass(category: string): string {

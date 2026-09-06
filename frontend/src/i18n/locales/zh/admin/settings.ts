@@ -55,6 +55,13 @@ export default {
           enabled: '显示“我的订阅”',
           enabledHint: '关闭后用户侧边栏入口隐藏，直接访问订阅页面会返回仪表盘。',
         },
+        subscriptionExpiration: {
+          title: '订阅有效期限制',
+          description: '统一控制订阅是否受到期时间限制。关闭后，状态为 active 的订阅不再因日期到期。',
+          configureLink: '前往 订阅管理 配置用户订阅',
+          enabled: '启用订阅有效期限制',
+          enabledHint: '关闭后现有和新分配的 active 订阅均按不限时处理；日、周、月用量限额以及暂停、撤销和显式过期状态仍然生效。',
+        },
         modelPlaza: {
           title: '模型广场',
           description: '以分组为单位向访客展示可用模型与价格的公开页面。默认关闭。',
@@ -657,15 +664,6 @@ export default {
         logoSizeError: '图片大小超过 300KB 限制（{size}KB）',
         logoTypeError: '请选择图片文件',
         logoReadError: '读取图片文件失败',
-        homeContent: '首页内容',
-        homeContentPlaceholder:
-          '在此输入首页内容，支持 Markdown & HTML 代码。如果输入的是一个链接，则会使用该链接作为 iframe 的 src 属性。',
-        homeContentHint:
-          '自定义首页内容，支持 Markdown/HTML。如果输入的是链接（以 http:// 或 https:// 开头），则会使用该链接作为 iframe 的 src 属性，这允许你设置任意网页作为首页。设置后首页的状态信息将不再显示。',
-        homeContentIframeWarning:
-          '⚠️ iframe 模式提示：部分网站设置了 X-Frame-Options 或 CSP 安全策略，禁止被嵌入到 iframe 中。如果页面显示空白或报错，请确认目标网站允许被嵌入，或考虑使用 HTML 模式自行构建页面内容。',
-        compactHome: '简洁首页',
-        compactHomeHint: '未设置自定义首页内容时，展示简洁的站点信息页面。',
         hideCcsImportButton: '隐藏 CCS 导入按钮',
         hideCcsImportButtonHint: '启用后将在 API Keys 页面隐藏"导入 CCS"按钮'
       },

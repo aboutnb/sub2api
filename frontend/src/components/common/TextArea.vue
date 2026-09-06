@@ -1,23 +1,29 @@
 <template>
   <div class="w-full">
-    <label v-if="label" :for="id" class="input-label mb-1.5 block">
+    <label v-if="label" :for="textAreaId" class="input-label mb-1.5 block">
       {{ label }}
-      <span v-if="required" class="text-red-500">*</span>
+      <span v-if="required" class="text-red-500" aria-hidden="true">*</span>
     </label>
     <div class="relative">
       <textarea
-        :id="id"
+        :id="textAreaId"
         ref="textAreaRef"
+        :name="name"
         :value="modelValue"
         :disabled="disabled"
         :required="required"
         :placeholder="placeholderText"
+        :autocomplete="autocomplete"
         :readonly="readonly"
         :rows="rows"
+        :aria-label="ariaLabel || (!label ? placeholderText : undefined)"
+        :aria-required="required || undefined"
+        :aria-invalid="error ? 'true' : undefined"
+        :aria-describedby="describedBy"
         :class="[
           'input w-full min-h-[80px] transition-all duration-200 resize-y',
           error ? 'input-error ring-2 ring-red-500/20' : '',
-          disabled ? 'cursor-not-allowed bg-gray-100 opacity-60 dark:bg-dark-900' : ''
+          disabled ? 'cursor-not-allowed bg-surface-muted opacity-60 dark:bg-canvas' : ''
         ]"
         @input="onInput"
         @change="$emit('change', ($event.target as HTMLTextAreaElement).value)"
@@ -26,17 +32,17 @@
       ></textarea>
     </div>
     <!-- Hint / Error Text -->
-    <p v-if="error" class="input-error-text mt-1.5">
+    <p v-if="error" :id="supportTextId" class="input-error-text mt-1.5" role="alert">
       {{ error }}
     </p>
-    <p v-else-if="hint" class="input-hint mt-1.5">
+    <p v-else-if="hint" :id="supportTextId" class="input-hint mt-1.5">
       {{ hint }}
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, getCurrentInstance, ref } from 'vue'
 
 interface Props {
   modelValue: string | null | undefined
@@ -48,6 +54,10 @@ interface Props {
   error?: string
   hint?: string
   id?: string
+  name?: string
+  ariaLabel?: string
+  ariaDescribedby?: string
+  autocomplete?: string
   rows?: number | string
 }
 
@@ -66,7 +76,16 @@ const emit = defineEmits<{
 }>()
 
 const textAreaRef = ref<HTMLTextAreaElement | null>(null)
+const instanceUid = getCurrentInstance()?.uid ?? 0
+const textAreaId = computed(() => props.id || `textarea-${instanceUid}`)
 const placeholderText = computed(() => props.placeholder || '')
+const supportTextId = computed(() => {
+  if (!props.error && !props.hint) return undefined
+  return `${textAreaId.value}-${props.error ? 'error' : 'hint'}`
+})
+const describedBy = computed(() =>
+  [props.ariaDescribedby, supportTextId.value].filter(Boolean).join(' ') || undefined
+)
 
 const onInput = (event: Event) => {
   const value = (event.target as HTMLTextAreaElement).value

@@ -14,7 +14,8 @@ export default {
     expiresTomorrow: 'Expires tomorrow',
     viewAll: 'View all subscriptions',
     noSubscriptions: 'No active subscriptions',
-    unlimited: 'Unlimited'
+    unlimited: 'Unlimited',
+    noExpiration: 'No expiration'
   },
 
   // Version Badge

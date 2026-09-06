@@ -743,6 +743,8 @@ export interface SystemSettings {
 
   // User-facing subscription page and sidebar entry
   user_subscriptions_enabled: boolean;
+  // Unified subscription expiration policy
+  subscription_expiration_enabled: boolean;
 
   // Model Plaza feature switches + description
   model_plaza_enabled: boolean;
@@ -1061,6 +1063,8 @@ export interface UpdateSettingsRequest {
 
   // User-facing subscription page and sidebar entry
   user_subscriptions_enabled?: boolean;
+  // Unified subscription expiration policy
+  subscription_expiration_enabled?: boolean;
 
   // Model Plaza feature switches + description
   model_plaza_enabled?: boolean;

@@ -1,8 +1,10 @@
 <template>
-  <div class="relative" ref="containerRef">
+  <div class="relative min-w-0 flex-1 sm:flex-none" ref="containerRef">
     <button
       type="button"
       @click="toggle"
+      :aria-expanded="isOpen"
+      aria-haspopup="true"
       :class="['date-picker-trigger', isOpen && 'date-picker-trigger-open']"
     >
       <span class="date-picker-icon">
@@ -21,13 +23,20 @@
     </button>
 
     <Transition name="date-picker-dropdown">
-      <div v-if="isOpen" class="date-picker-dropdown">
+      <div
+        v-if="isOpen"
+        class="date-picker-dropdown"
+        role="group"
+        :aria-label="t('dates.selectDateRange')"
+      >
         <!-- Quick presets -->
         <div class="date-picker-presets">
           <button
             v-for="preset in presets"
             :key="preset.value"
+            type="button"
             @click="selectPreset(preset)"
+            :aria-pressed="isPresetActive(preset)"
             :class="['date-picker-preset', isPresetActive(preset) && 'date-picker-preset-active']"
           >
             {{ t(preset.labelKey) }}
@@ -49,7 +58,7 @@
             />
           </div>
           <div class="date-picker-separator">
-            <Icon name="arrowRight" size="sm" class="text-gray-400" />
+            <Icon name="arrowRight" size="sm" class="text-ink-muted" />
           </div>
           <div class="date-picker-field">
             <label class="date-picker-label">{{ t('dates.endDate') }}</label>
@@ -66,7 +75,7 @@
 
         <!-- Apply button -->
         <div class="date-picker-actions">
-          <button @click="apply" class="date-picker-apply">
+          <button type="button" @click="apply" class="date-picker-apply">
             {{ t('dates.apply') }}
           </button>
         </div>
@@ -322,14 +331,14 @@ onUnmounted(() => {
 
 <style scoped>
 .date-picker-trigger {
-  @apply flex items-center gap-2;
-  @apply rounded-lg px-3 py-2 text-sm;
-  @apply bg-white dark:bg-dark-800;
-  @apply border border-gray-200 dark:border-dark-600;
-  @apply text-gray-700 dark:text-gray-300;
+  @apply flex min-h-11 w-full items-center gap-2;
+  @apply rounded-xl px-3 py-2 text-sm font-bold;
+  @apply bg-white dark:bg-surface;
+  @apply border-2 border-line-control shadow-sm;
+  @apply text-ink dark:text-ink-muted;
   @apply transition-all duration-200;
   @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30;
-  @apply hover:border-gray-300 dark:hover:border-dark-500;
+  @apply hover:border-line-control;
   @apply cursor-pointer;
 }
 
@@ -338,7 +347,7 @@ onUnmounted(() => {
 }
 
 .date-picker-icon {
-  @apply text-gray-400 dark:text-dark-400;
+  @apply text-ink-muted dark:text-ink-muted;
 }
 
 .date-picker-value {
@@ -346,17 +355,17 @@ onUnmounted(() => {
 }
 
 .date-picker-chevron {
-  @apply text-gray-400 dark:text-dark-400;
+  @apply text-ink-muted dark:text-ink-muted;
 }
 
 .date-picker-dropdown {
-  @apply absolute left-0 z-[100] mt-2;
-  @apply bg-white dark:bg-dark-800;
+  @apply absolute right-0 z-[100] mt-2;
+  @apply bg-white dark:bg-surface;
   @apply rounded-xl;
-  @apply border border-gray-200 dark:border-dark-700;
-  @apply shadow-lg shadow-black/10 dark:shadow-black/30;
+  @apply border-2 border-line-control;
+  @apply shadow-xl;
   @apply overflow-hidden;
-  @apply min-w-[320px];
+  width: min(22rem, calc(100vw - 2rem));
 }
 
 .date-picker-presets {
@@ -364,19 +373,19 @@ onUnmounted(() => {
 }
 
 .date-picker-preset {
-  @apply rounded-md px-3 py-1.5 text-xs font-medium;
-  @apply text-gray-600 dark:text-gray-400;
-  @apply hover:bg-gray-100 dark:hover:bg-dark-700;
+  @apply min-h-11 rounded-lg border border-transparent px-3 py-1.5 text-xs font-bold;
+  @apply text-ink dark:text-ink-muted;
+  @apply hover:bg-surface-muted dark:hover:bg-dark-700;
   @apply transition-colors duration-150;
 }
 
 .date-picker-preset-active {
-  @apply bg-primary-100 dark:bg-primary-900/30;
+  @apply border-primary-700 bg-primary-100 shadow-pixel-sm dark:border-primary-500 dark:bg-primary-900/30;
   @apply text-primary-700 dark:text-primary-300;
 }
 
 .date-picker-divider {
-  @apply border-t border-gray-100 dark:border-dark-700;
+  @apply border-t border-line dark:border-line;
 }
 
 .date-picker-custom {
@@ -388,14 +397,14 @@ onUnmounted(() => {
 }
 
 .date-picker-label {
-  @apply mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400;
+  @apply mb-1 block text-xs font-medium text-ink-muted dark:text-ink-muted;
 }
 
 .date-picker-input {
-  @apply w-full rounded-md px-2 py-1.5 text-sm;
-  @apply bg-gray-50 dark:bg-dark-700;
-  @apply border border-gray-200 dark:border-dark-600;
-  @apply text-gray-900 dark:text-gray-100;
+  @apply min-h-11 w-full rounded-lg px-2 py-1.5 text-sm;
+  @apply bg-surface-muted dark:bg-surface-muted;
+  @apply border-2 border-line-control;
+  @apply text-ink-strong dark:text-gray-100;
   @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30;
 }
 
@@ -417,10 +426,10 @@ onUnmounted(() => {
 }
 
 .date-picker-apply {
-  @apply rounded-lg px-4 py-1.5 text-sm font-medium;
-  @apply bg-primary-600 text-white;
-  @apply hover:bg-primary-700;
-  @apply transition-colors duration-150;
+  @apply min-h-11 rounded-xl border-2 border-ink-strong px-4 py-2 text-sm font-bold shadow-pixel-sm;
+  @apply bg-accent-500 text-ink-strong;
+  @apply hover:bg-accent-400;
+  @apply transition-all duration-150;
 }
 
 /* Dropdown animation */

@@ -1,11 +1,11 @@
 <template>
   <div class="space-y-3">
     <div>
-      <label class="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
+      <label class="mb-1.5 block text-xs font-medium text-ink-muted dark:text-ink-muted">
         {{ t('payment.customAmount') }}
       </label>
       <div class="relative">
-        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-medium text-gray-400 dark:text-dark-500">
+        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-medium text-ink-muted dark:text-ink-muted">
           {{ currencySymbol }}
         </span>
         <input
@@ -20,7 +20,7 @@
     </div>
 
     <div>
-      <label class="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
+      <label class="mb-1.5 block text-xs font-medium text-ink-muted dark:text-ink-muted">
         {{ t('payment.quickAmounts') }}
       </label>
       <div data-testid="quick-amounts" class="scrollbar-hide grid grid-flow-col auto-cols-[minmax(4.5rem,1fr)] gap-1.5 overflow-x-auto pb-0.5 pr-1 pt-2">
@@ -33,8 +33,8 @@
           :class="[
             'relative h-9 rounded-md border px-2 text-center text-sm font-semibold tabular-nums transition-colors',
             modelValue === amt
-              ? 'border-primary-500 bg-primary-50/70 text-primary-700 ring-1 ring-primary-500/20 dark:border-primary-400 dark:bg-dark-900 dark:text-primary-300'
-              : 'border-gray-300 bg-transparent text-gray-700 hover:border-gray-500 dark:border-dark-600 dark:text-gray-200 dark:hover:border-dark-500',
+              ? 'border-primary-500 bg-primary-50/70 text-primary-700 ring-1 ring-primary-500/20 dark:border-primary-400 dark:bg-canvas dark:text-primary-300'
+              : 'border-line-strong bg-transparent text-ink hover:border-primary-400 dark:border-line-strong dark:text-gray-200 dark:hover:border-primary-400',
           ]"
           @click="selectAmount(amt)"
         >

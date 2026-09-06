@@ -16,10 +16,10 @@
                 <Icon name="key" size="md" class="text-blue-600 dark:text-blue-400" :stroke-width="2" />
               </div>
               <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                <p class="text-xs font-medium text-ink-muted dark:text-ink-muted">
                   {{ t('admin.dashboard.apiKeys') }}
                 </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
+                <p class="text-xl font-bold text-ink-strong dark:text-white">
                   {{ stats.total_api_keys }}
                 </p>
                 <p class="text-xs text-green-600 dark:text-green-400">
@@ -36,10 +36,10 @@
                 <Icon name="server" size="md" class="text-purple-600 dark:text-purple-400" :stroke-width="2" />
               </div>
               <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                <p class="text-xs font-medium text-ink-muted dark:text-ink-muted">
                   {{ t('admin.dashboard.accounts') }}
                 </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
+                <p class="text-xl font-bold text-ink-strong dark:text-white">
                   {{ stats.total_accounts }}
                 </p>
                 <p class="text-xs">
@@ -61,13 +61,13 @@
                 <Icon name="chart" size="md" class="text-green-600 dark:text-green-400" :stroke-width="2" />
               </div>
               <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                <p class="text-xs font-medium text-ink-muted dark:text-ink-muted">
                   {{ t('admin.dashboard.todayRequests') }}
                 </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
+                <p class="text-xl font-bold text-ink-strong dark:text-white">
                   {{ stats.today_requests }}
                 </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
+                <p class="text-xs text-ink-muted dark:text-ink-muted">
                   {{ t('common.total') }}: {{ formatNumber(stats.total_requests) }}
                 </p>
               </div>
@@ -81,13 +81,13 @@
                 <Icon name="userPlus" size="md" class="text-emerald-600 dark:text-emerald-400" :stroke-width="2" />
               </div>
               <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                <p class="text-xs font-medium text-ink-muted dark:text-ink-muted">
                   {{ t('admin.dashboard.users') }}
                 </p>
                 <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">
                   +{{ stats.today_new_users }}
                 </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
+                <p class="text-xs text-ink-muted dark:text-ink-muted">
                   {{ t('common.total') }}: {{ formatNumber(stats.total_users) }}
                 </p>
               </div>
@@ -104,10 +104,10 @@
                 <Icon name="cube" size="md" class="text-amber-600 dark:text-amber-400" :stroke-width="2" />
               </div>
               <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                <p class="text-xs font-medium text-ink-muted dark:text-ink-muted">
                   {{ t('admin.dashboard.todayTokens') }}
                 </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
+                <p class="text-xl font-bold text-ink-strong dark:text-white">
                   {{ formatTokens(stats.today_tokens) }}
                 </p>
                 <p class="text-xs">
@@ -116,15 +116,15 @@
                     :title="t('admin.dashboard.actual')"
                     >${{ formatCost(stats.today_actual_cost) }}</span
                   >
-                  <span class="text-gray-400 dark:text-gray-500"> / </span>
+                  <span class="text-ink-muted dark:text-ink-muted"> / </span>
                   <span
                     class="text-orange-500 dark:text-orange-400"
                     :title="t('admin.dashboard.accountCost')"
                     >${{ formatCost(stats.today_account_cost) }}</span
                   >
-                  <span class="text-gray-400 dark:text-gray-500"> / </span>
+                  <span class="text-ink-muted dark:text-ink-muted"> / </span>
                   <span
-                    class="text-gray-400 dark:text-gray-500"
+                    class="text-ink-muted dark:text-ink-muted"
                     :title="t('admin.dashboard.standard')"
                     >${{ formatCost(stats.today_cost) }}</span
                   >
@@ -140,10 +140,10 @@
                 <Icon name="database" size="md" class="text-indigo-600 dark:text-indigo-400" :stroke-width="2" />
               </div>
               <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                <p class="text-xs font-medium text-ink-muted dark:text-ink-muted">
                   {{ t('admin.dashboard.totalTokens') }}
                 </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
+                <p class="text-xl font-bold text-ink-strong dark:text-white">
                   {{ formatTokens(stats.total_tokens) }}
                 </p>
                 <p class="text-xs">
@@ -152,15 +152,15 @@
                     :title="t('admin.dashboard.actual')"
                     >${{ formatCost(stats.total_actual_cost) }}</span
                   >
-                  <span class="text-gray-400 dark:text-gray-500"> / </span>
+                  <span class="text-ink-muted dark:text-ink-muted"> / </span>
                   <span
                     class="text-orange-500 dark:text-orange-400"
                     :title="t('admin.dashboard.accountCost')"
                     >${{ formatCost(stats.total_account_cost) }}</span
                   >
-                  <span class="text-gray-400 dark:text-gray-500"> / </span>
+                  <span class="text-ink-muted dark:text-ink-muted"> / </span>
                   <span
-                    class="text-gray-400 dark:text-gray-500"
+                    class="text-ink-muted dark:text-ink-muted"
                     :title="t('admin.dashboard.standard')"
                     >${{ formatCost(stats.total_cost) }}</span
                   >
@@ -176,20 +176,20 @@
                 <Icon name="bolt" size="md" class="text-violet-600 dark:text-violet-400" :stroke-width="2" />
               </div>
               <div class="flex-1">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                <p class="text-xs font-medium text-ink-muted dark:text-ink-muted">
                   {{ t('admin.dashboard.performance') }}
                 </p>
                 <div class="flex items-baseline gap-2">
-                  <p class="text-xl font-bold text-gray-900 dark:text-white">
+                  <p class="text-xl font-bold text-ink-strong dark:text-white">
                     {{ formatTokens(stats.rpm) }}
                   </p>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">RPM</span>
+                  <span class="text-xs text-ink-muted dark:text-ink-muted">RPM</span>
                 </div>
                 <div class="flex items-baseline gap-2">
                   <p class="text-sm font-semibold text-violet-600 dark:text-violet-400">
                     {{ formatTokens(stats.tpm) }}
                   </p>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">TPM</span>
+                  <span class="text-xs text-ink-muted dark:text-ink-muted">TPM</span>
                 </div>
               </div>
             </div>
@@ -202,13 +202,13 @@
                 <Icon name="clock" size="md" class="text-rose-600 dark:text-rose-400" :stroke-width="2" />
               </div>
               <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                <p class="text-xs font-medium text-ink-muted dark:text-ink-muted">
                   {{ t('admin.dashboard.avgResponse') }}
                 </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
+                <p class="text-xl font-bold text-ink-strong dark:text-white">
                   {{ formatDuration(stats.average_duration_ms) }}
                 </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
+                <p class="text-xs text-ink-muted dark:text-ink-muted">
                   {{ stats.active_users }} {{ t('admin.dashboard.activeUsers') }}
                 </p>
               </div>
@@ -219,7 +219,7 @@
         <!-- Quick Actions -->
         <div class="card p-4">
           <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-gray-900 dark:text-white">
+            <h2 class="text-sm font-semibold text-ink-strong dark:text-white">
               {{ t('admin.dashboard.quickActions') }}
             </h2>
           </div>
@@ -227,39 +227,39 @@
             <button
               v-if="canUseBatchImage"
               type="button"
-              class="group flex items-center gap-3 rounded-lg bg-gray-50 p-3 text-left transition-colors hover:bg-sky-50 dark:bg-dark-800/50 dark:hover:bg-sky-900/20"
+              class="group flex items-center gap-3 rounded-lg bg-surface-muted p-3 text-left transition-colors hover:bg-sky-50 dark:bg-surface/50 dark:hover:bg-sky-900/20"
               @click="router.push('/batch-image')"
             >
               <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400">
                 <Icon name="sparkles" size="md" :stroke-width="2" />
               </span>
               <span class="min-w-0 flex-1">
-                <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                <span class="block text-sm font-medium text-ink-strong dark:text-white">
                   {{ t('admin.dashboard.batchImage') }}
                 </span>
-                <span class="block text-xs text-gray-500 dark:text-gray-400">
+                <span class="block text-xs text-ink-muted dark:text-ink-muted">
                   {{ t('admin.dashboard.batchImageDesc') }}
                 </span>
               </span>
-              <Icon name="chevronRight" size="sm" class="text-gray-400 group-hover:text-sky-500" />
+              <Icon name="chevronRight" size="sm" class="text-ink-muted group-hover:text-sky-500" />
             </button>
             <button
               type="button"
-              class="group flex items-center gap-3 rounded-lg bg-gray-50 p-3 text-left transition-colors hover:bg-emerald-50 dark:bg-dark-800/50 dark:hover:bg-emerald-900/20"
+              class="group flex items-center gap-3 rounded-lg bg-surface-muted p-3 text-left transition-colors hover:bg-emerald-50 dark:bg-surface/50 dark:hover:bg-emerald-900/20"
               @click="router.push('/admin/groups')"
             >
               <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
                 <Icon name="grid" size="md" :stroke-width="2" />
               </span>
               <span class="min-w-0 flex-1">
-                <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                <span class="block text-sm font-medium text-ink-strong dark:text-white">
                   {{ t('admin.dashboard.groupPricing') }}
                 </span>
-                <span class="block text-xs text-gray-500 dark:text-gray-400">
+                <span class="block text-xs text-ink-muted dark:text-ink-muted">
                   {{ t('admin.dashboard.groupPricingDesc') }}
                 </span>
               </span>
-              <Icon name="chevronRight" size="sm" class="text-gray-400 group-hover:text-emerald-500" />
+              <Icon name="chevronRight" size="sm" class="text-ink-muted group-hover:text-emerald-500" />
             </button>
           </div>
         </div>
@@ -270,7 +270,7 @@
           <div class="card p-4">
             <div class="flex flex-wrap items-center gap-4">
               <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                <span class="text-sm font-medium text-ink dark:text-ink-muted"
                   >{{ t('admin.dashboard.timeRange') }}:</span
                 >
                 <DateRangePicker
@@ -283,7 +283,7 @@
                 {{ t('common.refresh') }}
               </button>
               <div class="ml-auto flex items-center gap-2">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                <span class="text-sm font-medium text-ink dark:text-ink-muted"
                   >{{ t('admin.dashboard.granularity') }}:</span
                 >
                 <div class="w-28">
@@ -318,7 +318,7 @@
 
           <!-- User Usage Trend (Full Width) -->
           <div class="card p-4">
-            <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
+            <h3 class="mb-4 text-sm font-semibold text-ink-strong dark:text-white">
               {{ t('admin.dashboard.recentUsage') }} (Top 12)
             </h3>
             <div class="h-64">
@@ -328,7 +328,7 @@
               <Line v-else-if="userTrendChartData" :data="userTrendChartData" :options="lineOptions" />
               <div
                 v-else
-                class="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400"
+                class="flex h-full items-center justify-center text-sm text-ink-muted dark:text-ink-muted"
               >
                 {{ t('admin.dashboard.noDataAvailable') }}
               </div>
@@ -363,6 +363,7 @@ import Select from '@/components/common/Select.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
+import { useChartTheme } from '@/composables/useChartTheme'
 
 import {
   Chart as ChartJS,
@@ -390,6 +391,7 @@ ChartJS.register(
 const appStore = useAppStore()
 const router = useRouter()
 const { canUseBatchImage, refreshBatchImageAccess } = useBatchImageAccess()
+const { chartTheme } = useChartTheme()
 const stats = ref<DashboardStats | null>(null)
 const loading = ref(false)
 const chartsLoading = ref(false)
@@ -436,15 +438,10 @@ const granularityOptions = computed(() => [
   { value: 'hour', label: t('admin.dashboard.hour') }
 ])
 
-// Dark mode detection
-const isDarkMode = computed(() => {
-  return document.documentElement.classList.contains('dark')
-})
-
 // Chart colors
 const chartColors = computed(() => ({
-  text: isDarkMode.value ? '#e5e7eb' : '#374151',
-  grid: isDarkMode.value ? '#374151' : '#e5e7eb'
+  text: chartTheme.value.text,
+  grid: chartTheme.value.grid
 }))
 
 // Line chart options (for user trend chart)
@@ -469,6 +466,11 @@ const lineOptions = computed(() => ({
       }
     },
     tooltip: {
+      backgroundColor: chartTheme.value.tooltipBackground,
+      titleColor: chartTheme.value.tooltipTitle,
+      bodyColor: chartTheme.value.tooltipBody,
+      borderColor: chartTheme.value.tooltipBorder,
+      borderWidth: 1,
       itemSort: (a: any, b: any) => {
         const aValue = typeof a?.raw === 'number' ? a.raw : Number(a?.parsed?.y ?? 0)
         const bValue = typeof b?.raw === 'number' ? b.raw : Number(b?.parsed?.y ?? 0)
@@ -540,26 +542,14 @@ const userTrendChartData = computed(() => {
   })
 
   const sortedDates = Array.from(allDates).sort()
-  const colors = [
-    '#3b82f6',
-    '#10b981',
-    '#f59e0b',
-    '#ef4444',
-    '#8b5cf6',
-    '#ec4899',
-    '#14b8a6',
-    '#f97316',
-    '#6366f1',
-    '#84cc16',
-    '#06b6d4',
-    '#a855f7'
-  ]
+  const colors = chartTheme.value.series
+  const softColors = chartTheme.value.seriesSoft
 
   const datasets = Array.from(userGroups.values()).map((group, idx) => ({
     label: group.name,
     data: sortedDates.map((date) => group.data.get(date) || 0),
     borderColor: colors[idx % colors.length],
-    backgroundColor: `${colors[idx % colors.length]}20`,
+    backgroundColor: softColors[idx % softColors.length],
     fill: false,
     tension: 0.3
   }))

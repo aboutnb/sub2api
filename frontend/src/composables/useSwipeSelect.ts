@@ -1,5 +1,6 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
 import type { Virtualizer } from '@tanstack/vue-virtual'
+import { useThemeMode } from '@/composables/useThemeMode'
 
 /**
  * WeChat-style swipe/drag to select rows in a DataTable,
@@ -79,6 +80,7 @@ export function useSwipeSelect(
   virtualContext?: SwipeSelectVirtualContext
 ) {
   const isDragging = ref(false)
+  const { isDark } = useThemeMode()
 
   let dragMode: 'select' | 'deselect' = 'select'
   let startRowIndex = -1
@@ -182,11 +184,10 @@ export function useSwipeSelect(
   function createMarquee() {
     removeMarquee() // defensive: remove any stale marquee
     marqueeEl = document.createElement('div')
-    const isDark = document.documentElement.classList.contains('dark')
     Object.assign(marqueeEl.style, {
       position: 'fixed',
-      background: isDark ? 'rgba(96, 165, 250, 0.15)' : 'rgba(59, 130, 246, 0.12)',
-      border: isDark ? '1.5px solid rgba(96, 165, 250, 0.5)' : '1.5px solid rgba(59, 130, 246, 0.4)',
+      background: isDark.value ? 'rgba(74, 203, 187, 0.16)' : 'rgba(8, 124, 116, 0.12)',
+      border: isDark.value ? '1.5px solid rgba(74, 203, 187, 0.55)' : '1.5px solid rgba(8, 124, 116, 0.45)',
       borderRadius: '4px',
       pointerEvents: 'none',
       zIndex: '9999',

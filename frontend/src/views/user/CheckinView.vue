@@ -14,14 +14,14 @@
               </div>
               <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
-                  <p class="text-xs font-medium text-gray-500 dark:text-dark-400">{{ t('checkin.currentBalance') }}</p>
+                  <p class="text-xs font-medium text-ink-muted dark:text-ink-muted">{{ t('checkin.currentBalance') }}</p>
                   <span
                     class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
                     :class="status.checked_in_today
                       ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-                      : 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-dark-300'"
+                      : 'bg-surface-muted text-ink dark:bg-surface-muted dark:text-ink'"
                   >
-                    <span class="h-1.5 w-1.5 rounded-full" :class="status.checked_in_today ? 'bg-emerald-500' : 'border border-gray-400 dark:border-dark-400'" />
+                    <span class="h-1.5 w-1.5 rounded-full" :class="status.checked_in_today ? 'bg-emerald-500' : 'border border-line-strong dark:border-line-strong'" />
                     {{ status.checked_in_today ? t('checkin.checkedToday') : t('checkin.notCheckedToday') }}
                     <span v-if="status.checked_in_today" class="text-emerald-600/80 dark:text-emerald-400/80">· {{ modeLabel(status.today_record?.mode) }}</span>
                   </span>
@@ -33,7 +33,7 @@
             <div
               v-if="status.enabled && status.eligible && availableModeCount > 0"
               data-testid="checkin-action-panel"
-              class="w-full border-t border-gray-100 pt-4 sm:w-auto sm:border-l sm:border-t-0 sm:py-1 sm:pl-5 dark:border-dark-700"
+              class="w-full border-t border-line pt-4 sm:w-auto sm:border-l sm:border-t-0 sm:py-1 sm:pl-5 dark:border-line"
             >
               <div
                 data-testid="checkin-mode-actions"
@@ -59,7 +59,7 @@
                   v-if="status.lucky_enabled"
                   type="button"
                   data-testid="checkin-mode-lucky"
-                  class="group flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-semibold text-gray-800 transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100 dark:hover:border-cyan-700 dark:hover:bg-cyan-900/20 dark:hover:text-cyan-200 sm:min-w-36"
+                  class="group flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink-strong transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 dark:border-line-strong dark:bg-surface dark:text-ink-strong dark:hover:border-cyan-700 dark:hover:bg-cyan-900/20 dark:hover:text-cyan-200 sm:min-w-36"
                   :disabled="submitting || !status.can_check_in"
                   :class="{ 'cursor-not-allowed opacity-50': submitting || !status.can_check_in }"
                   @click="requestCheckin('lucky')"
@@ -67,7 +67,7 @@
                   <Icon v-if="submittingMode === 'lucky'" name="refresh" size="sm" class="shrink-0 animate-spin" />
                   <Icon v-else name="sparkles" size="sm" class="shrink-0 text-cyan-600 dark:text-cyan-400" />
                   <span class="truncate">{{ submittingMode === 'lucky' ? t('checkin.submitting') : t('checkin.lucky') }}</span>
-                  <Icon v-if="!submitting && status.can_check_in" name="chevronRight" size="xs" class="hidden shrink-0 text-gray-400 transition group-hover:translate-x-0.5 group-hover:text-cyan-600 sm:block" />
+                  <Icon v-if="!submitting && status.can_check_in" name="chevronRight" size="xs" class="hidden shrink-0 text-ink-muted transition group-hover:translate-x-0.5 group-hover:text-cyan-600 sm:block" />
                 </button>
               </div>
 
@@ -132,18 +132,18 @@
                 <Icon name="calendar" size="md" />
               </div>
               <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('checkin.calendarTitle') }}</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ monthLabel }} · {{ t('checkin.calendarHint') }}</p>
+                <h3 class="text-lg font-semibold text-ink-strong dark:text-white">{{ t('checkin.calendarTitle') }}</h3>
+                <p class="mt-1 text-sm text-ink-muted dark:text-ink-muted">{{ monthLabel }} · {{ t('checkin.calendarHint') }}</p>
               </div>
             </div>
           </div>
-          <div class="mt-5 overflow-hidden rounded-lg border border-gray-200 dark:border-dark-700">
-            <div class="grid grid-cols-7 border-b border-gray-200 bg-gray-50/80 dark:border-dark-700 dark:bg-dark-800/80">
+          <div class="mt-5 overflow-hidden rounded-lg border border-line dark:border-line">
+            <div class="grid grid-cols-7 border-b border-line bg-surface-muted/80 dark:border-line dark:bg-surface/80">
               <span
                 v-for="(day, index) in weekDays"
                 :key="day"
-                class="calendar-weekday border-gray-200 py-2 text-center text-[11px] font-medium dark:border-dark-700"
-                :class="index >= 5 ? 'text-gray-500 dark:text-dark-400' : 'text-gray-400 dark:text-dark-500'"
+                class="calendar-weekday border-line py-2 text-center text-[11px] font-medium dark:border-line"
+                :class="index >= 5 ? 'text-ink-muted dark:text-ink-muted' : 'text-ink-muted dark:text-ink-muted'"
               >
                 {{ day }}
               </span>
@@ -154,7 +154,7 @@
                 :key="index"
                 :data-testid="cell.day ? `calendar-day-${cell.day}` : undefined"
                 :data-mode="cell.record?.mode"
-                class="calendar-cell flex min-h-12 min-w-0 flex-col justify-between overflow-hidden border-gray-100 p-1 transition-colors dark:border-dark-700 sm:min-h-16 sm:p-2"
+                class="calendar-cell flex min-h-12 min-w-0 flex-col justify-between overflow-hidden border-line p-1 transition-colors dark:border-line sm:min-h-16 sm:p-2"
                 :class="cellClass(cell)"
                 :title="calendarCellTitle(cell)"
                 :aria-label="calendarCellTitle(cell) || undefined"
@@ -186,14 +186,14 @@
               </span>
             </div>
           </div>
-          <div data-testid="calendar-month-summary" class="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-dark-700">
+          <div data-testid="calendar-month-summary" class="mt-4 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-line">
             <div class="flex items-center justify-between gap-5 sm:justify-start">
               <div>
-                <p class="text-[11px] text-gray-500 dark:text-dark-400">{{ t('checkin.monthSummary') }}</p>
-                <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{{ t('checkin.daysCount', { count: monthSummary.count }) }}</p>
+                <p class="text-[11px] text-ink-muted dark:text-ink-muted">{{ t('checkin.monthSummary') }}</p>
+                <p class="mt-0.5 text-sm font-semibold text-ink-strong dark:text-white">{{ t('checkin.daysCount', { count: monthSummary.count }) }}</p>
               </div>
-              <div class="border-l border-gray-200 pl-5 dark:border-dark-700">
-                <p class="text-[11px] text-gray-500 dark:text-dark-400">{{ t('checkin.netChange') }}</p>
+              <div class="border-l border-line pl-5 dark:border-line">
+                <p class="text-[11px] text-ink-muted dark:text-ink-muted">{{ t('checkin.netChange') }}</p>
                 <p class="mt-0.5 text-sm font-semibold" :class="monthSummary.total >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'" :title="signedMoney(monthSummary.total)">{{ compactSignedMoney(monthSummary.total) }}</p>
               </div>
             </div>
@@ -201,14 +201,14 @@
               <div class="flex min-w-0 items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 dark:bg-emerald-900/20">
                 <Icon name="gift" size="xs" class="shrink-0 text-emerald-600 dark:text-emerald-400" />
                 <div class="min-w-0">
-                  <p class="truncate text-[11px] text-gray-500 dark:text-dark-400">{{ t('checkin.normal') }} · {{ t('checkin.timesCount', { count: monthSummary.normal.count }) }}</p>
+                  <p class="truncate text-[11px] text-ink-muted dark:text-ink-muted">{{ t('checkin.normal') }} · {{ t('checkin.timesCount', { count: monthSummary.normal.count }) }}</p>
                   <p class="text-xs font-semibold" :class="monthSummary.normal.total >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400'" :title="signedMoney(monthSummary.normal.total)">{{ compactSignedMoney(monthSummary.normal.total) }}</p>
                 </div>
               </div>
               <div class="flex min-w-0 items-center gap-2 rounded-lg bg-cyan-50 px-3 py-2 dark:bg-cyan-900/20">
                 <Icon name="sparkles" size="xs" class="shrink-0 text-cyan-600 dark:text-cyan-400" />
                 <div class="min-w-0">
-                  <p class="truncate text-[11px] text-gray-500 dark:text-dark-400">{{ t('checkin.lucky') }} · {{ t('checkin.timesCount', { count: monthSummary.lucky.count }) }}</p>
+                  <p class="truncate text-[11px] text-ink-muted dark:text-ink-muted">{{ t('checkin.lucky') }} · {{ t('checkin.timesCount', { count: monthSummary.lucky.count }) }}</p>
                   <p class="text-xs font-semibold" :class="monthSummary.lucky.total >= 0 ? 'text-cyan-700 dark:text-cyan-300' : 'text-rose-600 dark:text-rose-400'" :title="signedMoney(monthSummary.lucky.total)">{{ compactSignedMoney(monthSummary.lucky.total) }}</p>
                 </div>
               </div>
@@ -217,10 +217,10 @@
         </section>
 
         <section class="card overflow-hidden">
-          <div class="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-dark-700">
+          <div class="flex flex-col gap-3 border-b border-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-line">
             <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('checkin.history') }}</h3>
-              <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('checkin.historyHint') }}</p>
+              <h3 class="text-lg font-semibold text-ink-strong dark:text-white">{{ t('checkin.history') }}</h3>
+              <p class="mt-1 text-sm text-ink-muted dark:text-ink-muted">{{ t('checkin.historyHint') }}</p>
             </div>
             <button type="button" class="btn btn-secondary btn-sm self-start sm:self-auto" :disabled="loadingRecords" @click="fetchRecords(recordsPage)">
               <Icon name="refresh" size="sm" class="mr-1" :class="{ 'animate-spin': loadingRecords }" />
@@ -236,13 +236,13 @@
               </div>
             </div>
             <div v-else-if="records.length" class="space-y-3">
-              <div v-for="record in records" :key="record.id" class="flex flex-col gap-3 rounded-xl bg-gray-50 p-4 md:flex-row md:items-center md:justify-between dark:bg-dark-800">
+              <div v-for="record in records" :key="record.id" class="flex flex-col gap-3 rounded-xl bg-surface-muted p-4 md:flex-row md:items-center md:justify-between dark:bg-surface">
                 <div class="flex items-center gap-4">
                   <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" :class="record.mode === 'lucky' ? 'bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'">
                     <Icon :name="record.mode === 'lucky' ? 'sparkles' : 'gift'" size="md" />
                   </div>
                   <div>
-                    <p class="flex flex-wrap items-center gap-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                    <p class="flex flex-wrap items-center gap-1.5 text-sm font-medium text-ink-strong dark:text-white">
                       <span>{{ modeLabel(record.mode) }}</span>
                       <span
                         v-if="recordMultiplier(record)"
@@ -252,23 +252,23 @@
                         {{ recordMultiplier(record) }}
                       </span>
                     </p>
-                    <p class="text-xs text-gray-500 dark:text-dark-400">{{ formatRecordDate(record) }}</p>
+                    <p class="text-xs text-ink-muted dark:text-ink-muted">{{ formatRecordDate(record) }}</p>
                   </div>
                 </div>
                 <div class="text-left md:text-right">
                   <p class="text-sm font-semibold" :class="record.reward_amount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">{{ signedMoney(record.reward_amount) }}</p>
-                  <p class="text-xs text-gray-500 dark:text-dark-400">{{ formatMoney(record.balance_before) }} → {{ formatMoney(record.balance_after) }}</p>
+                  <p class="text-xs text-ink-muted dark:text-ink-muted">{{ formatMoney(record.balance_before) }} → {{ formatMoney(record.balance_after) }}</p>
                 </div>
               </div>
               <div v-if="recordsPages > 1" class="flex items-center justify-between gap-3 pt-2">
                 <button type="button" class="btn btn-secondary btn-sm" :disabled="recordsPage <= 1 || loadingRecords" @click="fetchRecords(recordsPage - 1)"><Icon name="chevronLeft" size="sm" class="mr-1" />{{ t('checkin.previous') }}</button>
-                <span class="text-xs text-gray-500 dark:text-dark-400">{{ t('checkin.pageInfo', { page: recordsPage, pages: recordsPages }) }}</span>
+                <span class="text-xs text-ink-muted dark:text-ink-muted">{{ t('checkin.pageInfo', { page: recordsPage, pages: recordsPages }) }}</span>
                 <button type="button" class="btn btn-secondary btn-sm" :disabled="recordsPage >= recordsPages || loadingRecords" @click="fetchRecords(recordsPage + 1)">{{ t('checkin.next') }}<Icon name="chevronRight" size="sm" class="ml-1" /></button>
               </div>
             </div>
             <div v-else class="empty-state py-10">
-              <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-dark-800"><Icon name="clock" size="lg" class="text-gray-400 dark:text-dark-500" /></div>
-              <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('checkin.noHistory') }}</p>
+              <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-muted dark:bg-surface"><Icon name="clock" size="lg" class="text-ink-muted dark:text-ink-muted" /></div>
+              <p class="text-sm text-ink-muted dark:text-ink-muted">{{ t('checkin.noHistory') }}</p>
             </div>
           </div>
         </section>
@@ -467,12 +467,12 @@ function calendarCellTitle(cell: CalendarCell) {
 }
 
 function cellClass(cell: CalendarCell) {
-  let stateClass = 'bg-white text-gray-600 dark:bg-dark-900 dark:text-dark-300'
-  if (!cell.day) stateClass = 'bg-gray-50/60 dark:bg-dark-800/60'
+  let stateClass = 'bg-white text-ink dark:bg-canvas dark:text-ink'
+  if (!cell.day) stateClass = 'bg-surface-muted/60 dark:bg-surface/60'
   else if (cell.record?.mode === 'lucky') stateClass = 'bg-cyan-50/70 font-semibold text-cyan-800 dark:bg-cyan-900/20 dark:text-cyan-300'
   else if (cell.record) stateClass = 'bg-emerald-50/70 font-semibold text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300'
   else if (cell.today) stateClass = 'bg-cyan-50 font-semibold text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-300'
-  else if (cell.future) stateClass = 'bg-gray-50/70 text-gray-300 dark:bg-dark-800/70 dark:text-dark-600'
+  else if (cell.future) stateClass = 'bg-surface-muted/70 text-ink-muted dark:bg-surface/70 dark:text-dark-600'
   return cell.today ? `${stateClass} ring-1 ring-inset ring-cyan-500` : stateClass
 }
 

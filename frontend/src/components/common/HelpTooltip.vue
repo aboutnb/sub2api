@@ -44,6 +44,23 @@ function onClick(event: MouseEvent) {
   openTooltip()
 }
 
+function onKeyboardActivate() {
+  if (props.trigger !== 'click') return
+  if (show.value) {
+    closeTooltip()
+    return
+  }
+  openTooltip()
+}
+
+function onFocus() {
+  if (props.trigger === 'hover') openTooltip()
+}
+
+function onBlur() {
+  if (props.trigger === 'hover') closeTooltip()
+}
+
 function onDocumentClick(event: MouseEvent) {
   if (props.trigger !== 'click' || !show.value) return
   const target = event.target as Node | null
@@ -92,15 +109,23 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="trigger"
-    class="group relative ml-1 inline-flex items-center align-middle"
+    class="group relative ml-1 inline-flex min-h-8 min-w-8 items-center justify-center rounded-lg align-middle"
+    role="button"
+    tabindex="0"
+    :aria-label="content || 'More information'"
+    :aria-expanded="props.trigger === 'click' ? show : undefined"
     @mouseenter="onEnter"
     @mouseleave="onLeave"
     @click="onClick"
+    @focus="onFocus"
+    @blur="onBlur"
+    @keydown.enter.prevent="onKeyboardActivate"
+    @keydown.space.prevent="onKeyboardActivate"
   >
     <!-- Trigger Icon -->
     <slot name="trigger">
       <svg
-        class="h-4 w-4 cursor-help text-gray-400 transition-colors hover:text-primary-600 dark:text-gray-500 dark:hover:text-primary-400"
+        class="h-4 w-4 cursor-help text-ink-muted transition-colors group-hover:text-primary-600 dark:text-ink-muted dark:group-hover:text-primary-300"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -121,7 +146,7 @@ onBeforeUnmount(() => {
         v-show="show"
         role="tooltip"
         :class="[
-          'fixed z-[99999] -translate-x-1/2 -translate-y-full rounded-lg bg-gray-900 p-3 text-xs leading-relaxed text-white shadow-xl ring-1 ring-white/10 dark:bg-gray-800',
+          'fixed z-[99999] -translate-x-1/2 -translate-y-full rounded-xl border-2 border-ink-strong bg-gray-900 p-3 text-xs leading-relaxed text-white shadow-xl dark:border-line-strong dark:bg-surface',
           props.widthClass,
         ]"
         :style="{ top: `calc(${tooltipStyle.top} - 8px)`, left: tooltipStyle.left }"
@@ -129,7 +154,7 @@ onBeforeUnmount(() => {
         <button
           v-if="props.trigger === 'click'"
           type="button"
-          class="absolute right-1.5 top-1.5 rounded p-1 text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+          class="absolute right-1 top-1 flex min-h-11 min-w-11 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-white/10 hover:text-white"
           aria-label="Close"
           @click.stop="closeTooltip"
         >
@@ -138,7 +163,7 @@ onBeforeUnmount(() => {
           </svg>
         </button>
         <slot>{{ content }}</slot>
-        <div class="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-gray-900 dark:bg-gray-800"></div>
+        <div class="absolute -bottom-1.5 left-1/2 h-2.5 w-2.5 -translate-x-1/2 rotate-45 border-b-2 border-r-2 border-ink-strong bg-gray-900 dark:border-line-strong dark:bg-surface"></div>
       </div>
     </Teleport>
   </div>

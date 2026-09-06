@@ -2,13 +2,13 @@
   <AppLayout>
     <div class="space-y-5 pb-12">
       <section class="glass-card overflow-hidden p-0">
-        <header class="flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-dark-700 sm:px-6">
+        <header class="flex flex-wrap items-start justify-between gap-4 border-b border-line px-5 py-4 dark:border-line sm:px-6">
           <div class="min-w-0">
-            <h1 class="page-title flex items-center gap-2 text-xl font-black text-gray-900 dark:text-white">
+            <h1 class="page-title flex items-center gap-2 text-xl font-black text-ink-strong dark:text-white">
               <span class="grid h-8 w-8 place-items-center rounded-xl bg-primary-50 text-primary-500 dark:bg-primary-900/30 dark:text-primary-300"><Icon name="chart" size="sm" /></span>
               {{ t('channelMonitorV3.title') }}
             </h1>
-            <div class="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <div class="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-ink-muted dark:text-ink-muted">
               <span class="h-2 w-2 rounded-full" :class="refreshing ? 'bg-gray-400' : 'bg-emerald-500'" />
               <span>{{ snapshot ? t('channelMonitorV3.updatedTo', { time: formatTime(snapshot.coverage.data_through) }) : t('common.loading') }}</span>
               <span v-if="snapshot && !snapshot.coverage.coverage_complete" class="badge badge-warning">{{ t('channelMonitorV3.partialCoverage') }}</span>
@@ -18,14 +18,14 @@
         </header>
         <div class="flex flex-wrap items-center gap-2 px-4 py-3 sm:px-5">
           <button v-for="option in ranges" :key="option.value" type="button" class="tab !px-2.5 !py-1 text-xs" :class="filter.range === option.value ? 'tab-active' : ''" @click="setRange(option.value)">{{ option.label }}</button>
-          <span class="mx-1 hidden h-5 w-px bg-gray-200 dark:bg-dark-700 sm:block" />
-          <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('channelMonitorV3.description') }}</span>
-          <span v-if="snapshot" class="ml-auto text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400">{{ t('channelMonitorV3.summary', { success: formatPercent(1 - (latestSnapshotMetrics?.error_rate ?? 0)), cache: formatPercent(latestSnapshotMetrics?.cache_rate ?? 0) }) }}</span>
+          <span class="mx-1 hidden h-5 w-px bg-line dark:bg-surface-muted sm:block" />
+          <span class="text-xs text-ink-muted dark:text-ink-muted">{{ t('channelMonitorV3.description') }}</span>
+          <span v-if="snapshot" class="ml-auto text-xs font-medium tabular-nums text-ink-muted dark:text-ink-muted">{{ t('channelMonitorV3.summary', { success: formatPercent(1 - (latestSnapshotMetrics?.error_rate ?? 0)), cache: formatPercent(latestSnapshotMetrics?.cache_rate ?? 0) }) }}</span>
         </div>
       </section>
 
       <div v-if="loading && rows.length === 0" class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        <div v-for="i in 8" :key="i" class="h-72 animate-pulse rounded-[24px] bg-white/60 dark:bg-dark-800" />
+        <div v-for="i in 8" :key="i" class="h-72 animate-pulse rounded-[24px] bg-white/60 dark:bg-surface" />
       </div>
       <EmptyState v-else-if="rows.length === 0" :title="t('channelMonitorV3.emptyTitle')" :description="t('channelMonitorV3.emptyDescription')" />
       <div v-else class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">

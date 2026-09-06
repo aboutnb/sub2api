@@ -8,7 +8,7 @@
     <div class="space-y-4">
       <!-- Add Plan Button -->
       <div class="flex items-center justify-between">
-        <p class="text-sm text-gray-500 dark:text-gray-400">
+        <p class="text-sm text-ink-muted dark:text-ink-muted">
           {{ t('admin.scheduledTests.title') }}
         </p>
         <button
@@ -25,12 +25,12 @@
         v-if="showAddForm"
         class="rounded-xl border border-primary-200 bg-primary-50/50 p-4 dark:border-primary-800 dark:bg-primary-900/20"
       >
-        <div class="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+        <div class="mb-3 text-sm font-medium text-ink dark:text-ink-muted">
           {{ t('admin.scheduledTests.addPlan') }}
         </div>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+            <label class="mb-1 block text-xs font-medium text-ink dark:text-ink-muted">
               {{ t('admin.scheduledTests.model') }}
             </label>
             <Select
@@ -41,11 +41,11 @@
             />
           </div>
           <div>
-            <label class="mb-1 flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+            <label class="mb-1 flex items-center gap-1 text-xs font-medium text-ink dark:text-ink-muted">
               {{ t('admin.scheduledTests.cronExpression') }}
               <HelpTooltip>
                 <template #trigger>
-                  <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-400/70 text-[10px] font-semibold text-gray-400 transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-gray-500 dark:text-gray-500 dark:hover:border-primary-400 dark:hover:text-primary-400">
+                  <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-line-strong/70 text-[10px] font-semibold text-ink-muted transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-line-strong dark:text-ink-muted dark:hover:border-primary-400 dark:hover:text-primary-400">
                     ?
                   </span>
                 </template>
@@ -67,11 +67,11 @@
             />
           </div>
           <div>
-            <label class="mb-1 flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+            <label class="mb-1 flex items-center gap-1 text-xs font-medium text-ink dark:text-ink-muted">
               {{ t('admin.scheduledTests.maxResults') }}
               <HelpTooltip>
                 <template #trigger>
-                  <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-400/70 text-[10px] font-semibold text-gray-400 transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-gray-500 dark:text-gray-500 dark:hover:border-primary-400 dark:hover:text-primary-400">
+                  <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-line-strong/70 text-[10px] font-semibold text-ink-muted transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-line-strong dark:text-ink-muted dark:hover:border-primary-400 dark:hover:text-primary-400">
                     ?
                   </span>
                 </template>
@@ -91,18 +91,24 @@
             />
           </div>
           <div class="flex items-end">
-            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <Toggle v-model="newPlan.enabled" />
+            <label class="flex items-center gap-2 text-sm text-ink dark:text-ink-muted">
+              <Toggle
+                v-model="newPlan.enabled"
+                :aria-label="t('admin.scheduledTests.enabled')"
+              />
               {{ t('admin.scheduledTests.enabled') }}
             </label>
           </div>
           <div class="flex items-end">
             <div>
-              <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <Toggle v-model="newPlan.auto_recover" />
+              <label class="flex items-center gap-2 text-sm text-ink dark:text-ink-muted">
+                <Toggle
+                  v-model="newPlan.auto_recover"
+                  :aria-label="t('admin.scheduledTests.autoRecover')"
+                />
                 {{ t('admin.scheduledTests.autoRecover') }}
               </label>
-              <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+              <p class="mt-0.5 text-xs text-ink-muted dark:text-ink-muted">
                 {{ t('admin.scheduledTests.autoRecoverHelp') }}
               </p>
             </div>
@@ -111,7 +117,7 @@
         <div class="mt-3 flex justify-end gap-2">
           <button
             @click="showAddForm = false; resetNewPlan()"
-            class="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-dark-500"
+            class="rounded-lg bg-surface-muted px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-line dark:bg-line-strong dark:text-ink-muted dark:hover:bg-dark-500"
           >
             {{ t('common.cancel') }}
           </button>
@@ -128,17 +134,17 @@
 
       <!-- Loading State -->
       <div v-if="loading" class="flex items-center justify-center py-8">
-        <Icon name="refresh" size="md" class="animate-spin text-gray-400" :stroke-width="2" />
-        <span class="ml-2 text-sm text-gray-500">{{ t('common.loading') }}...</span>
+        <Icon name="refresh" size="md" class="animate-spin text-ink-muted" :stroke-width="2" />
+        <span class="ml-2 text-sm text-ink-muted">{{ t('common.loading') }}...</span>
       </div>
 
       <!-- Empty State -->
       <div
         v-else-if="plans.length === 0"
-        class="rounded-xl border border-dashed border-gray-300 py-10 text-center dark:border-dark-600"
+        class="rounded-xl border border-dashed border-line-strong py-10 text-center dark:border-line-strong"
       >
-        <Icon name="calendar" size="lg" class="mx-auto mb-2 text-gray-400" :stroke-width="1.5" />
-        <p class="text-sm text-gray-500 dark:text-gray-400">
+        <Icon name="calendar" size="lg" class="mx-auto mb-2 text-ink-muted" :stroke-width="1.5" />
+        <p class="text-sm text-ink-muted dark:text-ink-muted">
           {{ t('admin.scheduledTests.noPlans') }}
         </p>
       </div>
@@ -148,7 +154,7 @@
         <div
           v-for="plan in plans"
           :key="plan.id"
-          class="rounded-xl border border-gray-200 bg-white transition-all dark:border-dark-600 dark:bg-dark-800"
+          class="rounded-xl border border-line bg-white transition-all dark:border-line-strong dark:bg-surface"
         >
           <!-- Plan Header -->
           <div
@@ -158,10 +164,10 @@
             <div class="flex flex-1 items-center gap-4">
               <!-- Model -->
               <div class="min-w-0">
-                <div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                <div class="text-sm font-medium text-ink-strong dark:text-gray-100">
                   {{ plan.model_id }}
                 </div>
-                <div class="mt-0.5 font-mono text-xs text-gray-500 dark:text-gray-400">
+                <div class="mt-0.5 font-mono text-xs text-ink-muted dark:text-ink-muted">
                   {{ plan.cron_expression }}
                 </div>
               </div>
@@ -170,9 +176,10 @@
               <div class="flex items-center gap-1.5" @click.stop>
                 <Toggle
                   :model-value="plan.enabled"
+                  :aria-label="`${plan.model_id} ${t('admin.scheduledTests.enabled')}`"
                   @update:model-value="(val: boolean) => handleToggleEnabled(plan, val)"
                 />
-                <span class="text-xs text-gray-500 dark:text-gray-400">
+                <span class="text-xs text-ink-muted dark:text-ink-muted">
                   {{ plan.enabled ? t('admin.scheduledTests.enabled') : '' }}
                 </span>
               </div>
@@ -188,13 +195,13 @@
 
             <div class="flex items-center gap-3">
               <!-- Last Run -->
-              <div v-if="plan.last_run_at" class="hidden text-right text-xs text-gray-500 dark:text-gray-400 sm:block">
+              <div v-if="plan.last_run_at" class="hidden text-right text-xs text-ink-muted dark:text-ink-muted sm:block">
                 <div>{{ t('admin.scheduledTests.lastRun') }}</div>
                 <div>{{ formatDateTime(plan.last_run_at) }}</div>
               </div>
 
               <!-- Next Run -->
-              <div v-if="plan.next_run_at" class="hidden text-right text-xs text-gray-500 dark:text-gray-400 sm:block">
+              <div v-if="plan.next_run_at" class="hidden text-right text-xs text-ink-muted dark:text-ink-muted sm:block">
                 <div>{{ t('admin.scheduledTests.nextRun') }}</div>
                 <div>{{ formatDateTime(plan.next_run_at) }}</div>
               </div>
@@ -203,14 +210,14 @@
               <div class="flex items-center gap-1" @click.stop>
                 <button
                   @click="startEdit(plan)"
-                  class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/20"
+                  class="rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/20"
                   :title="t('admin.scheduledTests.editPlan')"
                 >
                   <Icon name="edit" size="sm" :stroke-width="2" />
                 </button>
                 <button
                   @click="confirmDeletePlan(plan)"
-                  class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                  class="rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
                   :title="t('admin.scheduledTests.deletePlan')"
                 >
                   <Icon name="trash" size="sm" :stroke-width="2" />
@@ -222,7 +229,7 @@
                 name="chevronDown"
                 size="sm"
                 :class="[
-                  'text-gray-400 transition-transform duration-200',
+                  'text-ink-muted transition-transform duration-200',
                   expandedPlanId === plan.id ? 'rotate-180' : ''
                 ]"
               />
@@ -235,12 +242,12 @@
             class="border-t border-blue-100 bg-blue-50/50 px-4 py-3 dark:border-blue-900 dark:bg-blue-900/10"
             @click.stop
           >
-            <div class="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+            <div class="mb-2 text-xs font-medium text-ink dark:text-ink-muted">
               {{ t('admin.scheduledTests.editPlan') }}
             </div>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label class="mb-1 block text-xs font-medium text-ink dark:text-ink-muted">
                   {{ t('admin.scheduledTests.model') }}
                 </label>
                 <Select
@@ -251,11 +258,11 @@
                 />
               </div>
               <div>
-                <label class="mb-1 flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label class="mb-1 flex items-center gap-1 text-xs font-medium text-ink dark:text-ink-muted">
                   {{ t('admin.scheduledTests.cronExpression') }}
                   <HelpTooltip>
                     <template #trigger>
-                      <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-400/70 text-[10px] font-semibold text-gray-400 transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-gray-500 dark:text-gray-500 dark:hover:border-primary-400 dark:hover:text-primary-400">
+                      <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-line-strong/70 text-[10px] font-semibold text-ink-muted transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-line-strong dark:text-ink-muted dark:hover:border-primary-400 dark:hover:text-primary-400">
                         ?
                       </span>
                     </template>
@@ -277,11 +284,11 @@
                 />
               </div>
               <div>
-                <label class="mb-1 flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label class="mb-1 flex items-center gap-1 text-xs font-medium text-ink dark:text-ink-muted">
                   {{ t('admin.scheduledTests.maxResults') }}
                   <HelpTooltip>
                     <template #trigger>
-                      <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-400/70 text-[10px] font-semibold text-gray-400 transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-gray-500 dark:text-gray-500 dark:hover:border-primary-400 dark:hover:text-primary-400">
+                      <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-line-strong/70 text-[10px] font-semibold text-ink-muted transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-line-strong dark:text-ink-muted dark:hover:border-primary-400 dark:hover:text-primary-400">
                         ?
                       </span>
                     </template>
@@ -301,18 +308,24 @@
                 />
               </div>
               <div class="flex items-end">
-                <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <Toggle v-model="editForm.enabled" />
+                <label class="flex items-center gap-2 text-sm text-ink dark:text-ink-muted">
+                  <Toggle
+                    v-model="editForm.enabled"
+                    :aria-label="t('admin.scheduledTests.enabled')"
+                  />
                   {{ t('admin.scheduledTests.enabled') }}
                 </label>
               </div>
               <div class="flex items-end">
                 <div>
-                  <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                    <Toggle v-model="editForm.auto_recover" />
+                  <label class="flex items-center gap-2 text-sm text-ink dark:text-ink-muted">
+                    <Toggle
+                      v-model="editForm.auto_recover"
+                      :aria-label="t('admin.scheduledTests.autoRecover')"
+                    />
                     {{ t('admin.scheduledTests.autoRecover') }}
                   </label>
-                  <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                  <p class="mt-0.5 text-xs text-ink-muted dark:text-ink-muted">
                     {{ t('admin.scheduledTests.autoRecoverHelp') }}
                   </p>
                 </div>
@@ -321,7 +334,7 @@
             <div class="mt-3 flex justify-end gap-2">
               <button
                 @click="cancelEdit"
-                class="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-dark-500"
+                class="rounded-lg bg-surface-muted px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-line dark:bg-line-strong dark:text-ink-muted dark:hover:bg-dark-500"
               >
                 {{ t('common.cancel') }}
               </button>
@@ -339,22 +352,22 @@
           <!-- Expanded Results Section -->
           <div
             v-if="expandedPlanId === plan.id"
-            class="border-t border-gray-100 px-4 py-3 dark:border-dark-700"
+            class="border-t border-line px-4 py-3 dark:border-line"
           >
-            <div class="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+            <div class="mb-2 text-xs font-medium text-ink dark:text-ink-muted">
               {{ t('admin.scheduledTests.results') }}
             </div>
 
             <!-- Results Loading -->
             <div v-if="loadingResults" class="flex items-center justify-center py-4">
-              <Icon name="refresh" size="sm" class="animate-spin text-gray-400" :stroke-width="2" />
-              <span class="ml-2 text-xs text-gray-500">{{ t('common.loading') }}...</span>
+              <Icon name="refresh" size="sm" class="animate-spin text-ink-muted" :stroke-width="2" />
+              <span class="ml-2 text-xs text-ink-muted">{{ t('common.loading') }}...</span>
             </div>
 
             <!-- No Results -->
             <div
               v-else-if="results.length === 0"
-              class="py-4 text-center text-xs text-gray-500 dark:text-gray-400"
+              class="py-4 text-center text-xs text-ink-muted dark:text-ink-muted"
             >
               {{ t('admin.scheduledTests.noResults') }}
             </div>
@@ -364,7 +377,7 @@
               <div
                 v-for="result in results"
                 :key="result.id"
-                class="rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-dark-700 dark:bg-dark-900"
+                class="rounded-lg border border-line bg-surface-muted p-3 dark:border-line dark:bg-canvas"
               >
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2">
@@ -389,13 +402,13 @@
                     </span>
 
                     <!-- Latency -->
-                    <span v-if="result.latency_ms > 0" class="text-xs text-gray-500 dark:text-gray-400">
+                    <span v-if="result.latency_ms > 0" class="text-xs text-ink-muted dark:text-ink-muted">
                       {{ result.latency_ms }}ms
                     </span>
                   </div>
 
                   <!-- Started At -->
-                  <span class="text-xs text-gray-400">
+                  <span class="text-xs text-ink-muted">
                     {{ formatDateTime(result.started_at) }}
                   </span>
                 </div>
@@ -423,7 +436,7 @@
                 </div>
                 <div v-else-if="result.response_text" class="mt-2">
                   <div
-                    class="cursor-pointer text-xs font-medium text-gray-600 dark:text-gray-400"
+                    class="cursor-pointer text-xs font-medium text-ink dark:text-ink-muted"
                     @click="toggleResultDetail(result.id)"
                   >
                     {{ t('admin.scheduledTests.responseText') }}
@@ -438,7 +451,7 @@
                   </div>
                   <pre
                     v-if="expandedResultIds.has(result.id)"
-                    class="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-gray-100 p-2 text-xs text-gray-700 dark:bg-dark-800 dark:text-gray-300"
+                    class="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-muted p-2 text-xs text-ink dark:bg-surface dark:text-ink-muted"
                   >{{ result.response_text }}</pre>
                 </div>
               </div>

@@ -1,36 +1,52 @@
 <template>
   <aside
+    id="app-sidebar"
+    ref="sidebarRef"
     class="sidebar"
+    :aria-hidden="!isDesktopViewport && !mobileOpen ? 'true' : undefined"
+    :inert="!isDesktopViewport && !mobileOpen ? true : undefined"
+    :role="!isDesktopViewport && mobileOpen ? 'dialog' : undefined"
+    :aria-modal="!isDesktopViewport && mobileOpen ? 'true' : undefined"
+    :aria-label="!isDesktopViewport && mobileOpen ? siteName : undefined"
     :class="[
       sidebarCollapsed ? 'w-[72px]' : 'w-64',
       { '-translate-x-full lg:translate-x-0': !mobileOpen }
     ]"
+    @keydown.esc.stop.prevent="closeMobile(true)"
   >
     <!-- Logo/Brand -->
     <div class="sidebar-header" :class="{ 'sidebar-header-collapsed': sidebarCollapsed }">
       <!-- Custom Logo or Default Logo -->
       <router-link
         :to="homePath"
-        class="sidebar-logo flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl shadow-glow transition-opacity hover:opacity-80"
+        class="sidebar-logo flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl transition-transform hover:-translate-y-0.5"
+        :aria-label="siteName"
         @click="handleMenuItemClick(homePath)"
       >
-        <img v-if="settingsLoaded" :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" />
+        <img v-if="settingsLoaded" :src="siteLogo || '/logo.svg'" :alt="`${siteName} logo`" class="h-full w-full object-contain" />
       </router-link>
-      <div class="sidebar-brand" :class="{ 'sidebar-brand-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
+      <div
+        class="sidebar-brand"
+        :class="{ 'sidebar-brand-collapsed': sidebarCollapsed }"
+        :aria-hidden="sidebarCollapsed ? 'true' : undefined"
+        :inert="sidebarCollapsed ? true : undefined"
+      >
         <router-link
           :to="homePath"
-          class="sidebar-brand-title text-lg font-bold text-gray-900 transition-colors hover:text-primary-600 dark:text-white dark:hover:text-primary-400"
+          class="sidebar-brand-title text-lg font-bold text-ink-strong transition-colors hover:text-primary-600 dark:text-white dark:hover:text-primary-400"
           @click="handleMenuItemClick(homePath)"
         >
           {{ siteName }}
         </router-link>
         <!-- Version Badge -->
-        <VersionBadge :version="siteVersion" />
+        <span class="sidebar-version">
+          <VersionBadge :version="siteVersion" />
+        </span>
       </div>
     </div>
 
     <!-- Navigation -->
-    <nav ref="sidebarNavRef" class="sidebar-nav scrollbar-hide">
+    <nav ref="sidebarNavRef" class="sidebar-nav scrollbar-hide" :aria-label="t('common.toggleMenu')">
       <!-- Admin View: Admin menu first, then personal menu -->
       <template v-if="isAdmin">
         <!-- Admin Section -->
@@ -46,6 +62,11 @@
                   'sidebar-link-collapsed': sidebarCollapsed
                 }"
                 :title="sidebarCollapsed ? item.label : undefined"
+                :aria-label="sidebarCollapsed ? item.label : undefined"
+                :aria-expanded="!sidebarCollapsed && isGroupExpanded(item)"
+                :aria-controls="groupPanelId(item.path)"
+                :aria-disabled="sidebarCollapsed ? 'true' : undefined"
+                :tabindex="sidebarCollapsed ? -1 : undefined"
                 @click="handleGroupClick(item)"
               >
                 <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
@@ -62,7 +83,11 @@
                 </span>
               </button>
               <!-- Children -->
-              <div v-if="!sidebarCollapsed && isGroupExpanded(item)" class="mb-1 ml-4 border-l border-gray-200 pl-2 dark:border-dark-600">
+              <div
+                v-if="!sidebarCollapsed && isGroupExpanded(item)"
+                :id="groupPanelId(item.path)"
+                class="mb-1 ml-4 border-l-2 border-line pl-2 dark:border-line-strong"
+              >
                 <router-link
                   v-for="child in item.children"
                   :key="child.path"
@@ -83,6 +108,7 @@
               class="sidebar-link mb-1"
               :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
               :title="sidebarCollapsed ? item.label : undefined"
+              :aria-label="sidebarCollapsed ? item.label : undefined"
               :id="
                 item.path === '/admin/accounts'
                   ? 'sidebar-channel-manage'
@@ -116,6 +142,7 @@
             class="sidebar-link mb-1"
             :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
             :title="sidebarCollapsed ? item.label : undefined"
+            :aria-label="sidebarCollapsed ? item.label : undefined"
             :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : undefined"
             @click="handleMenuItemClick(item.path)"
           >
@@ -136,6 +163,7 @@
             class="sidebar-link mb-1"
             :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
             :title="sidebarCollapsed ? item.label : undefined"
+            :aria-label="sidebarCollapsed ? item.label : undefined"
             :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : undefined"
             @click="handleMenuItemClick(item.path)"
           >
@@ -148,13 +176,15 @@
     </nav>
 
     <!-- Bottom Section -->
-    <div class="mt-auto border-t border-gray-100 p-3 dark:border-dark-800">
+    <div class="sidebar-footer mt-auto border-t-2 border-line p-3 dark:border-line">
       <!-- Theme Toggle -->
       <button
+        type="button"
         @click="toggleTheme"
         class="sidebar-link mb-2 w-full"
         :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
         :title="sidebarCollapsed ? (isDark ? t('nav.lightMode') : t('nav.darkMode')) : undefined"
+        :aria-label="isDark ? t('nav.lightMode') : t('nav.darkMode')"
       >
         <SunIcon v-if="isDark" class="h-5 w-5 flex-shrink-0 text-amber-500" />
         <MoonIcon v-else class="h-5 w-5 flex-shrink-0" />
@@ -165,10 +195,12 @@
 
       <!-- Collapse Button -->
       <button
+        type="button"
         @click="toggleSidebar"
         class="sidebar-link w-full"
         :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
         :title="sidebarCollapsed ? t('nav.expand') : t('nav.collapse')"
+        :aria-label="sidebarCollapsed ? t('nav.expand') : t('nav.collapse')"
       >
         <ChevronDoubleLeftIcon v-if="!sidebarCollapsed" class="h-5 w-5 flex-shrink-0" />
         <ChevronDoubleRightIcon v-else class="h-5 w-5 flex-shrink-0" />
@@ -179,11 +211,15 @@
 
   <!-- Mobile Overlay -->
   <transition name="fade">
-    <div
+    <button
       v-if="mobileOpen"
+      type="button"
       class="fixed inset-0 z-30 bg-black/50 lg:hidden"
-      @click="closeMobile"
-    ></div>
+      :aria-label="t('common.close')"
+      aria-hidden="true"
+      tabindex="-1"
+      @click="closeMobile(true)"
+    ></button>
   </transition>
 </template>
 
@@ -251,7 +287,12 @@ const { canUseBatchImage, refreshBatchImageAccess } = useBatchImageAccess()
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const mobileOpen = computed(() => appStore.mobileOpen)
 const isAdmin = computed(() => authStore.isAdmin)
+const sidebarRef = ref<HTMLElement | null>(null)
 const sidebarNavRef = ref<HTMLElement | null>(null)
+const desktopSidebarMedia = typeof window === 'undefined'
+  ? null
+  : window.matchMedia('(min-width: 1024px)')
+const isDesktopViewport = ref(desktopSidebarMedia?.matches ?? true)
 
 const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboard'))
 
@@ -871,8 +912,15 @@ function toggleSidebar() {
   appStore.toggleSidebar()
 }
 
-function closeMobile() {
+function restoreMobileMenuFocus() {
+  requestAnimationFrame(() => {
+    document.querySelector<HTMLElement>('[aria-controls="app-sidebar"]')?.focus()
+  })
+}
+
+function closeMobile(restoreFocus: boolean | Event = false) {
   appStore.setMobileOpen(false)
+  if (restoreFocus === true) restoreMobileMenuFocus()
 }
 
 function handleMenuItemClick(itemPath: string) {
@@ -892,6 +940,66 @@ function handleMenuItemClick(itemPath: string) {
   const selector = pathToSelector[itemPath]
   if (selector && onboardingStore.isCurrentStep(selector)) {
     onboardingStore.nextStep(500)
+  }
+}
+
+function groupPanelId(path: string) {
+  return `sidebar-group-${path.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '')}`
+}
+
+function updateMobileBodyLock() {
+  document.body.classList.toggle(
+    'sidebar-open',
+    mobileOpen.value && !isDesktopViewport.value,
+  )
+}
+
+const MOBILE_FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
+function getMobileDialogFocusables(): HTMLElement[] {
+  return sidebarRef.value
+    ? Array.from(sidebarRef.value.querySelectorAll<HTMLElement>(MOBILE_FOCUSABLE_SELECTOR))
+        .filter((element) => element.getAttribute('tabindex') !== '-1')
+    : []
+}
+
+function handleDesktopSidebarChange(event: MediaQueryListEvent) {
+  isDesktopViewport.value = event.matches
+  updateMobileBodyLock()
+}
+
+function handleSidebarDocumentKeydown(event: KeyboardEvent) {
+  if (!mobileOpen.value || isDesktopViewport.value) return
+
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeMobile(true)
+    return
+  }
+
+  if (event.key !== 'Tab') return
+
+  const focusables = getMobileDialogFocusables()
+  if (focusables.length === 0) return
+
+  const firstFocusable = focusables[0]
+  const lastFocusable = focusables[focusables.length - 1]
+  const activeElement = document.activeElement
+  const activeIndex = focusables.indexOf(activeElement as HTMLElement)
+
+  if (event.shiftKey && (activeIndex <= 0 || activeElement === firstFocusable)) {
+    event.preventDefault()
+    lastFocusable.focus()
+  } else if (!event.shiftKey && (activeIndex === -1 || activeElement === lastFocusable)) {
+    event.preventDefault()
+    firstFocusable.focus()
   }
 }
 
@@ -949,7 +1057,18 @@ watch(
   { immediate: true }
 )
 
+watch(mobileOpen, async (open) => {
+  updateMobileBodyLock()
+  if (open && !isDesktopViewport.value) {
+    await nextTick()
+    getMobileDialogFocusables()[0]?.focus()
+  }
+})
+
 onMounted(() => {
+  desktopSidebarMedia?.addEventListener('change', handleDesktopSidebarChange)
+  document.addEventListener('keydown', handleSidebarDocumentKeydown)
+  updateMobileBodyLock()
   void refreshBatchImageAccess()
   if (isAdmin.value) {
     adminSettingsStore.fetch()
@@ -965,6 +1084,9 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  desktopSidebarMedia?.removeEventListener('change', handleDesktopSidebarChange)
+  document.removeEventListener('keydown', handleSidebarDocumentKeydown)
+  document.body.classList.remove('sidebar-open')
   if (sidebarNavRef.value) {
     appStore.sidebarScrollTop = sidebarNavRef.value.scrollTop
   }
@@ -973,19 +1095,29 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .sidebar-logo {
-  flex: 0 0 2.25rem;
-  min-width: 2.25rem;
+  flex: 0 0 2.75rem;
+  min-width: 2.75rem;
+  border: 2px solid var(--av-ink);
+  background: var(--av-surface);
+  box-shadow: 3px 3px 0 rgba(255, 138, 92, 0.3);
+}
+
+.sidebar-logo:hover {
+  box-shadow: 4px 4px 0 rgba(255, 138, 92, 0.36);
 }
 
 .sidebar-header-collapsed {
   gap: 0;
-  padding-left: 1.125rem;
-  padding-right: 1.125rem;
+  padding-left: 0.875rem;
+  padding-right: 0.875rem;
 }
 
 .sidebar-brand {
   min-width: 0;
   flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   white-space: nowrap;
   transition:
     max-width 0.22s ease,
@@ -1004,9 +1136,17 @@ onBeforeUnmount(() => {
 
 .sidebar-brand-title {
   display: block;
+  min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 900;
+  letter-spacing: 0.025em;
+}
+
+.sidebar-version {
+  flex: 0 0 auto;
 }
 
 .sidebar-link-collapsed {

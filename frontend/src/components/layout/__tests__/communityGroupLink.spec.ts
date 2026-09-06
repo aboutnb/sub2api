@@ -39,8 +39,8 @@ describe('community group header link', () => {
 
   it('uses a quiet header treatment while keeping mobile icon-only layout', () => {
     expect(headerSource).not.toContain('border-cyan-200 bg-cyan-50')
-    expect(headerSource).toContain('text-gray-600 transition-all')
-    expect(headerSource).toContain('hover:bg-gray-100')
+    expect(headerSource).toContain('text-ink transition-all')
+    expect(headerSource).toContain('hover:bg-surface-muted')
     expect(headerSource).toContain('class="hidden max-w-28 truncate sm:inline"')
   })
 })

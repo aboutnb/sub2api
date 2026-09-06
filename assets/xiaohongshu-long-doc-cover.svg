@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+  <rect width="1200" height="1200" fill="#F3F0FA"/>
+  <rect x="76" y="72" width="1048" height="1056" rx="42" fill="#FFFFFF"/>
+  <rect x="124" y="118" width="248" height="58" rx="29" fill="#EEE6FF"/>
+  <text x="248" y="157" text-anchor="middle" fill="#6442B4" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="27" font-weight="700">LONG DOCS</text>
+  <text x="124" y="284" fill="#233D62" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="68" font-weight="700">技术文档太长时</text>
+  <text x="124" y="374" fill="#233D62" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="68" font-weight="700">我不会只用一个模型</text>
+  <text x="124" y="446" fill="#73829B" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="35">先有全局，再钻细节，读起来会轻松很多</text>
+  <rect x="124" y="522" width="952" height="184" rx="30" fill="#EDF5F9"/>
+  <rect x="160" y="558" width="105" height="112" rx="18" fill="#28758A"/>
+  <path d="M191 590h44M191 614h44M191 638h30" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+  <text x="304" y="597" fill="#244D5D" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="38" font-weight="700">第一步：先拿到“目录感”</text>
+  <text x="304" y="652" fill="#63808A" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="30">这份文档解决什么？关键概念有哪些？</text>
+  <rect x="124" y="748" width="448" height="242" rx="30" fill="#E8F6F3"/>
+  <text x="166" y="825" fill="#1A6978" font-family="Arial, sans-serif" font-size="44" font-weight="700">GPT</text>
+  <text x="166" y="884" fill="#315E69" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="32" font-weight="700">问细节，补代码思路</text>
+  <text x="166" y="935" fill="#718A90" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="27">把问题拆小再问</text>
+  <rect x="628" y="748" width="448" height="242" rx="30" fill="#F1ECFC"/>
+  <text x="670" y="825" fill="#6245B9" font-family="Arial, sans-serif" font-size="44" font-weight="700">Claude</text>
+  <text x="670" y="884" fill="#46366F" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="32" font-weight="700">先整理，再理清结构</text>
+  <text x="670" y="935" fill="#8276A6" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="27">材料多时先试一版</text>
+  <text x="600" y="1065" text-anchor="middle" fill="#344F73" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="39" font-weight="700">不是谁更强，是哪一步更需要它</text>
+</svg>

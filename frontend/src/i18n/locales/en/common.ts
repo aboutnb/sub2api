@@ -46,6 +46,7 @@ export default {
     close: 'Close',
     toggleMenu: 'Toggle menu',
     userMenu: 'User menu',
+    skipToMain: 'Skip to main content',
     pageNotFound: 'Page not found',
     enabled: 'Enabled',
     disabled: 'Disabled',

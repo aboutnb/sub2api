@@ -1,9 +1,15 @@
 <template>
-  <div class="relative" ref="dropdownRef">
+  <div ref="dropdownRef" class="relative">
     <button
-      @click="showDropdown = !showDropdown"
-      class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700"
+      ref="triggerRef"
+      type="button"
+      class="btn btn-secondary btn-sm gap-1.5"
       :title="t('common.autoRefresh.title')"
+      aria-haspopup="menu"
+      :aria-expanded="showDropdown"
+      :aria-controls="menuId"
+      @click="toggleDropdown"
+      @keydown.down.prevent="openDropdown"
     >
       <svg
         class="h-3.5 w-3.5"
@@ -22,24 +28,34 @@
 
     <div
       v-if="showDropdown"
-      class="absolute right-0 z-20 mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-600 dark:bg-dark-800"
+      :id="menuId"
+      ref="menuRef"
+      role="menu"
+      :aria-label="t('common.autoRefresh.title')"
+      class="dropdown absolute right-0 z-20 mt-2 w-48 p-1.5"
     >
-      <div class="p-1.5">
+      <div>
         <button
-          @click="$emit('update:enabled', !enabled)"
-          class="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700"
+          type="button"
+          role="menuitemcheckbox"
+          :aria-checked="enabled"
+          class="flex min-h-11 w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium text-ink hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 dark:text-gray-200 dark:hover:bg-primary-900/20"
+          @click="handleEnabledChange"
         >
           <span>{{ t('common.autoRefresh.enable') }}</span>
           <svg v-if="enabled" class="h-4 w-4 text-primary-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
           </svg>
         </button>
-        <div class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
+        <div role="separator" class="my-1 border-t-2 border-line dark:border-line"></div>
         <button
           v-for="sec in intervals"
           :key="sec"
-          @click="$emit('update:interval', sec)"
-          class="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700"
+          type="button"
+          role="menuitemradio"
+          :aria-checked="intervalSeconds === sec"
+          class="flex min-h-11 w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 dark:text-gray-200 dark:hover:bg-primary-900/20"
+          @click="handleIntervalChange(sec)"
         >
           <span>{{ t('common.autoRefresh.seconds', { n: sec }) }}</span>
           <svg v-if="intervalSeconds === sec" class="h-4 w-4 text-primary-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -52,17 +68,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, getCurrentInstance, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-defineProps<{
+const props = defineProps<{
   enabled: boolean
   intervalSeconds: number
   countdown: number
   intervals: readonly number[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'update:enabled', value: boolean): void
   (e: 'update:interval', value: number): void
 }>()
@@ -70,13 +86,60 @@ defineEmits<{
 const { t } = useI18n()
 const showDropdown = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
+const triggerRef = ref<HTMLButtonElement | null>(null)
+const menuRef = ref<HTMLElement | null>(null)
+
+const menuId = `auto-refresh-menu-${getCurrentInstance()?.uid ?? 0}`
+
+function focusFirstItem() {
+  nextTick(() => menuRef.value?.querySelector<HTMLElement>('[role^="menuitem"]')?.focus())
+}
+
+function openDropdown() {
+  if (!showDropdown.value) {
+    showDropdown.value = true
+  }
+  focusFirstItem()
+}
+
+function closeDropdown(restoreFocus = false) {
+  showDropdown.value = false
+  if (restoreFocus) nextTick(() => triggerRef.value?.focus())
+}
+
+function toggleDropdown() {
+  showDropdown.value ? closeDropdown() : openDropdown()
+}
+
+function handleEnabledChange() {
+  emit('update:enabled', !props.enabled)
+  closeDropdown(true)
+}
+
+function handleIntervalChange(seconds: number) {
+  emit('update:interval', seconds)
+  closeDropdown(true)
+}
 
 function handleClickOutside(event: MouseEvent) {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
-    showDropdown.value = false
+    closeDropdown()
   }
 }
 
-onMounted(() => document.addEventListener('click', handleClickOutside))
-onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && showDropdown.value) {
+    event.preventDefault()
+    closeDropdown(true)
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleKeydown)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>

@@ -473,6 +473,16 @@ func TestSettingService_UpdateSettings_UserSubscriptionsEnabled(t *testing.T) {
 	require.Equal(t, "true", repo.updates[SettingKeyUserSubscriptionsEnabled])
 }
 
+func TestSettingService_UpdateSettings_SubscriptionExpirationEnabled(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{SubscriptionExpirationEnabled: false})
+
+	require.NoError(t, err)
+	require.Equal(t, "false", repo.updates[SettingKeySubscriptionExpirationEnabled])
+}
+
 func TestSettingService_UpdateSettingsRejectsInvalidOpenAIOAuthSchedulingRateMultiplier(t *testing.T) {
 	repo := &settingUpdateRepoStub{}
 	svc := NewSettingService(repo, &config.Config{})

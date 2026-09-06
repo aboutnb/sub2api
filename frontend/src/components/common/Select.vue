@@ -5,36 +5,28 @@
       type="button"
       @click="toggle"
       :disabled="disabled"
+      role="combobox"
       :aria-expanded="isOpen"
-      :aria-haspopup="true"
-      :id="id"
-      :aria-label="ariaLabel ?? 'Select option'"
+      aria-haspopup="listbox"
+      :aria-controls="listboxId"
+      :aria-activedescendant="!isSearchable && isOpen ? activeOptionId : undefined"
+      :id="triggerId"
+      :aria-label="ariaLabel ?? placeholderText"
       :aria-describedby="ariaDescribedby"
+      :aria-invalid="error ? 'true' : undefined"
       :class="[
         'select-trigger',
+        clearable && hasValue && !disabled && 'select-trigger-clearable',
         isOpen && 'select-trigger-open',
         error && 'select-trigger-error',
         disabled && 'select-trigger-disabled'
       ]"
-      @keydown.down.prevent="onTriggerKeyDown"
-      @keydown.up.prevent="onTriggerKeyDown"
+      @keydown="onTriggerKeyDown"
     >
       <span class="select-value">
         <slot name="selected" :option="selectedOption">
           {{ selectedLabel }}
         </slot>
-      </span>
-      <span
-        v-if="clearable && hasValue && !disabled"
-        class="select-clear"
-        role="button"
-        tabindex="-1"
-        aria-label="Clear selection"
-        @click.stop="clearSelection"
-        @mousedown.stop
-        @keydown.enter.stop.prevent="clearSelection"
-      >
-        <Icon name="x" size="sm" />
       </span>
       <span class="select-icon">
         <Icon
@@ -43,6 +35,17 @@
           :class="['transition-transform duration-200', isOpen && 'rotate-180']"
         />
       </span>
+    </button>
+
+    <button
+      v-if="clearable && hasValue && !disabled"
+      type="button"
+      class="select-clear"
+      :aria-label="t('common.clear') === 'common.clear' ? 'Clear selection' : t('common.clear')"
+      @click.stop="clearSelection"
+      @mousedown.stop
+    >
+      <Icon name="x" size="sm" />
     </button>
 
     <!-- Teleport dropdown to body to escape stacking context -->
@@ -54,41 +57,54 @@
           class="select-dropdown-portal"
           :class="[instanceId]"
           :style="dropdownStyle"
-          role="listbox"
           @click.stop
           @mousedown.stop
           @keydown="onDropdownKeyDown"
         >
           <!-- Search input -->
           <div v-if="isSearchable" class="select-search">
-            <Icon name="search" size="sm" class="text-gray-400" />
+            <Icon name="search" size="sm" class="text-ink-muted" />
             <input
               ref="searchInputRef"
               v-model="searchQuery"
               type="text"
               :placeholder="searchPlaceholderText"
               :aria-label="searchPlaceholderText"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded="true"
+              aria-haspopup="listbox"
+              :aria-controls="listboxId"
+              :aria-activedescendant="activeOptionId"
               class="select-search-input"
               @click.stop
             />
           </div>
 
           <!-- Options list -->
-          <div class="select-options" ref="optionsListRef">
+          <div
+            :id="listboxId"
+            class="select-options"
+            ref="optionsListRef"
+            role="listbox"
+            :aria-labelledby="triggerId"
+          >
             <div
               v-for="(option, index) in filteredOptions"
               :key="`${typeof getOptionValue(option)}:${String(getOptionValue(option) ?? '')}`"
-              role="option"
-              :aria-selected="isSelected(option)"
-              :aria-disabled="isOptionDisabled(option)"
-              @click.stop="!isOptionDisabled(option) && selectOption(option)"
+              :id="optionId(index)"
+              :role="isGroupHeaderOption(option) ? 'presentation' : 'option'"
+              :aria-selected="isGroupHeaderOption(option) ? undefined : isSelected(option)"
+              :aria-disabled="isGroupHeaderOption(option) ? undefined : isOptionDisabled(option)"
+              :tabindex="-1"
+              @click.stop="isOptionNavigable(option) && selectOption(option)"
               @mouseenter="handleOptionMouseEnter(option, index)"
               :class="[
                 'select-option',
                 isGroupHeaderOption(option) && 'select-option-group',
                 isSelected(option) && 'select-option-selected',
                 isOptionDisabled(option) && !isGroupHeaderOption(option) && 'select-option-disabled',
-                focusedIndex === index && !isGroupHeaderOption(option) && 'select-option-focused'
+                focusedIndex === index && isOptionNavigable(option) && 'select-option-focused'
               ]"
             >
               <slot name="option" :option="option" :selected="isSelected(option)">
@@ -96,9 +112,9 @@
                   v-if="option._creatable"
                   name="search"
                   size="sm"
-                  class="flex-shrink-0 text-gray-400"
+                  class="flex-shrink-0 text-ink-muted"
                 />
-                <span class="select-option-label" :class="option._creatable && 'italic text-gray-500 dark:text-dark-300'">{{ getOptionLabel(option) }}</span>
+                <span class="select-option-label" :class="option._creatable && 'italic text-ink-muted dark:text-ink'">{{ getOptionLabel(option) }}</span>
                 <Icon
                   v-if="isSelected(option)"
                   name="check"
@@ -193,6 +209,9 @@ const dropdownPosition = ref<'bottom' | 'top'>('bottom')
 const triggerRect = ref<DOMRect | null>(null)
 const dropdownViewportPadding = 8
 const dropdownMinimumWidth = 200
+const triggerId = computed(() => props.id || `${instanceId}-trigger`)
+const listboxId = `${instanceId}-listbox`
+const optionId = (index: number) => `${instanceId}-option-${index}`
 
 // i18n placeholders
 const placeholderText = computed(() => props.placeholder ?? t('common.selectOption'))
@@ -268,6 +287,15 @@ const isGroupHeaderOption = (option: any): boolean => {
   return false
 }
 
+const isOptionNavigable = (option: any): boolean =>
+  !isOptionDisabled(option) && !isGroupHeaderOption(option)
+
+const activeOptionId = computed(() => {
+  if (focusedIndex.value < 0) return undefined
+  const option = filteredOptions.value[focusedIndex.value]
+  return option && isOptionNavigable(option) ? optionId(focusedIndex.value) : undefined
+})
+
 const selectedOption = computed(() => {
   return props.options.find((opt) => getOptionValue(opt) === props.modelValue) || null
 })
@@ -317,8 +345,8 @@ const findNextEnabledIndex = (startIndex: number): number => {
   const opts = filteredOptions.value
   if (opts.length === 0) return -1
   for (let offset = 0; offset < opts.length; offset++) {
-    const idx = (startIndex + offset) % opts.length
-    if (!isOptionDisabled(opts[idx])) return idx
+    const idx = ((startIndex + offset) % opts.length + opts.length) % opts.length
+    if (isOptionNavigable(opts[idx])) return idx
   }
   return -1
 }
@@ -328,13 +356,13 @@ const findPrevEnabledIndex = (startIndex: number): number => {
   if (opts.length === 0) return -1
   for (let offset = 0; offset < opts.length; offset++) {
     const idx = (startIndex - offset + opts.length) % opts.length
-    if (!isOptionDisabled(opts[idx])) return idx
+    if (isOptionNavigable(opts[idx])) return idx
   }
   return -1
 }
 
 const handleOptionMouseEnter = (option: any, index: number) => {
-  if (isOptionDisabled(option) || isGroupHeaderOption(option)) return
+  if (!isOptionNavigable(option)) return
   focusedIndex.value = index
 }
 
@@ -377,7 +405,7 @@ watch(isOpen, (open) => {
     } else {
       const selectedIdx = filteredOptions.value.findIndex(isSelected)
       const initialIdx = selectedIdx >= 0 ? selectedIdx : 0
-      focusedIndex.value = isOptionDisabled(filteredOptions.value[initialIdx])
+      focusedIndex.value = !isOptionNavigable(filteredOptions.value[initialIdx])
         ? findNextEnabledIndex(initialIdx + 1)
         : initialIdx
     }
@@ -411,6 +439,15 @@ watch(searchQuery, (query) => {
   }, REMOTE_SEARCH_DEBOUNCE_MS)
 })
 
+watch(filteredOptions, (options) => {
+  if (!isOpen.value) return
+  const current = options[focusedIndex.value]
+  if (current && isOptionNavigable(current)) return
+
+  const selectedIndex = options.findIndex((option) => isSelected(option) && isOptionNavigable(option))
+  focusedIndex.value = selectedIndex >= 0 ? selectedIndex : findNextEnabledIndex(0)
+})
+
 const selectOption = (option: any) => {
   const value = getOptionValue(option) ?? null
   emit('update:modelValue', value)
@@ -423,16 +460,81 @@ const clearSelection = () => {
   if (props.disabled) return
   emit('update:modelValue', null)
   emit('change', null, null)
+  triggerRef.value?.focus()
 }
 
 // Keyboards
-const onTriggerKeyDown = () => {
-  if (!isOpen.value) {
-    isOpen.value = true
+const setFirstEnabledOption = () => {
+  focusedIndex.value = findNextEnabledIndex(0)
+  if (focusedIndex.value >= 0) scrollToFocused()
+}
+
+const setLastEnabledOption = () => {
+  focusedIndex.value = findPrevEnabledIndex(filteredOptions.value.length - 1)
+  if (focusedIndex.value >= 0) scrollToFocused()
+}
+
+const closeAndRestoreTrigger = () => {
+  isOpen.value = false
+  nextTick(() => triggerRef.value?.focus())
+}
+
+const chooseFocusedOption = () => {
+  if (focusedIndex.value < 0 || focusedIndex.value >= filteredOptions.value.length) return
+  const option = filteredOptions.value[focusedIndex.value]
+  if (isOptionNavigable(option)) selectOption(option)
+}
+
+const onTriggerKeyDown = (event: KeyboardEvent) => {
+  if (props.disabled) return
+
+  switch (event.key) {
+    case 'ArrowDown':
+      event.preventDefault()
+      if (!isOpen.value) isOpen.value = true
+      else {
+        focusedIndex.value = findNextEnabledIndex(focusedIndex.value + 1)
+        if (focusedIndex.value >= 0) scrollToFocused()
+      }
+      break
+    case 'ArrowUp':
+      event.preventDefault()
+      if (!isOpen.value) isOpen.value = true
+      else {
+        focusedIndex.value = findPrevEnabledIndex(focusedIndex.value - 1)
+        if (focusedIndex.value >= 0) scrollToFocused()
+      }
+      break
+    case 'Home':
+      if (!isOpen.value) return
+      event.preventDefault()
+      setFirstEnabledOption()
+      break
+    case 'End':
+      if (!isOpen.value) return
+      event.preventDefault()
+      setLastEnabledOption()
+      break
+    case 'Enter':
+    case ' ':
+      event.preventDefault()
+      if (!isOpen.value) isOpen.value = true
+      else chooseFocusedOption()
+      break
+    case 'Escape':
+      if (!isOpen.value) return
+      event.preventDefault()
+      event.stopPropagation()
+      closeAndRestoreTrigger()
+      break
+    case 'Tab':
+      isOpen.value = false
+      break
   }
 }
 
 const onDropdownKeyDown = (e: KeyboardEvent) => {
+  if (e.isComposing) return
   switch (e.key) {
     case 'ArrowDown':
       e.preventDefault()
@@ -446,15 +548,20 @@ const onDropdownKeyDown = (e: KeyboardEvent) => {
       break
     case 'Enter':
       e.preventDefault()
-      if (focusedIndex.value >= 0 && focusedIndex.value < filteredOptions.value.length) {
-        const opt = filteredOptions.value[focusedIndex.value]
-        if (!isOptionDisabled(opt)) selectOption(opt)
-      }
+      chooseFocusedOption()
+      break
+    case 'Home':
+      e.preventDefault()
+      setFirstEnabledOption()
+      break
+    case 'End':
+      e.preventDefault()
+      setLastEnabledOption()
       break
     case 'Escape':
       e.preventDefault()
-      isOpen.value = false
-      triggerRef.value?.focus()
+      e.stopPropagation()
+      closeAndRestoreTrigger()
       break
     case 'Tab':
       isOpen.value = false
@@ -506,18 +613,23 @@ onUnmounted(() => {
 <style scoped>
 .select-trigger {
   @apply flex w-full items-center justify-between gap-2;
-  @apply rounded-xl px-4 py-2.5 text-sm;
-  @apply bg-white dark:bg-dark-800;
-  @apply border border-gray-200 dark:border-dark-600;
-  @apply text-gray-900 dark:text-gray-100;
+  @apply min-h-11 rounded-xl px-4 py-2.5 text-sm;
+  @apply bg-white dark:bg-surface;
+  @apply border-2 border-line-control;
+  @apply text-ink-strong dark:text-gray-100;
   @apply transition-all duration-200;
-  @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30;
-  @apply hover:border-gray-300 dark:hover:border-dark-500;
+  @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25;
+  @apply hover:border-line-control;
   @apply cursor-pointer;
+  box-shadow: inset 0 -2px 0 rgba(23, 32, 51, 0.035);
+}
+
+.select-trigger-clearable {
+  @apply pr-20;
 }
 
 .select-trigger-open {
-  @apply border-primary-500 ring-2 ring-primary-500/30;
+  @apply border-primary-500 ring-2 ring-primary-500/25;
 }
 
 .select-trigger-error {
@@ -525,7 +637,7 @@ onUnmounted(() => {
 }
 
 .select-trigger-disabled {
-  @apply cursor-not-allowed bg-gray-100 opacity-60 dark:bg-dark-900;
+  @apply cursor-not-allowed bg-surface-muted opacity-60 dark:bg-canvas;
 }
 
 .select-value {
@@ -533,36 +645,37 @@ onUnmounted(() => {
 }
 
 .select-icon {
-  @apply flex-shrink-0 text-gray-400 dark:text-dark-400;
+  @apply flex-shrink-0 text-ink-muted dark:text-ink-muted;
 }
 
 .select-clear {
-  @apply flex flex-shrink-0 cursor-pointer items-center justify-center;
-  @apply rounded text-gray-400 transition-colors;
-  @apply hover:text-gray-600 dark:hover:text-gray-200;
+  @apply absolute right-8 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center;
+  @apply rounded-lg text-ink-muted transition-colors;
+  @apply hover:text-ink dark:hover:text-gray-200;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40;
 }
 </style>
 
 <style>
 .select-dropdown-portal {
   @apply w-max min-w-[200px];
-  @apply bg-white dark:bg-dark-800;
+  @apply bg-white dark:bg-surface;
   @apply rounded-xl;
-  @apply border border-gray-200 dark:border-dark-700;
-  @apply shadow-lg shadow-black/10 dark:shadow-black/30;
+  @apply border-2 border-line dark:border-line-strong;
+  @apply shadow-xl dark:shadow-black/40;
   @apply overflow-hidden;
   pointer-events: auto !important;
 }
 
 .select-dropdown-portal .select-search {
   @apply flex items-center gap-2 px-3 py-2;
-  @apply border-b border-gray-100 dark:border-dark-700;
+  @apply border-b border-line dark:border-line;
 }
 
 .select-dropdown-portal .select-search-input {
   @apply flex-1 bg-transparent text-sm;
-  @apply text-gray-900 dark:text-gray-100;
-  @apply placeholder:text-gray-400 dark:placeholder:text-dark-400;
+  @apply text-ink-strong dark:text-gray-100;
+  @apply placeholder:text-ink-muted dark:placeholder:text-ink-muted;
   @apply focus:outline-none;
 }
 
@@ -572,10 +685,10 @@ onUnmounted(() => {
 
 .select-dropdown-portal .select-option {
   @apply flex items-center justify-between gap-2;
-  @apply px-4 py-2.5 text-sm;
-  @apply text-gray-700 dark:text-gray-300;
+  @apply mx-1 min-h-11 rounded-lg px-3 py-2 text-sm;
+  @apply text-ink dark:text-ink-muted;
   @apply cursor-pointer transition-colors duration-150;
-  @apply hover:bg-gray-50 dark:hover:bg-dark-700;
+  @apply hover:bg-primary-50 dark:hover:bg-primary-900/20;
   pointer-events: auto !important;
 }
 
@@ -585,7 +698,7 @@ onUnmounted(() => {
 }
 
 .select-dropdown-portal .select-option-focused {
-  @apply bg-gray-100 dark:bg-dark-700;
+  @apply bg-surface-muted dark:bg-surface-muted;
 }
 
 .select-dropdown-portal .select-option-disabled {
@@ -594,13 +707,13 @@ onUnmounted(() => {
 
 .select-dropdown-portal .select-option-group {
   @apply cursor-default select-none;
-  @apply bg-gray-50 dark:bg-dark-900;
+  @apply bg-surface-muted dark:bg-canvas;
   @apply text-[11px] font-bold uppercase tracking-wider;
-  @apply text-gray-500 dark:text-gray-400;
+  @apply text-ink-muted dark:text-ink-muted;
 }
 
 .select-dropdown-portal .select-option-group:hover {
-  @apply bg-gray-50 dark:bg-dark-900;
+  @apply bg-surface-muted dark:bg-canvas;
 }
 
 .select-dropdown-portal .select-option-label {
@@ -609,7 +722,7 @@ onUnmounted(() => {
 
 .select-dropdown-portal .select-empty {
   @apply px-4 py-8 text-center text-sm;
-  @apply text-gray-500 dark:text-dark-400;
+  @apply text-ink-muted dark:text-ink-muted;
 }
 
 .select-dropdown-enter-active,

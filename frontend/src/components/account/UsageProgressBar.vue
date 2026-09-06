@@ -5,19 +5,19 @@
       v-if="windowStats && (windowStats.requests > 0 || windowStats.tokens > 0)"
       class="mb-0.5 flex items-center"
     >
-      <div class="flex items-center gap-1.5 text-[9px] text-gray-500 dark:text-gray-400">
-        <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">
+      <div class="flex items-center gap-1.5 text-[9px] text-ink-muted dark:text-ink-muted">
+        <span class="rounded bg-surface-muted px-1.5 py-0.5 dark:bg-surface">
           {{ formatRequests }} req
         </span>
-        <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">
+        <span class="rounded bg-surface-muted px-1.5 py-0.5 dark:bg-surface">
           {{ formatTokens }}
         </span>
-        <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800" :title="t('usage.accountBilled')">
+        <span class="rounded bg-surface-muted px-1.5 py-0.5 dark:bg-surface" :title="t('usage.accountBilled')">
           A ${{ formatAccountCost }}
         </span>
         <span
           v-if="windowStats?.user_cost != null"
-          class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
+          class="rounded bg-surface-muted px-1.5 py-0.5 dark:bg-surface"
           :title="t('usage.userBilled')"
         >
           U ${{ formatUserCost }}
@@ -33,7 +33,7 @@
       </span>
 
       <!-- Progress bar container -->
-      <div class="h-1.5 w-8 shrink-0 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+      <div class="h-1.5 w-8 shrink-0 overflow-hidden rounded-full bg-line dark:bg-surface-muted">
         <div
           :class="['h-full transition-all duration-300', barClass]"
           :style="{ width: barWidth }"
@@ -46,7 +46,7 @@
       </span>
 
       <!-- Reset time -->
-      <span v-if="shouldShowResetTime" class="shrink-0 text-[10px] text-gray-400">
+      <span v-if="shouldShowResetTime" class="shrink-0 text-[10px] text-ink-muted">
         {{ formatResetTime }}
       </span>
     </div>
@@ -146,14 +146,14 @@ const textClass = computed(() => {
     } else if (props.utilization <= 50) {
       return 'text-amber-600 dark:text-amber-400'
     }
-    return 'text-gray-600 dark:text-gray-400'
+    return 'text-ink dark:text-ink-muted'
   }
   if (props.utilization >= 90) {
     return 'text-red-600 dark:text-red-400'
   } else if (props.utilization >= 75) {
     return 'text-amber-600 dark:text-amber-400'
   } else {
-    return 'text-gray-600 dark:text-gray-400'
+    return 'text-ink dark:text-ink-muted'
   }
 })
 

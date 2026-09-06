@@ -77,7 +77,7 @@
           {{ autoResetState.trigger_window }}
         </span>
       </span>
-      <span v-if="autoResetState.checked_at" class="text-gray-500 dark:text-gray-400">
+      <span v-if="autoResetState.checked_at" class="text-ink-muted dark:text-ink-muted">
         {{ formatResetCreditExpiry(autoResetState.checked_at, 'short') }}
       </span>
       <span
@@ -92,7 +92,7 @@
     <div v-if="primaryResetCreditExpiry" class="space-y-1">
       <div class="flex flex-wrap items-center gap-1">
         <span
-          class="inline-flex max-w-full items-center rounded bg-gray-100 px-1.5 py-0.5 text-[10px] leading-4 text-gray-600 tabular-nums dark:bg-dark-800 dark:text-gray-300"
+          class="inline-flex max-w-full items-center rounded bg-surface-muted px-1.5 py-0.5 text-[10px] leading-4 text-ink tabular-nums dark:bg-surface dark:text-ink-muted"
           :title="t('admin.accounts.openaiQuotaReset.expiresAtFull', { time: formatResetCreditExpiry(primaryResetCreditExpiry, 'full') })"
         >
           {{ t('admin.accounts.openaiQuotaReset.expiresAt', { time: formatResetCreditExpiry(primaryResetCreditExpiry, 'short') }) }}
@@ -101,7 +101,7 @@
           v-if="hiddenResetCreditCount > 0"
           type="button"
           data-testid="reset-credit-expiry-toggle"
-          class="inline-flex items-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium leading-4 text-gray-600 transition-colors hover:bg-gray-200 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700"
+          class="inline-flex items-center rounded-full bg-surface-muted px-1.5 py-0.5 text-[10px] font-medium leading-4 text-ink transition-colors hover:bg-line dark:bg-surface dark:text-ink-muted dark:hover:bg-dark-700"
           :aria-expanded="showResetCreditDetails"
           :aria-label="resetCreditDetailsToggleLabel"
           :title="resetCreditDetailsTitle"
@@ -114,7 +114,7 @@
       <div
         v-if="showResetCreditDetails && resetCreditExpirations.length > 1"
         data-testid="reset-credit-expiry-details"
-        class="inline-grid max-w-full gap-0.5 rounded border border-gray-200 bg-white px-1.5 py-1 text-[10px] leading-4 text-gray-600 shadow-sm dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300"
+        class="inline-grid max-w-full gap-0.5 rounded border border-line bg-white px-1.5 py-1 text-[10px] leading-4 text-ink shadow-sm dark:border-line dark:bg-canvas dark:text-ink-muted"
       >
         <span class="sr-only">{{ t('admin.accounts.openaiQuotaReset.expirationDetails') }}</span>
         <span
@@ -230,7 +230,7 @@ const autoResetStateClass = computed(() => {
     case 'resetting':
       return 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
     default:
-      return 'bg-gray-100 text-gray-600 dark:bg-dark-800 dark:text-gray-300'
+      return 'bg-surface-muted text-ink dark:bg-surface dark:text-ink-muted'
   }
 })
 

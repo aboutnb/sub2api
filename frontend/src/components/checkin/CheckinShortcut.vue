@@ -1,9 +1,9 @@
 <template>
-  <div v-if="visible" ref="rootRef" class="relative shrink-0">
+  <div v-if="entryVisible" ref="rootRef" class="relative shrink-0">
     <div
-      v-if="!status?.checked_in_today"
+      v-if="quickActionAvailable && !status?.checked_in_today"
       data-testid="checkin-shortcut-actions"
-      class="hidden items-center gap-1.5 xl:flex"
+      class="hidden items-center gap-1.5 2xl:flex"
     >
       <button
         v-if="status?.normal_enabled"
@@ -40,13 +40,15 @@
       class="h-8 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 sm:text-sm"
       :class="status?.checked_in_today
         ? 'flex bg-emerald-50 text-emerald-700 hover:bg-emerald-100 focus-visible:ring-emerald-400/50 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/30'
-        : 'flex bg-amber-50 text-amber-700 hover:bg-amber-100 focus-visible:ring-amber-400/50 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30 xl:hidden'"
+        : quickActionAvailable
+          ? 'flex bg-amber-50 text-amber-700 hover:bg-amber-100 focus-visible:ring-amber-400/50 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30 2xl:hidden'
+          : 'flex bg-primary-50 text-primary-700 hover:bg-primary-100 focus-visible:ring-primary-400/50 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30'"
       :disabled="submitting"
       :aria-label="shortcutLabel"
       :title="shortcutLabel"
-      :aria-expanded="menuOpen"
-      :aria-haspopup="status?.checked_in_today ? undefined : 'menu'"
-      aria-controls="checkin-shortcut-menu"
+      :aria-expanded="quickActionAvailable && !status?.checked_in_today ? menuOpen : undefined"
+      :aria-haspopup="quickActionAvailable && !status?.checked_in_today ? 'menu' : undefined"
+      :aria-controls="quickActionAvailable && !status?.checked_in_today ? 'checkin-shortcut-menu' : undefined"
       @click.stop="handleShortcutClick"
     >
       <Icon
@@ -65,11 +67,11 @@
 
     <transition name="checkin-menu">
       <div
-        v-if="menuOpen"
+        v-if="menuOpen && quickActionAvailable"
         id="checkin-shortcut-menu"
         data-testid="checkin-shortcut-menu"
         role="menu"
-        class="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-xl dark:border-dark-700 dark:bg-dark-800"
+        class="checkin-shortcut-popover absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-lg border border-line bg-white py-1 shadow-xl dark:border-line dark:bg-surface"
         @click.stop
         @keydown.esc="closeMenu"
       >
@@ -78,7 +80,7 @@
             type="button"
             role="menuitem"
             data-testid="quick-checkin-menu-normal"
-            class="flex h-11 w-full items-center gap-3 px-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-amber-50 hover:text-amber-700 focus:bg-amber-50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:text-dark-200 dark:hover:bg-amber-900/20 dark:hover:text-amber-300"
+            class="flex h-11 w-full items-center gap-3 px-3 text-left text-sm font-medium text-ink transition-colors hover:bg-amber-50 hover:text-amber-700 focus:bg-amber-50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:text-ink-strong dark:hover:bg-amber-900/20 dark:hover:text-amber-300"
             :disabled="submitting"
             @click="requestCheckin('normal')"
           >
@@ -94,7 +96,7 @@
           type="button"
           role="menuitem"
           data-testid="quick-checkin-menu-lucky"
-          class="flex h-11 w-full items-center gap-3 px-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-violet-50 hover:text-violet-700 focus:bg-violet-50 focus:outline-none dark:text-dark-200 dark:hover:bg-violet-900/20 dark:hover:text-violet-300"
+          class="flex h-11 w-full items-center gap-3 px-3 text-left text-sm font-medium text-ink transition-colors hover:bg-violet-50 hover:text-violet-700 focus:bg-violet-50 focus:outline-none dark:text-ink-strong dark:hover:bg-violet-900/20 dark:hover:text-violet-300"
           :disabled="submitting"
           @click="requestCheckin('lucky')"
         >
@@ -108,7 +110,7 @@
           to="/checkin"
           role="menuitem"
           data-testid="open-checkin-page"
-          class="mt-1 flex h-10 items-center gap-3 border-t border-gray-100 px-3 pt-1 text-sm text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800 focus:bg-gray-50 focus:outline-none dark:border-dark-700 dark:text-dark-400 dark:hover:bg-dark-700 dark:hover:text-white"
+          class="mt-1 flex h-10 items-center gap-3 border-t border-line px-3 pt-1 text-sm text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink-strong focus:bg-surface-muted focus:outline-none dark:border-line dark:text-ink-muted dark:hover:bg-dark-700 dark:hover:text-white"
           @click="closeMenu"
         >
           <span class="flex h-7 w-7 items-center justify-center">
@@ -189,16 +191,17 @@ const activeTurnstileToken = computed(() => confirmOpen.value ? turnstileTokenFo
 let statusRequest = 0
 
 const hasAvailableMode = computed(() => Boolean(status.value?.normal_enabled || status.value?.lucky_enabled))
-const visible = computed(() => Boolean(
-  authStore.user
-  && !authStore.isSimpleMode
+const entryVisible = computed(() => Boolean(authStore.user && !authStore.isSimpleMode))
+const quickActionAvailable = computed(() => Boolean(
+  entryVisible.value
   && status.value?.enabled
   && status.value?.eligible
   && hasAvailableMode.value,
 ))
 const shortcutLabel = computed(() => {
   if (submitting.value) return t('checkin.submitting')
-  return status.value?.checked_in_today ? t('checkin.checkedToday') : t('checkin.quickAction')
+  if (status.value?.checked_in_today) return t('checkin.checkedToday')
+  return quickActionAvailable.value ? t('checkin.quickAction') : t('nav.checkin')
 })
 
 function closeMenu() {
@@ -370,5 +373,16 @@ onBeforeUnmount(() => {
 .checkin-menu-leave-to {
   opacity: 0;
   transform: translateY(-4px);
+}
+
+@media (max-width: 639.98px) {
+  .checkin-shortcut-popover {
+    position: fixed;
+    top: 7.75rem;
+    right: 0.5rem;
+    left: 0.5rem;
+    width: auto;
+    margin-top: 0;
+  }
 }
 </style>

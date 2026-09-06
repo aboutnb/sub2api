@@ -37,7 +37,7 @@
         </div>
       </div>
 
-      <div class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
+      <div class="h-2 overflow-hidden rounded-full bg-surface-muted dark:bg-surface-muted">
         <div
           class="h-full rounded-full bg-sky-500 transition-all duration-300"
           :style="{ width: `${progressPercent}%` }"
@@ -46,13 +46,13 @@
 
       <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
         <label class="space-y-1.5">
-          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <span class="text-sm font-medium text-ink dark:text-ink-muted">
             {{ t('admin.accounts.batchTest.testModel') }}
           </span>
           <select
             v-model="modelMode"
             :disabled="isRunning"
-            class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-100 dark:disabled:bg-dark-800"
+            class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink-strong shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-muted dark:border-line-strong dark:bg-surface-muted dark:text-gray-100 dark:disabled:bg-dark-800"
           >
             <option value="default">{{ t('admin.accounts.batchTest.defaultModel') }}</option>
             <option value="custom">{{ t('admin.accounts.batchTest.customModel') }}</option>
@@ -62,13 +62,13 @@
             v-model.trim="customModelId"
             :disabled="isRunning"
             type="text"
-            class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-100 dark:disabled:bg-dark-800"
+            class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink-strong shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-muted dark:border-line-strong dark:bg-surface-muted dark:text-gray-100 dark:disabled:bg-dark-800"
             :placeholder="t('admin.accounts.batchTest.customModelPlaceholder')"
           />
         </label>
 
         <label class="space-y-1.5">
-          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <span class="text-sm font-medium text-ink dark:text-ink-muted">
             {{ t('admin.accounts.batchTest.concurrency') }}
           </span>
           <input
@@ -78,9 +78,9 @@
             min="1"
             max="50"
             data-testid="batch-test-concurrency"
-            class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-100 dark:disabled:bg-dark-800"
+            class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink-strong shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-muted dark:border-line-strong dark:bg-surface-muted dark:text-gray-100 dark:disabled:bg-dark-800"
           />
-          <p class="text-xs text-gray-500 dark:text-gray-400">
+          <p class="text-xs text-ink-muted dark:text-ink-muted">
             {{ t('admin.accounts.batchTest.concurrencyHint') }}
           </p>
         </label>
@@ -89,12 +89,12 @@
       <div class="space-y-3">
         <div class="grid gap-3 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-end">
           <label class="space-y-1.5">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <span class="text-sm font-medium text-ink dark:text-ink-muted">
               {{ t('admin.accounts.batchTest.resultFilter') }}
             </span>
             <select
               v-model="resultFilter"
-              class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-100"
+              class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink-strong shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-line-strong dark:bg-surface-muted dark:text-gray-100"
             >
               <option v-for="filter in resultFilters" :key="filter.value" :value="filter.value">
                 {{ filter.label }}
@@ -111,7 +111,7 @@
                 'rounded-full border px-3 py-1.5 text-sm transition-colors',
                 resultFilter === filter.value
                   ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-500/15 dark:text-primary-200'
-                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-300 dark:hover:bg-dark-600'
+                  : 'border-line bg-white text-ink hover:border-line-strong hover:bg-surface-muted dark:border-line-strong dark:bg-surface-muted dark:text-ink-muted dark:hover:bg-dark-600'
               ]"
               @click="resultFilter = filter.value"
             >
@@ -120,10 +120,10 @@
           </div>
         </div>
 
-        <div class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800">
+        <div class="overflow-hidden rounded-lg border border-line bg-white dark:border-line-strong dark:bg-surface">
           <div class="max-h-[52vh] overflow-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-dark-600">
-              <thead class="sticky top-0 z-10 bg-gray-50 dark:bg-dark-700">
+            <table class="min-w-full divide-y divide-line dark:divide-line-strong">
+              <thead class="sticky top-0 z-10 bg-surface-muted dark:bg-surface-muted">
                 <tr>
                   <th class="batch-test-th w-[34%]">{{ t('admin.accounts.batchTest.columns.account') }}</th>
                   <th class="batch-test-th w-[12rem]">{{ t('admin.accounts.batchTest.columns.platform') }}</th>
@@ -131,27 +131,27 @@
                   <th class="batch-test-th">{{ t('admin.accounts.batchTest.columns.result') }}</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
+              <tbody class="divide-y divide-line dark:divide-line">
                 <tr
                   v-for="row in filteredRows"
                   :key="row.account.id"
                   :data-testid="`batch-test-row-${row.account.id}`"
-                  class="hover:bg-gray-50 dark:hover:bg-dark-700/60"
+                  class="hover:bg-surface-muted dark:hover:bg-dark-700/60"
                 >
                   <td class="batch-test-td">
                     <div class="min-w-0">
-                      <div class="truncate font-medium text-gray-900 dark:text-gray-100" :title="row.account.name">
+                      <div class="truncate font-medium text-ink-strong dark:text-gray-100" :title="row.account.name">
                         {{ row.account.name }}
                       </div>
-                      <div class="text-xs text-gray-500 dark:text-gray-400">ID {{ row.account.id }}</div>
+                      <div class="text-xs text-ink-muted dark:text-ink-muted">ID {{ row.account.id }}</div>
                     </div>
                   </td>
                   <td class="batch-test-td">
                     <div class="flex flex-wrap gap-1.5">
-                      <span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium uppercase text-gray-700 dark:bg-dark-600 dark:text-gray-200">
+                      <span class="rounded bg-surface-muted px-2 py-0.5 text-xs font-medium uppercase text-ink dark:bg-line-strong dark:text-gray-200">
                         {{ row.account.platform }}
                       </span>
-                      <span class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-dark-600 dark:text-gray-300">
+                      <span class="rounded bg-surface-muted px-2 py-0.5 text-xs text-ink dark:bg-line-strong dark:text-ink-muted">
                         {{ row.account.type }}
                       </span>
                     </div>
@@ -169,13 +169,13 @@
                     </span>
                   </td>
                   <td class="batch-test-td">
-                    <div class="max-w-[34rem] truncate text-sm text-gray-600 dark:text-gray-300" :title="row.result || ''">
+                    <div class="max-w-[34rem] truncate text-sm text-ink dark:text-ink-muted" :title="row.result || ''">
                       {{ row.result || t('admin.accounts.batchTest.noResult') }}
                     </div>
                   </td>
                 </tr>
                 <tr v-if="filteredRows.length === 0">
-                  <td colspan="4" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colspan="4" class="px-4 py-10 text-center text-sm text-ink-muted dark:text-ink-muted">
                     {{ totalCount === 0 ? t('admin.accounts.batchTest.empty') : t('admin.accounts.batchTest.noFilteredResults') }}
                   </td>
                 </tr>
@@ -607,7 +607,7 @@ const statusBadgeClass = (status: BatchTestStatus) => {
   const base = 'inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium'
   switch (status) {
     case 'pending':
-      return `${base} bg-gray-100 text-gray-600 dark:bg-dark-600 dark:text-gray-300`
+      return `${base} bg-surface-muted text-ink dark:bg-line-strong dark:text-ink-muted`
     case 'running':
       return `${base} bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300`
     case 'success':
@@ -622,19 +622,19 @@ const statusBadgeClass = (status: BatchTestStatus) => {
 
 <style scoped>
 .batch-test-stat {
-  @apply rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-600 dark:bg-dark-800;
+  @apply rounded-lg border border-line bg-white p-4 shadow-sm dark:border-line-strong dark:bg-surface;
 }
 
 .batch-test-stat span {
-  @apply text-sm text-gray-500 dark:text-gray-400;
+  @apply text-sm text-ink-muted dark:text-ink-muted;
 }
 
 .batch-test-stat strong {
-  @apply mt-2 block text-3xl font-semibold leading-none text-gray-900 dark:text-gray-100;
+  @apply mt-2 block text-3xl font-semibold leading-none text-ink-strong dark:text-gray-100;
 }
 
 .batch-test-th {
-  @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-300;
+  @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted dark:text-ink-muted;
 }
 
 .batch-test-td {

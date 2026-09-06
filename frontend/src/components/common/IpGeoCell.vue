@@ -11,7 +11,7 @@
 
   <div
     v-else-if="entry.status === 'loading'"
-    class="mt-0.5 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500"
+    class="mt-0.5 flex items-center gap-1 text-xs text-ink-muted dark:text-ink-muted"
   >
     <svg class="h-3 w-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
@@ -27,7 +27,7 @@
   <div v-else-if="entry.status === 'success'" class="mt-0.5 flex items-center gap-1 text-xs">
     <button
       type="button"
-      class="truncate text-gray-500 underline decoration-dotted underline-offset-2 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
+      class="truncate text-ink-muted underline decoration-dotted underline-offset-2 hover:text-primary-600 dark:text-ink-muted dark:hover:text-primary-400"
       :title="tooltipText"
       @click="handleOpenDetail"
     >
@@ -35,7 +35,7 @@
     </button>
     <button
       type="button"
-      class="text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+      class="text-ink-muted hover:text-primary-600 dark:hover:text-primary-400"
       :title="t('usage.ipGeo.refreshTitle')"
       @click="handleRefresh"
     >
@@ -53,7 +53,7 @@
     </button>
   </div>
 
-  <div v-else class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+  <div v-else class="mt-0.5 text-xs text-ink-muted dark:text-ink-muted">
     {{ t('usage.ipGeo.private') }}
   </div>
 </template>

@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -25,6 +26,8 @@ const (
 	// NonceHTMLPlaceholder is the placeholder for nonce in HTML script tags
 	NonceHTMLPlaceholder = "__CSP_NONCE_VALUE__"
 )
+
+var faviconLinkPattern = regexp.MustCompile(`(?is)<link\b[^>]*\brel\s*=\s*["']icon["'][^>]*>`)
 
 //go:embed all:dist
 var frontendFS embed.FS
@@ -149,18 +152,14 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 	// Check cache first
 	cached := s.cache.Get()
 	if cached != nil {
-		// Check If-None-Match for 304 response
-		if match := c.GetHeader("If-None-Match"); match == cached.ETag {
-			c.Status(http.StatusNotModified)
-			c.Abort()
-			return
-		}
-
-		// Replace nonce placeholder with actual nonce before serving
+		// Replace the nonce placeholder for every response. The rendered HTML
+		// carries a per-request CSP nonce, so a 304 would make the browser reuse
+		// an older nonce while SecurityHeaders emits a new one.
 		content := replaceNoncePlaceholder(cached.Content, nonce)
 
-		c.Header("ETag", cached.ETag)
-		c.Header("Cache-Control", "no-cache") // Must revalidate
+		// Keep the server-side settings cache, but do not expose a validator for
+		// nonce-bearing HTML. This forces a fresh body/CSP pair on reload.
+		c.Header("Cache-Control", "no-store")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 		c.Abort()
 		return
@@ -172,16 +171,22 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 
 	settings, err := s.settings.GetPublicSettingsForInjection(ctx)
 	if err != nil {
-		// Fallback: serve without injection
-		c.Data(http.StatusOK, "text/html; charset=utf-8", s.baseHTML)
+		// Fallback: serve without injection, but still bind the template nonce to
+		// the CSP generated for this request.
+		content := replaceNoncePlaceholder(s.baseHTML, nonce)
+		c.Header("Cache-Control", "no-store")
+		c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 		c.Abort()
 		return
 	}
 
 	settingsJSON, err := json.Marshal(settings)
 	if err != nil {
-		// Fallback: serve without injection
-		c.Data(http.StatusOK, "text/html; charset=utf-8", s.baseHTML)
+		// Fallback: preserve the nonce/CSP pairing even when settings cannot be
+		// serialized.
+		content := replaceNoncePlaceholder(s.baseHTML, nonce)
+		c.Header("Cache-Control", "no-store")
+		c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 		c.Abort()
 		return
 	}
@@ -192,11 +197,7 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 	// Replace nonce placeholder with actual nonce before serving
 	content := replaceNoncePlaceholder(rendered, nonce)
 
-	cached = s.cache.Get()
-	if cached != nil {
-		c.Header("ETag", cached.ETag)
-	}
-	c.Header("Cache-Control", "no-cache")
+	c.Header("Cache-Control", "no-store")
 	c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 	c.Abort()
 }
@@ -231,22 +232,30 @@ func injectSiteFavicon(html, settingsJSON []byte) []byte {
 		return html
 	}
 
-	linkStart := bytes.Index(html, []byte(`<link rel="icon"`))
-	if linkStart == -1 {
+	match := faviconLinkPattern.FindIndex(html)
+	if match == nil {
 		return html
 	}
-	linkEndOffset := bytes.IndexByte(html[linkStart:], '>')
-	if linkEndOffset == -1 {
-		return html
+	themeMarker := ""
+	if isThemeManagedLogo(logoURL) {
+		themeMarker = ` data-theme-favicon="true"`
 	}
-	linkEnd := linkStart + linkEndOffset + 1
-	replacement := []byte(`<link rel="icon" href="` + htmlpkg.EscapeString(logoURL) + `" />`)
+	replacement := []byte(`<link rel="icon" href="` + htmlpkg.EscapeString(logoURL) + `"` + themeMarker + ` />`)
 
 	var buf bytes.Buffer
-	buf.Write(html[:linkStart])
+	buf.Write(html[:match[0]])
 	buf.Write(replacement)
-	buf.Write(html[linkEnd:])
+	buf.Write(html[match[1]:])
 	return buf.Bytes()
+}
+
+func isThemeManagedLogo(logoURL string) bool {
+	switch logoURL {
+	case "/flowai-logo-mark.svg", "/flowai-logo-mark-light.svg", "/flowai-logo-mark-dark.svg":
+		return true
+	default:
+		return false
+	}
 }
 
 func safeImageURL(value string) string {

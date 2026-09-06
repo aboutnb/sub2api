@@ -3,14 +3,14 @@
     <div class="mx-auto max-w-2xl space-y-6">
       <!-- Current Balance Card -->
       <div class="card overflow-hidden">
-        <div class="bg-gradient-to-br from-primary-500 to-primary-600 px-6 py-8 text-center">
+        <div class="border-b-2 border-ink-strong bg-primary-600 px-6 py-8 text-center dark:border-line">
           <div
-            class="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm"
+            class="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-white bg-white/15 shadow-pixel-sm backdrop-blur-sm"
           >
             <Icon name="creditCard" size="xl" class="text-white" />
           </div>
           <p class="text-sm font-medium text-primary-100">{{ t('redeem.currentBalance') }}</p>
-          <p class="mt-2 text-4xl font-bold text-white">
+          <p class="mt-2 text-3xl font-bold tabular-nums text-white">
             ${{ user?.balance?.toFixed(2) || '0.00' }}
           </p>
           <p class="mt-2 text-sm text-primary-100">
@@ -29,7 +29,7 @@
               </label>
               <div class="relative mt-1">
                 <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                  <Icon name="gift" size="md" class="text-gray-400 dark:text-dark-500" />
+                  <Icon name="gift" size="md" class="text-ink-muted dark:text-ink-muted" />
                 </div>
                 <input
                   id="code"
@@ -209,8 +209,8 @@
 
       <!-- Recent Activity -->
       <div class="card">
-        <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+        <div class="border-b border-line px-6 py-4 dark:border-line">
+          <h2 class="text-lg font-semibold text-ink-strong dark:text-white">
             {{ t('redeem.recentActivity') }}
           </h2>
         </div>
@@ -239,7 +239,7 @@
             <div
               v-for="item in history"
               :key="item.id"
-              class="flex items-center justify-between rounded-xl bg-gray-50 p-4 dark:bg-dark-800"
+              class="flex items-center justify-between rounded-xl bg-surface-muted p-4 dark:bg-surface"
             >
               <div class="flex items-center gap-4">
                 <div
@@ -287,7 +287,7 @@
                   />
                 </div>
                 <div>
-                  <p class="flex flex-wrap items-center gap-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                  <p class="flex flex-wrap items-center gap-1.5 text-sm font-medium text-ink-strong dark:text-white">
                     <span>{{ getHistoryItemTitle(item) }}</span>
                     <span
                       v-if="isLuckyCheckin(item)"
@@ -297,7 +297,7 @@
                       {{ t('checkin.lucky') }}
                     </span>
                   </p>
-                  <p class="text-xs text-gray-500 dark:text-dark-400">
+                  <p class="text-xs text-ink-muted dark:text-ink-muted">
                     {{ formatDateTime(item.used_at) }}
                   </p>
                 </div>
@@ -321,20 +321,20 @@
                 </p>
                 <p
                   v-if="!isAdminAdjustment(item.type) && !isCheckinType(item.type)"
-                  class="font-mono text-xs text-gray-400 dark:text-dark-500"
+                  class="font-mono text-xs text-ink-muted dark:text-ink-muted"
                 >
                   {{ item.code.slice(0, 8) }}...
                 </p>
-                <p v-else-if="isAdminAdjustment(item.type)" class="text-xs text-gray-400 dark:text-dark-500">
+                <p v-else-if="isAdminAdjustment(item.type)" class="text-xs text-ink-muted dark:text-ink-muted">
                   {{ t('redeem.adminAdjustment') }}
                 </p>
-                <p v-else class="text-xs text-gray-400 dark:text-dark-500">
+                <p v-else class="text-xs text-ink-muted dark:text-ink-muted">
                   {{ t('redeem.checkinRecord') }}
                 </p>
                 <!-- Display notes for admin adjustments -->
                 <p
                   v-if="item.notes && !isCheckinType(item.type)"
-                  class="mt-1 text-xs text-gray-500 dark:text-dark-400 italic max-w-[200px] truncate"
+                  class="mt-1 text-xs text-ink-muted dark:text-ink-muted italic max-w-[200px] truncate"
                   :title="item.notes"
                 >
                   {{ item.notes }}
@@ -346,11 +346,11 @@
           <!-- Empty State -->
           <div v-else class="empty-state py-8">
             <div
-              class="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-dark-800"
+              class="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-muted dark:bg-surface"
             >
-              <Icon name="clock" size="xl" class="text-gray-400 dark:text-dark-500" />
+              <Icon name="clock" size="xl" class="text-ink-muted dark:text-ink-muted" />
             </div>
-            <p class="text-sm text-gray-500 dark:text-dark-400">
+            <p class="text-sm text-ink-muted dark:text-ink-muted">
               {{ t('redeem.historyWillAppear') }}
             </p>
           </div>

@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div
-      class="pointer-events-none fixed right-4 top-4 z-[9999] space-y-3"
+      class="pointer-events-none fixed inset-x-3 top-3 z-[9999] space-y-3 sm:left-auto sm:right-4 sm:w-[28rem]"
       aria-live="polite"
       aria-atomic="true"
     >
@@ -16,11 +16,11 @@
         <div
           v-for="toast in toasts"
           :key="toast.id"
+          :role="toast.type === 'error' ? 'alert' : 'status'"
+          aria-atomic="true"
           :class="[
-            'pointer-events-auto min-w-[320px] max-w-md overflow-hidden rounded-lg shadow-lg',
-            'bg-white dark:bg-dark-800',
-            'border-l-4',
-            getBorderColor(toast.type)
+            'toast pointer-events-auto',
+            getToastClass(toast.type)
           ]"
         >
           <div class="p-4">
@@ -37,15 +37,15 @@
 
               <!-- Content -->
               <div class="min-w-0 flex-1">
-                <p v-if="toast.title" class="text-sm font-semibold text-gray-900 dark:text-white">
+                <p v-if="toast.title" class="text-sm font-semibold text-ink-strong dark:text-white">
                   {{ toast.title }}
                 </p>
                 <p
                   :class="[
                     'text-sm leading-relaxed',
                     toast.title
-                      ? 'mt-1 text-gray-600 dark:text-gray-300'
-                      : 'text-gray-900 dark:text-white'
+                      ? 'mt-1 text-ink dark:text-ink-muted'
+                      : 'text-ink-strong dark:text-white'
                   ]"
                 >
                   {{ toast.message }}
@@ -54,8 +54,9 @@
 
               <!-- Close button -->
               <button
+                type="button"
                 @click="removeToast(toast.id)"
-                class="-m-1 flex-shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-dark-700 dark:hover:text-gray-300"
+                class="btn btn-ghost btn-icon -m-2 flex-shrink-0 text-ink-muted dark:text-ink-muted"
                 aria-label="Close notification"
               >
                 <Icon name="x" size="sm" />
@@ -64,7 +65,7 @@
           </div>
 
           <!-- Progress bar -->
-          <div v-if="toast.duration" class="h-1 bg-gray-100 dark:bg-dark-700">
+          <div v-if="toast.duration" class="h-1 bg-surface-muted dark:bg-surface-muted">
             <div
               :class="['h-full toast-progress', getProgressBarColor(toast.type)]"
               :style="{ animationDuration: `${toast.duration}ms` }"
@@ -104,17 +105,17 @@ const getIconColor = (type: string): string => {
     success: 'text-green-500',
     error: 'text-red-500',
     warning: 'text-yellow-500',
-    info: 'text-blue-500'
+    info: 'text-primary-600 dark:text-primary-300'
   }
   return colors[type] || colors.info
 }
 
-const getBorderColor = (type: string): string => {
+const getToastClass = (type: string): string => {
   const colors: Record<string, string> = {
-    success: 'border-green-500',
-    error: 'border-red-500',
-    warning: 'border-yellow-500',
-    info: 'border-blue-500'
+    success: 'toast-success',
+    error: 'toast-error',
+    warning: 'toast-warning',
+    info: 'toast-info'
   }
   return colors[type] || colors.info
 }
@@ -124,7 +125,7 @@ const getProgressBarColor = (type: string): string => {
     success: 'bg-green-500',
     error: 'bg-red-500',
     warning: 'bg-yellow-500',
-    info: 'bg-blue-500'
+    info: 'bg-primary-500'
   }
   return colors[type] || colors.info
 }

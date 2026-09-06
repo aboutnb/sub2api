@@ -1,0 +1,1748 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Aivoza fixed home page
+  This reviewed asset is bundled directly into the frontend at build time.
+  The SITE_LOGO placeholder below is replaced with the official logo from public settings.
+  It is intentionally dependency-free and contains no executable content.
+-->
+<style>
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  .aivoza-home {
+    --av-ink: #172033;
+    --av-ink-soft: #566074;
+    --av-paper: #fffaf4;
+    --av-paper-strong: #ffffff;
+    --av-teal: #2fb9aa;
+    --av-teal-dark: #087c74;
+    --av-teal-soft: #dff8f1;
+    --av-coral: #ff8a5c;
+    --av-coral-dark: #c94f2b;
+    --av-coral-soft: #fff0e8;
+    --av-pink: #ef6f91;
+    --av-yellow: #f7c95c;
+    --av-blue: #5a7ee8;
+    --av-line: #eadfd4;
+    --av-shadow: #26334a;
+    --av-overlay-surface: rgba(255, 255, 255, 0.76);
+    --av-eyebrow-line: #f0d3c2;
+    --av-title-accent: #df693f;
+    --av-proof-pink: #a95072;
+    --av-yellow-soft: #fff7d8;
+    --av-yellow-ink: #8d6913;
+    --av-blue-soft: #eceeff;
+    --av-blue-ink: #4057ad;
+    --av-neutral-soft: #f1f2f5;
+    --av-neutral-ink: #646d7d;
+    --av-index-ink: #bcc1cb;
+    --av-code-surface: #172033;
+    --av-code-ink: #eefef8;
+    --av-code-key: #78e2bd;
+    --av-code-value: #ffb491;
+    --av-code-muted: #8c9bb1;
+    --av-cta-heading: #21150f;
+    --av-cta-copy: #533022;
+    --av-action-dark: #172033;
+    --av-action-on-dark: #ffffff;
+    --av-radius: 18px;
+    min-height: 100vh;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 8% 10%, rgba(255, 138, 92, 0.16), transparent 25rem),
+      radial-gradient(circle at 92% 8%, rgba(47, 185, 170, 0.16), transparent 27rem),
+      var(--av-paper);
+    color: var(--av-ink);
+    font-family: "Avenir Next", "Trebuchet MS", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .dark .aivoza-home {
+    --av-ink: #f7f5f2;
+    --av-ink-soft: #c5c2bd;
+    --av-paper: #0d1422;
+    --av-paper-strong: #172033;
+    --av-teal: #4acbbb;
+    --av-teal-dark: #8cebdd;
+    --av-teal-soft: #183f43;
+    --av-coral: #ff9b73;
+    --av-coral-dark: #ffc1a7;
+    --av-coral-soft: #4a2c28;
+    --av-pink: #ff9ab5;
+    --av-yellow: #f7d67d;
+    --av-blue: #96adff;
+    --av-line: #3b465b;
+    --av-shadow: #050914;
+    --av-overlay-surface: rgba(23, 32, 51, 0.88);
+    --av-eyebrow-line: #654237;
+    --av-title-accent: #ffad88;
+    --av-proof-pink: #ff9ab5;
+    --av-yellow-soft: #3e351d;
+    --av-yellow-ink: #f7d67d;
+    --av-blue-soft: #27304b;
+    --av-blue-ink: #b8c5ff;
+    --av-neutral-soft: #2b3445;
+    --av-neutral-ink: #c1c8d5;
+    --av-index-ink: #9ca7b8;
+    color-scheme: dark;
+  }
+
+  .aivoza-home,
+  .aivoza-home * {
+    box-sizing: border-box;
+  }
+
+  .aivoza-home a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .aivoza-home svg {
+    display: block;
+  }
+
+  .av-skip-link {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 100;
+    padding: 10px 14px;
+    border: 2px solid var(--av-ink);
+    background: var(--av-paper-strong);
+    transform: translateY(-160%);
+  }
+
+  .av-skip-link:focus {
+    transform: translateY(0);
+  }
+
+  .av-shell {
+    width: min(1180px, calc(100% - 40px));
+    margin: 0 auto;
+  }
+
+  .av-header {
+    position: relative;
+    z-index: 10;
+    padding: 22px 0 10px;
+  }
+
+  .av-nav {
+    display: flex;
+    min-height: 64px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 28px;
+  }
+
+  .av-brand {
+    display: inline-flex;
+    min-height: 48px;
+    align-items: center;
+    gap: 12px;
+    font-size: 21px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+  }
+
+  .av-brand-mark {
+    display: block;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+    border-radius: 12px;
+    object-fit: contain;
+    box-shadow: 4px 4px 0 rgba(255, 138, 92, 0.28);
+  }
+
+  .av-nav-links,
+  .av-nav-actions {
+    display: flex;
+    align-items: center;
+  }
+
+  .av-nav-links {
+    gap: 34px;
+    margin-left: auto;
+  }
+
+  .av-nav-link {
+    position: relative;
+    min-height: 44px;
+    padding: 10px 2px;
+    color: var(--av-ink-soft);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .av-nav-link::after {
+    position: absolute;
+    right: 0;
+    bottom: 5px;
+    left: 0;
+    height: 3px;
+    background: var(--av-teal);
+    content: "";
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 180ms ease;
+  }
+
+  .av-nav-link:hover::after,
+  .av-nav-link:focus-visible::after {
+    transform: scaleX(1);
+  }
+
+  .av-nav-actions {
+    gap: 10px;
+  }
+
+  .av-button {
+    display: inline-flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 11px 19px;
+    border: 2px solid var(--av-ink);
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.2;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+  }
+
+  .av-button svg {
+    width: 19px;
+    height: 19px;
+    flex: 0 0 auto;
+    stroke-width: 2.25;
+  }
+
+  .av-button-primary {
+    background: var(--av-coral);
+    box-shadow: 5px 5px 0 rgba(23, 32, 51, 0.28);
+    color: #27170f;
+  }
+
+  .av-button-primary:hover {
+    background: #ff9b73;
+    box-shadow: 3px 3px 0 rgba(23, 32, 51, 0.28);
+    transform: translate(2px, 2px);
+  }
+
+  .av-button-secondary {
+    background: var(--av-paper-strong);
+    box-shadow: 5px 5px 0 rgba(47, 185, 170, 0.26);
+    color: var(--av-teal-dark);
+  }
+
+  .av-button-secondary:hover {
+    background: var(--av-teal-soft);
+    box-shadow: 3px 3px 0 rgba(47, 185, 170, 0.26);
+    transform: translate(2px, 2px);
+  }
+
+  .aivoza-home a:focus-visible,
+  .aivoza-home summary:focus-visible {
+    outline: 4px solid var(--av-yellow);
+    outline-offset: 3px;
+  }
+
+  .av-hero {
+    position: relative;
+    display: grid;
+    min-height: 590px;
+    grid-template-columns: minmax(0, 0.94fr) minmax(420px, 1.06fr);
+    align-items: center;
+    gap: clamp(42px, 6vw, 76px);
+    padding: 48px 0 72px;
+  }
+
+  .av-hero::before,
+  .av-hero::after {
+    position: absolute;
+    z-index: 0;
+    width: 10px;
+    height: 10px;
+    background: var(--av-yellow);
+    box-shadow:
+      14px 0 var(--av-yellow),
+      28px 0 var(--av-coral),
+      0 14px var(--av-teal),
+      28px 14px var(--av-teal),
+      14px 28px var(--av-pink);
+    content: "";
+    opacity: 0.7;
+  }
+
+  .av-hero::before {
+    top: 38px;
+    left: -54px;
+  }
+
+  .av-hero::after {
+    right: -34px;
+    bottom: 74px;
+    transform: rotate(90deg);
+  }
+
+  .av-hero-copy,
+  .av-hero-visual {
+    position: relative;
+    z-index: 1;
+  }
+
+  .av-eyebrow {
+    display: inline-flex;
+    min-height: 40px;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 13px;
+    border: 2px solid var(--av-eyebrow-line);
+    border-radius: 999px;
+    background: var(--av-overlay-surface);
+    color: var(--av-coral-dark);
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+  }
+
+  .av-status-dot {
+    width: 10px;
+    height: 10px;
+    background: var(--av-teal);
+    box-shadow: 0 0 0 4px rgba(47, 185, 170, 0.16);
+  }
+
+  .av-title {
+    max-width: 610px;
+    margin: 24px 0 19px;
+    color: var(--av-ink);
+    font-size: clamp(34px, 3.4vw, 40px);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 1.18;
+    text-wrap: balance;
+  }
+
+  .av-title-accent {
+    color: var(--av-title-accent);
+    text-shadow: 2px 2px 0 rgba(239, 111, 145, 0.16);
+  }
+
+  .av-lede {
+    max-width: 610px;
+    margin: 0;
+    color: var(--av-ink-soft);
+    font-size: clamp(16px, 1.35vw, 18px);
+    line-height: 1.75;
+  }
+
+  .av-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 34px;
+  }
+
+  .av-proof-row {
+    display: grid;
+    max-width: 560px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    margin-top: 48px;
+  }
+
+  .av-proof {
+    padding: 0 18px;
+    border-right: 1px solid var(--av-line);
+  }
+
+  .av-proof:first-child {
+    padding-left: 0;
+  }
+
+  .av-proof:last-child {
+    border-right: 0;
+  }
+
+  .av-proof strong {
+    display: block;
+    color: var(--av-teal-dark);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 23px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 1.25;
+  }
+
+  .av-proof:nth-child(2) strong {
+    color: var(--av-coral-dark);
+  }
+
+  .av-proof:nth-child(3) strong {
+    color: var(--av-proof-pink);
+  }
+
+  .av-proof span {
+    display: block;
+    margin-top: 4px;
+    color: var(--av-ink-soft);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .av-visual-backdrop {
+    position: absolute;
+    inset: -40px -44px -50px -38px;
+    z-index: -1;
+    border-radius: 45% 55% 46% 54%;
+    background: linear-gradient(145deg, rgba(47, 185, 170, 0.18), rgba(255, 138, 92, 0.17));
+    filter: blur(1px);
+    transform: rotate(-3deg);
+  }
+
+  .av-terminal-frame {
+    position: relative;
+    padding: 17px;
+    border: 3px solid var(--av-ink);
+    border-radius: 28px;
+    background: var(--av-paper-strong);
+    box-shadow: 10px 10px 0 rgba(23, 32, 51, 0.14);
+  }
+
+  .av-terminal {
+    min-height: 396px;
+    overflow: hidden;
+    border: 3px solid var(--av-ink);
+    border-radius: 18px;
+    background: #172033;
+    color: #ecfff9;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  }
+
+  .av-terminal-topbar {
+    display: flex;
+    height: 53px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 17px;
+    border-bottom: 2px solid #33415c;
+    background: #202b41;
+  }
+
+  .av-window-dots {
+    display: flex;
+    gap: 9px;
+  }
+
+  .av-window-dots i {
+    width: 11px;
+    height: 11px;
+    background: var(--av-coral);
+  }
+
+  .av-window-dots i:nth-child(2) {
+    background: var(--av-yellow);
+  }
+
+  .av-window-dots i:nth-child(3) {
+    background: var(--av-teal);
+  }
+
+  .av-terminal-title {
+    color: #aab7cb;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .av-terminal-body {
+    padding: 30px 29px;
+    font-size: clamp(12px, 1.25vw, 15px);
+    line-height: 1.85;
+  }
+
+  .av-terminal-line {
+    display: flex;
+    min-width: 0;
+    gap: 11px;
+    margin: 0 0 9px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .av-terminal-line.muted {
+    color: #90a0b8;
+  }
+
+  .av-terminal-line.success {
+    color: #71e1bc;
+  }
+
+  .av-terminal-line.response {
+    margin-top: 23px;
+    padding: 14px 16px;
+    border-left: 4px solid var(--av-teal);
+    background: #202d43;
+    color: #f8f1cf;
+  }
+
+  .av-prompt {
+    flex: 0 0 auto;
+    color: var(--av-coral);
+    font-weight: 900;
+  }
+
+  .av-cursor {
+    display: inline-block;
+    width: 9px;
+    height: 17px;
+    margin-left: 4px;
+    background: var(--av-teal);
+    vertical-align: -3px;
+    animation: av-blink 1.05s steps(2, end) infinite;
+  }
+
+  .av-float-card {
+    position: absolute;
+    z-index: 3;
+    display: flex;
+    min-width: 152px;
+    align-items: center;
+    gap: 11px;
+    padding: 12px 14px;
+    border: 2px solid var(--av-ink);
+    border-radius: 16px;
+    background: var(--av-paper-strong);
+    box-shadow: 6px 6px 0 rgba(23, 32, 51, 0.15);
+    animation: av-float 4.8s ease-in-out infinite;
+  }
+
+  .av-float-card-route {
+    top: -20px;
+    left: -28px;
+  }
+
+  .av-float-card-response {
+    right: -33px;
+    bottom: -24px;
+    animation-delay: -2.4s;
+  }
+
+  .av-float-icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 11px;
+    background: var(--av-teal-soft);
+    color: var(--av-teal-dark);
+  }
+
+  .av-float-card-response .av-float-icon {
+    background: var(--av-coral-soft);
+    color: var(--av-coral-dark);
+  }
+
+  .av-float-icon svg {
+    width: 23px;
+    height: 23px;
+    stroke-width: 2;
+  }
+
+  .av-float-copy strong,
+  .av-float-copy span {
+    display: block;
+  }
+
+  .av-float-copy strong {
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .av-float-copy span {
+    margin-top: 2px;
+    color: var(--av-ink-soft);
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+  }
+
+  .av-value-strip {
+    position: relative;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    overflow: hidden;
+    margin-top: -2px;
+    border: 3px solid var(--av-ink);
+    border-radius: 20px;
+    background: var(--av-paper-strong);
+    box-shadow: 8px 8px 0 rgba(47, 185, 170, 0.2);
+  }
+
+  .av-value {
+    display: flex;
+    min-height: 96px;
+    align-items: center;
+    gap: 13px;
+    padding: 20px 22px;
+    border-right: 2px dashed var(--av-line);
+  }
+
+  .av-value:last-child {
+    border-right: 0;
+  }
+
+  .av-value-icon {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 2px solid var(--av-ink);
+    background: var(--av-teal-soft);
+  }
+
+  .av-value:nth-child(2) .av-value-icon {
+    background: var(--av-coral-soft);
+  }
+
+  .av-value:nth-child(3) .av-value-icon {
+    background: var(--av-yellow-soft);
+  }
+
+  .av-value:nth-child(4) .av-value-icon {
+    background: var(--av-blue-soft);
+  }
+
+  .av-value-icon svg {
+    width: 21px;
+    height: 21px;
+    stroke-width: 2;
+  }
+
+  .av-value strong,
+  .av-value span {
+    display: block;
+  }
+
+  .av-value strong {
+    font-size: 14px;
+  }
+
+  .av-value span {
+    margin-top: 2px;
+    color: var(--av-ink-soft);
+    font-size: 12px;
+  }
+
+  .av-section {
+    padding: 92px 0;
+  }
+
+  .av-section-soft {
+    position: relative;
+    background: var(--av-paper-strong);
+  }
+
+  .av-section-soft::before,
+  .av-section-soft::after {
+    position: absolute;
+    right: 0;
+    left: 0;
+    height: 14px;
+    background: linear-gradient(90deg, var(--av-teal) 0 12.5%, transparent 12.5% 25%, var(--av-coral) 25% 37.5%, transparent 37.5% 50%, var(--av-yellow) 50% 62.5%, transparent 62.5% 75%, var(--av-pink) 75% 87.5%, transparent 87.5%);
+    background-size: 112px 14px;
+    content: "";
+    opacity: 0.18;
+  }
+
+  .av-section-soft::before {
+    top: 0;
+  }
+
+  .av-section-soft::after {
+    bottom: 0;
+  }
+
+  .av-section-heading {
+    max-width: 680px;
+    margin: 0 auto 46px;
+    text-align: center;
+  }
+
+  .av-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 13px;
+    color: var(--av-teal-dark);
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .av-kicker::before {
+    width: 9px;
+    height: 9px;
+    background: var(--av-coral);
+    box-shadow: 12px 0 var(--av-teal);
+    content: "";
+  }
+
+  .av-section-title {
+    margin: 0;
+    color: var(--av-ink);
+    font-size: clamp(29px, 3.2vw, 40px);
+    font-weight: 900;
+    letter-spacing: -0.035em;
+    line-height: 1.24;
+    text-wrap: balance;
+  }
+
+  .av-section-desc {
+    max-width: 660px;
+    margin: 17px auto 0;
+    color: var(--av-ink-soft);
+    font-size: 17px;
+  }
+
+  .av-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .av-feature-card {
+    position: relative;
+    min-height: 310px;
+    padding: 30px 28px 27px;
+    border: 3px solid var(--av-ink);
+    border-radius: var(--av-radius);
+    background: var(--av-paper-strong);
+    box-shadow: 8px 8px 0 rgba(23, 32, 51, 0.12);
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .av-feature-card:nth-child(2) {
+    box-shadow: 8px 8px 0 rgba(47, 185, 170, 0.25);
+  }
+
+  .av-feature-card:nth-child(3) {
+    box-shadow: 8px 8px 0 rgba(255, 138, 92, 0.25);
+  }
+
+  .av-feature-card:hover {
+    box-shadow: 4px 4px 0 rgba(23, 32, 51, 0.18);
+    transform: translate(4px, 4px);
+  }
+
+  .av-feature-index {
+    position: absolute;
+    top: 23px;
+    right: 23px;
+    color: var(--av-index-ink);
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .av-feature-icon {
+    display: grid;
+    width: 58px;
+    height: 58px;
+    margin-bottom: 26px;
+    place-items: center;
+    border: 3px solid var(--av-ink);
+    border-radius: 14px;
+    background: var(--av-teal-soft);
+    box-shadow: 4px 4px 0 var(--av-teal);
+  }
+
+  .av-feature-card:nth-child(2) .av-feature-icon {
+    background: var(--av-yellow-soft);
+    box-shadow: 4px 4px 0 var(--av-yellow);
+  }
+
+  .av-feature-card:nth-child(3) .av-feature-icon {
+    background: var(--av-coral-soft);
+    box-shadow: 4px 4px 0 var(--av-coral);
+  }
+
+  .av-feature-icon svg {
+    width: 29px;
+    height: 29px;
+    stroke-width: 2;
+  }
+
+  .av-feature-card h3 {
+    margin: 0;
+    font-size: 23px;
+    font-weight: 950;
+    letter-spacing: -0.025em;
+  }
+
+  .av-feature-card p {
+    margin: 13px 0 0;
+    color: var(--av-ink-soft);
+    font-size: 15px;
+    line-height: 1.75;
+  }
+
+  .av-models-layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
+    align-items: center;
+    gap: clamp(50px, 8vw, 105px);
+  }
+
+  .av-models-copy .av-section-title {
+    max-width: 470px;
+  }
+
+  .av-models-copy p {
+    max-width: 500px;
+    margin: 20px 0 0;
+    color: var(--av-ink-soft);
+    font-size: 17px;
+  }
+
+  .av-models-copy .av-button {
+    margin-top: 31px;
+  }
+
+  .av-model-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+
+  .av-model-card {
+    display: flex;
+    min-height: 118px;
+    align-items: center;
+    gap: 16px;
+    padding: 21px;
+    border: 3px solid var(--av-ink);
+    border-radius: 18px;
+    background: var(--av-paper-strong);
+    box-shadow: 6px 6px 0 rgba(23, 32, 51, 0.11);
+  }
+
+  .av-model-card:nth-child(2) {
+    transform: translateY(20px);
+  }
+
+  .av-model-card:nth-child(3) {
+    transform: translateY(-4px);
+  }
+
+  .av-model-card:nth-child(4) {
+    transform: translateY(16px);
+  }
+
+  .av-model-card:nth-child(5) {
+    grid-column: 1 / -1;
+    width: calc(50% - 9px);
+    margin: 0 auto;
+    transform: translateY(4px);
+  }
+
+  .av-model-pixel {
+    display: grid;
+    width: 54px;
+    height: 54px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 3px solid var(--av-ink);
+    background: var(--av-coral-soft);
+    color: var(--av-coral-dark);
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 22px;
+    font-weight: 900;
+    box-shadow: inset 5px 5px 0 rgba(255,255,255,0.55);
+  }
+
+  .av-model-card:nth-child(2) .av-model-pixel {
+    background: var(--av-teal-soft);
+    color: var(--av-teal-dark);
+  }
+
+  .av-model-card:nth-child(3) .av-model-pixel {
+    background: var(--av-blue-soft);
+    color: var(--av-blue-ink);
+  }
+
+  .av-model-card:nth-child(4) .av-model-pixel {
+    background: var(--av-yellow-soft);
+    color: var(--av-yellow-ink);
+  }
+
+  .av-model-card:nth-child(5) .av-model-pixel {
+    background: var(--av-neutral-soft);
+    color: var(--av-neutral-ink);
+  }
+
+  .av-model-copy {
+    min-width: 0;
+  }
+
+  .av-model-copy strong,
+  .av-model-copy span {
+    display: block;
+  }
+
+  .av-model-copy strong {
+    font-size: 17px;
+    font-weight: 900;
+  }
+
+  .av-model-copy span {
+    margin-top: 4px;
+    color: var(--av-teal-dark);
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+  }
+
+  .av-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+    counter-reset: av-step;
+  }
+
+  .av-step {
+    position: relative;
+    padding: 31px 27px 29px;
+    border: 3px solid var(--av-ink);
+    border-radius: 18px;
+    background: var(--av-paper);
+    counter-increment: av-step;
+  }
+
+  .av-step::before {
+    display: grid;
+    width: 43px;
+    height: 43px;
+    margin-bottom: 25px;
+    place-items: center;
+    border: 2px solid var(--av-ink);
+    background: var(--av-coral);
+    box-shadow: 4px 4px 0 rgba(23,32,51,0.2);
+    content: "0" counter(av-step);
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .av-step:not(:last-child)::after {
+    position: absolute;
+    top: 50px;
+    right: -24px;
+    z-index: 2;
+    width: 23px;
+    height: 4px;
+    background: var(--av-ink);
+    box-shadow: 9px -7px 0 -1px var(--av-ink), 9px 7px 0 -1px var(--av-ink);
+    content: "";
+  }
+
+  .av-step h3 {
+    margin: 0;
+    font-size: 21px;
+    font-weight: 950;
+  }
+
+  .av-step p {
+    margin: 11px 0 0;
+    color: var(--av-ink-soft);
+    font-size: 15px;
+  }
+
+  .av-code-panel {
+    display: grid;
+    grid-template-columns: 0.85fr 1.15fr;
+    gap: 48px;
+    margin-top: 70px;
+    padding: 42px;
+    border: 3px solid var(--av-ink);
+    border-radius: 24px;
+    background: var(--av-teal-soft);
+    box-shadow: 9px 9px 0 rgba(23,32,51,0.13);
+  }
+
+  .av-code-copy {
+    align-self: center;
+  }
+
+  .av-code-copy strong {
+    display: block;
+    font-size: 27px;
+    font-weight: 950;
+    line-height: 1.25;
+  }
+
+  .av-code-copy p {
+    margin: 14px 0 0;
+    color: var(--av-ink-soft);
+  }
+
+  .av-code {
+    min-width: 0;
+    overflow-x: auto;
+    padding: 22px;
+    border: 3px solid var(--av-ink);
+    border-radius: 15px;
+    background: var(--av-code-surface);
+    color: var(--av-code-ink);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    white-space: pre;
+  }
+
+  .av-code .key {
+    color: var(--av-code-key);
+  }
+
+  .av-code .value {
+    color: var(--av-code-value);
+  }
+
+  .av-code .muted {
+    color: var(--av-code-muted);
+  }
+
+  .av-cta-wrap {
+    padding: 84px 0;
+  }
+
+  .av-cta {
+    position: relative;
+    overflow: hidden;
+    padding: 58px 36px;
+    border: 3px solid var(--av-ink);
+    border-radius: 30px;
+    background: var(--av-coral);
+    box-shadow: 11px 11px 0 rgba(23,32,51,0.18);
+    text-align: center;
+  }
+
+  .av-cta::before,
+  .av-cta::after {
+    position: absolute;
+    width: 88px;
+    height: 88px;
+    background:
+      linear-gradient(90deg, var(--av-ink) 25%, transparent 25% 75%, var(--av-ink) 75%) 0 0 / 32px 32px,
+      linear-gradient(var(--av-ink) 25%, transparent 25% 75%, var(--av-ink) 75%) 0 0 / 32px 32px;
+    content: "";
+    opacity: 0.12;
+  }
+
+  .av-cta::before {
+    top: 20px;
+    left: 28px;
+  }
+
+  .av-cta::after {
+    right: 28px;
+    bottom: 20px;
+  }
+
+  .av-cta h2 {
+    position: relative;
+    z-index: 1;
+    max-width: 620px;
+    margin: 0 auto;
+    color: var(--av-cta-heading);
+    font-size: clamp(29px, 3.4vw, 40px);
+    font-weight: 900;
+    letter-spacing: -0.035em;
+    line-height: 1.22;
+    text-wrap: balance;
+  }
+
+  .av-cta p {
+    position: relative;
+    z-index: 1;
+    max-width: 620px;
+    margin: 18px auto 0;
+    color: var(--av-cta-copy);
+    font-size: 17px;
+  }
+
+  .av-cta .av-button {
+    position: relative;
+    z-index: 1;
+    margin-top: 30px;
+    background: var(--av-action-dark);
+    box-shadow: 6px 6px 0 rgba(255,255,255,0.5);
+    color: var(--av-action-on-dark);
+  }
+
+  .av-cta .av-button:hover {
+    box-shadow: 3px 3px 0 rgba(255,255,255,0.5);
+    transform: translate(3px, 3px);
+  }
+
+  .av-footer {
+    padding: 0 0 36px;
+  }
+
+  .av-footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding-top: 30px;
+    border-top: 2px solid var(--av-line);
+    color: var(--av-ink-soft);
+    font-size: 13px;
+  }
+
+  .av-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+  }
+
+  .av-footer a {
+    min-height: 40px;
+    padding: 8px 0;
+    font-weight: 800;
+  }
+
+  .av-footer a:hover {
+    color: var(--av-teal-dark);
+  }
+
+  .av-reveal {
+    animation: av-reveal 560ms cubic-bezier(.2,.8,.2,1) both;
+  }
+
+  .av-hero-visual.av-reveal {
+    animation-delay: 100ms;
+  }
+
+  .av-value-strip.av-reveal {
+    animation-delay: 180ms;
+  }
+
+  @keyframes av-reveal {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes av-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  @keyframes av-blink {
+    0%, 46% { opacity: 1; }
+    47%, 100% { opacity: 0; }
+  }
+
+  @media (max-width: 1020px) {
+    .av-nav-links {
+      gap: 20px;
+    }
+
+    .av-hero {
+      grid-template-columns: 1fr;
+      gap: 62px;
+      padding-top: 46px;
+    }
+
+    .av-hero-copy {
+      max-width: 760px;
+    }
+
+    .av-hero-visual {
+      width: min(700px, 92%);
+      margin: 0 auto;
+    }
+
+    .av-value-strip {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .av-value:nth-child(2) {
+      border-right: 0;
+    }
+
+    .av-value:nth-child(-n+2) {
+      border-bottom: 2px dashed var(--av-line);
+    }
+
+    .av-feature-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .av-feature-card {
+      min-height: 0;
+    }
+
+    .av-models-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .av-models-copy {
+      text-align: center;
+    }
+
+    .av-models-copy .av-section-title,
+    .av-models-copy p {
+      margin-right: auto;
+      margin-left: auto;
+    }
+
+    .av-code-panel {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .av-shell {
+      width: min(100% - 28px, 1180px);
+    }
+
+    .av-header {
+      padding-top: 14px;
+    }
+
+    .av-nav {
+      min-height: 58px;
+      gap: 12px;
+    }
+
+    .av-brand {
+      font-size: 17px;
+    }
+
+    .av-brand-mark {
+      width: 38px;
+      height: 38px;
+    }
+
+    .av-nav-links {
+      display: none;
+    }
+
+    .av-nav-actions .av-button {
+      min-height: 44px;
+      padding: 10px 13px;
+      font-size: 13px;
+    }
+
+    .av-nav-actions .av-button svg {
+      display: none;
+    }
+
+    .av-hero {
+      min-height: auto;
+      gap: 58px;
+      padding: 46px 0 66px;
+    }
+
+    .av-title {
+      font-size: clamp(32px, 9.6vw, 39px);
+      line-height: 1.22;
+    }
+
+    .av-lede {
+      font-size: 17px;
+    }
+
+    .av-hero-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    .av-button {
+      width: 100%;
+      min-height: 52px;
+    }
+
+    .av-proof-row {
+      grid-template-columns: 1fr;
+      gap: 17px;
+      margin-top: 38px;
+    }
+
+    .av-proof {
+      padding: 0 0 16px;
+      border-right: 0;
+      border-bottom: 1px solid var(--av-line);
+    }
+
+    .av-proof:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .av-terminal-frame {
+      padding: 10px;
+      border-radius: 20px;
+      box-shadow: 7px 7px 0 rgba(23,32,51,0.14);
+    }
+
+    .av-terminal {
+      min-height: 330px;
+      border-radius: 13px;
+    }
+
+    .av-terminal-body {
+      padding: 24px 17px;
+      font-size: 11px;
+    }
+
+    .av-float-card {
+      min-width: 136px;
+      padding: 9px 10px;
+    }
+
+    .av-float-card-route {
+      top: -29px;
+      left: -4px;
+    }
+
+    .av-float-card-response {
+      right: -4px;
+      bottom: -28px;
+    }
+
+    .av-float-icon {
+      width: 34px;
+      height: 34px;
+    }
+
+    .av-value-strip {
+      grid-template-columns: 1fr;
+    }
+
+    .av-value,
+    .av-value:nth-child(2) {
+      min-height: 84px;
+      border-right: 0;
+      border-bottom: 2px dashed var(--av-line);
+    }
+
+    .av-value:last-child {
+      border-bottom: 0;
+    }
+
+    .av-section {
+      padding: 72px 0;
+    }
+
+    .av-section-heading {
+      margin-bottom: 40px;
+    }
+
+    .av-feature-card {
+      padding: 26px 23px;
+    }
+
+    .av-model-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .av-model-card,
+    .av-model-card:nth-child(2),
+    .av-model-card:nth-child(3),
+    .av-model-card:nth-child(4),
+    .av-model-card:nth-child(5) {
+      width: 100%;
+      margin: 0;
+      transform: none;
+    }
+
+    .av-model-card:nth-child(5) {
+      grid-column: auto;
+    }
+
+    .av-steps {
+      grid-template-columns: 1fr;
+    }
+
+    .av-step:not(:last-child)::after {
+      top: auto;
+      right: 50%;
+      bottom: -23px;
+      width: 4px;
+      height: 22px;
+      box-shadow: -7px 9px 0 -1px var(--av-ink), 7px 9px 0 -1px var(--av-ink);
+    }
+
+    .av-code-panel {
+      gap: 28px;
+      margin-top: 48px;
+      padding: 24px;
+    }
+
+    .av-code {
+      font-size: 11px;
+    }
+
+    .av-cta-wrap {
+      padding: 70px 0;
+    }
+
+    .av-cta {
+      padding: 48px 22px;
+      border-radius: 22px;
+    }
+
+    .av-footer-inner {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .aivoza-home *,
+    .aivoza-home *::before,
+    .aivoza-home *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    .av-cursor {
+      opacity: 1;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .av-button,
+    .av-brand-mark,
+    .av-terminal-frame,
+    .av-terminal,
+    .av-float-card,
+    .av-value-strip,
+    .av-feature-card,
+    .av-model-card,
+    .av-step,
+    .av-code-panel,
+    .av-cta {
+      box-shadow: none;
+    }
+  }
+</style>
+
+<div class="aivoza-home">
+  <a class="av-skip-link" href="#av-main">跳至主要内容</a>
+
+  <header class="av-header">
+    <nav class="av-shell av-nav" aria-label="主导航">
+      <a class="av-brand" href="/home" aria-label="Aivoza 首页">
+        <img
+          class="av-brand-mark"
+          src="{{SITE_LOGO}}"
+          width="42"
+          height="42"
+          alt=""
+          aria-hidden="true"
+        >
+        <span>AIVOZA</span>
+      </a>
+
+      <div class="av-nav-links">
+        <a class="av-nav-link" href="#av-features">核心能力</a>
+        <a class="av-nav-link" href="#av-models">支持模型</a>
+        <a class="av-nav-link" href="#av-quickstart">快速接入</a>
+      </div>
+
+      <div class="av-nav-actions">
+        <a class="av-button av-button-primary" href="/login">
+          进入控制台
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6"/>
+          </svg>
+        </a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="av-main">
+    <section class="av-shell av-hero" aria-labelledby="av-hero-title">
+      <div class="av-hero-copy av-reveal">
+        <div class="av-eyebrow">
+          <span class="av-status-dot" aria-hidden="true"></span>
+          AI API 网关已就绪
+        </div>
+
+        <h1 class="av-title" id="av-hero-title">
+          一个 API，<span class="av-title-accent">统一调用</span>多种 AI 模型
+        </h1>
+
+        <p class="av-lede">
+          一个 API 密钥，统一调用 Claude、GPT、Gemini 等模型。Aivoza 自动完成上游调度、会话保持与用量统计，让接入更简单，运行更稳定。
+        </p>
+
+        <div class="av-hero-actions">
+          <a class="av-button av-button-primary" href="/login">
+            开始使用
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6"/>
+            </svg>
+          </a>
+          <a class="av-button av-button-secondary" href="#av-quickstart">
+            查看接入方式
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8 9l3 3-3 3M13 15h3"/>
+              <rect x="3" y="4" width="18" height="16" rx="2"/>
+            </svg>
+          </a>
+        </div>
+
+        <div class="av-proof-row" aria-label="平台优势">
+          <div class="av-proof">
+            <strong>1 API</strong>
+            <span>统一接入入口</span>
+          </div>
+          <div class="av-proof">
+            <strong>Multi</strong>
+            <span>多上游智能调度</span>
+          </div>
+          <div class="av-proof">
+            <strong>Usage</strong>
+            <span>按实际用量计费</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="av-hero-visual av-reveal" aria-label="Aivoza API 请求示意">
+        <div class="av-visual-backdrop" aria-hidden="true"></div>
+
+        <div class="av-float-card av-float-card-route" aria-hidden="true">
+          <span class="av-float-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="miter">
+              <path d="M5 7h8M13 7l-3-3M13 7l-3 3M19 17h-8M11 17l3-3M11 17l3 3"/>
+            </svg>
+          </span>
+          <span class="av-float-copy">
+            <strong>智能路由</strong>
+            <span>UPSTREAM / OK</span>
+          </span>
+        </div>
+
+        <div class="av-terminal-frame">
+          <div class="av-terminal">
+            <div class="av-terminal-topbar">
+              <span class="av-window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="av-terminal-title">Aivoza Terminal</span>
+            </div>
+            <div class="av-terminal-body" aria-hidden="true">
+              <p class="av-terminal-line"><span class="av-prompt">$</span><span>curl -X POST /v1/messages</span></p>
+              <p class="av-terminal-line muted"><span class="av-prompt">&gt;</span><span>model: claude-sonnet</span></p>
+              <p class="av-terminal-line muted"><span class="av-prompt">&gt;</span><span>stream: true</span></p>
+              <p class="av-terminal-line success"><span class="av-prompt">#</span><span>routing to healthy upstream...</span></p>
+              <p class="av-terminal-line response"><span>200 OK&nbsp;&nbsp;{ "content": "Hello!" }</span></p>
+              <p class="av-terminal-line"><span class="av-prompt">$</span><span>ready<span class="av-cursor"></span></span></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="av-float-card av-float-card-response" aria-hidden="true">
+          <span class="av-float-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="miter">
+              <path d="M5 12l4 4L19 6"/>
+            </svg>
+          </span>
+          <span class="av-float-copy">
+            <strong>请求成功</strong>
+            <span>STATUS / 200</span>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <div class="av-shell av-value-strip av-reveal" aria-label="平台能力摘要">
+      <div class="av-value">
+        <span class="av-value-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="miter"><path d="M4 7h16v10H4zM8 4v3M16 4v3M8 17v3M16 17v3"/></svg>
+        </span>
+        <span><strong>一键接入</strong><span>兼容主流接口</span></span>
+      </div>
+      <div class="av-value">
+        <span class="av-value-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="miter"><path d="M4 12a8 8 0 1 0 8-8M4 4v6h6"/></svg>
+        </span>
+        <span><strong>会话保持</strong><span>上下文自然延续</span></span>
+      </div>
+      <div class="av-value">
+        <span class="av-value-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="miter"><path d="M5 19V9M12 19V5M19 19v-7"/></svg>
+        </span>
+        <span><strong>透明用量</strong><span>额度清晰可控</span></span>
+      </div>
+      <div class="av-value">
+        <span class="av-value-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="miter"><path d="M12 3l7 4v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V7l7-4zM9 12l2 2 4-5"/></svg>
+        </span>
+        <span><strong>稳定调度</strong><span>上游自动切换</span></span>
+      </div>
+    </div>
+
+    <section class="av-section av-section-soft" id="av-features" aria-labelledby="av-feature-title">
+      <div class="av-shell">
+        <div class="av-section-heading">
+          <div class="av-kicker">Core Features</div>
+          <h2 class="av-section-title" id="av-feature-title">统一接口，稳定连接多种 AI 模型</h2>
+          <p class="av-section-desc">从第一次请求到团队用量管理，Aivoza 把分散的模型能力收进一个清晰、可靠的入口。</p>
+        </div>
+
+        <div class="av-feature-grid">
+          <article class="av-feature-card">
+            <span class="av-feature-index">01</span>
+            <span class="av-feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="miter"><path d="M5 5h5v5H5zM14 14h5v5h-5zM14 5h5v5h-5zM5 14h5v5H5zM10 7h4M7 10v4M17 10v4M10 17h4"/></svg>
+            </span>
+            <h3>统一 API，少写重复代码</h3>
+            <p>获取一个 API 密钥，即可调用所有已接入模型。减少多套 SDK、鉴权和账单带来的维护成本。</p>
+          </article>
+
+          <article class="av-feature-card">
+            <span class="av-feature-index">02</span>
+            <span class="av-feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="miter"><path d="M4 12h4l2-5 4 10 2-5h4M4 5v14h16"/></svg>
+            </span>
+            <h3>智能调度，稳定响应</h3>
+            <p>多个上游账号自动切换和负载均衡。健康状态实时参与调度，让单点波动不再打断工作流。</p>
+          </article>
+
+          <article class="av-feature-card">
+            <span class="av-feature-index">03</span>
+            <span class="av-feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="miter"><path d="M4 6h16v12H4zM7 10h5M7 14h3M16 10v4"/></svg>
+            </span>
+            <h3>按量计费，用量透明</h3>
+            <p>按实际使用量计费，支持额度控制与团队用量查看。每一次调用都清晰可追踪，更容易管理成本。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="av-section" id="av-models" aria-labelledby="av-model-title">
+      <div class="av-shell av-models-layout">
+        <div class="av-models-copy">
+          <div class="av-kicker">Model Hub</div>
+          <h2 class="av-section-title" id="av-model-title">已支持的 AI 模型</h2>
+          <p>在同一套调用方式中选择合适的模型，让产品更灵活，也让不同任务各得其所。</p>
+          <a class="av-button av-button-secondary" href="/login">
+            查看可用模型
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+
+        <div class="av-model-grid" aria-label="已支持的模型平台">
+          <div class="av-model-card">
+            <span class="av-model-pixel" aria-hidden="true">C</span>
+            <span class="av-model-copy"><strong>Claude</strong><span>SUPPORTED</span></span>
+          </div>
+          <div class="av-model-card">
+            <span class="av-model-pixel" aria-hidden="true">G</span>
+            <span class="av-model-copy"><strong>GPT</strong><span>SUPPORTED</span></span>
+          </div>
+          <div class="av-model-card">
+            <span class="av-model-pixel" aria-hidden="true">G</span>
+            <span class="av-model-copy"><strong>Gemini</strong><span>SUPPORTED</span></span>
+          </div>
+          <div class="av-model-card">
+            <span class="av-model-pixel" aria-hidden="true">A</span>
+            <span class="av-model-copy"><strong>Antigravity</strong><span>SUPPORTED</span></span>
+          </div>
+          <div class="av-model-card">
+            <span class="av-model-pixel" aria-hidden="true">+</span>
+            <span class="av-model-copy"><strong>更多模型</strong><span>COMING SOON</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="av-section av-section-soft" id="av-quickstart" aria-labelledby="av-quickstart-title">
+      <div class="av-shell">
+        <div class="av-section-heading">
+          <div class="av-kicker">Quick Start</div>
+          <h2 class="av-section-title" id="av-quickstart-title">三步完成接入</h2>
+          <p class="av-section-desc">把时间花在产品上，而不是重复配置不同模型供应商。</p>
+        </div>
+
+        <div class="av-steps">
+          <article class="av-step">
+            <h3>创建账号</h3>
+            <p>登录 Aivoza 控制台，完成基础账户设置。</p>
+          </article>
+          <article class="av-step">
+            <h3>获取密钥</h3>
+            <p>创建 API 密钥，并为不同项目设置独立额度。</p>
+          </article>
+          <article class="av-step">
+            <h3>发送请求</h3>
+            <p>替换请求地址与密钥，即可开始调用模型。</p>
+          </article>
+        </div>
+
+        <div class="av-code-panel">
+          <div class="av-code-copy">
+            <strong>熟悉的请求方式，更少的接入负担</strong>
+            <p>保留已有开发习惯，用统一入口连接所需模型。</p>
+          </div>
+          <div class="av-code" role="img" aria-label="Aivoza API curl 请求示例"><span class="muted">curl</span> https://aivoza.com/v1/messages \
+  -H <span class="value">"Authorization: Bearer $AIVOZA_API_KEY"</span> \
+  -H <span class="value">"Content-Type: application/json"</span> \
+  -d <span class="value">'{</span>
+    <span class="key">"model"</span>: <span class="value">"claude-sonnet"</span>,
+    <span class="key">"messages"</span>: [<span class="value">...</span>]
+  <span class="value">}'</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="av-shell av-cta-wrap" aria-labelledby="av-cta-title">
+      <div class="av-cta">
+        <h2 id="av-cta-title">从一个 API 开始调用多种模型</h2>
+        <p>从一个 API 密钥开始，把多个模型带进你的下一次构建。</p>
+        <a class="av-button" href="/login">
+          进入 Aivoza 控制台
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="av-footer">
+    <div class="av-shell av-footer-inner">
+      <div>
+        <strong>AIVOZA</strong><br>
+        <span>AI Runtime &amp; Workflow Gateway</span>
+      </div>
+      <div class="av-footer-links">
+        <a href="#av-features">核心能力</a>
+        <a href="#av-models">支持模型</a>
+        <a href="#av-quickstart">快速接入</a>
+        <a href="https://github.com/Wei-Shaw/sub2api" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+      <div>&copy; 2026 Aivoza</div>
+    </div>
+  </footer>
+</div>

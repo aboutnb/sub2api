@@ -1,7 +1,7 @@
 <template>
   <span
     :class="[
-      'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium transition-colors',
+      'inline-flex items-center gap-1.5 rounded-md border border-black/10 px-2 py-0.5 text-xs font-medium transition-colors dark:border-white/10',
       badgeClass
     ]"
   >

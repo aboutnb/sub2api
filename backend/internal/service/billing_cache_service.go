@@ -113,6 +113,7 @@ type BillingCacheService struct {
 	cfg                   *config.Config
 	circuitBreaker        *billingCircuitBreaker
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	subscriptionPolicy    *SubscriptionPolicy
 
 	cacheWriteChan     chan cacheWriteTask
 	cacheWriteWg       sync.WaitGroup
@@ -152,6 +153,18 @@ func NewBillingCacheService(
 	svc.circuitBreaker = newBillingCircuitBreaker(cfg.Billing.CircuitBreaker)
 	svc.startCacheWriteWorkers()
 	return svc
+}
+
+// SetSubscriptionPolicy connects billing checks to the unified subscription
+// expiration switch. The constructor remains unchanged for compatibility.
+func (s *BillingCacheService) SetSubscriptionPolicy(policy *SubscriptionPolicy) {
+	if s != nil {
+		s.subscriptionPolicy = policy
+	}
+}
+
+func (s *BillingCacheService) subscriptionExpirationEnabled(ctx context.Context) bool {
+	return s == nil || s.subscriptionPolicy == nil || s.subscriptionPolicy.ExpirationEnabled(ctx)
 }
 
 // Stop 关闭缓存写入工作池
@@ -464,7 +477,21 @@ func (s *BillingCacheService) convertToPortsData(data *subscriptionCacheData) *S
 
 // getSubscriptionFromDB 从数据库获取订阅数据
 func (s *BillingCacheService) getSubscriptionFromDB(ctx context.Context, userID, groupID int64) (*subscriptionCacheData, error) {
-	sub, err := s.subRepo.GetActiveByUserIDAndGroupID(ctx, userID, groupID)
+	var (
+		sub *UserSubscription
+		err error
+	)
+	if s.subscriptionExpirationEnabled(ctx) {
+		sub, err = s.subRepo.GetActiveByUserIDAndGroupID(ctx, userID, groupID)
+	} else {
+		// Some alternate repository implementations may not know about the
+		// policy. Load by identity and keep the persisted status check here as a
+		// defensive second line.
+		sub, err = s.subRepo.GetByUserIDAndGroupID(ctx, userID, groupID)
+		if err == nil && (sub == nil || sub.Status != SubscriptionStatusActive) {
+			err = ErrSubscriptionNotFound
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("get subscription: %w", err)
 	}
@@ -916,8 +943,9 @@ func (s *BillingCacheService) checkSubscriptionEligibility(ctx context.Context, 
 		return ErrSubscriptionInvalid
 	}
 
-	// 检查是否过期
-	if time.Now().After(subData.ExpiresAt) {
+	// 检查是否过期。关闭统一有效期限制后仍保留 active/suspended/revoked
+	// 状态和日/周/月用量限额校验。
+	if s.subscriptionExpirationEnabled(ctx) && time.Now().After(subData.ExpiresAt) {
 		return ErrSubscriptionInvalid
 	}
 

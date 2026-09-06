@@ -439,6 +439,8 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	// User subscription page feature switch
 	updates[SettingKeyUserSubscriptionsEnabled] = strconv.FormatBool(settings.UserSubscriptionsEnabled)
+	// Subscription expiration policy (independent from the user-facing page switch)
+	updates[SettingKeySubscriptionExpirationEnabled] = strconv.FormatBool(settings.SubscriptionExpirationEnabled)
 
 	// Model plaza feature switches + description
 	updates[SettingKeyModelPlazaEnabled] = strconv.FormatBool(settings.ModelPlazaEnabled)

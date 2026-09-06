@@ -29,9 +29,9 @@ describe('channel-monitor-v2 design system structure', () => {
     expect(src).toContain('clearFilters')
     expect(src).toContain('healthModeOptions')
     expect(src).toContain("'cache'")
-    // Ops elevation: rounded-3xl + ring surfaces
-    expect(src).toContain('rounded-3xl')
-    expect(src).toContain('ring-1 ring-gray-900/5')
+    // Aivoza elevation comes from the shared card token, without local chrome overrides.
+    expect(src).not.toContain('rounded-3xl')
+    expect(src).not.toContain('!border-0')
     // Overview-first KPI strip before primary viz
     expect(src.indexOf('summaryAria')).toBeLessThan(src.indexOf('MonitorTrendChart'))
     // No page-level fixed min-width that forces viewport horizontal scroll
@@ -55,8 +55,8 @@ describe('channel-monitor-v2 design system structure', () => {
     expect(src).toMatch(/max-h-\[min\(42vh/)
     expect(src).toContain('overflow-auto')
     expect(src).toContain('pulse-tooltip')
-    expect(src).toContain('rounded-3xl')
-    expect(src).toContain('ring-1 ring-gray-900/5')
+    expect(src).not.toContain('rounded-3xl')
+    expect(src).not.toContain('ring-1 ring-gray-900/5')
     expect(src).not.toContain('modal-overlay')
     expect(src).not.toContain('modal-content')
   })
@@ -66,14 +66,15 @@ describe('channel-monitor-v2 design system structure', () => {
     expect(src).toContain('stat-card')
     expect(src).toContain('stat-label')
     expect(src).toContain('stat-value')
-    expect(src).toContain('rounded-3xl')
+    expect(src).not.toContain('rounded-3xl')
+    expect(src).not.toContain('!border-0')
   })
 
   it('MonitorTrendChart uses Ops chart shell tokens', () => {
     const src = read('features/channel-monitor-v2/MonitorTrendChart.vue')
     expect(src).toContain('class="card')
-    expect(src).toContain('rounded-3xl')
-    expect(src).toContain('ring-1 ring-gray-900/5')
+    expect(src).not.toContain('rounded-3xl')
+    expect(src).not.toContain('ring-1 ring-gray-900/5')
     expect(src).toContain('EmptyState')
     expect(src).toContain('min-h-[360px]')
   })

@@ -15,11 +15,61 @@ import (
 )
 
 type userSubscriptionRepository struct {
-	client *dbent.Client
+	client             *dbent.Client
+	subscriptionPolicy *service.SubscriptionPolicy
 }
 
 func NewUserSubscriptionRepository(client *dbent.Client) service.UserSubscriptionRepository {
 	return &userSubscriptionRepository{client: client}
+}
+
+// ProvideUserSubscriptionRepository wires the shared expiration policy while
+// preserving NewUserSubscriptionRepository's backwards-compatible signature.
+func ProvideUserSubscriptionRepository(client *dbent.Client, policy *service.SubscriptionPolicy) service.UserSubscriptionRepository {
+	repo := NewUserSubscriptionRepository(client)
+	if concrete, ok := repo.(*userSubscriptionRepository); ok {
+		concrete.SetSubscriptionPolicy(policy)
+	}
+	return repo
+}
+
+// SetSubscriptionPolicy injects the process-wide subscription expiration
+// policy without changing the long-standing constructor used by tests and
+// integrations.
+func (r *userSubscriptionRepository) SetSubscriptionPolicy(policy *service.SubscriptionPolicy) {
+	if r != nil {
+		r.subscriptionPolicy = policy
+	}
+}
+
+func (r *userSubscriptionRepository) subscriptionExpirationEnabled(ctx context.Context) bool {
+	return r == nil || r.subscriptionPolicy == nil || r.subscriptionPolicy.ExpirationEnabled(ctx)
+}
+
+// normalizeSubscriptionExpiration projects active subscriptions onto the
+// no-expiry sentinel while the policy is disabled. It intentionally changes
+// only the service object returned to the caller; the persisted timestamp is
+// left untouched so re-enabling the policy can restore the original boundary.
+func (r *userSubscriptionRepository) normalizeSubscriptionExpiration(ctx context.Context, sub *service.UserSubscription) *service.UserSubscription {
+	if sub == nil || sub.Status != service.SubscriptionStatusActive || sub.DeletedAt != nil {
+		return sub
+	}
+	if !r.subscriptionExpirationEnabled(ctx) {
+		sub.ExpiresAt = service.MaxExpiresAt
+	}
+	return sub
+}
+
+func (r *userSubscriptionRepository) normalizeSubscriptionList(ctx context.Context, subs []service.UserSubscription) []service.UserSubscription {
+	if len(subs) == 0 || r.subscriptionExpirationEnabled(ctx) {
+		return subs
+	}
+	for i := range subs {
+		if subs[i].Status == service.SubscriptionStatusActive && subs[i].DeletedAt == nil {
+			subs[i].ExpiresAt = service.MaxExpiresAt
+		}
+	}
+	return subs
 }
 
 func (r *userSubscriptionRepository) Create(ctx context.Context, sub *service.UserSubscription) error {
@@ -72,7 +122,7 @@ func (r *userSubscriptionRepository) GetByID(ctx context.Context, id int64) (*se
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
 	}
-	return userSubscriptionEntityToService(m), nil
+	return r.normalizeSubscriptionExpiration(ctx, userSubscriptionEntityToService(m)), nil
 }
 
 func (r *userSubscriptionRepository) GetByIDForUpdate(ctx context.Context, id int64) (*service.UserSubscription, error) {
@@ -84,7 +134,7 @@ func (r *userSubscriptionRepository) GetByIDForUpdate(ctx context.Context, id in
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
 	}
-	return userSubscriptionEntityToService(m), nil
+	return r.normalizeSubscriptionExpiration(ctx, userSubscriptionEntityToService(m)), nil
 }
 
 func (r *userSubscriptionRepository) GetByIDIncludeDeleted(ctx context.Context, id int64) (*service.UserSubscription, error) {
@@ -99,7 +149,7 @@ func (r *userSubscriptionRepository) GetByIDIncludeDeleted(ctx context.Context, 
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
 	}
-	return userSubscriptionEntityToServicePreserveStatus(m), nil
+	return r.normalizeSubscriptionExpiration(ctx, userSubscriptionEntityToServicePreserveStatus(m)), nil
 }
 
 func (r *userSubscriptionRepository) GetByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
@@ -111,24 +161,27 @@ func (r *userSubscriptionRepository) GetByUserIDAndGroupID(ctx context.Context, 
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
 	}
-	return userSubscriptionEntityToService(m), nil
+	return r.normalizeSubscriptionExpiration(ctx, userSubscriptionEntityToService(m)), nil
 }
 
 func (r *userSubscriptionRepository) GetActiveByUserIDAndGroupID(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error) {
 	client := clientFromContext(ctx, r.client)
+	predicates := []predicate.UserSubscription{
+		usersubscription.UserIDEQ(userID),
+		usersubscription.GroupIDEQ(groupID),
+		usersubscription.StatusEQ(service.SubscriptionStatusActive),
+	}
+	if r.subscriptionExpirationEnabled(ctx) {
+		predicates = append(predicates, usersubscription.ExpiresAtGT(time.Now()))
+	}
 	m, err := client.UserSubscription.Query().
-		Where(
-			usersubscription.UserIDEQ(userID),
-			usersubscription.GroupIDEQ(groupID),
-			usersubscription.StatusEQ(service.SubscriptionStatusActive),
-			usersubscription.ExpiresAtGT(time.Now()),
-		).
+		Where(predicates...).
 		WithGroup().
 		Only(ctx)
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
 	}
-	return userSubscriptionEntityToService(m), nil
+	return r.normalizeSubscriptionExpiration(ctx, userSubscriptionEntityToService(m)), nil
 }
 
 func (r *userSubscriptionRepository) Update(ctx context.Context, sub *service.UserSubscription) error {
@@ -192,24 +245,27 @@ func (r *userSubscriptionRepository) ListByUserID(ctx context.Context, userID in
 	if err != nil {
 		return nil, err
 	}
-	return userSubscriptionEntitiesToService(subs), nil
+	return r.normalizeSubscriptionList(ctx, userSubscriptionEntitiesToService(subs)), nil
 }
 
 func (r *userSubscriptionRepository) ListActiveByUserID(ctx context.Context, userID int64) ([]service.UserSubscription, error) {
 	client := clientFromContext(ctx, r.client)
+	predicates := []predicate.UserSubscription{
+		usersubscription.UserIDEQ(userID),
+		usersubscription.StatusEQ(service.SubscriptionStatusActive),
+	}
+	if r.subscriptionExpirationEnabled(ctx) {
+		predicates = append(predicates, usersubscription.ExpiresAtGT(time.Now()))
+	}
 	subs, err := client.UserSubscription.Query().
-		Where(
-			usersubscription.UserIDEQ(userID),
-			usersubscription.StatusEQ(service.SubscriptionStatusActive),
-			usersubscription.ExpiresAtGT(time.Now()),
-		).
+		Where(predicates...).
 		WithGroup().
 		Order(dbent.Desc(usersubscription.FieldCreatedAt)).
 		All(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return userSubscriptionEntitiesToService(subs), nil
+	return r.normalizeSubscriptionList(ctx, userSubscriptionEntitiesToService(subs)), nil
 }
 
 func (r *userSubscriptionRepository) ListByGroupID(ctx context.Context, groupID int64, params pagination.PaginationParams) ([]service.UserSubscription, *pagination.PaginationResult, error) {
@@ -232,7 +288,7 @@ func (r *userSubscriptionRepository) ListByGroupID(ctx context.Context, groupID 
 		return nil, nil, err
 	}
 
-	return userSubscriptionEntitiesToService(subs), paginationResultFromTotal(int64(total), params), nil
+	return r.normalizeSubscriptionList(ctx, userSubscriptionEntitiesToService(subs)), paginationResultFromTotal(int64(total), params), nil
 }
 
 func (r *userSubscriptionRepository) List(ctx context.Context, params pagination.PaginationParams, userID, groupID *int64, status, platform, sortBy, sortOrder string) ([]service.UserSubscription, *pagination.PaginationResult, error) {
@@ -253,26 +309,33 @@ func (r *userSubscriptionRepository) List(ctx context.Context, params pagination
 		q = q.Where(usersubscription.HasGroupWith(groupPredicates...))
 	}
 
-	// Status filtering with real-time expiration check
+	// Status filtering with real-time expiration check. When the global policy
+	// disables expiration, an active row remains active regardless of its
+	// historical timestamp; explicit expired/suspended statuses still apply.
 	now := time.Now()
+	expirationEnabled := r.subscriptionExpirationEnabled(ctx)
 	switch status {
 	case service.SubscriptionStatusActive:
-		// Active: status is active AND not yet expired
-		q = q.Where(
-			usersubscription.StatusEQ(service.SubscriptionStatusActive),
-			usersubscription.ExpiresAtGT(now),
-		)
+		predicates := []predicate.UserSubscription{usersubscription.StatusEQ(service.SubscriptionStatusActive)}
+		if expirationEnabled {
+			predicates = append(predicates, usersubscription.ExpiresAtGT(now))
+		}
+		q = q.Where(predicates...)
 	case service.SubscriptionStatusExpired:
-		// Expired: status is expired OR (status is active but already expired)
-		q = q.Where(
-			usersubscription.Or(
-				usersubscription.StatusEQ(service.SubscriptionStatusExpired),
-				usersubscription.And(
-					usersubscription.StatusEQ(service.SubscriptionStatusActive),
-					usersubscription.ExpiresAtLTE(now),
+		if expirationEnabled {
+			// Expired: status is expired OR (status is active but already expired)
+			q = q.Where(
+				usersubscription.Or(
+					usersubscription.StatusEQ(service.SubscriptionStatusExpired),
+					usersubscription.And(
+						usersubscription.StatusEQ(service.SubscriptionStatusActive),
+						usersubscription.ExpiresAtLTE(now),
+					),
 				),
-			),
-		)
+			)
+		} else {
+			q = q.Where(usersubscription.StatusEQ(service.SubscriptionStatusExpired))
+		}
 	case service.SubscriptionStatusRevoked:
 		// Revoked is a DTO/API display state backed by user_subscriptions.deleted_at.
 		q = q.Where(usersubscription.DeletedAtNotNil())
@@ -323,7 +386,7 @@ func (r *userSubscriptionRepository) List(ctx context.Context, params pagination
 		return nil, nil, err
 	}
 
-	result := userSubscriptionEntitiesToService(subs)
+	result := r.normalizeSubscriptionList(queryCtx, userSubscriptionEntitiesToService(subs))
 	if includeSoftDeleted {
 		if err := r.attachUserSubscriptionRelations(ctx, result); err != nil {
 			return nil, nil, err
@@ -503,6 +566,9 @@ func (r *userSubscriptionRepository) IncrementUsage(ctx context.Context, id int6
 }
 
 func (r *userSubscriptionRepository) BatchUpdateExpiredStatus(ctx context.Context) (int64, error) {
+	if !r.subscriptionExpirationEnabled(ctx) {
+		return 0, nil
+	}
 	client := clientFromContext(ctx, r.client)
 	n, err := client.UserSubscription.Update().
 		Where(
@@ -517,6 +583,9 @@ func (r *userSubscriptionRepository) BatchUpdateExpiredStatus(ctx context.Contex
 // Extra repository helpers (currently used only by integration tests).
 
 func (r *userSubscriptionRepository) ListExpired(ctx context.Context) ([]service.UserSubscription, error) {
+	if !r.subscriptionExpirationEnabled(ctx) {
+		return []service.UserSubscription{}, nil
+	}
 	client := clientFromContext(ctx, r.client)
 	subs, err := client.UserSubscription.Query().
 		Where(
@@ -538,12 +607,15 @@ func (r *userSubscriptionRepository) CountByGroupID(ctx context.Context, groupID
 
 func (r *userSubscriptionRepository) CountActiveByGroupID(ctx context.Context, groupID int64) (int64, error) {
 	client := clientFromContext(ctx, r.client)
+	predicates := []predicate.UserSubscription{
+		usersubscription.GroupIDEQ(groupID),
+		usersubscription.StatusEQ(service.SubscriptionStatusActive),
+	}
+	if r.subscriptionExpirationEnabled(ctx) {
+		predicates = append(predicates, usersubscription.ExpiresAtGT(time.Now()))
+	}
 	count, err := client.UserSubscription.Query().
-		Where(
-			usersubscription.GroupIDEQ(groupID),
-			usersubscription.StatusEQ(service.SubscriptionStatusActive),
-			usersubscription.ExpiresAtGT(time.Now()),
-		).
+		Where(predicates...).
 		Count(ctx)
 	return int64(count), err
 }

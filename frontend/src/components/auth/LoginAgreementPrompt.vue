@@ -8,14 +8,14 @@
         id="login-agreement-consent"
         type="checkbox"
         :checked="accepted"
-        class="mt-[2px] h-4 w-4 flex-shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-900"
+        class="mt-[2px] h-4 w-4 flex-shrink-0 rounded border-line-strong text-primary-600 focus:ring-primary-500 dark:border-line-strong dark:bg-canvas"
         @change="handleCheckboxChange"
       />
       <div class="min-w-0 flex-1">
-        <p class="text-[13px] leading-5 text-gray-600 dark:text-dark-300">
+        <p class="text-[13px] leading-5 text-ink dark:text-ink">
           <label
             for="login-agreement-consent"
-            class="cursor-pointer text-gray-700 dark:text-dark-200"
+            class="cursor-pointer text-ink dark:text-ink-strong"
           >
             {{ t('legal.loginAgreementPrompt.checkboxPrefix') }}
           </label>
@@ -62,26 +62,38 @@
       <div
         v-if="dialogVisible"
         class="fixed inset-0 z-[140] flex items-center justify-center overflow-y-auto bg-gray-950/60 p-4 backdrop-blur-sm"
+        :style="agreementDialog.zIndexStyle.value"
+        :aria-labelledby="dialogTitleId"
+        :aria-describedby="dialogDescriptionId"
+        :aria-hidden="agreementDialog.isTopmost.value ? undefined : 'true'"
+        :inert="agreementDialog.isTopmost.value ? undefined : true"
+        role="dialog"
+        aria-modal="true"
       >
-        <div class="w-full max-w-[600px] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 dark:bg-dark-900 dark:ring-white/10">
-          <div class="border-b border-gray-100 bg-white px-6 py-6 dark:border-dark-800 dark:bg-dark-900">
+        <div
+          ref="agreementDialogRef"
+          class="w-full max-w-[600px] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 dark:bg-canvas dark:ring-white/10"
+          tabindex="-1"
+          @click.stop
+        >
+          <div class="border-b border-line bg-white px-6 py-6 dark:border-line dark:bg-canvas">
             <div class="flex items-start gap-4">
               <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700 ring-1 ring-primary-100 dark:bg-primary-500/10 dark:text-primary-300 dark:ring-primary-500/20">
                 <Icon name="shield" size="md" />
               </span>
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
-                  <h2 class="text-xl font-bold tracking-normal text-gray-950 dark:text-white">
+                  <h2 :id="dialogTitleId" class="text-xl font-bold tracking-normal text-gray-950 dark:text-white">
                     {{ t('legal.loginAgreementPrompt.dialogTitle') }}
                   </h2>
                   <span
                     v-if="updatedAt"
-                    class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-dark-800 dark:text-dark-300"
+                    class="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-ink dark:bg-surface dark:text-ink"
                   >
                     {{ updatedAt }}
                   </span>
                 </div>
-                <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-dark-300">
+                <p :id="dialogDescriptionId" class="mt-2 text-sm leading-6 text-ink dark:text-ink">
                   {{
                     t('legal.loginAgreementPrompt.dialogDescription', {
                       date: updatedAt || t('legal.loginAgreementPrompt.recently'),
@@ -94,7 +106,7 @@
 
           <div class="max-h-[58vh] overflow-y-auto px-6 py-5">
             <div class="mb-3 flex items-center justify-between gap-3">
-              <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('legal.loginAgreementPrompt.relatedDocuments') }}</p>
+              <p class="text-sm font-semibold text-ink-strong dark:text-white">{{ t('legal.loginAgreementPrompt.relatedDocuments') }}</p>
             </div>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <RouterLink
@@ -103,26 +115,26 @@
                 :to="documentRoute(doc)"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="group flex min-h-[72px] w-full items-center gap-3 rounded-xl border border-gray-200 bg-gray-50/70 px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-primary-200 hover:bg-white hover:shadow-sm dark:border-dark-700 dark:bg-dark-800/70 dark:hover:border-primary-500/30 dark:hover:bg-dark-800"
+                class="group flex min-h-[72px] w-full items-center gap-3 rounded-xl border border-line bg-surface-muted/70 px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-primary-200 hover:bg-white hover:shadow-sm dark:border-line dark:bg-surface/70 dark:hover:border-primary-500/30 dark:hover:bg-dark-800"
               >
-                <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white text-gray-700 ring-1 ring-gray-200 transition group-hover:bg-primary-50 group-hover:text-primary-700 group-hover:ring-primary-100 dark:bg-dark-900 dark:text-dark-200 dark:ring-dark-700 dark:group-hover:bg-primary-500/10 dark:group-hover:text-primary-200 dark:group-hover:ring-primary-500/20">
+                <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white text-ink ring-1 ring-line transition group-hover:bg-primary-50 group-hover:text-primary-700 group-hover:ring-primary-100 dark:bg-canvas dark:text-ink-strong dark:ring-line dark:group-hover:bg-primary-500/10 dark:group-hover:text-primary-200 dark:group-hover:ring-primary-500/20">
                   <Icon :name="documentIcon(index, doc.title)" size="sm" />
                 </span>
                 <span class="min-w-0 flex-1">
                   <span class="block truncate text-sm font-semibold text-gray-950 dark:text-white">{{ doc.title }}</span>
                 </span>
-                <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-gray-400 transition group-hover:bg-primary-50 group-hover:text-primary-600 dark:group-hover:bg-primary-500/10 dark:group-hover:text-primary-300">
+                <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-ink-muted transition group-hover:bg-primary-50 group-hover:text-primary-600 dark:group-hover:bg-primary-500/10 dark:group-hover:text-primary-300">
                   <Icon name="externalLink" size="sm" />
                 </span>
               </RouterLink>
             </div>
           </div>
 
-          <div class="border-t border-gray-100 bg-gray-50/80 px-6 py-4 dark:border-dark-800 dark:bg-dark-950/60">
+          <div class="border-t border-line bg-surface-muted/80 px-6 py-4 dark:border-line dark:bg-canvas/60">
             <div class="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-200 dark:hover:bg-dark-700"
+                class="rounded-xl border border-line bg-white px-4 py-3 text-sm font-semibold text-ink transition hover:bg-surface-muted dark:border-line dark:bg-surface dark:text-ink-strong dark:hover:bg-dark-700"
                 @click="emit('reject')"
               >
                 {{ t('legal.loginAgreementPrompt.reject') }}
@@ -143,9 +155,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, getCurrentInstance, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import { useManagedDialog } from '@/components/common/dialogStack'
 import type { LoginAgreementDocument } from '@/types'
 
 const { t } = useI18n()
@@ -171,6 +184,17 @@ const documents = computed(() => props.documents.filter((doc) => doc.title.trim(
 const updatedAt = computed(() => props.updatedAt || '')
 const accepted = computed(() => props.accepted)
 const mode = computed(() => props.mode === 'checkbox' ? 'checkbox' : 'modal')
+const agreementDialogRef = ref<HTMLElement | null>(null)
+const componentUid = getCurrentInstance()?.uid ?? 0
+const dialogTitleId = `login-agreement-title-${componentUid}`
+const dialogDescriptionId = `login-agreement-description-${componentUid}`
+
+const agreementDialog = useManagedDialog({
+  open: dialogVisible,
+  dialogRef: agreementDialogRef,
+  onClose: () => emit('reject'),
+  name: dialogTitleId,
+})
 
 function documentRoute(doc: LoginAgreementDocument) {
   return {
@@ -235,5 +259,19 @@ function documentIcon(index: number, title: string): 'document' | 'shield' | 'gl
 .agreement-fade-leave-to > div {
   opacity: 0;
   transform: translateY(8px) scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agreement-fade-enter-active,
+  .agreement-fade-leave-active,
+  .agreement-fade-enter-active > div,
+  .agreement-fade-leave-active > div {
+    transition-duration: 1ms;
+  }
+
+  .agreement-fade-enter-from > div,
+  .agreement-fade-leave-to > div {
+    transform: none;
+  }
 }
 </style>

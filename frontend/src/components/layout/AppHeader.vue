@@ -1,30 +1,141 @@
 <template>
-  <header class="glass sticky top-0 z-30 border-b border-gray-200/50 dark:border-dark-700/50">
-    <div class="flex h-16 items-center justify-between gap-2 px-2 sm:px-4 md:px-6">
+  <header class="app-header glass sticky top-0 z-30 border-b-2 border-line dark:border-line">
+    <div class="app-header-inner flex h-16 items-center justify-between gap-2 px-2 sm:px-4 md:px-6">
       <!-- Left: Mobile Menu Toggle + Page Title -->
-      <div class="flex shrink-0 items-center gap-2 sm:gap-4">
+      <div class="app-header-leading flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
         <button
+          type="button"
           @click="toggleMobileSidebar"
           class="btn-ghost btn-icon lg:hidden"
           :aria-label="t('common.toggleMenu')"
+          :aria-expanded="mobileOpen"
+          aria-controls="app-sidebar"
         >
           <Icon name="menu" size="md" />
         </button>
 
-        <div class="hidden lg:block">
-          <h1 class="text-lg font-semibold text-gray-900 dark:text-white">
+        <div class="min-w-0 max-w-[34vw] lg:hidden">
+          <h1 class="truncate text-sm font-extrabold text-ink-strong dark:text-white">
             {{ pageTitle }}
           </h1>
-          <p v-if="pageDescription" class="text-xs text-gray-500 dark:text-dark-400">
+        </div>
+
+        <div class="hidden min-w-0 max-w-[28rem] lg:block">
+          <h1 class="truncate text-lg font-semibold text-ink-strong dark:text-white">
+            {{ pageTitle }}
+          </h1>
+          <p v-if="pageDescription" class="truncate text-xs text-ink-muted dark:text-ink-muted">
             {{ pageDescription }}
           </p>
         </div>
       </div>
 
-      <!-- Right: Announcements + Community + Docs + Language + Subscriptions + Balance + User Dropdown -->
-      <div class="flex min-w-0 items-center gap-1 sm:gap-3">
+      <!-- Primary actions stay visible at every breakpoint. At narrow widths
+           this group moves to a second row instead of being hidden in More. -->
+      <div
+        class="header-primary-actions flex min-w-0 flex-shrink-0 items-center gap-1 sm:gap-2"
+        data-testid="header-primary-actions"
+        role="group"
+        :aria-label="t('common.actions')"
+      >
         <!-- Announcement Bell -->
         <AnnouncementBell v-if="user" />
+
+        <!-- Subscription Progress (for users with active subscriptions) -->
+        <SubscriptionProgressMini
+          v-if="user && !authStore.isSimpleMode && userSubscriptionsEnabled"
+        />
+
+        <!-- Daily check-in shortcut sits immediately before the balance amount. -->
+        <CheckinShortcut v-if="user && !authStore.isSimpleMode && checkinEnabled" />
+
+        <!-- Language Switcher -->
+        <LocaleSwitcher />
+
+        <!-- Balance and recharge share one wallet-shaped control so the primary
+             action row gains a direct top-up path without another full chip. -->
+        <div
+          v-if="user"
+          ref="walletRef"
+          data-testid="header-wallet"
+          class="header-wallet relative flex min-h-11 min-w-11 items-stretch rounded-xl bg-primary-50 dark:bg-primary-900/20"
+          role="group"
+          :aria-label="balanceWalletLabel"
+          @focusout="handleWalletFocusout"
+        >
+          <button
+            id="header-balance-trigger"
+            ref="balanceButtonRef"
+            type="button"
+            data-testid="header-balance"
+            class="balance-focus header-balance relative flex min-h-11 min-w-11 items-center gap-2 px-3 py-1.5"
+            :class="showRechargeShortcut ? 'rounded-l-xl' : 'rounded-xl'"
+            :aria-label="`${balanceAvailableText}: ${formatHeaderMoney(availableBalance)}`"
+            :aria-expanded="balanceDetailsOpen"
+            aria-controls="header-balance-details"
+            @click="toggleBalanceDetails"
+          >
+            <svg
+              class="h-4 w-4 flex-shrink-0 text-primary-600 dark:text-primary-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="1.5"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"
+              />
+            </svg>
+            <span class="header-balance-value max-w-10 truncate text-sm font-semibold tabular-nums text-primary-700 dark:text-primary-300 sm:max-w-20">
+              {{ formatHeaderMoney(availableBalance) }}
+            </span>
+          </button>
+
+          <div
+            v-if="balanceDetailsOpen"
+            id="header-balance-details"
+            class="absolute right-0 top-full z-50 mt-2 w-56 max-w-[calc(100vw-1rem)] rounded-xl border-2 border-line bg-white p-3 text-xs shadow-xl dark:border-line dark:bg-surface"
+            role="region"
+            aria-labelledby="header-balance-trigger"
+            @keydown.esc.stop.prevent="closeBalanceDetails(true)"
+          >
+            <div class="flex items-center justify-between">
+              <span class="text-ink-muted dark:text-ink-muted">{{ balanceAvailableText }}</span>
+              <span class="min-w-0 max-w-[8.5rem] truncate font-medium tabular-nums text-ink-strong dark:text-white" :title="formatHeaderMoney(availableBalance)">{{ formatHeaderMoney(availableBalance) }}</span>
+            </div>
+            <div class="mt-2 flex items-center justify-between">
+              <span class="text-ink-muted dark:text-ink-muted">{{ balanceFrozenText }}</span>
+              <span class="min-w-0 max-w-[8.5rem] truncate font-medium tabular-nums text-amber-700 dark:text-amber-200" :title="formatHeaderMoney(frozenBalance)">{{ formatHeaderMoney(frozenBalance) }}</span>
+            </div>
+            <div class="mt-2 border-t border-line pt-2 dark:border-line">
+              <div class="flex items-center justify-between">
+                <span class="text-ink-muted dark:text-ink-muted">{{ balanceTotalText }}</span>
+                <span class="min-w-0 max-w-[8.5rem] truncate font-semibold tabular-nums text-ink-strong dark:text-white" :title="formatHeaderMoney(totalBalance)">{{ formatHeaderMoney(totalBalance) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <router-link
+            v-if="showRechargeShortcut"
+            data-testid="header-recharge-shortcut"
+            to="/purchase"
+            class="header-recharge-link flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-r-xl border-l border-primary-200/80 bg-action-soft px-2.5 text-xs font-semibold text-ink-strong transition-colors hover:bg-action hover:text-action-foreground dark:border-primary-700/70"
+            :aria-label="rechargeLabel"
+            :title="rechargeLabel"
+            @click="closeBalanceDetails"
+          >
+            <Icon name="plus" size="sm" :stroke-width="2" aria-hidden="true" />
+            <span class="hidden whitespace-nowrap sm:inline">{{ rechargeLabel }}</span>
+          </router-link>
+        </div>
+      </div>
+
+      <!-- Secondary links may use More below the wide desktop breakpoint. -->
+      <div class="header-secondary-actions flex flex-shrink-0 items-center gap-1 sm:gap-3">
+        <template v-if="isDesktopHeader">
 
         <!-- Community Group Link -->
         <a
@@ -34,7 +145,7 @@
           rel="noopener noreferrer"
           :aria-label="communityGroupName"
           :title="communityGroupName"
-          class="group flex h-9 w-9 flex-shrink-0 items-center justify-center gap-1.5 rounded-lg text-sm font-medium text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:text-gray-900 hover:shadow-sm active:scale-[0.98] dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white sm:w-auto sm:px-2.5"
+          class="group flex h-9 w-9 flex-shrink-0 items-center justify-center gap-1.5 rounded-lg text-sm font-medium text-ink transition-all duration-200 hover:bg-surface-muted hover:text-ink-strong hover:shadow-sm active:scale-[0.98] dark:text-ink-muted dark:hover:bg-dark-700 dark:hover:text-white sm:w-auto sm:px-2.5"
         >
           <img
             v-if="communityGroupIcon"
@@ -44,7 +155,7 @@
           />
           <svg
             v-else
-            class="h-5 w-5 flex-shrink-0 text-gray-500 transition-colors duration-200 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-200"
+            class="h-5 w-5 flex-shrink-0 text-ink-muted transition-colors duration-200 group-hover:text-ink dark:text-ink-muted dark:group-hover:text-gray-200"
             viewBox="0 0 1024 1024"
             aria-hidden="true"
           >
@@ -62,7 +173,7 @@
           :href="docUrl"
           target="_blank"
           rel="noopener noreferrer"
-          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white sm:flex"
+          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-surface-muted hover:text-ink-strong dark:text-ink-muted dark:hover:bg-dark-800 dark:hover:text-white sm:flex"
         >
           <Icon name="book" size="sm" />
           <span class="hidden sm:inline">{{ t('nav.docs') }}</span>
@@ -72,76 +183,28 @@
         <router-link
           v-if="user && modelPlazaEnabled"
           :to="{ path: '/model-plaza', query: { embedded: '1' } }"
-          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white sm:flex"
+          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-surface-muted hover:text-ink-strong dark:text-ink-muted dark:hover:bg-dark-800 dark:hover:text-white sm:flex"
         >
           <Icon name="grid" size="sm" />
           <span class="hidden sm:inline">{{ t('nav.modelPlaza') }}</span>
         </router-link>
 
-        <!-- Language Switcher -->
-        <LocaleSwitcher />
+        </template>
+      </div>
 
-        <!-- Subscription Progress (for users with active subscriptions) -->
-        <SubscriptionProgressMini v-if="user" />
-
-        <!-- Daily check-in shortcut sits immediately before the balance amount. -->
-        <CheckinShortcut v-if="user && !authStore.isSimpleMode" />
-
-        <!-- Balance Display -->
-        <div
-          v-if="user"
-          class="group relative hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 dark:bg-primary-900/20 sm:flex"
-        >
-          <svg
-            class="h-4 w-4 text-primary-600 dark:text-primary-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            stroke-width="1.5"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"
-            />
-          </svg>
-          <span class="text-sm font-semibold text-primary-700 dark:text-primary-300">
-            {{ formatHeaderMoney(availableBalance) }}
-          </span>
-          <span
-            v-if="frozenBalance > 0"
-            class="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
-          >
-            {{ balanceFrozenLabel }}
-          </span>
-          <div
-            class="pointer-events-none absolute right-0 top-full mt-2 hidden w-56 rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-lg group-hover:block dark:border-dark-700 dark:bg-dark-800"
-          >
-            <div class="flex items-center justify-between">
-              <span class="text-gray-500 dark:text-dark-400">{{ balanceAvailableText }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ formatHeaderMoney(availableBalance) }}</span>
-            </div>
-            <div class="mt-2 flex items-center justify-between">
-              <span class="text-gray-500 dark:text-dark-400">{{ balanceFrozenText }}</span>
-              <span class="font-medium text-amber-700 dark:text-amber-200">{{ formatHeaderMoney(frozenBalance) }}</span>
-            </div>
-            <div class="mt-2 border-t border-gray-100 pt-2 dark:border-dark-700">
-              <div class="flex items-center justify-between">
-                <span class="text-gray-500 dark:text-dark-400">{{ balanceTotalText }}</span>
-                <span class="font-semibold text-gray-900 dark:text-white">{{ formatHeaderMoney(totalBalance) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- User Dropdown -->
-        <div v-if="user" class="relative" ref="dropdownRef">
+      <!-- User Dropdown -->
+      <div v-if="user" class="header-user-menu relative" ref="dropdownRef">
           <button
+            id="app-user-menu-trigger"
+            ref="userMenuButtonRef"
+            type="button"
             @click="toggleDropdown"
-            class="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-gray-100 dark:hover:bg-dark-800"
+            class="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-surface-muted dark:hover:bg-dark-800"
             :aria-label="t('common.userMenu')"
+            :aria-expanded="dropdownOpen"
+            aria-controls="app-user-menu"
           >
-            <div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-sm font-medium text-white shadow-sm">
+            <div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border-2 border-primary-800 bg-primary-600 text-sm font-bold text-white shadow-pixel-sm dark:border-primary-300">
               <img
                 v-if="avatarUrl"
                 :src="avatarUrl"
@@ -150,48 +213,42 @@
               >
               <span v-else>{{ userInitials }}</span>
             </div>
-            <div class="hidden text-left md:block">
-              <div class="text-sm font-medium text-gray-900 dark:text-white">
+            <div class="hidden min-w-0 max-w-28 text-left md:block">
+              <div class="truncate text-sm font-medium text-ink-strong dark:text-white">
                 {{ displayName }}
               </div>
-              <div class="text-xs text-gray-500 dark:text-dark-400">
+              <div class="truncate text-xs text-ink-muted dark:text-ink-muted">
                 {{ t('admin.users.roles.' + user.role) }}
               </div>
             </div>
-            <Icon name="chevronDown" size="sm" class="hidden text-gray-400 md:block" />
+            <Icon name="chevronDown" size="sm" class="hidden text-ink-muted md:block" />
           </button>
 
           <!-- Dropdown Menu -->
           <transition name="dropdown">
-            <div v-if="dropdownOpen" class="dropdown right-0 mt-2 w-56">
+            <div
+              v-if="dropdownOpen"
+              id="app-user-menu"
+              class="dropdown right-0 mt-2 w-56"
+              role="group"
+              aria-labelledby="app-user-menu-trigger"
+              @keydown.esc.stop.prevent="closeDropdown(true)"
+            >
               <!-- User Info -->
-              <div class="border-b border-gray-100 px-4 py-3 dark:border-dark-700">
-                <div class="text-sm font-medium text-gray-900 dark:text-white">
+              <div class="border-b border-line px-4 py-3 dark:border-line">
+                <div class="truncate text-sm font-medium text-ink-strong dark:text-white">
                   {{ displayName }}
                 </div>
-                <div class="text-xs text-gray-500 dark:text-dark-400">{{ user.email }}</div>
-              </div>
-
-              <!-- Balance (mobile only) -->
-              <div class="border-b border-gray-100 px-4 py-2 dark:border-dark-700 sm:hidden">
-                <div class="text-xs text-gray-500 dark:text-dark-400">
-                  {{ t('common.balance') }}
-                </div>
-                <div class="text-sm font-semibold text-primary-600 dark:text-primary-400">
-                  {{ formatHeaderMoney(availableBalance) }}
-                </div>
-                <div v-if="frozenBalance > 0" class="mt-1 text-xs text-amber-600 dark:text-amber-300">
-                  {{ balanceFrozenText }} {{ formatHeaderMoney(frozenBalance) }}
-                </div>
+                <div class="truncate text-xs text-ink-muted dark:text-ink-muted">{{ user.email }}</div>
               </div>
 
               <div class="py-1">
-                <router-link to="/profile" @click="closeDropdown" class="dropdown-item">
+                <router-link to="/profile" @click="closeDropdown" class="dropdown-item min-h-11">
                   <Icon name="user" size="sm" />
                   {{ t('nav.profile') }}
                 </router-link>
 
-                <router-link to="/keys" @click="closeDropdown" class="dropdown-item">
+                <router-link to="/keys" @click="closeDropdown" class="dropdown-item min-h-11">
                   <Icon name="key" size="sm" />
                   {{ t('nav.apiKeys') }}
                 </router-link>
@@ -202,7 +259,7 @@
                   target="_blank"
                   rel="noopener noreferrer"
                   @click="closeDropdown"
-                  class="dropdown-item"
+                  class="dropdown-item min-h-11"
                 >
                   <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                     <path
@@ -219,9 +276,9 @@
               <!-- Contact Support (only show if configured) -->
               <div
                 v-if="contactInfo"
-                class="border-t border-gray-100 px-4 py-2.5 dark:border-dark-700"
+                class="border-t border-line px-4 py-2.5 dark:border-line"
               >
-                <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <div class="flex items-center gap-2 text-xs text-ink-muted dark:text-ink-muted">
                   <svg
                     class="h-3.5 w-3.5 flex-shrink-0"
                     fill="none"
@@ -236,14 +293,14 @@
                     />
                   </svg>
                   <span>{{ t('common.contactSupport') }}:</span>
-                  <span class="font-medium text-gray-700 dark:text-gray-300">{{
+                  <span class="font-medium text-ink dark:text-ink-muted">{{
                     contactInfo
                   }}</span>
                 </div>
               </div>
 
-              <div v-if="showOnboardingButton" class="border-t border-gray-100 py-1 dark:border-dark-700">
-                <button @click="handleReplayGuide" class="dropdown-item w-full">
+              <div v-if="showOnboardingButton" class="border-t border-line py-1 dark:border-line">
+                <button type="button" @click="handleReplayGuide" class="dropdown-item min-h-11 w-full">
                   <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                     <path
                       d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 14a1 1 0 110 2 1 1 0 010-2zm1.07-7.75c0-.6-.49-1.25-1.32-1.25-.7 0-1.22.4-1.43 1.02a1 1 0 11-1.9-.62A3.41 3.41 0 0111.8 5c2.02 0 3.25 1.4 3.25 2.9 0 2-1.83 2.55-2.43 3.12-.43.4-.47.75-.47 1.23a1 1 0 01-2 0c0-1 .16-1.82 1.1-2.7.69-.64 1.82-1.05 1.82-2.06z"
@@ -253,10 +310,11 @@
                 </button>
               </div>
 
-              <div class="border-t border-gray-100 py-1 dark:border-dark-700">
+              <div class="border-t border-line py-1 dark:border-line">
                 <button
                   @click="handleLogout"
-                  class="dropdown-item w-full text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                  type="button"
+                  class="dropdown-item min-h-11 w-full text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                 >
                   <svg
                     class="h-4 w-4"
@@ -277,16 +335,86 @@
             </div>
           </transition>
         </div>
+
+        <!-- Mobile/tablet overflow: secondary header actions stay keyboard reachable without crowding. -->
+        <div
+          v-if="!isDesktopHeader && hasSecondaryActions"
+          ref="moreDropdownRef"
+          class="header-more-menu relative"
+          @focusout="handleMoreFocusout"
+        >
+          <button
+            id="app-more-menu-trigger"
+            ref="moreMenuButtonRef"
+            type="button"
+            class="btn btn-ghost btn-icon"
+            :aria-label="t('common.more')"
+            :aria-expanded="moreOpen"
+            aria-controls="app-more-menu"
+            @click="toggleMore"
+          >
+            <Icon name="more" size="md" />
+          </button>
+
+          <transition name="dropdown">
+            <div
+              v-if="moreOpen"
+              id="app-more-menu"
+              ref="moreMenuRef"
+              class="dropdown right-0 mt-2 w-72 max-w-[calc(100vw-1rem)] space-y-1 p-2"
+              role="group"
+              aria-labelledby="app-more-menu-trigger"
+              @keydown="handleMoreKeydown"
+            >
+              <a
+                v-if="communityGroupUrl"
+                :href="communityGroupUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="dropdown-item min-h-11"
+                @click="closeMore"
+              >
+                <img v-if="communityGroupIcon" :src="communityGroupIcon" alt="" class="h-5 w-5 object-contain" />
+                <Icon v-else name="users" size="sm" />
+                <span class="min-w-0 flex-1 truncate">{{ communityGroupName }}</span>
+                <Icon name="externalLink" size="xs" aria-hidden="true" />
+              </a>
+
+              <a
+                v-if="docUrl"
+                :href="docUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="dropdown-item min-h-11"
+                @click="closeMore"
+              >
+                <Icon name="book" size="sm" />
+                <span>{{ t('nav.docs') }}</span>
+                <Icon name="externalLink" size="xs" class="ml-auto" aria-hidden="true" />
+              </a>
+
+              <router-link
+                v-if="user && modelPlazaEnabled"
+                :to="{ path: '/model-plaza', query: { embedded: '1' } }"
+                class="dropdown-item min-h-11"
+                @click="closeMore"
+              >
+                <Icon name="grid" size="sm" />
+                {{ t('nav.modelPlaza') }}
+              </router-link>
+
+            </div>
+          </transition>
+        </div>
       </div>
-    </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
+import { useAppStore, useAuthStore, useOnboardingStore, usePaymentStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
@@ -303,10 +431,28 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const adminSettingsStore = useAdminSettingsStore()
 const onboardingStore = useOnboardingStore()
+const paymentStore = usePaymentStore()
 
 const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
+const userMenuButtonRef = ref<HTMLButtonElement | null>(null)
+const moreOpen = ref(false)
+const moreDropdownRef = ref<HTMLElement | null>(null)
+const moreMenuButtonRef = ref<HTMLButtonElement | null>(null)
+const moreMenuRef = ref<HTMLElement | null>(null)
+const walletRef = ref<HTMLElement | null>(null)
+const balanceButtonRef = ref<HTMLButtonElement | null>(null)
+const balanceDetailsOpen = ref(false)
+// The signed-in shell gains a sidebar at 1024px, so the fully expanded action
+// row waits until 1536px. At 1440px with the expanded sidebar there is only
+// 1176px of workspace, so tablet/standard-desktop layouts keep the More menu.
+const desktopHeaderQuery = '(min-width: 1536px)'
+const desktopHeaderMedia = typeof window === 'undefined' || typeof window.matchMedia !== 'function'
+  ? null
+  : window.matchMedia(desktopHeaderQuery)
+const isDesktopHeader = ref(desktopHeaderMedia?.matches ?? true)
+const mobileOpen = computed(() => appStore.mobileOpen)
 const contactInfo = computed(() => appStore.contactInfo)
 const communityGroupName = computed(() => appStore.communityGroupName.trim() || t('nav.communityGroup'))
 const communityGroupIcon = computed(() => sanitizeUrl(appStore.communityGroupIcon, {
@@ -316,6 +462,12 @@ const communityGroupIcon = computed(() => sanitizeUrl(appStore.communityGroupIco
 const communityGroupUrl = computed(() => sanitizeUrl(appStore.communityGroupUrl))
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const modelPlazaEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza))
+const userSubscriptionsEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.userSubscriptions))
+const checkinEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.checkin))
+const paymentEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.payment))
+const hasSecondaryActions = computed(() => Boolean(
+  communityGroupUrl.value || docUrl.value || (user.value && modelPlazaEnabled.value),
+))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
 const availableBalance = computed(() => Number(user.value?.balance || 0))
 const frozenBalance = computed(() => Number(user.value?.frozen_balance || 0))
@@ -323,7 +475,25 @@ const totalBalance = computed(() => availableBalance.value + frozenBalance.value
 const balanceAvailableText = computed(() => t('common.availableBalance') === 'common.availableBalance' ? '可用余额' : t('common.availableBalance'))
 const balanceFrozenText = computed(() => t('common.frozenBalance') === 'common.frozenBalance' ? '冻结金额' : t('common.frozenBalance'))
 const balanceTotalText = computed(() => t('common.totalBalance') === 'common.totalBalance' ? '总余额' : t('common.totalBalance'))
-const balanceFrozenLabel = computed(() => `${balanceFrozenText.value} ${formatHeaderMoney(frozenBalance.value)}`)
+const rechargeLabel = computed(() => t('payment.tabTopUp'))
+const showRechargeShortcut = computed(() => Boolean(
+  user.value
+  && !authStore.isSimpleMode
+  && paymentEnabled.value
+  && paymentStore.configLoaded
+  && paymentStore.config?.enabled === true
+  && paymentStore.config.balance_disabled === false,
+))
+const balanceWalletLabel = computed(() => showRechargeShortcut.value
+  ? `${balanceAvailableText.value}: ${formatHeaderMoney(availableBalance.value)}; ${rechargeLabel.value}`
+  : `${balanceAvailableText.value}: ${formatHeaderMoney(availableBalance.value)}`,
+)
+
+watch([user, paymentEnabled], ([currentUser, enabled]) => {
+  if (currentUser && enabled && !paymentStore.configLoaded && !paymentStore.configLoading) {
+    void paymentStore.fetchConfig()
+  }
+}, { immediate: true })
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {
@@ -378,11 +548,96 @@ function toggleMobileSidebar() {
 }
 
 function toggleDropdown() {
+  moreOpen.value = false
   dropdownOpen.value = !dropdownOpen.value
 }
 
-function closeDropdown() {
+function closeDropdown(restoreFocus: boolean | Event = false) {
   dropdownOpen.value = false
+  if (restoreFocus === true) {
+    requestAnimationFrame(() => userMenuButtonRef.value?.focus())
+  }
+}
+
+const OVERFLOW_FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
+function getMoreMenuItems() {
+  if (!moreMenuRef.value) return []
+  return Array.from(
+    moreMenuRef.value.querySelectorAll<HTMLElement>(OVERFLOW_FOCUSABLE_SELECTOR),
+  ).filter((element) => element.getAttribute('tabindex') !== '-1')
+}
+
+async function toggleMore() {
+  dropdownOpen.value = false
+  moreOpen.value = !moreOpen.value
+  if (moreOpen.value) {
+    await nextTick()
+    getMoreMenuItems()[0]?.focus()
+  }
+}
+
+function closeMore(restoreFocus: boolean | Event = false) {
+  moreOpen.value = false
+  if (restoreFocus === true) {
+    requestAnimationFrame(() => moreMenuButtonRef.value?.focus())
+  }
+}
+
+function toggleBalanceDetails() {
+  dropdownOpen.value = false
+  moreOpen.value = false
+  balanceDetailsOpen.value = !balanceDetailsOpen.value
+}
+
+function closeBalanceDetails(restoreFocus: boolean | Event = false) {
+  balanceDetailsOpen.value = false
+  if (restoreFocus === true) {
+    requestAnimationFrame(() => balanceButtonRef.value?.focus())
+  }
+}
+
+function handleWalletFocusout(event: FocusEvent) {
+  const nextTarget = event.relatedTarget as Node | null
+  if (nextTarget && walletRef.value?.contains(nextTarget)) return
+  balanceDetailsOpen.value = false
+}
+
+function handleMoreKeydown(event: KeyboardEvent) {
+  const items = getMoreMenuItems()
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
+    closeMore(true)
+    return
+  }
+  if (items.length === 0) return
+
+  const currentIndex = items.indexOf(document.activeElement as HTMLElement)
+  let nextIndex: number | null = null
+  if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1 + items.length) % items.length
+  if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + items.length) % items.length
+  if (event.key === 'Home') nextIndex = 0
+  if (event.key === 'End') nextIndex = items.length - 1
+  if (nextIndex === null) return
+
+  event.preventDefault()
+  items[nextIndex]?.focus()
+}
+
+function handleMoreFocusout(event: FocusEvent) {
+  const nextTarget = event.relatedTarget as Node | null
+  if (nextTarget && moreDropdownRef.value?.contains(nextTarget)) return
+  moreOpen.value = false
+}
+
+function handleDesktopHeaderChange(event: MediaQueryListEvent) {
+  isDesktopHeader.value = event.matches
+  moreOpen.value = false
 }
 
 async function handleLogout() {
@@ -410,18 +665,120 @@ function handleClickOutside(event: MouseEvent) {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
     closeDropdown()
   }
+  if (moreDropdownRef.value && !moreDropdownRef.value.contains(event.target as Node)) {
+    closeMore()
+  }
+  if (walletRef.value && !walletRef.value.contains(event.target as Node)) {
+    closeBalanceDetails()
+  }
+}
+
+function handleDocumentKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && dropdownOpen.value) {
+    event.preventDefault()
+    closeDropdown(true)
+  }
+  if (event.key === 'Escape' && moreOpen.value) {
+    event.preventDefault()
+    closeMore(true)
+  }
+  if (event.key === 'Escape' && balanceDetailsOpen.value) {
+    event.preventDefault()
+    closeBalanceDetails(true)
+  }
 }
 
 onMounted(() => {
+  if (desktopHeaderMedia) {
+    if (typeof desktopHeaderMedia.addEventListener === 'function') {
+      desktopHeaderMedia.addEventListener('change', handleDesktopHeaderChange)
+    } else {
+      desktopHeaderMedia.addListener(handleDesktopHeaderChange)
+    }
+  }
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleDocumentKeydown)
 })
 
 onBeforeUnmount(() => {
+  if (desktopHeaderMedia) {
+    if (typeof desktopHeaderMedia.removeEventListener === 'function') {
+      desktopHeaderMedia.removeEventListener('change', handleDesktopHeaderChange)
+    } else {
+      desktopHeaderMedia.removeListener(handleDesktopHeaderChange)
+    }
+  }
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleDocumentKeydown)
 })
 </script>
 
 <style scoped>
+.balance-focus:focus-visible {
+  outline: 3px solid var(--av-focus);
+  outline-offset: 2px;
+}
+
+.header-recharge-link:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid var(--av-focus);
+  outline-offset: 2px;
+}
+
+/* At 1024px the desktop sidebar consumes 256px, leaving only 768px for the
+   header. Keep the frequent actions on their own row through 1279px so long
+   labels, frozen balance, and the secondary More trigger never crowd title
+   or account controls. */
+@media (max-width: 1279.98px) {
+  .app-header-inner {
+    display: grid;
+    grid-template-areas:
+      'leading user more'
+      'primary primary primary';
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    height: auto;
+    min-height: 4rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .app-header-leading {
+    grid-area: leading;
+    min-height: 4rem;
+  }
+
+  .header-primary-actions {
+    grid-area: primary;
+    width: 100%;
+    flex-wrap: wrap;
+    padding-top: 0.375rem;
+    border-top: 1px solid var(--av-line);
+  }
+
+  .header-secondary-actions {
+    display: none;
+  }
+
+  .header-user-menu {
+    grid-area: user;
+  }
+
+  .header-more-menu {
+    grid-area: more;
+  }
+}
+
+@media (max-width: 639.98px) {
+  .header-primary-actions {
+    gap: 0.25rem;
+  }
+
+  .header-balance {
+    padding-inline: 0.625rem;
+  }
+
+}
+
 .dropdown-enter-active,
 .dropdown-leave-active {
   transition: all 0.2s ease;

@@ -14,7 +14,8 @@ export default {
     expiresTomorrow: '明天到期',
     viewAll: '查看全部订阅',
     noSubscriptions: '暂无有效订阅',
-    unlimited: '无限制'
+    unlimited: '无限制',
+    noExpiration: '无到期时间'
   },
 
   // Version Badge

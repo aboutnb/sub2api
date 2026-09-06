@@ -27,27 +27,43 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 
-const isMobile = ref(false)
+const mobileViewportQuery = '(max-width: 1023px)'
+let mobileViewportMedia: MediaQueryList | null = null
+const isMobile = ref(
+  typeof window === 'undefined' ? false : window.matchMedia(mobileViewportQuery).matches
+)
 
-const checkMobile = () => {
-  isMobile.value = window.innerWidth < 1024
+const handleViewportChange = (event: MediaQueryListEvent) => {
+  isMobile.value = event.matches
 }
 
 onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
+  mobileViewportMedia = window.matchMedia(mobileViewportQuery)
+  isMobile.value = mobileViewportMedia.matches
+  if (typeof mobileViewportMedia.addEventListener === 'function') {
+    mobileViewportMedia.addEventListener('change', handleViewportChange)
+  } else {
+    mobileViewportMedia.addListener(handleViewportChange)
+  }
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
+  if (!mobileViewportMedia) return
+  if (typeof mobileViewportMedia.removeEventListener === 'function') {
+    mobileViewportMedia.removeEventListener('change', handleViewportChange)
+  } else {
+    mobileViewportMedia.removeListener(handleViewportChange)
+  }
+  mobileViewportMedia = null
 })
 </script>
 
 <style scoped>
 /* 桌面端：Flexbox 布局 */
 .table-page-layout {
-  @apply flex flex-col gap-6;
+  @apply flex flex-col gap-5;
   height: calc(100vh - 64px - 4rem); /* 减去 header + lg:p-8 的上下padding */
+  height: calc(100dvh - 64px - 4rem);
 }
 
 .layout-section-fixed {
@@ -60,7 +76,7 @@ onUnmounted(() => {
 
 /* 表格滚动容器 - 增强版表体滚动方案 */
 .table-scroll-container {
-  @apply flex flex-col overflow-hidden h-full bg-white dark:bg-dark-800 rounded-2xl border border-gray-200 dark:border-dark-700 shadow-sm;
+  @apply flex h-full flex-col overflow-hidden rounded-2xl border-2 border-line bg-white shadow-card dark:border-line dark:bg-surface;
 }
 
 .table-scroll-container :deep(.table-wrapper) {
@@ -76,7 +92,7 @@ onUnmounted(() => {
 }
 
 .table-scroll-container :deep(thead) {
-  @apply bg-gray-50/80 dark:bg-dark-800/80 backdrop-blur-sm;
+  @apply bg-primary-50/80 backdrop-blur-sm dark:bg-surface/90;
 }
 
 .table-scroll-container :deep(tbody) {
@@ -84,16 +100,20 @@ onUnmounted(() => {
 }
 
 .table-scroll-container :deep(th) {
-  @apply px-5 py-4 text-left text-sm font-medium text-gray-600 dark:text-dark-300 border-b border-gray-200 dark:border-dark-700;
+  @apply border-b-2 border-line px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-ink dark:border-line dark:text-ink;
 }
 
 .table-scroll-container :deep(td) {
-  @apply px-5 py-4 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-dark-800;
+  @apply px-5 py-4 text-sm text-ink dark:text-ink-muted border-b border-line dark:border-line;
 }
 
 /* 移动端：恢复正常滚动 */
 .table-page-layout.mobile-mode .table-scroll-container {
-  @apply h-auto overflow-visible border-none shadow-none bg-transparent;
+  @apply h-auto overflow-visible border-none bg-transparent shadow-none;
+}
+
+.table-page-layout.mobile-mode {
+  height: auto;
 }
 
 .table-page-layout.mobile-mode .layout-section-scrollable {

@@ -681,6 +681,7 @@ export default {
       minutesRemaining: '{minutes}m remaining',
       remainingDays: 'Remaining days',
       noExpiration: 'No expiration',
+      expirationDisabledHint: 'Global subscription expiration is disabled. This assignment will be timeless while usage quotas continue to follow the group configuration.',
       status: {
         active: 'Active',
         expired: 'Expired',

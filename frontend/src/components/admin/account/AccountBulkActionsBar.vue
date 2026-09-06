@@ -19,7 +19,7 @@
         </button>
       </template>
       <template v-if="!allResultsSelected && totalResults > selectedIds.length">
-        <span v-if="selectedIds.length > 0" class="text-gray-300 dark:text-primary-800">•</span>
+        <span v-if="selectedIds.length > 0" class="text-ink-muted dark:text-primary-800">•</span>
         <button
           :disabled="selectingAll"
           @click="$emit('select-all-results')"
@@ -33,7 +33,7 @@
         </button>
       </template>
       <template v-if="selectedIds.length > 0">
-        <span class="text-gray-300 dark:text-primary-800">•</span>
+        <span class="text-ink-muted dark:text-primary-800">•</span>
         <button
           @click="$emit('clear')"
           class="text-xs font-medium text-primary-700 hover:text-primary-800 dark:text-primary-300 dark:hover:text-primary-200"

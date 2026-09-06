@@ -191,8 +191,6 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyCommunityGroupIcon,
 		SettingKeyCommunityGroupURL,
 		SettingKeyDocURL,
-		SettingKeyHomeContent,
-		SettingKeyCompactHomeEnabled,
 		SettingKeyHideCcsImportButton,
 		SettingKeyCheckinEnabled,
 		SettingKeyPurchaseSubscriptionEnabled,
@@ -241,6 +239,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAvailableChannelsEnabled,
 		SettingKeySmartRoutingEnabled,
 		SettingKeyUserSubscriptionsEnabled,
+		SettingKeySubscriptionExpirationEnabled,
 		SettingKeyModelPlazaEnabled,
 		SettingKeyModelPlazaRequireAuth,
 		SettingKeyPluginManagementEnabled,
@@ -347,32 +346,34 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		CommunityGroupIcon:                  strings.TrimSpace(settings[SettingKeyCommunityGroupIcon]),
 		CommunityGroupURL:                   strings.TrimSpace(settings[SettingKeyCommunityGroupURL]),
 		DocURL:                              settings[SettingKeyDocURL],
-		HomeContent:                         settings[SettingKeyHomeContent],
-		CompactHomeEnabled:                  settings[SettingKeyCompactHomeEnabled] == "true",
-		HideCcsImportButton:                 settings[SettingKeyHideCcsImportButton] == "true",
-		CheckinEnabled:                      settings[SettingKeyCheckinEnabled] == "true",
-		PurchaseSubscriptionEnabled:         settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
-		PurchaseSubscriptionURL:             strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
-		TableDefaultPageSize:                tableDefaultPageSize,
-		TablePageSizeOptions:                tablePageSizeOptions,
-		CustomMenuItems:                     settings[SettingKeyCustomMenuItems],
-		CustomEndpoints:                     settings[SettingKeyCustomEndpoints],
-		LinuxDoOAuthEnabled:                 linuxDoEnabled,
-		DingTalkOAuthEnabled:                dingTalkEnabled,
-		WeChatOAuthEnabled:                  weChatEnabled,
-		WeChatOAuthOpenEnabled:              weChatOpenEnabled,
-		WeChatOAuthMPEnabled:                weChatMPEnabled,
-		WeChatOAuthMobileEnabled:            weChatMobileEnabled,
-		BackendModeEnabled:                  settings[SettingKeyBackendModeEnabled] == "true",
-		PaymentEnabled:                      settings[SettingPaymentEnabled] == "true",
-		OIDCOAuthEnabled:                    oidcEnabled,
-		OIDCOAuthProviderName:               oidcProviderName,
-		GitHubOAuthEnabled:                  gitHubEnabled,
-		GoogleOAuthEnabled:                  googleEnabled,
-		BalanceLowNotifyEnabled:             settings[SettingKeyBalanceLowNotifyEnabled] == "true",
-		AccountQuotaNotifyEnabled:           settings[SettingKeyAccountQuotaNotifyEnabled] == "true",
-		BalanceLowNotifyThreshold:           balanceLowNotifyThreshold,
-		BalanceLowNotifyRechargeURL:         settings[SettingKeyBalanceLowNotifyRechargeURL],
+		// Retain the response fields for compatibility, but the homepage is now a
+		// reviewed build-time asset. Historical database values remain untouched.
+		HomeContent:                 "",
+		CompactHomeEnabled:          false,
+		HideCcsImportButton:         settings[SettingKeyHideCcsImportButton] == "true",
+		CheckinEnabled:              settings[SettingKeyCheckinEnabled] == "true",
+		PurchaseSubscriptionEnabled: settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
+		PurchaseSubscriptionURL:     strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
+		TableDefaultPageSize:        tableDefaultPageSize,
+		TablePageSizeOptions:        tablePageSizeOptions,
+		CustomMenuItems:             settings[SettingKeyCustomMenuItems],
+		CustomEndpoints:             settings[SettingKeyCustomEndpoints],
+		LinuxDoOAuthEnabled:         linuxDoEnabled,
+		DingTalkOAuthEnabled:        dingTalkEnabled,
+		WeChatOAuthEnabled:          weChatEnabled,
+		WeChatOAuthOpenEnabled:      weChatOpenEnabled,
+		WeChatOAuthMPEnabled:        weChatMPEnabled,
+		WeChatOAuthMobileEnabled:    weChatMobileEnabled,
+		BackendModeEnabled:          settings[SettingKeyBackendModeEnabled] == "true",
+		PaymentEnabled:              settings[SettingPaymentEnabled] == "true",
+		OIDCOAuthEnabled:            oidcEnabled,
+		OIDCOAuthProviderName:       oidcProviderName,
+		GitHubOAuthEnabled:          gitHubEnabled,
+		GoogleOAuthEnabled:          googleEnabled,
+		BalanceLowNotifyEnabled:     settings[SettingKeyBalanceLowNotifyEnabled] == "true",
+		AccountQuotaNotifyEnabled:   settings[SettingKeyAccountQuotaNotifyEnabled] == "true",
+		BalanceLowNotifyThreshold:   balanceLowNotifyThreshold,
+		BalanceLowNotifyRechargeURL: settings[SettingKeyBalanceLowNotifyRechargeURL],
 
 		ChannelMonitorEnabled:                !isFalseSettingValue(settings[SettingKeyChannelMonitorEnabled]),
 		ChannelMonitorMode:                   normalizeChannelMonitorMode(settings[SettingKeyChannelMonitorMode]),
@@ -383,10 +384,11 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 		SmartRoutingEnabled:      settings[SettingKeySmartRoutingEnabled] == "true",
 
-		UserSubscriptionsEnabled: !isFalseSettingValue(settings[SettingKeyUserSubscriptionsEnabled]),
-		ModelPlazaEnabled:        settings[SettingKeyModelPlazaEnabled] == "true",
-		ModelPlazaRequireAuth:    settings[SettingKeyModelPlazaRequireAuth] == "true",
-		PluginManagementEnabled:  settings[SettingKeyPluginManagementEnabled] == "true",
+		UserSubscriptionsEnabled:      !isFalseSettingValue(settings[SettingKeyUserSubscriptionsEnabled]),
+		SubscriptionExpirationEnabled: !isFalseSettingValue(settings[SettingKeySubscriptionExpirationEnabled]),
+		ModelPlazaEnabled:             settings[SettingKeyModelPlazaEnabled] == "true",
+		ModelPlazaRequireAuth:         settings[SettingKeyModelPlazaRequireAuth] == "true",
+		PluginManagementEnabled:       settings[SettingKeyPluginManagementEnabled] == "true",
 
 		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
 
@@ -658,19 +660,20 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorHideThroughput bool `json:"channel_monitor_hide_throughput"`
 	// ChannelMonitorShowQuota gates the user-facing quota/balance display on
 	// monitors; fail-closed (absent/false = hidden). Admin UI always shows it.
-	ChannelMonitorShowQuota    bool   `json:"channel_monitor_show_quota"`
-	AvailableChannelsEnabled   bool   `json:"available_channels_enabled"`
-	SmartRoutingEnabled        bool   `json:"smart_routing_enabled"`
-	UserSubscriptionsEnabled   bool   `json:"user_subscriptions_enabled"`
-	ModelPlazaEnabled          bool   `json:"model_plaza_enabled"`
-	ModelPlazaRequireAuth      bool   `json:"model_plaza_require_auth"`
-	PluginManagementEnabled    bool   `json:"plugin_management_enabled"`
-	AffiliateEnabled           bool   `json:"affiliate_enabled"`
-	RiskControlEnabled         bool   `json:"risk_control_enabled"`
-	AllowUserViewErrorRequests bool   `json:"allow_user_view_error_requests"`
-	PublicAccessGuardEnabled   bool   `json:"public_access_guard_enabled"`
-	PublicAccessPublishKey     string `json:"public_access_publish_key"`
-	PublicAccessHeaderName     string `json:"public_access_header_name"`
+	ChannelMonitorShowQuota       bool   `json:"channel_monitor_show_quota"`
+	AvailableChannelsEnabled      bool   `json:"available_channels_enabled"`
+	SmartRoutingEnabled           bool   `json:"smart_routing_enabled"`
+	UserSubscriptionsEnabled      bool   `json:"user_subscriptions_enabled"`
+	SubscriptionExpirationEnabled bool   `json:"subscription_expiration_enabled"`
+	ModelPlazaEnabled             bool   `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth         bool   `json:"model_plaza_require_auth"`
+	PluginManagementEnabled       bool   `json:"plugin_management_enabled"`
+	AffiliateEnabled              bool   `json:"affiliate_enabled"`
+	RiskControlEnabled            bool   `json:"risk_control_enabled"`
+	AllowUserViewErrorRequests    bool   `json:"allow_user_view_error_requests"`
+	PublicAccessGuardEnabled      bool   `json:"public_access_guard_enabled"`
+	PublicAccessPublishKey        string `json:"public_access_publish_key"`
+	PublicAccessHeaderName        string `json:"public_access_header_name"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -752,6 +755,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
 		SmartRoutingEnabled:                  settings.SmartRoutingEnabled,
 		UserSubscriptionsEnabled:             settings.UserSubscriptionsEnabled,
+		SubscriptionExpirationEnabled:        settings.SubscriptionExpirationEnabled,
 		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,
 		PluginManagementEnabled:              settings.PluginManagementEnabled,
@@ -812,8 +816,8 @@ func safeRawJSONArray(raw string) json.RawMessage {
 	return json.RawMessage("[]")
 }
 
-// GetFrameSrcOrigins returns deduplicated http(s) origins from home_content URL,
-// purchase_subscription_url, and all custom_menu_items URLs. Used by the router layer for CSP frame-src injection.
+// GetFrameSrcOrigins returns deduplicated http(s) origins from
+// purchase_subscription_url and all custom_menu_items URLs. Used by the router layer for CSP frame-src injection.
 func (s *SettingService) GetFrameSrcOrigins(ctx context.Context) ([]string, error) {
 	settings, err := s.GetPublicSettings(ctx)
 	if err != nil {
@@ -831,9 +835,6 @@ func (s *SettingService) GetFrameSrcOrigins(ctx context.Context) ([]string, erro
 			}
 		}
 	}
-
-	// home content URL (when home_content is set to a URL for iframe embedding)
-	addOrigin(settings.HomeContent)
 
 	// purchase subscription URL
 	if settings.PurchaseSubscriptionEnabled {

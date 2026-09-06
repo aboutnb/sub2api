@@ -1,25 +1,25 @@
 <template>
   <section
-    class="card flex min-h-[360px] flex-col overflow-visible !rounded-3xl !border-0 !p-6 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700"
+    class="card flex min-h-[360px] flex-col overflow-visible !p-6"
   >
     <div class="card-header mb-4 flex shrink-0 flex-wrap items-start justify-between gap-3 !border-0 !p-0">
       <div class="min-w-0">
-        <h2 class="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
+        <h2 class="flex items-center gap-2 text-sm font-bold text-ink-strong dark:text-white">
           <span class="inline-flex h-4 w-4 text-emerald-500" aria-hidden="true">
             <Icon name="grid" size="sm" />
           </span>
           {{ t('channelMonitorV2.matrix.title') }}
         </h2>
-        <p class="mt-0.5 text-xs text-gray-500 dark:text-dark-400">
+        <p class="mt-0.5 text-xs text-ink-muted dark:text-ink-muted">
           {{ t('channelMonitorV2.matrix.description') }}
         </p>
       </div>
-      <div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 text-xs text-gray-500 dark:text-gray-400 sm:w-auto">
+      <div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 text-xs text-ink-muted dark:text-ink-muted sm:w-auto">
         <span class="badge badge-gray shrink-0">{{ bucketLabel }}</span>
-        <span class="hidden text-[11px] text-gray-400 dark:text-dark-400 sm:inline">{{ t('channelMonitorV2.matrix.wheelZoomX') }}</span>
+        <span class="hidden text-[11px] text-ink-muted dark:text-ink-muted sm:inline">{{ t('channelMonitorV2.matrix.wheelZoomX') }}</span>
         <button
           type="button"
-          class="inline-flex shrink-0 items-center rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300 dark:hover:bg-dark-800"
+          class="inline-flex shrink-0 items-center rounded-lg border border-line bg-white px-2 py-1 text-[11px] font-semibold text-ink hover:bg-surface-muted disabled:opacity-50 dark:border-line dark:bg-canvas dark:text-ink-muted dark:hover:bg-dark-800"
           :disabled="!zoomed"
           @click="resetMatrixZoom"
         >
@@ -32,12 +32,12 @@
       <div
         v-if="rows.length"
         ref="scrollRef"
-        class="matrix-scroll max-h-[min(42vh,420px)] max-w-full overflow-auto rounded-2xl bg-gray-50/60 p-2 dark:bg-dark-900/30"
+        class="matrix-scroll max-h-[min(42vh,420px)] max-w-full overflow-auto rounded-2xl bg-surface-muted/60 p-2 dark:bg-canvas/30"
         @wheel="onMatrixWheel"
       >
         <div class="matrix-table w-full" :style="tableStyle">
           <div
-            class="matrix-header matrix-row sticky top-0 z-[3] bg-gray-50 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:bg-dark-900 dark:text-gray-400"
+            class="matrix-header matrix-row sticky top-0 z-[3] bg-surface-muted text-[10px] font-semibold uppercase tracking-wide text-ink-muted dark:bg-canvas dark:text-ink-muted"
             :class="showThroughput ? 'matrix-row--with-tps' : ''"
           >
             <span>{{ t('channelMonitorV2.matrix.dimension') }}</span>
@@ -53,31 +53,31 @@
           <div
             v-for="entry in alignedRows"
             :key="rowKey(entry.row)"
-            class="matrix-row border-b border-gray-100/80 dark:border-dark-700/60"
+            class="matrix-row border-b border-line/80 dark:border-line/60"
             :class="showThroughput ? 'matrix-row--with-tps' : ''"
           >
-            <div class="dimension-cell flex min-w-0 items-center gap-2 bg-white dark:bg-dark-800" :title="rowLabel(entry.row)">
+            <div class="dimension-cell flex min-w-0 items-center gap-2 bg-white dark:bg-surface" :title="rowLabel(entry.row)">
               <span :class="['status-dot', cellClass(entry.row.health, entry.row.metrics.request_count)]"></span>
-              <strong class="truncate text-xs font-semibold text-gray-800 dark:text-gray-100">{{ rowLabel(entry.row) }}</strong>
+              <strong class="truncate text-xs font-semibold text-ink-strong dark:text-gray-100">{{ rowLabel(entry.row) }}</strong>
             </div>
-            <strong class="summary-value bg-white text-xs font-medium tabular-nums text-gray-600 dark:bg-dark-800 dark:text-gray-300">
+            <strong class="summary-value bg-white text-xs font-medium tabular-nums text-ink dark:bg-surface dark:text-ink-muted">
               {{ successRate(entry.row.metrics) }}
             </strong>
             <strong
-              class="summary-value bg-white text-xs font-medium tabular-nums text-gray-600 dark:bg-dark-800 dark:text-gray-300"
+              class="summary-value bg-white text-xs font-medium tabular-nums text-ink dark:bg-surface dark:text-ink-muted"
               :title="latencyPrivacy(entry.row.metrics.ttft)"
             >
               {{ formatMs(entry.row.metrics.ttft.p50_ms) }}
             </strong>
             <strong
               v-if="showThroughput"
-              class="summary-value bg-white text-xs font-medium tabular-nums text-gray-600 dark:bg-dark-800 dark:text-gray-300"
+              class="summary-value bg-white text-xs font-medium tabular-nums text-ink dark:bg-surface dark:text-ink-muted"
               :title="exactTps(entry.row.metrics.tpm)"
             >
               {{ formatTps(entry.row.metrics.tpm) }}
             </strong>
             <strong
-              class="summary-value bg-white text-xs font-medium tabular-nums text-gray-600 dark:bg-dark-800 dark:text-gray-300"
+              class="summary-value bg-white text-xs font-medium tabular-nums text-ink dark:bg-surface dark:text-ink-muted"
             >
               {{ formatPercent(entry.row.metrics.cache_rate) }}
             </strong>
@@ -130,12 +130,12 @@
       </div>
 
       <div class="mt-4 flex flex-col gap-2" :aria-label="t('channelMonitorV2.matrix.legendAria')">
-        <div class="flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+        <div class="flex items-center gap-2 text-[11px] text-ink-muted dark:text-ink-muted">
           <span class="shrink-0">{{ t('channelMonitorV2.matrix.bad') }}</span>
           <div class="score-legend h-2.5 flex-1 overflow-hidden rounded-full"></div>
           <span class="shrink-0">{{ t('channelMonitorV2.matrix.good') }}</span>
         </div>
-        <div class="flex flex-wrap gap-4 text-[11px] text-gray-500 dark:text-gray-400">
+        <div class="flex flex-wrap gap-4 text-[11px] text-ink-muted dark:text-ink-muted">
           <span class="inline-flex items-center gap-1.5"><i class="status-dot health-score10"></i>{{ t('channelMonitorV2.matrix.healthyLegend') }}</span>
           <span class="inline-flex items-center gap-1.5"><i class="status-dot health-score6"></i>{{ t('channelMonitorV2.matrix.warningLegend') }}</span>
           <span class="inline-flex items-center gap-1.5"><i class="status-dot health-score2"></i>{{ t('channelMonitorV2.matrix.criticalLegend') }}</span>

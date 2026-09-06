@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1242" height="1660" viewBox="0 0 1242 1660">
+  <defs>
+    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1830"/>
+      <stop offset="1" stop-color="#142B51"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F7FF9B"/>
+      <stop offset="0.48" stop-color="#6EF1CB"/>
+      <stop offset="1" stop-color="#43A9FF"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="26" stdDeviation="24" flood-color="#061123" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect width="1242" height="1660" fill="#F5F7F2"/>
+  <path d="M0 0H1242V560C990 498 772 544 618 664C427 813 233 781 0 690Z" fill="url(#ink)"/>
+  <circle cx="1080" cy="190" r="278" fill="#1D426F" opacity="0.55"/>
+  <circle cx="1020" cy="250" r="184" fill="none" stroke="#89F4D1" stroke-width="2" opacity="0.32"/>
+  <circle cx="144" cy="506" r="102" fill="none" stroke="#65B8FF" stroke-width="2" opacity="0.35"/>
+
+  <text x="92" y="142" fill="#BCE8DD" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="30" letter-spacing="7">SERVICE UPDATE</text>
+  <text x="90" y="278" fill="#FFFFFF" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="82" font-weight="700">套餐焕新</text>
+  <text x="92" y="372" fill="#BCE8DD" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="42" font-weight="500">门槛更轻，选择更多了</text>
+
+  <g filter="url(#shadow)">
+    <rect x="90" y="576" width="1062" height="522" rx="42" fill="#FFFFFF"/>
+  </g>
+  <path d="M90 618C90 595 109 576 132 576H1110C1133 576 1152 595 1152 618V738H90Z" fill="#E6F8F0"/>
+  <text x="142" y="679" fill="#1A5663" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="29" font-weight="600" letter-spacing="4">PLAN REFRESH</text>
+
+  <g transform="translate(140 795)">
+    <rect width="290" height="220" rx="30" fill="#0D284A"/>
+    <path d="M37 174C79 128 126 194 182 140C218 105 246 114 265 86" fill="none" stroke="url(#glow)" stroke-width="15" stroke-linecap="round"/>
+    <text x="42" y="79" fill="#BFFFE4" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="28" letter-spacing="4">PRO</text>
+    <text x="42" y="127" fill="#FFFFFF" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="33" font-weight="600">高频更稳</text>
+  </g>
+
+  <g transform="translate(476 795)">
+    <rect width="290" height="220" rx="30" fill="#EAF4FF"/>
+    <path d="M35 164C80 210 120 115 176 153C221 184 244 145 267 87" fill="none" stroke="#237BDA" stroke-width="15" stroke-linecap="round"/>
+    <text x="42" y="79" fill="#2767AA" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="28" letter-spacing="4">PLUS</text>
+    <text x="42" y="127" fill="#123B67" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="33" font-weight="600">日常够用</text>
+  </g>
+
+  <g transform="translate(812 795)">
+    <rect width="290" height="220" rx="30" fill="#FFF0D1"/>
+    <path d="M35 159C82 113 120 186 173 137C216 98 243 123 267 80" fill="none" stroke="#E3811B" stroke-width="15" stroke-linecap="round"/>
+    <text x="42" y="79" fill="#B55908" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="28" font-weight="600" letter-spacing="2">SPECIAL</text>
+    <text x="42" y="127" fill="#6E3704" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="33" font-weight="600">特惠分组</text>
+  </g>
+
+  <text x="621" y="1230" text-anchor="middle" fill="#132D4E" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="54" font-weight="700">这波福利，别错过</text>
+  <text x="621" y="1306" text-anchor="middle" fill="#55718B" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="35">按自己的使用习惯挑，就这么简单</text>
+
+  <line x1="90" y1="1450" x2="1152" y2="1450" stroke="#D3DFD8" stroke-width="2"/>
+  <text x="90" y="1520" fill="#527067" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="28" letter-spacing="3">NOW AVAILABLE</text>
+  <path d="M1088 1495L1136 1520L1088 1545" fill="none" stroke="#1E6275" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -13,7 +13,8 @@ import (
 )
 
 type subscriptionExpiryRepoStub struct {
-	listCalls int
+	listCalls  int
+	batchCalls int
 }
 
 func (r *subscriptionExpiryRepoStub) Create(context.Context, *UserSubscription) error {
@@ -114,6 +115,7 @@ func (r *subscriptionExpiryRepoStub) IncrementUsage(context.Context, int64, floa
 }
 
 func (r *subscriptionExpiryRepoStub) BatchUpdateExpiredStatus(context.Context) (int64, error) {
+	r.batchCalls++
 	return 0, nil
 }
 
@@ -172,6 +174,17 @@ func TestSubscriptionExpiryService_ExpiryReminderEnabledDefaultsToTrue(t *testin
 	svc.SetSettingRepository(&subscriptionExpirySettingRepoStub{values: map[string]string{}})
 
 	require.True(t, svc.expiryReminderEnabled(context.Background()))
+}
+
+func TestSubscriptionExpiryService_DisabledPolicySkipsExpirationAndReminderScans(t *testing.T) {
+	repo := &subscriptionExpiryRepoStub{}
+	svc := NewSubscriptionExpiryService(repo, time.Minute)
+	svc.SetSubscriptionPolicy(NewStaticSubscriptionPolicy(false))
+
+	svc.runOnce()
+
+	require.Zero(t, repo.batchCalls)
+	require.Zero(t, repo.listCalls)
 }
 
 func TestSubscriptionExpiryService_ExpiryReminderDisabledSkipsSubscriptionScan(t *testing.T) {

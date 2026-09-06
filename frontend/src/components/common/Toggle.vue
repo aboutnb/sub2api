@@ -2,13 +2,25 @@
   <button
     type="button"
     @click="toggle"
-    class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-dark-800"
-    :class="[modelValue ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600']"
+    :id="id"
+    :disabled="disabled"
+    class="relative inline-flex h-11 w-12 flex-shrink-0 cursor-pointer items-center rounded-xl transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-dark-800"
+    :class="[
+      disabled && 'cursor-not-allowed opacity-50'
+    ]"
     role="switch"
     :aria-checked="modelValue"
+    :aria-label="ariaLabel"
+    :aria-labelledby="ariaLabelledby"
+    :aria-describedby="ariaDescribedby"
   >
     <span
-      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-x-0 top-1/2 h-7 -translate-y-1/2 rounded-lg border-2 border-line-control transition-colors duration-200 ease-in-out"
+      :class="modelValue ? 'bg-primary-500' : 'bg-line dark:bg-line-strong'"
+    />
+    <span
+      class="pointer-events-none absolute left-0.5 top-1/2 inline-block h-5 w-5 -translate-y-1/2 transform rounded-md border border-ink-strong bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
       :class="[modelValue ? 'translate-x-5' : 'translate-x-0']"
     />
   </button>
@@ -17,6 +29,11 @@
 <script setup lang="ts">
 const props = defineProps<{
   modelValue: boolean
+  id?: string
+  disabled?: boolean
+  ariaLabel?: string
+  ariaLabelledby?: string
+  ariaDescribedby?: string
 }>()
 
 const emit = defineEmits<{
@@ -24,6 +41,7 @@ const emit = defineEmits<{
 }>()
 
 function toggle() {
+  if (props.disabled) return
   emit('update:modelValue', !props.modelValue)
 }
 </script>

@@ -413,7 +413,7 @@ export function getPlatformTagClass(platform: string): string {
     case 'kimi': return 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400'
     case 'zhipu': return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
     case 'deepseek': return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
-    default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
+    default: return 'bg-surface-muted text-ink dark:bg-canvas/30 dark:text-ink-muted'
   }
 }
 

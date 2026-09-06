@@ -1,10 +1,10 @@
 <template>
   <section
-    class="overflow-hidden rounded-2xl border bg-white shadow-card dark:bg-dark-800/50"
+    class="overflow-hidden rounded-2xl border-2 bg-white shadow-card dark:bg-surface/75"
     :class="[platformBorderStrongClass(group.platform)]"
   >
     <!-- 分组头部:名称/平台/倍率徽章/专属/订阅徽章 + 描述 -->
-    <header class="border-b border-gray-100 px-5 py-4 dark:border-dark-700/60">
+    <header class="border-b border-line px-5 py-4 dark:border-line/60">
       <div class="flex flex-wrap items-center gap-2">
         <GroupBadge
           :name="group.name"
@@ -32,7 +32,7 @@
           {{ t('modelPlaza.badges.subscription') }}
         </span>
       </div>
-      <p v-if="group.description" class="mt-2 text-sm text-gray-500 dark:text-dark-400">
+      <p v-if="group.description" class="mt-2 text-sm text-ink-muted dark:text-ink-muted">
         {{ group.description }}
       </p>
       <p
@@ -44,7 +44,7 @@
       </p>
       <p
         v-if="longContextNote"
-        class="mt-1.5 flex items-center gap-1 text-xs text-gray-500 dark:text-dark-400"
+        class="mt-1.5 flex items-center gap-1 text-xs text-ink-muted dark:text-ink-muted"
       >
         <Icon name="infoCircle" size="xs" class="h-3 w-3" />
         {{ longContextNote }}
@@ -64,7 +64,7 @@
         :peak-window="peakWindow"
         :peak-rate-multiplier="group.peak_rate_multiplier"
       />
-      <p v-else class="px-5 py-4 text-center text-sm text-gray-400 dark:text-dark-500">
+      <p v-else class="px-5 py-4 text-center text-sm text-ink-muted dark:text-ink-muted">
         {{ t('modelPlaza.detail.noModels') }}
       </p>
     </div>
