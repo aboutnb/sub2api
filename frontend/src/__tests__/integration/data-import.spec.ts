@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import ImportDataModal from '@/components/admin/account/ImportDataModal.vue'
 import { adminAPI } from '@/api/admin'
 
@@ -30,16 +31,21 @@ vi.mock('@/api/admin', () => ({
   }
 }))
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    t: (key: string) => key
-  })
-}))
+vi.mock('vue-i18n', async () => {
+  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+  return {
+    ...actual,
+    useI18n: () => ({
+      t: (key: string) => key
+    })
+  }
+})
 
 const mountModal = () =>
   mount(ImportDataModal, {
     props: { show: true },
     global: {
+      plugins: [createPinia()],
       stubs: {
         BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' }
       }
