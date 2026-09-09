@@ -69,7 +69,7 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 | 最后已审并合入的上游基线 | `upstream/main` = `270eac6973049fe1b50eb75560a74a029e82884c`（0.2.3） |
 | 上游合并提交 | `fa931c3458f91bb8cdc865d0ed77f791d22d34cf` |
 | 应用版本 | `0.2.3` |
-| 相对上游的非合并提交 | 当前业务修复提交后 112 个，其中 17 个治理提交按受限规则动态豁免 |
+| 相对上游的非合并提交 | 当前业务修复提交后 113 个，其中 17 个治理提交按受限规则动态豁免 |
 | 相对上游的文件差异 | 业务修复提交后 502 个文件，约 55002 行新增、1984 行删除 |
 | 发布镜像 | `ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12>` |
 | 生产发布目标 | 23 服务器，使用预构建镜像 |
@@ -96,6 +96,9 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
   `GroupModelAllowlist`，没有恢复已删除的旧 schema。
 - 验证：后端 handler/server/service/cmd 测试通过；前端 Turnstile 与 PaymentView 25 项测试
   通过；完整契约、全量测试和 GitHub Actions 仍是发布前置门禁。
+- 合并后的兼容提交 `af997094b` 仅调整上游路由测试断言、补齐 Pinia/API mock 夹具，以及补充
+  英文账号管理表单/筛选 i18n key；不改变运行时调度、支付、并发或迁移语义。后端 `go test ./...`
+  通过；前端 286 个测试文件、2091 项测试通过，`lint:check`、`typecheck` 和生产构建通过。
 - 仍只允许使用 GitHub Actions 为 `sub2api-flowai-<sha12>` 生成的不可变 GHCR 镜像；23
   服务器仅重建 `flowai-app`，不重建任何依赖服务。
 
@@ -490,6 +493,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | 2026-09-03 | `46d3b617e` | fix(flowai): satisfy smart routing lint；修正 De Morgan 表达式和测试类型断言错误检查，不改变运行时路由语义 | CI/智能路由 |
 | 2026-09-03 | `6c16703c7` | fix(flowai): update settings API contract；补齐 `smart_routing_enabled=false` 的公开设置契约测试 | CI/智能路由 |
 | 2026-09-09 | `04661fec1` | chore: release FlowAI 0.2.3；仅更新嵌入式应用版本，不改变上游基线或 FlowAI 业务契约 | 版本/发布 |
+| 2026-09-09 | `af997094b` | test: align upstream 0.2.3 fixtures；适配上游路由认证链、Pinia/API mock 和英文账号管理 i18n key，不改变运行时业务契约 | CI/测试/i18n |
 <!-- FLOWAI_LEDGER_NON_MERGE_END -->
 
 ## 8. 历史合并提交索引
