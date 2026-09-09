@@ -62,12 +62,13 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 | 项目 | 值 |
 | --- | --- |
 | 发布分支 | `sub2api-flowai` |
-| 本次核对日期 | 2026-09-03（Asia/Shanghai） |
-| 业务代码基线 HEAD（本次上游合并前） | `4dc03354ac6acec9e24abf474e8785fa587e203f` |
-| 本次核对 HEAD（业务修复提交后） | `6c16703c7450935f9346b7bf0a6b7cfadfcfbbda` |
-| 最后已审并合入的上游基线 | `upstream/main` = `5097b31457e6dc9f49e5f5c9c72b925ce79543b3`（0.2.0） |
-| 当前抓取但尚未合入的上游 | 无（已合入） |
-| 应用版本 | `0.2.0` |
+| 本次核对日期 | 2026-09-09（Asia/Shanghai） |
+| 业务代码基线 HEAD（本次上游合并前） | `04661fec1888ebdf93ab18d2736f9ab3329687b0` |
+| 本次核对 HEAD（上游合并后） | `fa931c3458f91bb8cdc865d0ed77f791d22d34cf` |
+| FlowAI 0.2.3 版本提交 | `04661fec1888ebdf93ab18d2736f9ab3329687b0` |
+| 最后已审并合入的上游基线 | `upstream/main` = `270eac6973049fe1b50eb75560a74a029e82884c`（0.2.3） |
+| 上游合并提交 | `fa931c3458f91bb8cdc865d0ed77f791d22d34cf` |
+| 应用版本 | `0.2.3` |
 | 相对上游的非合并提交 | 当前业务修复提交后 112 个，其中 17 个治理提交按受限规则动态豁免 |
 | 相对上游的文件差异 | 业务修复提交后 502 个文件，约 55002 行新增、1984 行删除 |
 | 发布镜像 | `ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12>` |
@@ -76,7 +77,29 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 快照值会变化，当前行为契约不会因上游版本号变化而自动变化。下一次发布必须重新
 记录 HEAD、上游基线、版本、镜像 digest 和实际验收结果。
 
-### 2.1 本次上游合并审阅（已完成）
+### 2.1 FlowAI 0.2.3 上游合并记录（已完成）
+
+2026-09-09，GitHub API 确认 `upstream/main` 已更新到
+`270eac6973049fe1b50eb75560a74a029e82884c`，已通过 SSH over 443 抓取并完成预审。
+上游相对合并基点新增 260 个提交，已由明确的非快进合并提交
+`fa931c3458f91bb8cdc865d0ed77f791d22d34cf` 合入；本地 `main` 未修改。
+
+- 版本提交 `04661fec1` 已将 `backend/cmd/server/VERSION` 更新为 0.2.3；合并时必须保留
+  上游同一版本的状态，不能用本地版本提交跳过上游代码审阅。
+- 合并保留账号 priority、并发、GM/EasyPay、充值赠送、签到、邮件、i18n 与部署边界；
+  账号优先级仍为 1 最高、数值越小越优先。
+- 上游新增迁移按完整文件名保留：232/233 upstream request id、234 reasoning multiplier、
+  234 Codex manifest、235/236 model allowlist、237 MiniMax platform；与 FlowAI 同编号
+  迁移并存，未编辑已执行迁移。
+- 冲突处理：网关路由、上游错误归因、WebSocket 失败事件、设置公开字段、wire 注入、支付
+  页面和账号创建请求头均按功能块合并；旧 `ModelsListConfig` 已适配为上游
+  `GroupModelAllowlist`，没有恢复已删除的旧 schema。
+- 验证：后端 handler/server/service/cmd 测试通过；前端 Turnstile 与 PaymentView 25 项测试
+  通过；完整契约、全量测试和 GitHub Actions 仍是发布前置门禁。
+- 仍只允许使用 GitHub Actions 为 `sub2api-flowai-<sha12>` 生成的不可变 GHCR 镜像；23
+  服务器仅重建 `flowai-app`，不重建任何依赖服务。
+
+### 2.2 本次上游合并审阅（已完成）
 
 2026-09-02 刷新并审阅 `upstream/main` 完整提交
 `5097b31457e6dc9f49e5f5c9c72b925ce79543b3`（0.2.0）。本次上游相对上一已审基线
@@ -332,6 +355,13 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | `backend/migrations/232_group_reasoning_effort_over_limit.sql` | 上游 0.2.0 分组推理强度超限策略 | 新增字段迁移，按完整文件名执行并保留历史迁移不可变性 |
 | `backend/migrations/233_group_free_openai_fast.sql` | 上游 0.2.0 分组免费 OpenAI Fast 策略 | 新增字段迁移，不覆盖支付/充值赠送配置 |
 | `backend/migrations/234_api_key_smart_routing.sql` | API key 智能路由配置、候选组和功能开关 | 新增表和 `smart_routing_enabled=false` 默认值；只追加迁移，回滚镜像不得逆向删除 |
+| `backend/migrations/232_add_usage_log_upstream_request_id.sql` | 上游请求 ID 记录 | 上游 0.2.3 新增；只追加字段，不改历史迁移 |
+| `backend/migrations/233_add_usage_log_upstream_request_id_index_notx.sql` | 上游请求 ID 索引 | 上游 0.2.3 新增；按完整文件名执行并核对 checksum |
+| `backend/migrations/234_channel_max_reasoning_effort_multiplier.sql` | 渠道推理强度倍率 | 上游 0.2.3 新增；不改变 FlowAI 账号调度语义 |
+| `backend/migrations/234_group_codex_models_manifest_config.sql` | Codex models manifest 配置 | 上游 0.2.3 新增；保留与 FlowAI 智能路由的兼容处理 |
+| `backend/migrations/235_group_model_allowlist.sql` | 分组模型白名单 | 上游 0.2.3 新增；替代旧模型列表配置并由新 Ent 字段承载 |
+| `backend/migrations/236_group_model_allowlist_repair.sql` | 旧模型列表字段修复迁移 | 上游 0.2.3 新增；只做兼容性迁移，不删除生产数据 |
+| `backend/migrations/237_add_minimax_platform.sql` | MiniMax 平台支持 | 上游 0.2.3 新增；平台列表和迁移按完整文件名保留 |
 <!-- FLOWAI_MIGRATION_LEDGER_END -->
 
 `backend/migrations/001_init.sql` 的内容曾为保留生产 checksum 做兼容性修复（提交
@@ -459,6 +489,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | 2026-09-03 | `beed8a2f4` | feat(flowai): add API key smart routing；新增智能路由、渠道监控 V3 展示层和中英文 locale | API key/渠道监控/i18n |
 | 2026-09-03 | `46d3b617e` | fix(flowai): satisfy smart routing lint；修正 De Morgan 表达式和测试类型断言错误检查，不改变运行时路由语义 | CI/智能路由 |
 | 2026-09-03 | `6c16703c7` | fix(flowai): update settings API contract；补齐 `smart_routing_enabled=false` 的公开设置契约测试 | CI/智能路由 |
+| 2026-09-09 | `04661fec1` | chore: release FlowAI 0.2.3；仅更新嵌入式应用版本，不改变上游基线或 FlowAI 业务契约 | 版本/发布 |
 <!-- FLOWAI_LEDGER_NON_MERGE_END -->
 
 ## 8. 历史合并提交索引
@@ -470,6 +501,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
 | 日期 | 合并提交 | 说明 |
 | --- | --- | --- |
+| 2026-09-09 | `fa931c345` | Merge upstream main 0.2.3；完整合入 260 个上游提交，逐项解决 13 个冲突文件；保留 FlowAI 账号优先级 1 最高、-1 并发拒绝、GM/EasyPay、充值赠送、签到/邮件防重、i18n 和预构建部署，适配上游 GroupModelAllowlist、Codex manifest、MiniMax、上游请求 ID 与渠道策略 |
 | 2026-09-02 | `88ad9b765` | Merge upstream main 0.2.0；完整合入 53 个上游提交，无文本冲突和 incoming 删除；保留 FlowAI 优先级、并发、GM/赠送、签到 Turnstile、邮件防重、i18n 和预构建部署，吸收分组定价、推理强度、Fast/free Fast、缓存定价及 WebSocket/Responses 修复 |
 | 2026-09-01 | `651b92209` | Merge upstream main 0.1.185 hotfixes；保留 FlowAI 错误脱敏、Project Mihomo、优先级、并发和支付行为，吸收 Kimi 原生 Responses 与 Anthropic fallbacks 清理 |
 | 2026-09-01 | `41fda3b26` | Merge upstream main 0.1.185；保留 FlowAI 优先级、并发、GM/赠送、签到 Turnstile、邮件召回和 i18n，吸收定价目录、数据库重试及 Codex/WebSocket 修复 |
