@@ -165,6 +165,9 @@ func (s *projectMihomoAdminServiceStub) UpdateGroup(context.Context, int64, *Upd
 func (s *projectMihomoAdminServiceStub) DeleteGroup(context.Context, int64) error {
 	panic("unexpected DeleteGroup call")
 }
+func (s *projectMihomoAdminServiceStub) DeleteGroupIfEmpty(context.Context, int64) error {
+	panic("unexpected DeleteGroupIfEmpty call")
+}
 func (s *projectMihomoAdminServiceStub) ListCompositeRoutes(context.Context, int64) ([]CompositeModelRoute, error) {
 	panic("unexpected ListCompositeRoutes call")
 }
@@ -227,6 +230,9 @@ func (s *projectMihomoAdminServiceStub) GetAccountsByIDs(context.Context, []int6
 }
 func (s *projectMihomoAdminServiceStub) CreateAccount(context.Context, *CreateAccountInput) (*Account, error) {
 	panic("unexpected CreateAccount call")
+}
+func (s *projectMihomoAdminServiceStub) ValidateAccountGroupBindings(context.Context, []int64) error {
+	panic("unexpected ValidateAccountGroupBindings call")
 }
 func (s *projectMihomoAdminServiceStub) DuplicateAccount(context.Context, int64, string, string) (*Account, error) {
 	panic("unexpected DuplicateAccount call")
