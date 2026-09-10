@@ -232,7 +232,14 @@ is_governance_commit() {
 is_reviewed_pr_merge() {
   local commit="$1" subject parents first second
   subject="$(git show -s --format=%s "$commit")"
-  [[ "$subject" =~ ^Merge\ pull\ request\ \#[0-9]+\ from\ aboutnb/(feature|fix|sync|migrate)/ ]] || return 1
+  if [[ ! "$subject" =~ ^Merge\ pull\ request\ \#[0-9]+\ from\ aboutnb/(feature|fix|sync|migrate)/ ]]; then
+    # GitHub's synthetic PR merge is also tree-identical to the reviewed head
+    # when the head already includes base. Restrict this to the exact CI ref.
+    [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" &&
+       "${GITHUB_BASE_REF:-}" == "main" &&
+       "${GITHUB_REF:-}" =~ ^refs/pull/[0-9]+/merge$ &&
+       "$commit" == "${GITHUB_SHA:-}" ]] || return 1
+  fi
   parents="$(git show -s --format=%P "$commit")"
   [[ "$(wc -w <<< "$parents" | tr -d ' ')" == "2" ]] || return 1
   first="${parents%% *}"
