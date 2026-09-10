@@ -13,8 +13,8 @@
 ## 1. 发布前冻结和识别
 
 - [ ] 当前工作目录是 /Users/xiaobo/develop/sub2api（或已确认的同一仓库副本）。
-- [ ] 当前分支是 sub2api-flowai，不是 main 或临时 codex/* 分支。
-- [ ] 已记录发布前的 HEAD、版本号、origin/sub2api-flowai 和 upstream/main。
+- [ ] 开发位于 feature/*、fix/* 或 sync/*；正式发布源为已通过 PR 和完整 CI 的 main。
+- [ ] 已记录发布前的 HEAD、版本号、origin/main 和 upstream/main。
 - [ ] 已确认 .playwright-cli/、data/、本地素材等未跟踪文件的保留/排除清单，未把它们
       顺手加入发布提交。
 - [ ] 已完成数据库、Redis AOF、/app/data 和 Mihomo 状态备份或确认本次不涉及生产数据。
@@ -22,7 +22,7 @@
 建议命令：
 
 ~~~bash
-git switch sub2api-flowai
+git switch -c sync/upstream-<version> origin/main
 git status --short --branch
 git log -1 --oneline --decorate
 git rev-parse HEAD
@@ -72,7 +72,7 @@ git log --oneline --no-merges $(git merge-base HEAD upstream/main)..HEAD
 确认无误后才允许执行：
 
 ~~~bash
-git merge --no-ff upstream/main -m "merge upstream main into sub2api-flowai"
+git merge --no-ff upstream/main -m "merge reviewed upstream into Aivoza candidate"
 ~~~
 
 若发生冲突，先暂停发布，按功能块解决并重新查看：
@@ -87,7 +87,7 @@ git diff --check
 - [ ] make check-flowai-contract 通过。
 - [ ] 发布候选使用 `make check-flowai-contract-strict`；该命令必须在工作树无暂存、未暂存
       和未跟踪文件时通过。
-- [ ] 检查报告确认当前分支包含已获取的 upstream/main，且不是 main。
+- [ ] 检查报告确认当前分支包含已获取的 upstream/main，与 .github/aivoza-upstream-ref 的已审 SHA 一致。
 - [ ] 账号调度仍为 1 最高、数值越小越优先；没有把错误透传规则的优先级规则混入账号调度。
 - [ ] -1 在用户槽位和等待队列前立即拒绝，0 保持不限制，小于 -1 不会写入。
 - [ ] 风险注册在授权判断前仍为 -1，授权成功后才应用实际并发。
@@ -144,7 +144,7 @@ docker compose --env-file deploy/.env.preview -f deploy/docker-compose.preview.y
 
 - [ ] GitHub Actions 的提交 SHA 与准备发布的 HEAD 相同。
 - [ ] .github/workflows/preview-image.yml 的契约检查通过后才开始构建。
-- [ ] GHCR 中同时确认可变分支标签和不可变 SHA 标签；生产优先使用 SHA 标签。
+- [ ] GHCR 中确认 aivoza-sub2api:sha-<sha12> 标签；生产必须固定 digest。
 - [ ] 记录镜像 digest、构建时间和提交 SHA，不只记录 latest 或可变标签。
 - [ ] 确认镜像包含当前前端 locale、迁移文件和后端版本。
 - [ ] 已确认 `backend/migrations/234_api_key_smart_routing.sql` 在镜像中，且

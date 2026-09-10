@@ -616,6 +616,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | `6c7fcef9a514648fe2aec1715c5e230721ffca8a` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
 | `74468f31938e205290e9716c4bf734dab9f3766a` | 主题合并到上游 0.2.4；12 文件逐块解决，保留模型白名单/Toggle/菜单滚动/注册开关/Markdown/MiniMax/排名隐私开关，套用主题样式 | 完整 CI 和严格契约 |
 | `0efaa80cefa284cf0f7d423bdfa348f6b95bd6bb` | 合入第一份 PR 的 GitHub 临时 merge ref 检查；无业务变更 | 完整 CI 和严格契约 |
+| `3ab944445a425e010cc2b25cd4fe78d488b0dd92` | 合入已通过 GitHub CI 的 main PR #1；无文件变化，保留完整分支历史 | 完整 CI 和严格契约 |
 <!-- FLOWAI_LEDGER_MERGE_END -->
 
 ## 9. 发布记录模板
@@ -626,7 +627,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 ```text
 日期/时区：
 发布人：
-分支：sub2api-flowai
+分支：main
 发布前 HEAD：
 上游基线：
 应用版本：
