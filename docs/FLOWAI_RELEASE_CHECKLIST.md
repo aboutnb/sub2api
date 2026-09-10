@@ -7,7 +7,7 @@
 > 下文历史快照中的分支和旧镜像仅用于追溯，不再授权旧分支发布。
 
 
-这份清单用于 sub2api-flowai 的每次上游合并、功能发布和服务器更新。勾选项必须有
+这份清单用于 main 的每次上游合并、功能发布和服务器更新。勾选项必须有
 命令输出、测试结果、镜像标签或截图等证据；没有证据就视为未完成。
 
 ## 1. 发布前冻结和识别
@@ -149,7 +149,7 @@ docker compose --env-file deploy/.env.preview -f deploy/docker-compose.preview.y
 - [ ] 确认镜像包含当前前端 locale、迁移文件和后端版本。
 - [ ] 已确认 `backend/migrations/234_api_key_smart_routing.sql` 在镜像中，且
       `smart_routing_enabled` 默认值为 `false`；未启用前不改变既有 API key 路由。
-- [ ] 23 服务器发布命令显式传入 `sub2api-flowai-<sha12>`，没有依赖可变分支标签。
+- [ ] 23 服务器发布命令显式传入 `ghcr.io/aboutnb/aivoza-sub2api@sha256:<digest>`，没有依赖可变分支标签。
 
 不要在 23 服务器上运行 docker compose build、pnpm build 或 go build 作为正式发布
 步骤；服务器只拉取已验证镜像。
@@ -159,8 +159,8 @@ docker compose --env-file deploy/.env.preview -f deploy/docker-compose.preview.y
 - [ ] 通过 Termius 连接目标 23 服务器，确认主机、用户和部署目录无误。
 - [ ] 发布前查看容器、磁盘、最近错误日志和当前镜像标签。
 - [ ] 已确认 23 服务器 `/root/flowai/deploy/.env` 仍使用生产配置，未用示例文件覆盖它。
-- [ ] 使用要发布的不可变 SHA 镜像执行 deploy/deploy-preview-image.sh。
-- [ ] 脚本完成 pull、应用服务重建并通过 /health；依赖容器和持久化目录未被删除。
+- [ ] 使用已测试镜像 digest 执行 deploy/deploy-aivoza-bluegreen.py prepare；候选验证后再 promote。
+- [ ] 候选与旧应用并存，启用 AIVOZA_ROLLING_DEPLOY=true；代理热切换期间连续健康探测无失败；依赖未重启。
 - [ ] 迁移执行成功；检查日志中没有 checksum mismatch、migration failed 或数据库连接错误。
 - [ ] 发布后核对健康、公开设置、登录、账号调度、-1 并发拒绝和一个普通正数并发请求。
 - [ ] 若本版本涉及支付/签到/邮件，完成对应的非破坏性 smoke test，并记录数据库/日志证据。
@@ -178,7 +178,7 @@ docker compose --env-file deploy/.env.preview -f deploy/docker-compose.preview.y
 - [ ] 桌面端 GM checkout 弹窗约为 `625x900` 且居中；小屏会自适应缩小，父页面订单轮询
       和服务端回调同步未受影响。
 
-服务器命令模板：
+旧重建命令仅作历史回滚参考（本次禁止使用；连续服务发布采用契约第 6 节的 prepare/promote）：
 
 ~~~bash
 cd /root/flowai/deploy
@@ -210,7 +210,7 @@ JWT、TOTP、支付密钥或 SSH 私钥写入本清单。
 ~~~text
 日期/时区：
 发布人：
-分支：sub2api-flowai
+分支：main
 HEAD：
 上游基线（upstream/main）：
 应用版本：

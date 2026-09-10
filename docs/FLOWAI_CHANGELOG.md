@@ -73,6 +73,15 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 - 旧 Release 不再在 fork 回写默认分支；不发布上游的通用二进制替换自定义版。
 - 本次尚未切换生产；需完成主题 PR、镜像构建、迁移演练、灰度健康与代理热切换。
 
+## 1.3 主题整合和连续服务发布（2026-09-11）
+
+- 保留 `79c83f43d` 全部主题历史；424 文件改动含首页/图表/明暗模式、无障碍控件、订阅策略与单独 SQL 迁移，未将其误当作纯 CSS。
+- 12 文件冲突按功能解决：`setting_public.go` 同时保留排名隐私与订阅设置；`GroupsView` 使用新 modelAllowlist 和 Toggle；登录受公开设置守卫；充值说明保留已净化 Markdown；MiniMax 平台分支与监控缺失值语义保留。
+- 后端订阅策略在开关开启时与旧版本一致；默认 true。关闭后仅取消有效期判断，不能绕过 suspended/expired 状态或日周月额度；新旧应用并存期间不得切换此设置。
+- 本地完整前端 304 文件/2179 测试通过；lint、类型、生产构建通过；后端 unit/integration 通过；新增滚动并发保护测试通过。GitHub 对最终提交仍需重新验证。
+- `deploy/Dockerfile` 已补充主题首页资源；生产不使用本地构建镜像。
+- `deploy/deploy-aivoza-bluegreen.py` 只接受 `ghcr.io/aboutnb/aivoza-sub2api@sha256:<digest>`。prepare 不改活动路由，promote 校验前置状态并热加载 Caddy，旧容器保持运行；依赖容器不重建。旧的 force-recreate 脚本不适用于本次连续服务发布。
+
 ## 2. 当前快照
 
 | 项目 | 值 |
@@ -383,6 +392,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | `backend/migrations/235_group_model_allowlist.sql` | 分组模型白名单 | 上游 0.2.3 新增；替代旧模型列表配置并由新 Ent 字段承载 |
 | `backend/migrations/236_group_model_allowlist_repair.sql` | 旧模型列表字段修复迁移 | 上游 0.2.3 新增；只做兼容性迁移，不删除生产数据 |
 | `backend/migrations/237_add_minimax_platform.sql` | MiniMax 平台支持 | 上游 0.2.3 新增；平台列表和迁移按完整文件名保留 |
+| `backend/migrations/235_subscription_expiration_enabled.sql` | 新增 | 仅在不存在时写入 true，保留既有配置，旧版本忽略此设置；不修改已执行迁移 | 迁移及订阅策略测试 |
 <!-- FLOWAI_MIGRATION_LEDGER_END -->
 
 `backend/migrations/001_init.sql` 的内容曾为保留生产 checksum 做兼容性修复（提交
@@ -515,6 +525,10 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | 2026-09-09 | `76b125bb1` | test: update upstream 0.2.3 service fixtures；补齐上游接口变更后的单元测试夹具，不改变运行时业务契约 | CI/测试 |
 | `ef38fe7a6eb19ed15171af535e941c0176da765e` | Revert "chore: sync VERSION to 0.1.163 [skip ci]" | 历史版本同步及回退，最终版本以 0.2.4 为准 | 契约及完整 CI |
 | `e63167456673345a31e0c63eed9ef91bee7ceba1` | chore: sync VERSION to 0.1.163 [skip ci] | 历史版本同步及回退，最终版本以 0.2.4 为准 | 契约及完整 CI |
+| `79c83f43d4261420fe92e47092c5a4e3c1ed2d29` | Aivoza 主题、首页、明暗模式、可访问性、订阅有效期开关；保留全部素材和独立迁移 | 前后端/部署测试与迁移验证 |
+| `fc9632b9038aa583fbaa30b996e0aa0cc1ab9b7b` | 合并适配：开关可访问名称、订阅测试夹具、中英状态 key、实际发布 Dockerfile 首页资源 | 前后端/部署测试与迁移验证 |
+| `cb4d0bf57b8b9fb1ac44764e9db25200c7f29684` | AIVOZA_ROLLING_DEPLOY=true 跳过启动时跨进程并发槽清扫，TTL 清理保留；保护滚动部署中的旧请求 | 前后端/部署测试与迁移验证 |
+| `b4a79197bf011474137a633cdb0d7ce6be689996` | 两阶段蓝绿发布：验证 digest 和健康后热切 Caddy，只替换应用，保留旧容器并记录回滚状态 | 前后端/部署测试与迁移验证 |
 <!-- FLOWAI_LEDGER_NON_MERGE_END -->
 
 ## 8. 历史合并提交索引
@@ -600,6 +614,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | `87b04f16f427d4fcd82686c88083df3cb1897795` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
 | `1f2711f042a468719afa478d5cc3cbb2a87223d1` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
 | `6c7fcef9a514648fe2aec1715c5e230721ffca8a` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
+| `74468f31938e205290e9716c4bf734dab9f3766a` | 主题合并到上游 0.2.4；12 文件逐块解决，保留模型白名单/Toggle/菜单滚动/注册开关/Markdown/MiniMax/排名隐私开关，套用主题样式 | 完整 CI 和严格契约 |
+| `0efaa80cefa284cf0f7d423bdfa348f6b95bd6bb` | 合入第一份 PR 的 GitHub 临时 merge ref 检查；无业务变更 | 完整 CI 和严格契约 |
 <!-- FLOWAI_LEDGER_MERGE_END -->
 
 ## 9. 发布记录模板
