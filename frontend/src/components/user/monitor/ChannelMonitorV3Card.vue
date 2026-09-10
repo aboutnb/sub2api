@@ -5,27 +5,27 @@
         <ProviderIcon :provider="row.platform" :size="20" />
       </span>
       <div class="min-w-0 flex-1">
-        <div class="truncate text-base font-semibold text-gray-900 dark:text-gray-100">{{ groupLabel }}</div>
+        <div class="truncate text-base font-semibold text-ink-strong dark:text-gray-100">{{ groupLabel }}</div>
         <div class="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
           <span class="rounded-md px-1.5 py-0.5 text-[10px] font-medium" :class="providerBadgeClass(row.platform)">{{ providerLabel(row.platform) }}</span>
-          <span class="rounded-md bg-primary-50 px-1.5 py-0.5 font-mono text-[10px] font-medium text-primary-700 dark:bg-dark-700 dark:text-gray-300">{{ t('channelMonitorV3.userRate') }} {{ formattedUserRate }}</span>
+          <span class="rounded-md bg-primary-50 px-1.5 py-0.5 font-mono text-[10px] font-medium text-primary-700 dark:bg-surface-muted dark:text-ink-muted">{{ t('channelMonitorV3.userRate') }} {{ formattedUserRate }}</span>
         </div>
       </div>
       <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClass">{{ statusText }}</span>
     </header>
 
     <div class="mt-5 grid grid-cols-3 gap-2">
-      <div class="rounded-2xl border border-slate-200/80 bg-slate-50/85 p-3 dark:border-dark-700/50 dark:bg-dark-900/40">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{{ t('channelMonitorV3.cacheRate') }}</div>
-        <div class="mt-1.5 font-mono text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{{ cacheRate }}</div>
+      <div class="rounded-2xl border border-slate-200/80 bg-slate-50/85 p-3 dark:border-line/50 dark:bg-canvas/40">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">{{ t('channelMonitorV3.cacheRate') }}</div>
+        <div class="mt-1.5 font-mono text-lg font-bold tabular-nums text-ink-strong dark:text-gray-100">{{ cacheRate }}</div>
       </div>
-      <div class="rounded-2xl border border-slate-200/80 bg-slate-50/85 p-3 dark:border-dark-700/50 dark:bg-dark-900/40">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{{ t('channelMonitorV3.successRate') }}</div>
+      <div class="rounded-2xl border border-slate-200/80 bg-slate-50/85 p-3 dark:border-line/50 dark:bg-canvas/40">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">{{ t('channelMonitorV3.successRate') }}</div>
         <div class="mt-1.5 font-mono text-lg font-bold tabular-nums" :class="availabilityClass">{{ successRate }}</div>
       </div>
-      <div class="rounded-2xl border border-slate-200/80 bg-slate-50/85 p-3 dark:border-dark-700/50 dark:bg-dark-900/40">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{{ t('channelMonitorV3.ttft') }}</div>
-        <div class="mt-1.5 font-mono text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{{ ttft }}</div>
+      <div class="rounded-2xl border border-slate-200/80 bg-slate-50/85 p-3 dark:border-line/50 dark:bg-canvas/40">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">{{ t('channelMonitorV3.ttft') }}</div>
+        <div class="mt-1.5 font-mono text-lg font-bold tabular-nums text-ink-strong dark:text-gray-100">{{ ttft }}</div>
       </div>
     </div>
 
@@ -83,5 +83,5 @@ const monitorStatus = computed<MonitorStatus | null>(() => {
 const statusText = computed(() => monitorStatus.value ? statusLabel(monitorStatus.value) : t('channelMonitorV3.unknown'))
 const statusClass = computed(() => monitorStatus.value
   ? statusBadgeClass(monitorStatus.value)
-  : 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300')
+  : 'bg-surface-muted text-ink dark:bg-surface-muted dark:text-ink-muted')
 </script>

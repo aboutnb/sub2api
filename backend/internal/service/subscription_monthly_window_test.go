@@ -207,6 +207,61 @@ func TestValidateAndCheckLimitsRejectsExactExpiry(t *testing.T) {
 	require.False(t, needsMaintenance)
 }
 
+func TestValidateAndCheckLimitsIgnoresTimestampWhenExpirationDisabled(t *testing.T) {
+	now := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	sub := &UserSubscription{
+		Status:    SubscriptionStatusActive,
+		StartsAt:  now.Add(-60 * 24 * time.Hour),
+		ExpiresAt: now.Add(-30 * 24 * time.Hour),
+	}
+	svc := NewSubscriptionService(groupRepoNoop{}, userSubRepoNoop{}, nil, nil, nil)
+	svc.now = func() time.Time { return now }
+	svc.SetSubscriptionPolicy(NewStaticSubscriptionPolicy(false))
+
+	_, err := svc.ValidateAndCheckLimits(sub, &Group{})
+
+	require.NoError(t, err)
+}
+
+func TestValidateAndCheckLimitsStillEnforcesQuotaWhenExpirationDisabled(t *testing.T) {
+	now := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	dailyLimit := 5.0
+	windowStart := now
+	sub := &UserSubscription{
+		Status:           SubscriptionStatusActive,
+		StartsAt:         now.Add(-60 * 24 * time.Hour),
+		ExpiresAt:        now.Add(-30 * 24 * time.Hour),
+		DailyWindowStart: &windowStart,
+		DailyUsageUSD:    dailyLimit + 1,
+	}
+	svc := NewSubscriptionService(groupRepoNoop{}, userSubRepoNoop{}, nil, nil, nil)
+	svc.now = func() time.Time { return now }
+	svc.SetSubscriptionPolicy(NewStaticSubscriptionPolicy(false))
+
+	_, err := svc.ValidateAndCheckLimits(sub, &Group{DailyLimitUSD: &dailyLimit})
+
+	require.ErrorIs(t, err, ErrDailyLimitExceeded)
+}
+
+func TestValidateAndCheckLimitsStillRejectsExplicitStatusesWhenExpirationDisabled(t *testing.T) {
+	now := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	svc := NewSubscriptionService(groupRepoNoop{}, userSubRepoNoop{}, nil, nil, nil)
+	svc.now = func() time.Time { return now }
+	svc.SetSubscriptionPolicy(NewStaticSubscriptionPolicy(false))
+
+	_, expiredErr := svc.ValidateAndCheckLimits(&UserSubscription{
+		Status:    SubscriptionStatusExpired,
+		ExpiresAt: now.Add(30 * 24 * time.Hour),
+	}, &Group{})
+	_, suspendedErr := svc.ValidateAndCheckLimits(&UserSubscription{
+		Status:    SubscriptionStatusSuspended,
+		ExpiresAt: now.Add(30 * 24 * time.Hour),
+	}, &Group{})
+
+	require.ErrorIs(t, expiredErr, ErrSubscriptionExpired)
+	require.ErrorIs(t, suspendedErr, ErrSubscriptionSuspended)
+}
+
 func TestAutomaticWindowsAllowPartialFinalDailyAndWeeklyPeriods(t *testing.T) {
 	startsAt := time.Date(2026, 7, 1, 15, 45, 0, 0, time.UTC)
 	legacyWindowStart := startOfDay(startsAt)

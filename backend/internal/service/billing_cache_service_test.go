@@ -16,6 +16,15 @@ type billingCacheWorkerStub struct {
 	subscriptionUpdates int64
 }
 
+type subscriptionExpirationCacheStub struct {
+	BillingCache
+	data *SubscriptionCacheData
+}
+
+func (s *subscriptionExpirationCacheStub) GetSubscriptionCache(context.Context, int64, int64) (*SubscriptionCacheData, error) {
+	return s.data, nil
+}
+
 func (b *billingCacheWorkerStub) GetUserBalance(ctx context.Context, userID int64) (float64, error) {
 	return 0, errors.New("not implemented")
 }
@@ -129,4 +138,53 @@ func TestBillingCacheServiceEnqueueAfterStopReturnsFalse(t *testing.T) {
 		amount: 1,
 	})
 	require.False(t, enqueued)
+}
+
+func TestBillingCacheService_SubscriptionExpirationPolicyKeepsStatusAndQuotaChecks(t *testing.T) {
+	now := time.Now()
+	dailyLimit := 5.0
+	cache := &subscriptionExpirationCacheStub{data: &SubscriptionCacheData{
+		Status:     SubscriptionStatusActive,
+		ExpiresAt:  now.Add(-time.Hour),
+		DailyUsage: 4,
+	}}
+	svc := &BillingCacheService{
+		cache:              cache,
+		subscriptionPolicy: NewStaticSubscriptionPolicy(false),
+	}
+
+	require.NoError(t, svc.checkSubscriptionEligibility(
+		context.Background(),
+		1,
+		&Group{ID: 2, DailyLimitUSD: &dailyLimit},
+		&UserSubscription{},
+	))
+
+	cache.data.Status = SubscriptionStatusSuspended
+	require.ErrorIs(t, svc.checkSubscriptionEligibility(
+		context.Background(), 1, &Group{ID: 2}, &UserSubscription{},
+	), ErrSubscriptionInvalid)
+
+	cache.data.Status = SubscriptionStatusActive
+	cache.data.DailyUsage = dailyLimit + 1
+	require.ErrorIs(t, svc.checkSubscriptionEligibility(
+		context.Background(), 1, &Group{ID: 2, DailyLimitUSD: &dailyLimit}, &UserSubscription{},
+	), ErrDailyLimitExceeded)
+}
+
+func TestBillingCacheService_SubscriptionExpirationEnabledRejectsPastTimestamp(t *testing.T) {
+	cache := &subscriptionExpirationCacheStub{data: &SubscriptionCacheData{
+		Status:    SubscriptionStatusActive,
+		ExpiresAt: time.Now().Add(-time.Hour),
+	}}
+	svc := &BillingCacheService{
+		cache:              cache,
+		subscriptionPolicy: NewStaticSubscriptionPolicy(true),
+	}
+
+	err := svc.checkSubscriptionEligibility(
+		context.Background(), 1, &Group{ID: 2}, &UserSubscription{},
+	)
+
+	require.ErrorIs(t, err, ErrSubscriptionInvalid)
 }

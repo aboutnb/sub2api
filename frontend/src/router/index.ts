@@ -774,6 +774,23 @@ const routes: RouteRecordRaw[] = [
   }
 ]
 
+function focusRouteMainContent(): void {
+  if (typeof document === 'undefined') return
+
+  const target = document.querySelector<HTMLElement>(
+    '[data-route-focus], #app-main-content, main, h1',
+  )
+  if (!target) return
+
+  const addedTabIndex = !target.hasAttribute('tabindex')
+  if (addedTabIndex) target.setAttribute('tabindex', '-1')
+  target.focus({ preventScroll: true })
+
+  if (addedTabIndex) {
+    target.addEventListener('blur', () => target.removeAttribute('tabindex'), { once: true })
+  }
+}
+
 /**
  * Create router instance
  */
@@ -1043,6 +1060,11 @@ router.afterEach((to) => {
   }
   // 触发路由预加载（在浏览器空闲时执行）
   routePrefetch.triggerPrefetch(to)
+
+  // Announce the newly rendered page to keyboard and screen-reader users.
+  if (typeof window !== 'undefined') {
+    window.requestAnimationFrame(focusRouteMainContent)
+  }
 })
 
 /**

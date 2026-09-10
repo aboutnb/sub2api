@@ -1,10 +1,17 @@
 <template>
-  <div v-if="hasActiveSubscriptions" class="relative" ref="containerRef">
+  <div class="relative shrink-0" ref="containerRef" @focusout="handleFocusout">
     <!-- Mini Progress Display -->
     <button
+      v-if="hasActiveSubscriptions"
+      id="subscription-progress-trigger"
+      ref="triggerRef"
+      type="button"
       @click="toggleTooltip"
-      class="flex cursor-pointer items-center gap-2 rounded-xl bg-purple-50 px-3 py-1.5 transition-colors hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30"
+      class="flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-purple-50 px-3 py-1.5 transition-colors hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30"
       :title="t('subscriptionProgress.viewDetails')"
+      :aria-label="t('subscriptionProgress.viewDetails')"
+      :aria-expanded="tooltipOpen"
+      aria-controls="subscription-progress-popover"
     >
       <Icon name="creditCard" size="sm" class="text-purple-600 dark:text-purple-400" />
       <div class="flex items-center gap-1.5">
@@ -23,17 +30,33 @@
       </div>
     </button>
 
+    <!-- Keep the common destination visible even before the user owns a plan. -->
+    <router-link
+      v-else
+      to="/subscriptions"
+      data-testid="subscription-shortcut-empty"
+      class="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl bg-purple-50 px-3 text-sm font-semibold text-purple-700 transition-colors hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
+      :title="t('nav.mySubscriptions')"
+      :aria-label="t('nav.mySubscriptions')"
+    >
+      <Icon name="creditCard" size="sm" class="text-purple-600 dark:text-purple-400" />
+      <span class="hidden sm:inline">{{ t('nav.mySubscriptions') }}</span>
+    </router-link>
+
     <!-- Hover/Click Tooltip -->
     <transition name="dropdown">
       <div
         v-if="tooltipOpen"
-        class="absolute right-0 z-50 mt-2 w-[340px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-dark-700 dark:bg-dark-800"
+        id="subscription-progress-popover"
+        class="subscription-progress-popover absolute right-0 z-50 mt-2 w-[340px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border border-line bg-white shadow-xl dark:border-line dark:bg-surface"
+        role="region"
+        aria-labelledby="subscription-progress-title"
       >
-        <div class="border-b border-gray-100 p-3 dark:border-dark-700">
-          <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+        <div class="border-b border-line p-3 dark:border-line">
+          <h3 id="subscription-progress-title" class="text-sm font-semibold text-ink-strong dark:text-white">
             {{ t('subscriptionProgress.title') }}
           </h3>
-          <p class="mt-0.5 text-xs text-gray-500 dark:text-dark-400">
+          <p class="mt-0.5 text-xs text-ink-muted dark:text-ink-muted">
             {{ t('subscriptionProgress.activeCount', { count: activeSubscriptions.length }) }}
           </p>
         </div>
@@ -42,18 +65,21 @@
           <div
             v-for="subscription in displaySubscriptions"
             :key="subscription.id"
-            class="border-b border-gray-50 p-3 last:border-b-0 dark:border-dark-700/50"
+            class="border-b border-line p-3 last:border-b-0 dark:border-line/50"
           >
             <div class="mb-2 flex items-center justify-between">
-              <span class="text-sm font-medium text-gray-900 dark:text-white">
+              <span class="text-sm font-medium text-ink-strong dark:text-white">
                 {{ subscription.group?.name || `Group #${subscription.group_id}` }}
               </span>
               <span
-                v-if="subscription.expires_at"
+                v-if="subscriptionExpirationEnabled && subscription.expires_at"
                 class="text-xs"
                 :class="getDaysRemainingClass(subscription.expires_at)"
               >
                 {{ formatDaysRemaining(subscription.expires_at) }}
+              </span>
+              <span v-else class="text-xs text-ink-muted dark:text-ink-muted">
+                {{ t('subscriptionProgress.noExpiration') }}
               </span>
             </div>
 
@@ -62,7 +88,7 @@
               <!-- Unlimited subscription badge -->
               <div
                 v-if="isUnlimited(subscription)"
-                class="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 px-2.5 py-1.5 dark:from-emerald-900/20 dark:to-teal-900/20"
+                class="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 dark:border-emerald-800 dark:bg-emerald-900/20"
               >
                 <span class="text-lg text-emerald-600 dark:text-emerald-400">∞</span>
                 <span class="text-xs font-medium text-emerald-700 dark:text-emerald-300">
@@ -73,10 +99,10 @@
               <!-- Progress bars for limited subscriptions -->
               <template v-else>
                 <div v-if="subscription.group?.daily_limit_usd" class="flex items-center gap-2">
-                  <span class="w-8 flex-shrink-0 text-[10px] text-gray-500">{{
+                  <span class="w-8 flex-shrink-0 text-[10px] text-ink-muted">{{
                     t('subscriptionProgress.daily')
                   }}</span>
-                  <div class="h-1.5 min-w-0 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
+                  <div class="h-1.5 min-w-0 flex-1 rounded-full bg-line dark:bg-line-strong">
                     <div
                       class="h-1.5 rounded-full transition-all"
                       :class="
@@ -93,7 +119,7 @@
                       }"
                     ></div>
                   </div>
-                  <span class="w-24 flex-shrink-0 text-right text-[10px] text-gray-500">
+                  <span class="w-24 flex-shrink-0 text-right text-[10px] text-ink-muted">
                     {{
                       formatUsage(subscription.daily_usage_usd, subscription.group?.daily_limit_usd)
                     }}
@@ -101,10 +127,10 @@
                 </div>
 
                 <div v-if="subscription.group?.weekly_limit_usd" class="flex items-center gap-2">
-                  <span class="w-8 flex-shrink-0 text-[10px] text-gray-500">{{
+                  <span class="w-8 flex-shrink-0 text-[10px] text-ink-muted">{{
                     t('subscriptionProgress.weekly')
                   }}</span>
-                  <div class="h-1.5 min-w-0 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
+                  <div class="h-1.5 min-w-0 flex-1 rounded-full bg-line dark:bg-line-strong">
                     <div
                       class="h-1.5 rounded-full transition-all"
                       :class="
@@ -121,7 +147,7 @@
                       }"
                     ></div>
                   </div>
-                  <span class="w-24 flex-shrink-0 text-right text-[10px] text-gray-500">
+                  <span class="w-24 flex-shrink-0 text-right text-[10px] text-ink-muted">
                     {{
                       formatUsage(subscription.weekly_usage_usd, subscription.group?.weekly_limit_usd)
                     }}
@@ -129,10 +155,10 @@
                 </div>
 
                 <div v-if="subscription.group?.monthly_limit_usd" class="flex items-center gap-2">
-                  <span class="w-8 flex-shrink-0 text-[10px] text-gray-500">{{
+                  <span class="w-8 flex-shrink-0 text-[10px] text-ink-muted">{{
                     t('subscriptionProgress.monthly')
                   }}</span>
-                  <div class="h-1.5 min-w-0 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
+                  <div class="h-1.5 min-w-0 flex-1 rounded-full bg-line dark:bg-line-strong">
                     <div
                       class="h-1.5 rounded-full transition-all"
                       :class="
@@ -149,7 +175,7 @@
                       }"
                     ></div>
                   </div>
-                  <span class="w-24 flex-shrink-0 text-right text-[10px] text-gray-500">
+                  <span class="w-24 flex-shrink-0 text-right text-[10px] text-ink-muted">
                     {{
                       formatUsage(
                         subscription.monthly_usage_usd,
@@ -163,7 +189,7 @@
           </div>
         </div>
 
-        <div class="border-t border-gray-100 p-2 dark:border-dark-700">
+        <div class="border-t border-line p-2 dark:border-line">
           <router-link
             to="/subscriptions"
             @click="closeTooltip"
@@ -181,14 +207,19 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
-import { useSubscriptionStore } from '@/stores'
+import { useAppStore, useSubscriptionStore } from '@/stores'
 import type { UserSubscription } from '@/types'
 
 const { t } = useI18n()
 
 const subscriptionStore = useSubscriptionStore()
+const appStore = useAppStore()
+const subscriptionExpirationEnabled = computed(
+  () => appStore.cachedPublicSettings?.subscription_expiration_enabled !== false
+)
 
 const containerRef = ref<HTMLElement | null>(null)
+const triggerRef = ref<HTMLButtonElement | null>(null)
 const tooltipOpen = ref(false)
 
 // Use store data instead of local state
@@ -275,15 +306,18 @@ function getDaysRemainingClass(expiresAt: string): string {
   const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
   if (days <= 3) return 'text-red-600 dark:text-red-400'
   if (days <= 7) return 'text-orange-600 dark:text-orange-400'
-  return 'text-gray-500 dark:text-dark-400'
+  return 'text-ink-muted dark:text-ink-muted'
 }
 
 function toggleTooltip() {
   tooltipOpen.value = !tooltipOpen.value
 }
 
-function closeTooltip() {
+function closeTooltip(restoreFocus: boolean | Event = false) {
   tooltipOpen.value = false
+  if (restoreFocus === true) {
+    requestAnimationFrame(() => triggerRef.value?.focus())
+  }
 }
 
 function handleClickOutside(event: MouseEvent) {
@@ -292,8 +326,21 @@ function handleClickOutside(event: MouseEvent) {
   }
 }
 
+function handleFocusout(event: FocusEvent) {
+  const nextTarget = event.relatedTarget as Node | null
+  if (nextTarget && containerRef.value?.contains(nextTarget)) return
+  closeTooltip()
+}
+
+function handleDocumentKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !tooltipOpen.value) return
+  event.preventDefault()
+  closeTooltip(true)
+}
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleDocumentKeydown)
   // Trigger initial fetch if not already loaded
   // The actual data loading is handled by App.vue globally
   subscriptionStore.fetchActiveSubscriptions().catch((error) => {
@@ -303,6 +350,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleDocumentKeydown)
 })
 </script>
 
@@ -316,5 +364,17 @@ onBeforeUnmount(() => {
 .dropdown-leave-to {
   opacity: 0;
   transform: scale(0.95) translateY(-4px);
+}
+
+@media (max-width: 639.98px) {
+  .subscription-progress-popover {
+    position: fixed;
+    top: 7.75rem;
+    right: 0.5rem;
+    left: 0.5rem;
+    width: auto;
+    max-width: none;
+    margin-top: 0;
+  }
 }
 </style>

@@ -7,9 +7,9 @@
             <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
               <CheckinCenterIcon class="h-5 w-5" />
             </span>
-            <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{{ t('admin.checkin.title') }}</h1>
+            <h1 class="text-2xl font-bold tracking-tight text-ink-strong dark:text-white">{{ t('admin.checkin.title') }}</h1>
           </div>
-          <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('admin.checkin.description') }}</p>
+          <p class="text-sm text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.description') }}</p>
         </div>
         <button type="button" class="btn btn-secondary self-start sm:self-auto" :disabled="loading" @click="load">
           <Icon name="refresh" size="sm" class="mr-2" :class="{ 'animate-spin': loading }" />
@@ -21,87 +21,87 @@
 
       <section class="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <article v-for="item in overviewCards" :key="item.label" class="card p-5">
-          <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-dark-400">{{ item.label }}</p>
-          <p class="mt-2 text-2xl font-bold text-gray-900 dark:text-white" :class="item.tone">{{ item.value }}</p>
+          <p class="text-xs font-medium uppercase tracking-wide text-ink-muted dark:text-ink-muted">{{ item.label }}</p>
+          <p class="mt-2 text-2xl font-bold text-ink-strong dark:text-white" :class="item.tone">{{ item.value }}</p>
         </article>
       </section>
 
       <section class="card overflow-hidden">
-        <div class="flex flex-col gap-4 border-b border-gray-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-dark-700">
+        <div class="flex flex-col gap-4 border-b border-line px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-line">
           <div>
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.checkin.title') }}</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('admin.checkin.configHint') }}</p>
+            <h2 class="text-lg font-semibold text-ink-strong dark:text-white">{{ t('admin.checkin.title') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.configHint') }}</p>
           </div>
-          <div v-if="config" class="text-xs text-gray-400 dark:text-dark-500">{{ t('admin.checkin.version', { version: config.config_version }) }}</div>
+          <div v-if="config" class="text-xs text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.version', { version: config.config_version }) }}</div>
         </div>
         <form class="space-y-5 p-5 sm:p-6" @submit.prevent="saveConfig">
-          <div class="flex items-center justify-between rounded-xl bg-gray-50 p-4 dark:bg-dark-800">
+          <div class="flex items-center justify-between rounded-xl bg-surface-muted p-4 dark:bg-surface">
             <div>
-              <p class="font-medium text-gray-900 dark:text-white">{{ t('admin.checkin.enabled') }}</p>
-              <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('admin.checkin.enabledHint') }}</p>
+              <p class="font-medium text-ink-strong dark:text-white">{{ t('admin.checkin.enabled') }}</p>
+              <p class="mt-1 text-xs text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.enabledHint') }}</p>
             </div>
-            <Toggle v-model="form.enabled" />
+            <Toggle v-model="form.enabled" :aria-label="t('admin.checkin.enabled')" />
           </div>
           <div class="flex items-center justify-between rounded-xl border border-cyan-200 bg-cyan-50/60 p-4 dark:border-cyan-900/50 dark:bg-cyan-950/20">
             <div>
-              <p class="font-medium text-gray-900 dark:text-white">{{ t('admin.checkin.turnstileEnabled') }}</p>
-              <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('admin.checkin.turnstileEnabledHint') }}</p>
+              <p class="font-medium text-ink-strong dark:text-white">{{ t('admin.checkin.turnstileEnabled') }}</p>
+              <p class="mt-1 text-xs text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.turnstileEnabledHint') }}</p>
             </div>
             <Toggle v-model="form.turnstile_enabled" data-testid="checkin-turnstile-toggle" :aria-label="t('admin.checkin.turnstileEnabled')" />
           </div>
           <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <div class="rounded-xl border border-gray-200 p-4 dark:border-dark-700">
+            <div class="rounded-xl border border-line p-4 dark:border-line">
               <div class="flex items-center justify-between gap-4">
-                <h3 class="font-medium text-gray-900 dark:text-white">{{ t('admin.checkin.normal') }}</h3>
+                <h3 class="font-medium text-ink-strong dark:text-white">{{ t('admin.checkin.normal') }}</h3>
                 <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-500 dark:text-dark-400">{{ t('admin.checkin.normalEnabled') }}</span>
+                  <span class="text-xs text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.normalEnabled') }}</span>
                   <Toggle v-model="form.normal_enabled" data-testid="normal-enabled-toggle" :aria-label="t('admin.checkin.normalEnabled')" />
                 </div>
               </div>
               <div class="mt-4 grid grid-cols-2 gap-3" :class="{ 'opacity-50': !form.normal_enabled }">
-                <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.normalMin') }}<input v-model="form.normal_min" class="input mt-2" type="number" min="0" max="100" step="0.01" :disabled="!form.normal_enabled" /></label>
-                <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.normalMax') }}<input v-model="form.normal_max" class="input mt-2" type="number" min="0" max="100" step="0.01" :disabled="!form.normal_enabled" /></label>
+                <label class="text-sm text-ink dark:text-ink">{{ t('admin.checkin.normalMin') }}<input v-model="form.normal_min" class="input mt-2" type="number" min="0" max="100" step="0.01" :disabled="!form.normal_enabled" /></label>
+                <label class="text-sm text-ink dark:text-ink">{{ t('admin.checkin.normalMax') }}<input v-model="form.normal_max" class="input mt-2" type="number" min="0" max="100" step="0.01" :disabled="!form.normal_enabled" /></label>
               </div>
             </div>
-            <div class="rounded-xl border border-gray-200 p-4 dark:border-dark-700">
+            <div class="rounded-xl border border-line p-4 dark:border-line">
               <div class="flex items-center justify-between gap-4">
                 <div>
-                  <h3 class="font-medium text-gray-900 dark:text-white">{{ t('admin.checkin.lucky') }}</h3>
-                  <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('admin.checkin.luckyTypeHint') }}</p>
+                  <h3 class="font-medium text-ink-strong dark:text-white">{{ t('admin.checkin.lucky') }}</h3>
+                  <p class="mt-1 text-xs text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.luckyTypeHint') }}</p>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
-                  <span class="text-xs text-gray-500 dark:text-dark-400">{{ t('admin.checkin.luckyEnabled') }}</span>
+                  <span class="text-xs text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.luckyEnabled') }}</span>
                   <Toggle v-model="form.lucky_enabled" data-testid="lucky-enabled-toggle" :aria-label="t('admin.checkin.luckyEnabled')" />
                 </div>
               </div>
               <div class="mt-4" :class="{ 'opacity-50': !form.lucky_enabled }">
-                <div class="grid grid-cols-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-800" role="group" :aria-label="t('admin.checkin.luckyType')">
-                  <button type="button" class="min-h-8 px-3 text-xs font-medium" :class="form.lucky_reward_type === 'multiplier' ? 'rounded-md bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white' : 'text-gray-500 dark:text-dark-400'" :aria-pressed="form.lucky_reward_type === 'multiplier'" :disabled="!form.lucky_enabled" @click="form.lucky_reward_type = 'multiplier'">{{ t('admin.checkin.luckyMultiplier') }}</button>
-                  <button type="button" class="min-h-8 px-3 text-xs font-medium" :class="form.lucky_reward_type === 'amount' ? 'rounded-md bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white' : 'text-gray-500 dark:text-dark-400'" :aria-pressed="form.lucky_reward_type === 'amount'" :disabled="!form.lucky_enabled" @click="form.lucky_reward_type = 'amount'">{{ t('admin.checkin.luckyAmount') }}</button>
+                <div class="grid grid-cols-2 rounded-lg bg-surface-muted p-1 dark:bg-surface" role="group" :aria-label="t('admin.checkin.luckyType')">
+                  <button type="button" class="min-h-11 px-3 text-xs font-medium" :class="form.lucky_reward_type === 'multiplier' ? 'rounded-md bg-white text-ink-strong shadow-sm dark:bg-surface-muted dark:text-white' : 'text-ink-muted dark:text-ink-muted'" :aria-pressed="form.lucky_reward_type === 'multiplier'" :disabled="!form.lucky_enabled" @click="form.lucky_reward_type = 'multiplier'">{{ t('admin.checkin.luckyMultiplier') }}</button>
+                  <button type="button" class="min-h-11 px-3 text-xs font-medium" :class="form.lucky_reward_type === 'amount' ? 'rounded-md bg-white text-ink-strong shadow-sm dark:bg-surface-muted dark:text-white' : 'text-ink-muted dark:text-ink-muted'" :aria-pressed="form.lucky_reward_type === 'amount'" :disabled="!form.lucky_enabled" @click="form.lucky_reward_type = 'amount'">{{ t('admin.checkin.luckyAmount') }}</button>
                 </div>
                 <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                   <div>
-                    <label for="lucky-positive-probability" class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('admin.checkin.luckyPositiveProbability') }}</label>
-                    <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t('admin.checkin.luckyPositiveProbabilityHint') }}</p>
+                    <label for="lucky-positive-probability" class="text-sm font-medium text-ink dark:text-ink-strong">{{ t('admin.checkin.luckyPositiveProbability') }}</label>
+                    <p class="mt-1 text-xs leading-5 text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.luckyPositiveProbabilityHint') }}</p>
                   </div>
                   <div class="relative w-full shrink-0 sm:w-32">
                     <input id="lucky-positive-probability" v-model="form.lucky_positive_probability" data-testid="lucky-positive-probability" class="input pr-8" type="number" min="0" max="100" step="0.01" :disabled="!form.lucky_enabled" />
-                    <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-gray-400">%</span>
+                    <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-muted">%</span>
                   </div>
                 </div>
                 <div v-if="form.lucky_reward_type === 'multiplier'" class="mt-4 grid grid-cols-2 gap-3">
-                  <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyMin') }}<input v-model="form.lucky_min_multiplier" data-testid="lucky-min-multiplier" class="input mt-2" type="number" min="-1" max="-0.01" step="0.01" :disabled="!form.lucky_enabled" /></label>
-                  <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyMax') }}<input v-model="form.lucky_max_multiplier" data-testid="lucky-max-multiplier" class="input mt-2" type="number" min="0.01" max="10" step="0.01" :disabled="!form.lucky_enabled" /></label>
+                  <label class="text-sm text-ink dark:text-ink">{{ t('admin.checkin.luckyMin') }}<input v-model="form.lucky_min_multiplier" data-testid="lucky-min-multiplier" class="input mt-2" type="number" min="-1" max="-0.01" step="0.01" :disabled="!form.lucky_enabled" /></label>
+                  <label class="text-sm text-ink dark:text-ink">{{ t('admin.checkin.luckyMax') }}<input v-model="form.lucky_max_multiplier" data-testid="lucky-max-multiplier" class="input mt-2" type="number" min="0.01" max="10" step="0.01" :disabled="!form.lucky_enabled" /></label>
                 </div>
                 <div v-else class="mt-4 grid grid-cols-2 gap-3">
-                  <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyAmountMin') }}<input v-model="form.lucky_amount_min" data-testid="lucky-amount-min" class="input mt-2" type="number" min="-100" max="-0.01" step="0.01" :disabled="!form.lucky_enabled" /></label>
-                  <label class="text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.luckyAmountMax') }}<input v-model="form.lucky_amount_max" data-testid="lucky-amount-max" class="input mt-2" type="number" min="0.01" max="100" step="0.01" :disabled="!form.lucky_enabled" /></label>
+                  <label class="text-sm text-ink dark:text-ink">{{ t('admin.checkin.luckyAmountMin') }}<input v-model="form.lucky_amount_min" data-testid="lucky-amount-min" class="input mt-2" type="number" min="-100" max="-0.01" step="0.01" :disabled="!form.lucky_enabled" /></label>
+                  <label class="text-sm text-ink dark:text-ink">{{ t('admin.checkin.luckyAmountMax') }}<input v-model="form.lucky_amount_max" data-testid="lucky-amount-max" class="input mt-2" type="number" min="0.01" max="100" step="0.01" :disabled="!form.lucky_enabled" /></label>
                 </div>
-                <div data-testid="positive-tier-editor" class="mt-5 border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div data-testid="positive-tier-editor" class="mt-5 border-t border-line pt-4 dark:border-line">
                   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <h4 class="text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.checkin.positiveTiers') }}</h4>
-                      <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t('admin.checkin.positiveTiersHint') }}</p>
+                      <h4 class="text-sm font-medium text-ink-strong dark:text-white">{{ t('admin.checkin.positiveTiers') }}</h4>
+                      <p class="mt-1 text-xs leading-5 text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.positiveTiersHint') }}</p>
                     </div>
                     <button type="button" class="btn btn-secondary btn-sm shrink-0" :disabled="!form.lucky_enabled || !canSplitPositiveTier || activePositiveTiers.length >= 10" @click="addPositiveTier">
                       <Icon name="plus" size="sm" class="mr-1.5" />{{ t('admin.checkin.addTier') }}
@@ -109,21 +109,21 @@
                   </div>
                   <div class="mt-3 space-y-2">
                     <div v-for="(tier, index) in activePositiveTiers" :key="index" class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2rem] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,.9fr)_5.25rem_2rem]" :data-testid="`positive-tier-${index}`">
-                      <label class="col-start-1 row-start-1 min-w-0 text-xs text-gray-500 dark:text-dark-400 sm:col-auto sm:row-auto">{{ t('admin.checkin.tierMin') }}<input v-model="tier.min" class="input mt-1 h-9 px-2 text-sm" type="number" min="0.01" :max="activePositiveMax" step="0.01" :disabled="!form.lucky_enabled" /></label>
-                      <label class="col-start-2 row-start-1 min-w-0 text-xs text-gray-500 dark:text-dark-400 sm:col-auto sm:row-auto">{{ t('admin.checkin.tierMax') }}<input v-model="tier.max" class="input mt-1 h-9 px-2 text-sm" type="number" min="0.01" :max="activePositiveMax" step="0.01" :disabled="!form.lucky_enabled" /></label>
-                      <label class="col-start-1 row-start-2 min-w-0 text-xs text-gray-500 dark:text-dark-400 sm:col-auto sm:row-auto">{{ t('admin.checkin.tierWeight') }}<input v-model="tier.weight" class="input mt-1 h-9 px-2 text-sm" type="number" min="0.01" max="10000" step="0.01" :disabled="!form.lucky_enabled" /></label>
+                      <label class="col-start-1 row-start-1 min-w-0 text-xs text-ink-muted dark:text-ink-muted sm:col-auto sm:row-auto">{{ t('admin.checkin.tierMin') }}<input v-model="tier.min" class="input mt-1 h-9 px-2 text-sm" type="number" min="0.01" :max="activePositiveMax" step="0.01" :disabled="!form.lucky_enabled" /></label>
+                      <label class="col-start-2 row-start-1 min-w-0 text-xs text-ink-muted dark:text-ink-muted sm:col-auto sm:row-auto">{{ t('admin.checkin.tierMax') }}<input v-model="tier.max" class="input mt-1 h-9 px-2 text-sm" type="number" min="0.01" :max="activePositiveMax" step="0.01" :disabled="!form.lucky_enabled" /></label>
+                      <label class="col-start-1 row-start-2 min-w-0 text-xs text-ink-muted dark:text-ink-muted sm:col-auto sm:row-auto">{{ t('admin.checkin.tierWeight') }}<input v-model="tier.weight" class="input mt-1 h-9 px-2 text-sm" type="number" min="0.01" max="10000" step="0.01" :disabled="!form.lucky_enabled" /></label>
                       <div class="col-start-2 row-start-2 pb-2 text-right sm:col-auto sm:row-auto" :title="t('admin.checkin.effectiveProbability')">
-                        <p class="text-[10px] text-gray-400">{{ t('admin.checkin.effective') }}</p>
+                        <p class="text-[10px] text-ink-muted">{{ t('admin.checkin.effective') }}</p>
                         <p class="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400" :data-testid="`positive-tier-probability-${index}`">{{ effectiveTierProbability(tier) }}%</p>
                       </div>
-                      <button type="button" class="col-start-3 row-span-2 row-start-1 mb-0.5 flex h-9 w-8 self-center items-center justify-center text-gray-400 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 sm:col-auto sm:row-auto sm:self-auto" :title="t('admin.checkin.removeTier')" :aria-label="t('admin.checkin.removeTier')" :disabled="!form.lucky_enabled || activePositiveTiers.length <= 1" @click="removePositiveTier(index)">
+                      <button type="button" class="col-start-3 row-span-2 row-start-1 mb-0.5 flex h-9 w-8 self-center items-center justify-center text-ink-muted hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 sm:col-auto sm:row-auto sm:self-auto" :title="t('admin.checkin.removeTier')" :aria-label="t('admin.checkin.removeTier')" :disabled="!form.lucky_enabled || activePositiveTiers.length <= 1" @click="removePositiveTier(index)">
                         <Icon name="trash" size="sm" />
                       </button>
                     </div>
                   </div>
-                  <div class="mt-3 flex items-center justify-between border-t border-dashed border-gray-200 pt-3 text-xs dark:border-dark-700">
-                    <span class="text-gray-500 dark:text-dark-400">{{ t('admin.checkin.positiveProbabilityTotal') }}</span>
-                    <span class="font-mono font-semibold text-gray-900 dark:text-white" data-testid="positive-tier-total">{{ positiveProbabilityTotal }}%</span>
+                  <div class="mt-3 flex items-center justify-between border-t border-dashed border-line pt-3 text-xs dark:border-line">
+                    <span class="text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.positiveProbabilityTotal') }}</span>
+                    <span class="font-mono font-semibold text-ink-strong dark:text-white" data-testid="positive-tier-total">{{ positiveProbabilityTotal }}%</span>
                   </div>
                 </div>
               </div>
@@ -132,64 +132,64 @@
           <div class="rounded-xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/50 dark:bg-amber-950/10">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h3 class="font-medium text-gray-900 dark:text-white">{{ t('admin.checkin.unrechargedTitle') }}</h3>
-                <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t('admin.checkin.unrechargedHint') }}</p>
+                <h3 class="font-medium text-ink-strong dark:text-white">{{ t('admin.checkin.unrechargedTitle') }}</h3>
+                <p class="mt-1 text-xs leading-5 text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.unrechargedHint') }}</p>
               </div>
               <div class="flex shrink-0 items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-dark-400">{{ t('admin.checkin.unrechargedEnabled') }}</span>
+                <span class="text-xs text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.unrechargedEnabled') }}</span>
                 <Toggle v-model="form.unrecharged_reduction_enabled" data-testid="unrecharged-reduction-toggle" :aria-label="t('admin.checkin.unrechargedEnabled')" />
               </div>
             </div>
             <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2" :class="{ 'opacity-50': !form.unrecharged_reduction_enabled }">
-              <label class="text-sm text-gray-600 dark:text-dark-300">
+              <label class="text-sm text-ink dark:text-ink">
                 {{ t('admin.checkin.unrechargedThreshold') }}
                 <input v-model.number="form.unrecharged_checkin_threshold" data-testid="unrecharged-checkin-threshold" class="input mt-2" type="number" min="1" max="3650" step="1" :disabled="!form.unrecharged_reduction_enabled" />
               </label>
-              <label class="text-sm text-gray-600 dark:text-dark-300">
+              <label class="text-sm text-ink dark:text-ink">
                 {{ t('admin.checkin.unrechargedPercent') }}
                 <div class="relative mt-2">
                   <input v-model="form.unrecharged_normal_reward_percent" data-testid="unrecharged-normal-reward-percent" class="input pr-8" type="number" min="0" max="100" step="1" :disabled="!form.unrecharged_reduction_enabled" />
-                  <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-gray-400">%</span>
+                  <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-muted">%</span>
                 </div>
               </label>
             </div>
           </div>
-          <div class="border-y border-gray-100 py-5 dark:border-dark-700">
+          <div class="border-y border-line py-5 dark:border-line">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 class="font-medium text-gray-900 dark:text-white">{{ t('admin.checkin.riskTitle') }}</h3>
-                <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('admin.checkin.riskHint') }}</p>
+                <h3 class="font-medium text-ink-strong dark:text-white">{{ t('admin.checkin.riskTitle') }}</h3>
+                <p class="mt-1 text-xs text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.riskHint') }}</p>
               </div>
               <div class="flex items-center gap-3">
-                <span class="text-sm font-medium text-gray-600 dark:text-dark-300">{{ t('admin.checkin.riskEnabled') }}</span>
-                <Toggle v-model="form.risk_control_enabled" />
+                <span class="text-sm font-medium text-ink dark:text-ink">{{ t('admin.checkin.riskEnabled') }}</span>
+                <Toggle v-model="form.risk_control_enabled" :aria-label="t('admin.checkin.riskEnabled')" />
               </div>
             </div>
             <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5" :class="{ 'opacity-50': !form.risk_control_enabled }">
-              <label class="text-sm text-gray-600 dark:text-dark-300">
+              <label class="text-sm text-ink dark:text-ink">
                 {{ t('admin.checkin.minAccountAge') }}
                 <input v-model.number="form.min_account_age_hours" class="input mt-2" type="number" min="0" max="720" step="1" :disabled="!form.risk_control_enabled" />
               </label>
-              <label class="text-sm text-gray-600 dark:text-dark-300">
+              <label class="text-sm text-ink dark:text-ink">
                 {{ t('admin.checkin.ipWindow') }}
                 <input v-model.number="form.ip_window_minutes" class="input mt-2" type="number" min="1" max="1440" step="1" :disabled="!form.risk_control_enabled" />
               </label>
-              <label class="text-sm text-gray-600 dark:text-dark-300">
+              <label class="text-sm text-ink dark:text-ink">
                 {{ t('admin.checkin.ipMaxUsers') }}
                 <input v-model.number="form.ip_max_users" class="input mt-2" type="number" min="1" max="10000" step="1" :disabled="!form.risk_control_enabled" />
               </label>
-              <label class="text-sm text-gray-600 dark:text-dark-300">
+              <label class="text-sm text-ink dark:text-ink">
                 {{ t('admin.checkin.fingerprintWindow') }}
                 <input v-model.number="form.fingerprint_window_minutes" class="input mt-2" type="number" min="1" max="10080" step="1" :disabled="!form.risk_control_enabled" />
               </label>
-              <label class="text-sm text-gray-600 dark:text-dark-300">
+              <label class="text-sm text-ink dark:text-ink">
                 {{ t('admin.checkin.fingerprintMaxUsers') }}
                 <input v-model.number="form.fingerprint_max_users" class="input mt-2" type="number" min="1" max="100" step="1" :disabled="!form.risk_control_enabled" />
               </label>
             </div>
           </div>
           <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <label class="block w-full sm:max-w-xl text-sm text-gray-600 dark:text-dark-300">{{ t('admin.checkin.reason') }}<textarea v-model="form.change_reason" class="input mt-2 min-h-20" maxlength="500" :placeholder="t('admin.checkin.reasonPlaceholder')" required /></label>
+            <label class="block w-full sm:max-w-xl text-sm text-ink dark:text-ink">{{ t('admin.checkin.reason') }}<textarea v-model="form.change_reason" class="input mt-2 min-h-20" maxlength="500" :placeholder="t('admin.checkin.reasonPlaceholder')" required /></label>
             <button type="submit" class="btn btn-primary self-start sm:self-auto" :disabled="saving || !config">
               <Icon name="check" size="sm" class="mr-2" />{{ saving ? t('admin.checkin.saving') : t('admin.checkin.save') }}
             </button>
@@ -198,13 +198,13 @@
       </section>
 
       <section class="card overflow-hidden">
-        <div class="border-b border-gray-100 px-5 py-5 dark:border-dark-700 sm:px-6">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.checkin.records') }}</h2>
-          <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('admin.checkin.recordsHint') }}</p>
+        <div class="border-b border-line px-5 py-5 dark:border-line sm:px-6">
+          <h2 class="text-lg font-semibold text-ink-strong dark:text-white">{{ t('admin.checkin.records') }}</h2>
+          <p class="mt-1 text-sm text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.recordsHint') }}</p>
         </div>
-        <div class="flex flex-col gap-3 border-b border-gray-100 p-5 sm:flex-row sm:items-end dark:border-dark-700 sm:px-6">
-          <label class="w-full text-sm text-gray-600 dark:text-dark-300 sm:w-48">{{ t('admin.checkin.date') }}<input v-model="filters.date" type="date" class="input mt-2" @change="searchRecords" /></label>
-          <label class="w-full text-sm text-gray-600 dark:text-dark-300 sm:w-64">{{ t('admin.checkin.email') }}<input v-model.trim="filters.email" type="search" class="input mt-2" @keyup.enter="searchRecords" /></label>
+        <div class="flex flex-col gap-3 border-b border-line p-5 sm:flex-row sm:items-end dark:border-line sm:px-6">
+          <label class="w-full text-sm text-ink dark:text-ink sm:w-48">{{ t('admin.checkin.date') }}<input v-model="filters.date" type="date" class="input mt-2" @change="searchRecords" /></label>
+          <label class="w-full text-sm text-ink dark:text-ink sm:w-64">{{ t('admin.checkin.email') }}<input v-model.trim="filters.email" type="search" class="input mt-2" @keyup.enter="searchRecords" /></label>
           <div class="flex gap-2">
             <button type="button" class="btn btn-primary" @click="searchRecords"><Icon name="search" size="sm" class="mr-2" />{{ t('admin.checkin.search') }}</button>
             <button type="button" class="btn btn-secondary" @click="resetFilters">{{ t('admin.checkin.reset') }}</button>
@@ -212,21 +212,21 @@
         </div>
         <div v-if="recordsError" class="border-b border-red-200 bg-red-50 px-5 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300 sm:px-6">{{ recordsError }}</div>
         <div v-if="recordsLoading" class="flex justify-center p-12"><LoadingSpinner /></div>
-        <div v-else-if="!records.length" class="p-12 text-center text-sm text-gray-500 dark:text-dark-400">{{ t('admin.checkin.empty') }}</div>
+        <div v-else-if="!records.length" class="p-12 text-center text-sm text-ink-muted dark:text-ink-muted">{{ t('admin.checkin.empty') }}</div>
         <div v-else class="overflow-x-auto">
           <table class="min-w-[1050px] w-full text-left text-sm">
-            <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-dark-800 dark:text-dark-400">
+            <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted dark:bg-surface dark:text-ink-muted">
               <tr><th class="px-5 py-3">{{ t('admin.checkin.checkedAt') }}</th><th class="px-5 py-3">{{ t('admin.checkin.user') }}</th><th class="px-5 py-3">{{ t('admin.checkin.mode') }}</th><th class="px-5 py-3">{{ t('admin.checkin.randomValue') }}</th><th class="px-5 py-3">{{ t('admin.checkin.before') }}</th><th class="px-5 py-3">{{ t('admin.checkin.change') }}</th><th class="px-5 py-3">{{ t('admin.checkin.after') }}</th></tr>
             </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
-              <tr v-for="record in records" :key="record.id" class="text-gray-700 dark:text-dark-300">
-                <td class="whitespace-nowrap px-5 py-4"><strong class="text-gray-900 dark:text-white">{{ record.checkin_date.slice(0, 10) }}</strong><br /><span class="text-xs text-gray-400">{{ formatDate(record.checked_in_at) }}</span></td>
-                <td class="px-5 py-4"><span class="font-medium text-gray-900 dark:text-white">{{ record.user_email || `#${record.user_id}` }}</span><br /><span class="text-xs text-gray-400">ID {{ record.user_id }}</span></td>
+            <tbody class="divide-y divide-line dark:divide-line">
+              <tr v-for="record in records" :key="record.id" class="text-ink dark:text-ink">
+                <td class="whitespace-nowrap px-5 py-4"><strong class="text-ink-strong dark:text-white">{{ record.checkin_date.slice(0, 10) }}</strong><br /><span class="text-xs text-ink-muted">{{ formatDate(record.checked_in_at) }}</span></td>
+                <td class="px-5 py-4"><span class="font-medium text-ink-strong dark:text-white">{{ record.user_email || `#${record.user_id}` }}</span><br /><span class="text-xs text-ink-muted">ID {{ record.user_id }}</span></td>
                 <td class="px-5 py-4"><span class="badge" :class="record.mode === 'lucky' ? 'badge-warning' : 'badge-success'">{{ record.mode === 'lucky' ? t('admin.checkin.luckyLabel') : t('admin.checkin.normalLabel') }}</span></td>
                 <td class="px-5 py-4 font-mono">{{ randomValue(record) }}</td>
                 <td class="px-5 py-4 font-mono">{{ money(record.balance_before) }}</td>
                 <td class="px-5 py-4 font-mono font-semibold" :class="record.reward_amount >= 0 ? 'text-emerald-600' : 'text-rose-600'">{{ signedMoney(record.reward_amount) }}</td>
-                <td class="px-5 py-4 font-mono font-semibold text-gray-900 dark:text-white">{{ money(record.balance_after) }}</td>
+                <td class="px-5 py-4 font-mono font-semibold text-ink-strong dark:text-white">{{ money(record.balance_after) }}</td>
               </tr>
             </tbody>
           </table>
@@ -299,7 +299,7 @@ const form = reactive({
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
 
 const overviewCards = computed(() => [
-  { label: t('admin.checkin.total'), value: overview.value.total, tone: 'text-gray-900 dark:text-white' },
+  { label: t('admin.checkin.total'), value: overview.value.total, tone: 'text-ink-strong dark:text-white' },
   { label: t('admin.checkin.normalCount'), value: overview.value.normal_count, tone: 'text-emerald-600 dark:text-emerald-400' },
   { label: t('admin.checkin.luckyCount'), value: overview.value.lucky_count, tone: 'text-amber-600 dark:text-amber-400' },
   { label: t('admin.checkin.positiveTotal'), value: money(overview.value.positive_total), tone: 'text-emerald-600 dark:text-emerald-400' },

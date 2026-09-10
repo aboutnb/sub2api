@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1440" viewBox="0 0 1080 1440">
+  <rect width="1080" height="1440" fill="#1E292A"/>
+  <rect x="74" y="74" width="932" height="1292" rx="28" fill="#F6F0E5"/>
+  <text x="132" y="203" fill="#F15B46" font-size="29" font-weight="700" font-family="Arial, sans-serif" letter-spacing="2">BEFORE YOU USE IT</text>
+  <text x="132" y="294" fill="#1E292A" font-size="58" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">中转站怎么选？</text>
+  <text x="132" y="360" fill="#566060" font-size="29" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">我会先把这 3 个问题过一遍</text>
+  <g transform="translate(132 454)">
+    <circle cx="49" cy="49" r="49" fill="#F15B46"/>
+    <text x="49" y="61" text-anchor="middle" fill="#FFFFFF" font-size="36" font-weight="700" font-family="Arial, sans-serif">1</text>
+    <text x="132" y="42" fill="#1E292A" font-size="38" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">模型是不是写清楚？</text>
+    <text x="132" y="92" fill="#687171" font-size="27" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">先区分模型名和页面里的分组名</text>
+    <path d="M0 145 H812" stroke="#DDD5C9" stroke-width="3"/>
+  </g>
+  <g transform="translate(132 705)">
+    <circle cx="49" cy="49" r="49" fill="#FFD05B"/>
+    <text x="49" y="61" text-anchor="middle" fill="#1E292A" font-size="36" font-weight="700" font-family="Arial, sans-serif">2</text>
+    <text x="132" y="42" fill="#1E292A" font-size="38" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">任务切换方便吗？</text>
+    <text x="132" y="92" fill="#687171" font-size="27" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">写作、代码、长文不必硬用同一个</text>
+    <path d="M0 145 H812" stroke="#DDD5C9" stroke-width="3"/>
+  </g>
+  <g transform="translate(132 956)">
+    <circle cx="49" cy="49" r="49" fill="#84B5AA"/>
+    <text x="49" y="61" text-anchor="middle" fill="#1E292A" font-size="36" font-weight="700" font-family="Arial, sans-serif">3</text>
+    <text x="132" y="42" fill="#1E292A" font-size="38" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">自己能用明白吗？</text>
+    <text x="132" y="92" fill="#687171" font-size="27" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">拿同一个小任务试一次最直观</text>
+  </g>
+  <rect x="132" y="1215" width="816" height="3" fill="#1E292A"/>
+  <text x="132" y="1289" fill="#1E292A" font-size="31" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">最终不是看别人怎么说，是看自己用起来顺不顺。</text>
+</svg>

@@ -4,6 +4,8 @@
  * with user_id, token, theme, lang, ui_mode, src_host, and src parameters.
  */
 
+import { useThemeMode } from '@/composables/useThemeMode'
+
 const EMBEDDED_USER_ID_QUERY_KEY = 'user_id'
 const EMBEDDED_AUTH_TOKEN_QUERY_KEY = 'token'
 const EMBEDDED_THEME_QUERY_KEY = 'theme'
@@ -46,6 +48,5 @@ export function buildEmbeddedUrl(
 }
 
 export function detectTheme(): 'light' | 'dark' {
-  if (typeof document === 'undefined') return 'light'
-  return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  return useThemeMode().isDark.value ? 'dark' : 'light'
 }

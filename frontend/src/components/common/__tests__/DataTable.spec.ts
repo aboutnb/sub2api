@@ -73,14 +73,53 @@ describe('DataTable', () => {
     expect(nameHeader.attributes('aria-sort')).toBe('ascending')
     expect(nameHeader.findAll('svg')).toHaveLength(2)
     expect(nameHeader.findAll('svg')[0].classes()).toContain('text-primary-600')
-    expect(nameHeader.findAll('svg')[1].classes()).toContain('text-gray-300')
+    expect(nameHeader.findAll('svg')[1].classes()).toContain('text-ink-muted')
 
-    await nameHeader.trigger('click')
+    const sortButton = nameHeader.get('button')
+    expect(sortButton.attributes('type')).toBe('button')
+    await sortButton.trigger('click')
     await wrapper.vm.$nextTick()
 
     expect(nameHeader.attributes('aria-sort')).toBe('descending')
-    expect(nameHeader.findAll('svg')[0].classes()).toContain('text-gray-300')
+    expect(nameHeader.findAll('svg')[0].classes()).toContain('text-ink-muted')
     expect(nameHeader.findAll('svg')[1].classes()).toContain('text-primary-600')
+  })
+
+  it('uses the shared 1024px table/card breakpoint', () => {
+    const matchMedia = vi.mocked(window.matchMedia)
+    const wrapper = mount(DataTable, {
+      props: { columns: [{ key: 'name', label: 'Name' }], data: [] }
+    })
+
+    expect(matchMedia).toHaveBeenCalledWith('(min-width: 1024px)')
+    wrapper.unmount()
+  })
+
+  it('keeps sortable headers keyboard reachable through a native button', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        columns: [{ key: 'name', label: 'Name', sortable: true }],
+        data: [
+          { id: 1, name: 'Beta' },
+          { id: 2, name: 'Alpha' }
+        ],
+        defaultSortKey: 'name',
+        defaultSortOrder: 'asc'
+      }
+    })
+
+    const header = wrapper.get('th[aria-sort]')
+    const button = header.get('button')
+
+    await wrapper.vm.$nextTick()
+
+    expect(header.attributes('aria-sort')).toBe('ascending')
+    expect(button.element.tagName).toBe('BUTTON')
+
+    await button.trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(header.attributes('aria-sort')).toBe('descending')
   })
 
   it('renders every row with no virtual padding spacer for small datasets (virtualization off)', async () => {
@@ -356,5 +395,105 @@ describe('DataTable', () => {
     await wrapper.get('[data-test="select-all-mobile"]').setValue(true)
 
     expect(wrapper.emitted('update:selectedKeys')?.at(-1)?.[0]).toEqual([99, 1, 2])
+  })
+
+  it('lets dense tables opt into a locally scrollable table below 1024px', () => {
+    stubMobileMatchMedia()
+    const wrapper = mount(DataTable, {
+      props: {
+        columns: [{ key: 'message', label: 'Message' }],
+        data: [{ id: 1, message: 'A very long log line' }],
+        responsiveMode: 'scroll',
+        ariaLabel: 'Audit log'
+      }
+    })
+
+    const region = wrapper.get('.table-wrapper')
+    expect(region.attributes('role')).toBe('region')
+    expect(region.attributes('aria-label')).toBe('Audit log')
+    expect(region.attributes('tabindex')).toBe('0')
+    expect(wrapper.find('table').exists()).toBe(true)
+    expect(wrapper.find('[data-field="message"]').exists()).toBe(false)
+  })
+
+  it('provides keyboard sortable controls in the mobile card layout', async () => {
+    stubMobileMatchMedia()
+    const wrapper = mount(DataTable, {
+      props: {
+        columns: [{ key: 'name', label: 'Name', sortable: true }],
+        data: [{ id: 1, name: 'Beta' }, { id: 2, name: 'Alpha' }],
+        ariaLabel: 'Accounts'
+      }
+    })
+
+    const sortButton = wrapper.get('[role="group"] button')
+    expect(sortButton.attributes('aria-pressed')).toBe('false')
+    await sortButton.trigger('click')
+    expect(sortButton.attributes('aria-pressed')).toBe('true')
+  })
+
+  it('makes clickable mobile cards keyboard operable', async () => {
+    stubMobileMatchMedia()
+    const row = { id: 7, name: 'Keyboard row' }
+    const wrapper = mount(DataTable, {
+      props: {
+        columns: [{ key: 'name', label: 'Name' }],
+        data: [row],
+        clickableRows: true,
+        rowClickLabel: (item: any) => `Open ${item.name}`
+      }
+    })
+
+    const card = wrapper.get('[role="button"]')
+    expect(card.attributes('tabindex')).toBe('0')
+    expect(card.attributes('aria-label')).toBe('Open Keyboard row')
+    await card.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('rowClick')?.at(-1)?.[0]).toEqual(row)
+  })
+
+  it('does not activate a mobile row from nested checkbox or action keys', async () => {
+    stubMobileMatchMedia()
+    const wrapper = mount(DataTable, {
+      props: {
+        columns: [
+          { key: 'name', label: 'Name' },
+          { key: 'actions', label: 'Actions' }
+        ],
+        data: [{ id: 1, name: 'One' }],
+        rowKey: 'id',
+        selectable: true,
+        clickableRows: true
+      },
+      slots: {
+        'cell-actions': '<button type="button" data-test="nested-action">Edit</button>'
+      }
+    })
+
+    await wrapper.get('[data-test="select-row"]').trigger('keydown', { key: ' ' })
+    await wrapper.get('[data-test="nested-action"]').trigger('keydown', { key: 'Enter' })
+    await wrapper.get('[data-test="nested-action"]').trigger('click')
+
+    expect(wrapper.emitted('rowClick')).toBeUndefined()
+  })
+
+  it('does not activate a desktop row from a nested action key', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        columns: [
+          { key: 'name', label: 'Name' },
+          { key: 'actions', label: 'Actions' }
+        ],
+        data: [{ id: 1, name: 'One' }],
+        clickableRows: true
+      },
+      slots: {
+        'cell-actions': '<button type="button" data-test="nested-action">Edit</button>'
+      }
+    })
+
+    await wrapper.get('[data-test="nested-action"]').trigger('keydown', { key: 'Enter' })
+    await wrapper.get('[data-test="nested-action"]').trigger('click')
+
+    expect(wrapper.emitted('rowClick')).toBeUndefined()
   })
 })

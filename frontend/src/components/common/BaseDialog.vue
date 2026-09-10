@@ -6,12 +6,21 @@
         class="modal-overlay"
         :style="zIndexStyle"
         :aria-labelledby="dialogId"
+        :aria-describedby="ariaDescribedby"
+        :aria-busy="pending || undefined"
+        :aria-hidden="isTopmost ? undefined : 'true'"
+        :inert="isTopmost ? undefined : true"
         role="dialog"
         aria-modal="true"
         @click.self="handleClose"
       >
         <!-- Modal panel -->
-        <div ref="dialogRef" :class="['modal-content', widthClasses]" @click.stop>
+        <div
+          ref="dialogRef"
+          :class="['modal-content', widthClasses]"
+          tabindex="-1"
+          @click.stop
+        >
           <!-- Header -->
           <div class="modal-header">
             <h3 :id="dialogId" class="modal-title">
@@ -19,9 +28,11 @@
             </h3>
             <button
               v-if="showCloseButton"
-              @click="emit('close')"
-              class="-mr-2 rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 focus-visible:ring-offset-2 dark:text-dark-500 dark:hover:bg-dark-700 dark:hover:text-dark-300 dark:focus-visible:ring-offset-dark-900"
-              aria-label="Close modal"
+              type="button"
+              class="btn btn-ghost btn-icon -mr-1 shrink-0"
+              :disabled="pending"
+              :aria-label="t('common.close')"
+              @click="requestClose"
             >
               <Icon name="x" size="md" />
             </button>
@@ -43,17 +54,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted, onUnmounted, ref, nextTick } from 'vue'
+import { computed, getCurrentInstance, watch, onMounted, onUnmounted, ref, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import { getDialogZIndex, isDialogTopmost, registerDialog, unregisterDialog } from './dialogStack'
 
-// 生成唯一ID以避免多个对话框时ID冲突
-let dialogIdCounter = 0
-const dialogId = `modal-title-${++dialogIdCounter}`
+const { t } = useI18n()
+
+// Vue instance UIDs keep multiple simultaneously mounted dialogs uniquely labelled.
+const dialogId = `modal-title-${getCurrentInstance()?.uid ?? 0}`
 
 // 焦点管理
 const dialogRef = ref<HTMLElement | null>(null)
 const modalBodyRef = ref<HTMLElement | null>(null)
 let previousActiveElement: HTMLElement | null = null
+const dialogToken = Symbol(dialogId)
 
 type DialogWidth = 'narrow' | 'normal' | 'wide' | 'extra-wide' | 'full'
 
@@ -65,6 +80,8 @@ interface Props {
   closeOnClickOutside?: boolean
   showCloseButton?: boolean
   zIndex?: number
+  pending?: boolean
+  ariaDescribedby?: string
 }
 
 interface Emits {
@@ -76,14 +93,17 @@ const props = withDefaults(defineProps<Props>(), {
   closeOnEscape: true,
   closeOnClickOutside: false,
   showCloseButton: true,
-  zIndex: 50
+  zIndex: 50,
+  pending: false
 })
 
 const emit = defineEmits<Emits>()
 
-// Custom z-index style (overrides the default z-50 from CSS)
+const isTopmost = computed(() => isDialogTopmost(dialogToken))
+
+// Keep stacked dialogs in a deterministic layer order, even when callers use the default z-index.
 const zIndexStyle = computed(() => {
-  return props.zIndex !== 50 ? { zIndex: props.zIndex } : undefined
+  return { zIndex: getDialogZIndex(dialogToken, props.zIndex) }
 })
 
 const widthClasses = computed(() => {
@@ -101,14 +121,59 @@ const widthClasses = computed(() => {
 })
 
 const handleClose = () => {
-  if (props.closeOnClickOutside) {
+  if (props.closeOnClickOutside && !props.pending && isTopmost.value) {
     emit('close')
   }
 }
 
-const handleEscape = (event: KeyboardEvent) => {
-  if (props.show && props.closeOnEscape && event.key === 'Escape') {
+const requestClose = () => {
+  if (props.pending || !isTopmost.value) return
+  emit('close')
+}
+
+const getFocusableElements = () => {
+  if (!dialogRef.value) return []
+
+  return Array.from(
+    dialogRef.value.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter((element) => {
+    if (element.getAttribute('tabindex') === '-1') return false
+    if (element.closest('[inert], [aria-hidden="true"]')) return false
+    return element.getAttribute('aria-hidden') !== 'true'
+  })
+}
+
+const handleKeydown = (event: KeyboardEvent) => {
+  if (!props.show || !isTopmost.value) return
+
+  if (props.closeOnEscape && !props.pending && event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
     emit('close')
+    return
+  }
+
+  if (event.key !== 'Tab' || !dialogRef.value) return
+
+  const focusableElements = getFocusableElements()
+  if (focusableElements.length === 0) {
+    event.preventDefault()
+    dialogRef.value.focus()
+    return
+  }
+
+  const firstElement = focusableElements[0]
+  const lastElement = focusableElements[focusableElements.length - 1]
+  const activeElement = document.activeElement
+
+  if (event.shiftKey && (activeElement === firstElement || !dialogRef.value.contains(activeElement))) {
+    event.preventDefault()
+    lastElement.focus()
+  } else if (!event.shiftKey && activeElement === lastElement) {
+    event.preventDefault()
+    firstElement.focus()
   }
 }
 
@@ -119,39 +184,48 @@ watch(
     if (isOpen) {
       // 保存当前焦点元素
       previousActiveElement = document.activeElement as HTMLElement
-      // 使用CSS类而不是直接操作style,更易于管理多个对话框
-      document.body.classList.add('modal-open')
+      registerDialog(dialogToken)
 
       // 等待DOM更新后设置焦点到对话框
       await nextTick()
       if (modalBodyRef.value) {
         modalBodyRef.value.scrollTop = 0
       }
-      if (dialogRef.value) {
-        const firstFocusable = dialogRef.value.querySelector<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        )
-        firstFocusable?.focus()
+      if (props.show && isTopmost.value && dialogRef.value) {
+        const firstFocusable = getFocusableElements()[0]
+        ;(firstFocusable || dialogRef.value).focus()
       }
     } else {
-      document.body.classList.remove('modal-open')
-      // 恢复之前的焦点
-      if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
-        previousActiveElement.focus()
-      }
+      const shouldRestoreFocus = isDialogTopmost(dialogToken)
+      const elementToRestore = previousActiveElement
       previousActiveElement = null
+      unregisterDialog(dialogToken)
+      // Only the topmost dialog owns focus restoration. Closing a covered dialog
+      // must not move focus out from under the active one.
+      if (
+        shouldRestoreFocus
+        && elementToRestore?.isConnected
+        && typeof elementToRestore.focus === 'function'
+      ) {
+        await nextTick()
+        if (elementToRestore.isConnected) elementToRestore.focus()
+      }
     }
   },
   { immediate: true }
 )
 
 onMounted(() => {
-  document.addEventListener('keydown', handleEscape)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleEscape)
-  // 确保组件卸载时移除滚动锁定
-  document.body.classList.remove('modal-open')
+  document.removeEventListener('keydown', handleKeydown)
+  const shouldRestoreFocus = isDialogTopmost(dialogToken)
+  unregisterDialog(dialogToken)
+  if (shouldRestoreFocus && previousActiveElement?.isConnected) {
+    previousActiveElement.focus()
+  }
+  previousActiveElement = null
 })
 </script>

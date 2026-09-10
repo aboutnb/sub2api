@@ -1,6 +1,6 @@
 <template>
-  <div class="mt-4 border-t border-white/70 pt-3 dark:border-dark-700/60">
-    <div class="mb-2 flex justify-between text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+  <div class="mt-4 border-t border-white/70 pt-3 dark:border-line/60">
+    <div class="mb-2 flex justify-between text-[10px] font-semibold uppercase tracking-widest text-ink-muted">
       <span>{{ t('monitorCommon.history60pts', { n: length }) }}</span>
       <span class="tabular-nums">{{ t('monitorCommon.nextUpdateIn', { n: countdownSeconds }) }}</span>
     </div>
@@ -15,6 +15,7 @@
         <button
           type="button"
           class="v3-bar-hitbox"
+          data-touch-target="compact-visualization"
           :class="{
             'is-active': hoveredBarIndex === index,
             'is-neighbor': barDistance(index) === 1,
@@ -48,7 +49,7 @@
       </div>
     </div>
 
-    <div class="mt-1 flex justify-between text-[9px] uppercase tracking-widest text-gray-400">
+    <div class="mt-1 flex justify-between text-[9px] uppercase tracking-widest text-ink-muted">
       <span>{{ t('monitorCommon.past') }}</span>
       <span>{{ t('monitorCommon.now') }}</span>
     </div>
@@ -126,7 +127,7 @@ const STATUS_STYLE = {
   healthy: { colorClass: 'bg-emerald-500', heightPct: 100 },
   warning: { colorClass: 'bg-amber-500', heightPct: 65 },
   critical: { colorClass: 'bg-red-500', heightPct: 35 },
-  unknown: { colorClass: 'bg-gray-300 dark:bg-dark-600', heightPct: 15 },
+  unknown: { colorClass: 'bg-line-strong dark:bg-line-strong', heightPct: 15 },
 } as const
 
 interface TimelineBar {
@@ -218,6 +219,7 @@ const tooltipStyle = computed(() => ({
   align-items: flex-end;
   width: 100%;
   height: 100%;
+  min-height: 0;
   min-width: 0;
   padding: 0;
   border: 0;

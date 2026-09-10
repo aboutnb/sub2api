@@ -13,7 +13,7 @@ export function proxyExpiryBadgeClass(expiresAt: string | null, status?: string)
   const d = expiresAt ? daysUntil(expiresAt) : Infinity
   if (d <= EXPIRY_DANGER_DAYS) return 'badge badge-danger'
   if (d <= EXPIRY_WARN_DAYS) return 'badge badge-warning'
-  return 'text-gray-500'
+  return 'text-ink-muted'
 }
 
 // 倒计时文案的 i18n key + 参数(返回 key 而非已翻译文本,便于单测且不耦合 i18n)。

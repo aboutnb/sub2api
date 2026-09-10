@@ -59,7 +59,7 @@ const BORDER: Record<Platform, string> = {
   minimax: 'border-rose-500/20 dark:border-rose-500/20',
   composite: 'border-cyan-500/20 dark:border-cyan-500/20',
 }
-const BORDER_DEFAULT = 'border-gray-200 dark:border-dark-700'
+const BORDER_DEFAULT = 'border-line'
 
 // ── Border strong (higher-contrast platform tint, e.g. plaza group cards) ──
 const BORDER_STRONG: Record<Platform, string> = {
@@ -74,7 +74,7 @@ const BORDER_STRONG: Record<Platform, string> = {
   minimax: 'border-rose-500/35 dark:border-rose-500/30',
   composite: 'border-cyan-500/35 dark:border-cyan-500/30',
 }
-const BORDER_STRONG_DEFAULT = 'border-gray-300 dark:border-dark-600'
+const BORDER_STRONG_DEFAULT = 'border-line-strong'
 
 // ── Accent (single raw color per platform; consumers derive washes/tints
 //    from it via CSS color-mix, e.g. plaza paid-price zone) ──
@@ -92,20 +92,20 @@ const ACCENT: Record<Platform, string> = {
 }
 const ACCENT_DEFAULT = '#14b8a6' // primary-500 (teal)
 
-// ── Accent bar (gradient) ───────────────────────────────────────────
+// ── Accent bar (solid provider identity; decorative gradients are avoided) ──
 const ACCENT_BAR: Record<Platform, string> = {
-  anthropic: 'bg-gradient-to-r from-orange-400 to-orange-500',
-  openai: 'bg-gradient-to-r from-emerald-400 to-emerald-500',
-  antigravity: 'bg-gradient-to-r from-purple-400 to-purple-500',
-  gemini: 'bg-gradient-to-r from-blue-400 to-blue-500',
-  grok: 'bg-gradient-to-r from-zinc-700 to-zinc-900',
-  kimi: 'bg-gradient-to-r from-pink-400 to-pink-500',
-  zhipu: 'bg-gradient-to-r from-indigo-400 to-indigo-500',
-  deepseek: 'bg-gradient-to-r from-teal-400 to-teal-500',
-  minimax: 'bg-gradient-to-r from-rose-400 to-rose-500',
-  composite: 'bg-gradient-to-r from-slate-500 to-cyan-500',
+  anthropic: 'bg-orange-500',
+  openai: 'bg-emerald-500',
+  antigravity: 'bg-purple-500',
+  gemini: 'bg-blue-500',
+  grok: 'bg-zinc-800 dark:bg-zinc-600',
+  kimi: 'bg-pink-500',
+  zhipu: 'bg-indigo-500',
+  deepseek: 'bg-teal-500',
+  minimax: 'bg-rose-500',
+  composite: 'bg-cyan-600',
 }
-const ACCENT_BAR_DEFAULT = 'bg-gradient-to-r from-primary-400 to-primary-500'
+const ACCENT_BAR_DEFAULT = 'bg-primary-500'
 
 // ── Text (price, icon) ─────────────────────────────────────────────
 const TEXT: Record<Platform, string> = {

@@ -11,8 +11,9 @@ import (
 )
 
 type settingPublicRepoStub struct {
-	values map[string]string
-	err    error
+	values        map[string]string
+	err           error
+	requestedKeys []string
 }
 
 func (s *settingPublicRepoStub) Get(ctx context.Context, key string) (*Setting, error) {
@@ -28,6 +29,7 @@ func (s *settingPublicRepoStub) Set(ctx context.Context, key, value string) erro
 }
 
 func (s *settingPublicRepoStub) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
+	s.requestedKeys = append([]string(nil), keys...)
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -82,9 +84,10 @@ func TestSettingService_GetPublicSettings_ExposesTablePreferences(t *testing.T) 
 	require.Equal(t, []int{20, 50, 100}, settings.TablePageSizeOptions)
 }
 
-func TestSettingService_GetPublicSettings_ExposesCompactHomeEnabled(t *testing.T) {
+func TestSettingService_GetPublicSettings_NeutralizesLegacyHomeSettings(t *testing.T) {
 	repo := &settingPublicRepoStub{
 		values: map[string]string{
+			SettingKeyHomeContent:        "https://legacy.example.com/home",
 			SettingKeyCompactHomeEnabled: "true",
 		},
 	}
@@ -93,12 +96,36 @@ func TestSettingService_GetPublicSettings_ExposesCompactHomeEnabled(t *testing.T
 	settings, err := svc.GetPublicSettings(context.Background())
 
 	require.NoError(t, err)
-	require.True(t, settings.CompactHomeEnabled)
+	require.Empty(t, settings.HomeContent)
+	require.False(t, settings.CompactHomeEnabled)
+	require.NotContains(t, repo.requestedKeys, SettingKeyHomeContent)
+	require.NotContains(t, repo.requestedKeys, SettingKeyCompactHomeEnabled)
 
 	missingSettings, err := NewSettingService(&settingPublicRepoStub{values: map[string]string{}}, &config.Config{}).
 		GetPublicSettings(context.Background())
 	require.NoError(t, err)
 	require.False(t, missingSettings.CompactHomeEnabled)
+}
+
+func TestSettingService_GetFrameSrcOrigins_IgnoresLegacyHomeContent(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyHomeContent:                 "https://legacy.example.com/home",
+			SettingKeyPurchaseSubscriptionEnabled: "true",
+			SettingKeyPurchaseSubscriptionURL:     "https://billing.example.com/checkout",
+			SettingKeyCustomMenuItems:             `[{"url":"https://docs.example.com/page"}]`,
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	origins, err := svc.GetFrameSrcOrigins(context.Background())
+
+	require.NoError(t, err)
+	require.Equal(t, []string{
+		"https://billing.example.com",
+		"https://docs.example.com",
+	}, origins)
+	require.NotContains(t, origins, "https://legacy.example.com")
 }
 
 func TestSettingService_ChannelMonitorHideThroughputDefaultsToPrivate(t *testing.T) {
@@ -213,6 +240,30 @@ func TestSettingService_GetPublicSettings_UserSubscriptionsCanBeDisabled(t *test
 	settings, err := svc.GetPublicSettings(context.Background())
 	require.NoError(t, err)
 	require.False(t, settings.UserSubscriptionsEnabled)
+}
+
+func TestSettingService_GetPublicSettings_SubscriptionExpirationDefaultsEnabled(t *testing.T) {
+	repo := &settingPublicRepoStub{values: map[string]string{}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+
+	require.NoError(t, err)
+	require.True(t, settings.SubscriptionExpirationEnabled)
+	require.Contains(t, repo.requestedKeys, SettingKeySubscriptionExpirationEnabled)
+}
+
+func TestSettingService_GetPublicSettings_SubscriptionExpirationCanBeDisabled(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{SettingKeySubscriptionExpirationEnabled: "false"},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+
+	require.NoError(t, err)
+	require.False(t, settings.SubscriptionExpirationEnabled)
+	require.Contains(t, repo.requestedKeys, SettingKeySubscriptionExpirationEnabled)
 }
 
 func TestSettingService_GetPublicSettings_ExposesCheckinEnabled(t *testing.T) {

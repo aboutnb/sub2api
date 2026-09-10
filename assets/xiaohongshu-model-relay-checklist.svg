@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1440" viewBox="0 0 1080 1440">
+  <rect width="1080" height="1440" fill="#F7F5EF"/>
+  <rect x="0" y="0" width="1080" height="24" fill="#E7A66E"/>
+  <text x="90" y="155" fill="#1D2928" font-size="55" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">中转怎么判断？</text>
+  <text x="92" y="220" fill="#68736E" font-size="28" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">我现在会先看这 4 件小事</text>
+  <g transform="translate(90 330)">
+    <rect width="900" height="170" rx="22" fill="#E7F0ED"/>
+    <circle cx="78" cy="85" r="34" fill="#1D554F"/>
+    <text x="78" y="98" text-anchor="middle" fill="#FFFFFF" font-size="30" font-weight="700" font-family="Arial, sans-serif">01</text>
+    <text x="145" y="78" fill="#1D2928" font-size="34" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">模型是不是写清楚</text>
+    <text x="145" y="125" fill="#68736E" font-size="25" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">别把 Pro、Plus 这类分组名当成模型名</text>
+  </g>
+  <g transform="translate(90 550)">
+    <rect width="900" height="170" rx="22" fill="#F7E8D8"/>
+    <circle cx="78" cy="85" r="34" fill="#D27A4E"/>
+    <text x="78" y="98" text-anchor="middle" fill="#FFFFFF" font-size="30" font-weight="700" font-family="Arial, sans-serif">02</text>
+    <text x="145" y="78" fill="#1D2928" font-size="34" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">能不能按任务切换</text>
+    <text x="145" y="125" fill="#68736E" font-size="25" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">写作、代码、长文，不一定用同一个模型</text>
+  </g>
+  <g transform="translate(90 770)">
+    <rect width="900" height="170" rx="22" fill="#E9E4F0"/>
+    <circle cx="78" cy="85" r="34" fill="#6A597F"/>
+    <text x="78" y="98" text-anchor="middle" fill="#FFFFFF" font-size="30" font-weight="700" font-family="Arial, sans-serif">03</text>
+    <text x="145" y="78" fill="#1D2928" font-size="34" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">入口和记录是否清楚</text>
+    <text x="145" y="125" fill="#68736E" font-size="25" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">用过什么、在哪切换，自己能回头找到</text>
+  </g>
+  <g transform="translate(90 990)">
+    <rect width="900" height="170" rx="22" fill="#EDEDE5"/>
+    <circle cx="78" cy="85" r="34" fill="#76826D"/>
+    <text x="78" y="98" text-anchor="middle" fill="#FFFFFF" font-size="30" font-weight="700" font-family="Arial, sans-serif">04</text>
+    <text x="145" y="78" fill="#1D2928" font-size="34" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">先小范围试，再决定</text>
+    <text x="145" y="125" fill="#68736E" font-size="25" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">别只看别人一句“好用”，自己的任务更重要</text>
+  </g>
+  <text x="90" y="1285" fill="#1D554F" font-size="32" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">你最在意哪一项？</text>
+  <text x="90" y="1340" fill="#8A918C" font-size="24" font-family="Arial, sans-serif" letter-spacing="1">SAVE THIS CHECKLIST</text>
+</svg>

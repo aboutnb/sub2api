@@ -685,6 +685,7 @@ export default {
       minutesRemaining: '剩余 {minutes} 分钟',
       remainingDays: '剩余天数',
       noExpiration: '无过期时间',
+      expirationDisabledHint: '全局订阅有效期限制已关闭，本次分配将自动设为不限时；用量配额仍按分组配置执行。',
       status: {
         active: '生效中',
         expired: '已过期',

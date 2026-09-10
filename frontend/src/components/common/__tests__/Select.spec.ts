@@ -115,6 +115,103 @@ describe('Select dropdown viewport constraints', () => {
   })
 })
 
+describe('Select combobox keyboard model', () => {
+  const options = [
+    { value: 'group', label: 'Group', kind: 'group' },
+    { value: 'disabled', label: 'Disabled', disabled: true },
+    { value: 'alpha', label: 'Alpha' },
+    { value: 'beta', label: 'Beta' },
+  ]
+
+  const mountKeyboardSelect = (props: Record<string, unknown> = {}) => {
+    const wrapper = mount(Select, {
+      props: {
+        modelValue: null,
+        options,
+        searchable: false,
+        ariaLabel: 'Choose account',
+        ...props,
+      },
+    })
+    unmountWrapper = () => wrapper.unmount()
+    return wrapper
+  }
+
+  it('connects the combobox to a labelled listbox and active option', async () => {
+    const wrapper = mountKeyboardSelect()
+    const trigger = wrapper.get('[role="combobox"]')
+
+    expect(trigger.attributes('aria-haspopup')).toBe('listbox')
+    expect(trigger.attributes('aria-label')).toBe('Choose account')
+
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await nextTick()
+
+    const listbox = document.body.querySelector<HTMLElement>('[role="listbox"]')!
+    const optionsInDom = [...listbox.querySelectorAll<HTMLElement>('[role="option"]')]
+    expect(listbox.id).toBe(trigger.attributes('aria-controls'))
+    expect(listbox.getAttribute('aria-labelledby')).toBe(trigger.attributes('id'))
+    expect(optionsInDom).toHaveLength(3)
+    expect(listbox.querySelector('[role="presentation"]')?.textContent).toContain('Group')
+    expect(trigger.attributes('aria-activedescendant')).toBe(optionsInDom[1].id)
+  })
+
+  it('supports Home End arrows and selection while skipping disabled and group rows', async () => {
+    const wrapper = mountKeyboardSelect()
+    const trigger = wrapper.get('[role="combobox"]')
+
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await trigger.trigger('keydown', { key: 'End' })
+    await nextTick()
+    expect(document.body.querySelector('.select-option-focused')?.textContent).toContain('Beta')
+
+    await trigger.trigger('keydown', { key: 'Home' })
+    await nextTick()
+    expect(document.body.querySelector('.select-option-focused')?.textContent).toContain('Alpha')
+
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await trigger.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['beta'])
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+  })
+
+  it('exposes searchable input as an autocomplete combobox and keeps Escape local', async () => {
+    const wrapper = mountKeyboardSelect({ searchable: true })
+    const escapeAtDocument = vi.fn()
+    document.addEventListener('keydown', escapeAtDocument)
+
+    await wrapper.get('[role="combobox"]').trigger('click')
+    await nextTick()
+
+    const search = document.body.querySelector<HTMLInputElement>('.select-search-input')!
+    expect(search.getAttribute('role')).toBe('combobox')
+    expect(search.getAttribute('aria-autocomplete')).toBe('list')
+    expect(search.getAttribute('aria-controls')).toBe(
+      document.body.querySelector<HTMLElement>('[role="listbox"]')?.id,
+    )
+
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await nextTick()
+    expect(escapeAtDocument).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="combobox"]').attributes('aria-expanded')).toBe('false')
+
+    document.removeEventListener('keydown', escapeAtDocument)
+  })
+
+  it('renders clear as a separate keyboard-operable button', async () => {
+    const wrapper = mountKeyboardSelect({ modelValue: 'alpha', clearable: true })
+    const trigger = wrapper.get('[role="combobox"]')
+    const clear = wrapper.get('.select-clear')
+
+    expect(trigger.find('.select-clear').exists()).toBe(false)
+    expect(clear.element.tagName).toBe('BUTTON')
+    expect(clear.attributes('aria-label')).toBeTruthy()
+
+    await clear.trigger('click')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([null])
+  })
+})
+
 describe('Select remote search', () => {
   const mountRemoteSelect = (props: Record<string, unknown> = {}) => {
     const wrapper = mount(Select, {

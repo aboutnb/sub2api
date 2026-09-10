@@ -1,20 +1,20 @@
 <template>
   <section
-    class="card flex min-h-[360px] flex-col overflow-hidden !rounded-3xl !border-0 !p-6 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700"
+    class="card flex min-h-[360px] flex-col overflow-hidden !p-6"
   >
     <div class="card-header mb-4 flex shrink-0 flex-wrap items-start justify-between gap-3 !border-0 !p-0">
       <div class="min-w-0">
-        <h2 class="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
+        <h2 class="flex items-center gap-2 text-sm font-bold text-ink-strong dark:text-white">
           <span class="inline-flex h-4 w-4 text-sky-500" aria-hidden="true">
             <Icon name="chart" size="sm" />
           </span>
           {{ t('channelMonitorV2.chart.title') }}
         </h2>
-        <p class="mt-0.5 text-xs text-gray-500 dark:text-dark-400">
+        <p class="mt-0.5 text-xs text-ink-muted dark:text-ink-muted">
           {{ t('channelMonitorV2.chart.description') }}
         </p>
       </div>
-      <div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 text-xs text-gray-500 dark:text-gray-400 sm:w-auto">
+      <div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 text-xs text-ink-muted dark:text-ink-muted sm:w-auto">
         <span class="flex shrink-0 items-center gap-1">
           <span class="h-2 w-2 rounded-full bg-red-500"></span>{{ t('channelMonitorV2.chart.errorLegend') }}
         </span>
@@ -27,7 +27,7 @@
         <span class="badge badge-gray shrink-0">{{ bucketLabel }}</span>
         <button
           type="button"
-          class="inline-flex shrink-0 items-center rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300 dark:hover:bg-dark-800"
+          class="inline-flex shrink-0 items-center rounded-lg border border-line bg-white px-2 py-1 text-[11px] font-semibold text-ink hover:bg-surface-muted disabled:opacity-50 dark:border-line dark:bg-canvas dark:text-ink-muted dark:hover:bg-dark-800"
           :disabled="!zoomed"
           @click="resetChartZoom"
         >
@@ -37,7 +37,7 @@
     </div>
     <div class="card-body min-h-0 flex-1 !p-0">
       <div v-if="loading" class="flex h-[280px] items-center justify-center sm:h-[300px]">
-        <div class="animate-pulse text-sm text-gray-400">{{ t('common.loading') }}</div>
+        <div class="animate-pulse text-sm text-ink-muted">{{ t('common.loading') }}</div>
       </div>
       <div
         v-else-if="chartData"
@@ -74,6 +74,7 @@ import {
 import { Line } from 'vue-chartjs'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { useChartTheme } from '@/composables/useChartTheme'
 import type { MonitorCoverage, MonitorMetric, MonitorHealth } from '@/api/channelMonitorV2'
 import { formatMonitorMs, formatMonitorPercent } from '@/features/channel-monitor-v2/monitorFormat'
 import {
@@ -87,6 +88,7 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 const { t, locale } = useI18n()
+const { chartTheme } = useChartTheme()
 
 const props = defineProps<{
   trend: Array<{ bucket_start: string; metrics: MonitorMetric; health: MonitorHealth }>
@@ -97,10 +99,6 @@ const props = defineProps<{
 const chartRef = ref<HTMLElement | null>(null)
 const zoom = ref<ZoomState>(resetZoom())
 const zoomed = computed(() => isZoomed(zoom.value))
-
-const isDark = computed(() =>
-  typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
-)
 
 const bucketLabel = computed(() => {
   const seconds = props.coverage?.bucket_seconds || 60
@@ -131,8 +129,8 @@ const chartData = computed(() => {
       {
         label: t('channelMonitorV2.chart.errorDataset'),
         data: errorRates,
-        borderColor: '#ef4444',
-        backgroundColor: 'rgba(239, 67, 67, 0.10)',
+        borderColor: chartTheme.value.series[8],
+        backgroundColor: chartTheme.value.seriesSoft[8],
         yAxisID: 'yPct',
         tension: 0.4,
         cubicInterpolationMode: 'monotone' as const,
@@ -145,8 +143,8 @@ const chartData = computed(() => {
       {
         label: t('channelMonitorV2.chart.cacheDataset'),
         data: cacheRates,
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+        borderColor: chartTheme.value.series[7],
+        backgroundColor: chartTheme.value.seriesSoft[7],
         yAxisID: 'yPct',
         tension: 0.4,
         cubicInterpolationMode: 'monotone' as const,
@@ -159,8 +157,8 @@ const chartData = computed(() => {
       {
         label: t('channelMonitorV2.chart.ttftDataset'),
         data: ttftP50,
-        borderColor: '#0ea5e9',
-        backgroundColor: 'rgba(14, 165, 233, 0.08)',
+        borderColor: chartTheme.value.series[6],
+        backgroundColor: chartTheme.value.seriesSoft[6],
         yAxisID: 'yTtft',
         tension: 0.4,
         cubicInterpolationMode: 'monotone' as const,
@@ -205,11 +203,8 @@ function smoothTrend(values: Array<number | null>): Array<number | null> {
 }
 
 const chartOptions = computed(() => {
-  const text = isDark.value ? '#9ca3af' : '#6b7280'
-  const grid = isDark.value ? '#374151' : '#f3f4f6'
-  const tooltipBg = isDark.value ? '#1f2937' : '#ffffff'
-  const tooltipTitle = isDark.value ? '#f3f4f6' : '#111827'
-  const tooltipBody = isDark.value ? '#d1d5db' : '#4b5563'
+  const text = chartTheme.value.mutedText
+  const grid = chartTheme.value.grid
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -217,10 +212,10 @@ const chartOptions = computed(() => {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: tooltipBg,
-        titleColor: tooltipTitle,
-        bodyColor: tooltipBody,
-        borderColor: grid,
+        backgroundColor: chartTheme.value.tooltipBackground,
+        titleColor: chartTheme.value.tooltipTitle,
+        bodyColor: chartTheme.value.tooltipBody,
+        borderColor: chartTheme.value.tooltipBorder,
         borderWidth: 1,
         padding: 10,
         displayColors: true,
@@ -260,12 +255,12 @@ const chartOptions = computed(() => {
         position: 'right' as const,
         min: 0,
         ticks: {
-          color: '#0ea5e9',
+          color: chartTheme.value.series[6],
           font: { size: 10 },
           callback: (v: string | number) => formatMonitorMs(Number(v)),
         },
         grid: { display: false },
-        title: { display: true, text: t('channelMonitorV2.metrics.ttftP50'), color: '#0ea5e9', font: { size: 11 } },
+        title: { display: true, text: t('channelMonitorV2.metrics.ttftP50'), color: chartTheme.value.series[6], font: { size: 11 } },
       },
     },
   }

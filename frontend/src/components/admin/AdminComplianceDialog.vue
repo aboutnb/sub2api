@@ -21,16 +21,16 @@
       </div>
 
       <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
-        <section class="min-h-[320px] max-h-[46vh] overflow-y-auto rounded-lg border border-gray-200 bg-white p-5 dark:border-dark-700 dark:bg-dark-900">
+        <section class="min-h-[320px] max-h-[46vh] overflow-y-auto rounded-lg border border-line bg-white p-5 dark:border-line dark:bg-canvas">
           <div class="legal-document-content" v-html="renderedDocument"></div>
         </section>
 
-        <aside class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm dark:border-dark-700 dark:bg-dark-900/60">
+        <aside class="space-y-3 rounded-lg border border-line bg-surface-muted p-4 text-sm dark:border-line dark:bg-canvas/60">
           <div>
-            <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-dark-400">
+            <p class="text-xs font-medium uppercase tracking-wide text-ink-muted dark:text-ink-muted">
               {{ t('adminCompliance.version') }}
             </p>
-            <p class="mt-1 break-all font-mono text-gray-900 dark:text-white">
+            <p class="mt-1 break-all font-mono text-ink-strong dark:text-white">
               {{ complianceStore.status?.version || 'v2026.06.10' }}
             </p>
           </div>
@@ -43,17 +43,17 @@
             <Icon name="externalLink" size="sm" />
             {{ t('adminCompliance.openDocument') }}
           </a>
-          <p class="leading-6 text-gray-600 dark:text-dark-300">
+          <p class="leading-6 text-ink dark:text-ink">
             {{ t('adminCompliance.documentSource') }}
           </p>
         </aside>
       </div>
 
       <div class="space-y-3">
-        <label for="admin-compliance-phrase" class="block text-sm font-semibold text-gray-900 dark:text-white">
+        <label for="admin-compliance-phrase" class="block text-sm font-semibold text-ink-strong dark:text-white">
           {{ t('adminCompliance.inputLabel') }}
         </label>
-        <div class="rounded-lg bg-gray-100 px-3 py-2 font-mono text-sm text-gray-900 dark:bg-dark-800 dark:text-dark-100">
+        <div class="rounded-lg bg-surface-muted px-3 py-2 font-mono text-sm text-ink-strong dark:bg-surface dark:text-ink-strong">
           {{ expectedPhrase }}
         </div>
         <Input
@@ -67,7 +67,7 @@
         />
       </div>
 
-      <p class="text-xs leading-5 text-gray-500 dark:text-dark-400">
+      <p class="text-xs leading-5 text-ink-muted dark:text-ink-muted">
         {{ t('adminCompliance.legalNote') }}
       </p>
     </div>
@@ -195,16 +195,16 @@ async function logout(): Promise<void> {
 }
 
 .legal-document-content :deep(h2) {
-  @apply mb-3 mt-6 text-xl font-semibold text-gray-900 dark:text-white;
+  @apply mb-3 mt-6 text-xl font-semibold text-ink-strong dark:text-white;
 }
 
 .legal-document-content :deep(p) {
-  @apply mb-4 text-sm text-gray-700 dark:text-dark-200;
+  @apply mb-4 text-sm text-ink dark:text-ink-strong;
 }
 
 .legal-document-content :deep(ul),
 .legal-document-content :deep(ol) {
-  @apply mb-4 pl-6 text-sm text-gray-700 dark:text-dark-200;
+  @apply mb-4 pl-6 text-sm text-ink dark:text-ink-strong;
 }
 
 .legal-document-content :deep(ul) {

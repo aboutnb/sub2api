@@ -8,28 +8,28 @@
     <div v-if="account" class="space-y-4">
       <!-- Account Info -->
       <div
-        class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-700"
+        class="rounded-lg border border-line bg-surface-muted p-4 dark:border-line-strong dark:bg-surface-muted"
       >
         <div class="flex items-center gap-3">
           <div
             :class="[
-              'flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br',
+              'flex h-10 w-10 items-center justify-center rounded-lg border-2 border-ink-strong shadow-pixel-sm dark:border-line',
               isOpenAILike
-                ? 'from-green-500 to-green-600'
+                ? 'bg-green-600'
                 : isGemini
-                  ? 'from-blue-500 to-blue-600'
+                  ? 'bg-blue-600'
                   : isAntigravity
-                    ? 'from-purple-500 to-purple-600'
-                    : 'from-orange-500 to-orange-600'
+                    ? 'bg-purple-600'
+                    : 'bg-orange-600'
             ]"
           >
             <Icon name="sparkles" size="md" class="text-white" />
           </div>
           <div>
-            <span class="block font-semibold text-gray-900 dark:text-white">{{
+            <span class="block font-semibold text-ink-strong dark:text-white">{{
               account.name
             }}</span>
-            <span class="text-sm text-gray-500 dark:text-gray-400">
+            <span class="text-sm text-ink-muted dark:text-ink-muted">
               {{
                 isOpenAI
                   ? t('admin.accounts.openaiAccount')
@@ -55,7 +55,7 @@
               value="oauth"
               class="mr-2 text-primary-600 focus:ring-primary-500"
             />
-            <span class="text-sm text-gray-700 dark:text-gray-300">{{
+            <span class="text-sm text-ink dark:text-ink-muted">{{
               t('admin.accounts.types.oauth')
             }}</span>
           </label>
@@ -66,7 +66,7 @@
               value="setup-token"
               class="mr-2 text-primary-600 focus:ring-primary-500"
             />
-            <span class="text-sm text-gray-700 dark:text-gray-300">{{
+            <span class="text-sm text-ink dark:text-ink-muted">{{
               t('admin.accounts.setupTokenLongLived')
             }}</span>
           </label>
@@ -74,8 +74,8 @@
       </fieldset>
 
       <!-- Gemini OAuth Type Display (read-only) -->
-      <div v-if="isGemini" class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-700">
-        <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+      <div v-if="isGemini" class="rounded-lg border border-line bg-surface-muted p-4 dark:border-line-strong dark:bg-surface-muted">
+        <div class="mb-2 text-sm font-medium text-ink dark:text-ink-muted">
           {{ t('admin.accounts.oauth.gemini.oauthTypeLabel') }}
         </div>
         <div class="flex items-center gap-3">
@@ -94,7 +94,7 @@
             <Icon v-else name="sparkles" size="sm" />
           </div>
           <div>
-            <span class="block text-sm font-medium text-gray-900 dark:text-white">
+            <span class="block text-sm font-medium text-ink-strong dark:text-white">
               {{
                 geminiOAuthType === 'google_one'
                   ? 'Google One'
@@ -103,7 +103,7 @@
                     : t('admin.accounts.gemini.oauthType.customTitle')
               }}
             </span>
-            <span class="text-xs text-gray-500 dark:text-gray-400">
+            <span class="text-xs text-ink-muted dark:text-ink-muted">
               {{
                 geminiOAuthType === 'google_one'
                   ? t('admin.accounts.gemini.oauthType.googleOneDesc')

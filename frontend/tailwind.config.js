@@ -1,3 +1,45 @@
+const aivozaTeal = {
+  50: '#edfbf7',
+  100: '#dff8f1',
+  200: '#b8eee3',
+  300: '#7edfd1',
+  400: '#2fb9aa',
+  500: '#087c74',
+  600: '#08645e',
+  700: '#0a514d',
+  800: '#08433f',
+  900: '#063935',
+  950: '#032827'
+}
+
+const aivozaCoral = {
+  50: '#fff7f2',
+  100: '#fff0e8',
+  200: '#ffd9c7',
+  300: '#ffb99a',
+  400: '#ff9c72',
+  500: '#ff8a5c',
+  600: '#eb673b',
+  700: '#c94f2b',
+  800: '#a94126',
+  900: '#893922',
+  950: '#4b1a0e'
+}
+
+const aivozaDark = {
+  50: '#f7f5f2',
+  100: '#e7e3de',
+  200: '#c8c4bf',
+  300: '#a6a8ad',
+  400: '#858b99',
+  500: '#657084',
+  600: '#4a566c',
+  700: '#344056',
+  800: '#263147',
+  900: '#172033',
+  950: '#0d1422'
+}
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
@@ -5,51 +47,52 @@ export default {
   theme: {
     extend: {
       colors: {
-        // 主色调 - Teal/Cyan 青色系
-        primary: {
-          50: '#f0fdfa',
-          100: '#ccfbf1',
-          200: '#99f6e4',
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#115e59',
-          900: '#134e4a',
-          950: '#042f2e'
+        // Product components consume mode-aware semantic roles. Tailwind's stock
+        // gray, blue, teal and other palettes remain untouched for explicit data,
+        // provider-brand and status exceptions.
+        canvas: 'rgb(var(--av-rgb-bg-canvas) / <alpha-value>)',
+        surface: {
+          DEFAULT: 'rgb(var(--av-rgb-bg-surface) / <alpha-value>)',
+          muted: 'rgb(var(--av-rgb-bg-surface-muted) / <alpha-value>)',
+          elevated: 'rgb(var(--av-rgb-bg-surface-elevated) / <alpha-value>)'
         },
-        // 辅助色 - 深蓝灰
-        accent: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617'
+        ink: {
+          DEFAULT: 'rgb(var(--av-rgb-text-default) / <alpha-value>)',
+          strong: 'rgb(var(--av-rgb-text-strong) / <alpha-value>)',
+          muted: 'rgb(var(--av-rgb-text-muted) / <alpha-value>)',
+          inverse: 'rgb(var(--av-rgb-text-inverse) / <alpha-value>)'
         },
-        // 深色模式背景
-        dark: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617'
-        }
+        line: {
+          DEFAULT: 'rgb(var(--av-rgb-border-default) / <alpha-value>)',
+          strong: 'rgb(var(--av-rgb-border-strong) / <alpha-value>)',
+          control: 'rgb(var(--av-rgb-border-control) / <alpha-value>)'
+        },
+        brand: {
+          DEFAULT: 'rgb(var(--av-rgb-brand-primary) / <alpha-value>)',
+          soft: 'rgb(var(--av-rgb-brand-primary-soft) / <alpha-value>)',
+          decorative: 'rgb(var(--av-rgb-brand-decorative) / <alpha-value>)',
+          accent: 'rgb(var(--av-rgb-brand-accent) / <alpha-value>)'
+        },
+        action: {
+          DEFAULT: 'rgb(var(--av-rgb-action) / <alpha-value>)',
+          hover: 'rgb(var(--av-rgb-action-hover) / <alpha-value>)',
+          soft: 'rgb(var(--av-rgb-action-soft) / <alpha-value>)',
+          foreground: 'rgb(var(--av-rgb-action-foreground) / <alpha-value>)'
+        },
+        info: 'rgb(var(--av-rgb-info) / <alpha-value>)',
+        success: 'rgb(var(--av-rgb-success) / <alpha-value>)',
+        warning: 'rgb(var(--av-rgb-warning) / <alpha-value>)',
+        danger: 'rgb(var(--av-rgb-danger) / <alpha-value>)',
+        primary: aivozaTeal,
+        accent: aivozaCoral,
+        // Kept temporarily for legacy dark:* utilities while page-owned styles
+        // migrate to surface/ink/line roles. It does not override stock palettes.
+        dark: aivozaDark
       },
       fontFamily: {
         sans: [
+          'Avenir Next',
+          'Trebuchet MS',
           'system-ui',
           '-apple-system',
           'BlinkMacSystemFont',
@@ -65,22 +108,14 @@ export default {
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
       },
       boxShadow: {
-        glass: '0 8px 32px rgba(0, 0, 0, 0.08)',
-        'glass-sm': '0 4px 16px rgba(0, 0, 0, 0.06)',
-        glow: '0 0 20px rgba(20, 184, 166, 0.25)',
-        'glow-lg': '0 0 40px rgba(20, 184, 166, 0.35)',
-        card: '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06)',
-        'card-hover': '0 10px 40px rgba(0, 0, 0, 0.08)',
+        glass: 'var(--av-shadow-lg)',
+        'glass-sm': 'var(--av-shadow-md)',
+        glow: 'var(--av-shadow-glow)',
+        card: 'var(--av-shadow-md)',
+        'card-hover': 'var(--av-shadow-lg)',
+        pixel: 'var(--av-shadow-pixel)',
+        'pixel-sm': 'var(--av-shadow-pixel-sm)',
         'inner-glow': 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-      },
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-primary': 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
-        'gradient-dark': 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-        'gradient-glass':
-          'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-        'mesh-gradient':
-          'radial-gradient(at 40% 20%, rgba(20, 184, 166, 0.12) 0px, transparent 50%), radial-gradient(at 80% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 50%), radial-gradient(at 0% 50%, rgba(20, 184, 166, 0.08) 0px, transparent 50%)'
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',
@@ -118,8 +153,8 @@ export default {
           '100%': { backgroundPosition: '200% 0' }
         },
         glow: {
-          '0%': { boxShadow: '0 0 20px rgba(20, 184, 166, 0.25)' },
-          '100%': { boxShadow: '0 0 30px rgba(20, 184, 166, 0.4)' }
+          '0%': { boxShadow: '3px 3px 0 rgba(47, 185, 170, 0.18)' },
+          '100%': { boxShadow: '5px 5px 0 rgba(47, 185, 170, 0.28)' }
         }
       },
       backdropBlur: {

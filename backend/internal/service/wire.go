@@ -416,9 +416,10 @@ func ProvideProxyExpiryService(proxyRepo ProxyRepository) *ProxyExpiryService {
 }
 
 // ProvideSubscriptionExpiryService creates and starts SubscriptionExpiryService.
-func ProvideSubscriptionExpiryService(userSubRepo UserSubscriptionRepository, settingRepo SettingRepository, notificationEmailService *NotificationEmailService, lockCache LeaderLockCache, db *sql.DB) *SubscriptionExpiryService {
+func ProvideSubscriptionExpiryService(userSubRepo UserSubscriptionRepository, settingRepo SettingRepository, notificationEmailService *NotificationEmailService, lockCache LeaderLockCache, db *sql.DB, subscriptionPolicy *SubscriptionPolicy) *SubscriptionExpiryService {
 	svc := NewSubscriptionExpiryService(userSubRepo, time.Minute)
 	svc.SetSettingRepository(settingRepo)
+	svc.SetSubscriptionPolicy(subscriptionPolicy)
 	svc.SetNotificationEmailService(notificationEmailService)
 	svc.SetLeaderLock(lockCache, db)
 	svc.Start()
@@ -812,6 +813,13 @@ func ProvideProjectMihomoService(settingRepo SettingRepository, adminService Adm
 	return NewProjectMihomoService(settingRepo, adminService)
 }
 
+// ProvideSubscriptionPolicy explicitly adapts SettingRepository to the narrow
+// SubscriptionSettingReader interface. Wire does not infer interface-to-
+// interface assignability on its own.
+func ProvideSubscriptionPolicy(settingRepo SettingRepository) *SubscriptionPolicy {
+	return NewSubscriptionPolicy(settingRepo)
+}
+
 // ProvideBillingCacheService wires BillingCacheService with its RPM dependencies.
 func ProvideBillingCacheService(
 	cache BillingCache,
@@ -822,8 +830,26 @@ func ProvideBillingCacheService(
 	rateRepo UserGroupRateRepository,
 	cfg *config.Config,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	subscriptionPolicy *SubscriptionPolicy,
 ) *BillingCacheService {
-	return NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg, userPlatformQuotaRepo)
+	svc := NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg, userPlatformQuotaRepo)
+	svc.SetSubscriptionPolicy(subscriptionPolicy)
+	return svc
+}
+
+// ProvideSubscriptionService wires the shared expiration policy while keeping
+// NewSubscriptionService's public constructor compatible with existing tests.
+func ProvideSubscriptionService(
+	groupRepo GroupRepository,
+	userSubRepo UserSubscriptionRepository,
+	billingCacheService *BillingCacheService,
+	entClient *dbent.Client,
+	cfg *config.Config,
+	subscriptionPolicy *SubscriptionPolicy,
+) *SubscriptionService {
+	svc := NewSubscriptionService(groupRepo, userSubRepo, billingCacheService, entClient, cfg)
+	svc.SetSubscriptionPolicy(subscriptionPolicy)
+	return svc
 }
 
 // ProvideAPIKeyService wires APIKeyService and connects rate-limit cache invalidation.
@@ -909,6 +935,7 @@ var ProviderSet = wire.NewSet(
 	ProvideCheckinService,
 	NewAdminCheckinService,
 	ProvideProjectMihomoService,
+	ProvideSubscriptionPolicy,
 	NewDataManagementService,
 	ProvideBackupService,
 	ProvideOpsSystemLogSink,
@@ -927,7 +954,7 @@ var ProviderSet = wire.NewSet(
 	NewTurnstileService,
 	NewTencentCaptchaService,
 	NewAliyunCaptchaService,
-	NewSubscriptionService,
+	ProvideSubscriptionService,
 	wire.Bind(new(DefaultSubscriptionAssigner), new(*SubscriptionService)),
 	ProvideConcurrencyService,
 	ProvideUserMessageQueueService,

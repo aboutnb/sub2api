@@ -220,6 +220,8 @@ type SystemSettings struct {
 
 	// User-facing subscription page and sidebar entry
 	UserSubscriptionsEnabled bool `json:"user_subscriptions_enabled"`
+	// Subscription expiration enforcement; false means active subscriptions do not expire by time.
+	SubscriptionExpirationEnabled bool `json:"subscription_expiration_enabled"`
 
 	// Model Plaza feature (public group/model pricing showcase)
 	ModelPlazaEnabled       bool   `json:"model_plaza_enabled"`
@@ -411,6 +413,8 @@ type PublicSettings struct {
 
 	// User-facing subscription page and sidebar entry
 	UserSubscriptionsEnabled bool `json:"user_subscriptions_enabled"`
+	// Subscription expiration enforcement; false means active subscriptions do not expire by time.
+	SubscriptionExpirationEnabled bool `json:"subscription_expiration_enabled"`
 
 	// Model Plaza feature (public group/model pricing showcase)
 	ModelPlazaEnabled       bool `json:"model_plaza_enabled"`

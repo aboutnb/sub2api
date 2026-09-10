@@ -30,12 +30,13 @@ COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml 
 RUN pnpm install --frozen-lockfile
 
 # Copy frontend source and build.
-# LegalDocumentView.vue (admin-compliance gate) build-time imports
-# ../../../../docs/legal/*.md?raw, so docs/legal/ must sit beside frontend/
-# in the image (WORKDIR /app/frontend -> resolves to /app/docs/legal/*.md).
-# Copy only that subtree to keep the build dependency minimal.
+# LegalDocumentView.vue and HomeView.vue use Vite build-time raw imports. Keep
+# their repository-root assets beside frontend/ inside the builder so the
+# relative imports resolve exactly as they do in a local production build.
+# Copy only the required legal subtree plus the reviewed homepage asset.
 COPY frontend/ ./
 COPY docs/legal/ /app/docs/legal/
+COPY aivoza-home-pixel.html /app/aivoza-home-pixel.html
 RUN pnpm run build
 
 # -----------------------------------------------------------------------------

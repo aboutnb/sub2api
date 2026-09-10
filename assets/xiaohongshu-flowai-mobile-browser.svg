@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="520" viewBox="0 0 390 520">
+  <rect width="390" height="520" rx="26" fill="#EDF8F6"/>
+  <rect x="12" y="10" width="366" height="34" rx="17" fill="#FFFFFF" stroke="#C7E3DD"/>
+  <circle cx="31" cy="27" r="6" fill="#53BFAF"/>
+  <path d="M28 27H34M31 24V30" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="195" y="31" text-anchor="middle" fill="#245B58" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="14" font-weight="600">flowai.cyou</text>
+  <circle cx="354" cy="27" r="5" fill="#CFE8E4"/>
+  <rect x="15" y="50" width="360" height="460" rx="18" fill="#FFFFFF"/>
+  <image href="xiaohongshu-flowai-mobile.png" x="15" y="50" width="360" height="460" preserveAspectRatio="xMidYMid slice"/>
+</svg>

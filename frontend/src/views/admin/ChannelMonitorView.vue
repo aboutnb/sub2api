@@ -2,22 +2,22 @@
   <AppLayout>
     <div class="w-full min-w-0 space-y-6 pb-8">
       <header
-        class="page-header mb-0 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-900/5 dark:bg-dark-800 dark:ring-dark-700 sm:p-6"
+        class="page-header card mb-0 p-5 sm:p-6"
       >
-        <h1 class="page-title flex items-center gap-2 text-xl font-black text-gray-900 dark:text-white">
+        <h1 class="page-title flex items-center gap-2 text-xl font-black text-ink-strong dark:text-white">
           <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400">
             <Icon name="chart" size="sm" />
           </span>
           {{ t('admin.channelMonitor.title') }}
         </h1>
-        <p class="page-description mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+        <p class="page-description mt-1.5 text-xs text-ink-muted dark:text-ink-muted">
           {{
             isV1Mode
               ? t('channelMonitorV2.admin.descriptionV1')
               : t('channelMonitorV2.admin.descriptionV2')
           }}
         </p>
-        <div class="mt-4 border-t border-gray-100 pt-4 dark:border-dark-700">
+        <div class="mt-4 border-t border-line pt-4 dark:border-line">
           <div
             class="tabs inline-flex w-full max-w-xl flex-wrap sm:w-auto"
             role="tablist"
@@ -67,7 +67,7 @@
         <DataTable :columns="columns" :data="monitors" :loading="loading">
           <template #cell-name="{ row, value }">
             <div class="flex items-center gap-1.5">
-              <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+              <span class="font-medium text-ink-strong dark:text-white">{{ value }}</span>
               <HelpTooltip v-if="row.api_key_decrypt_failed" :content="t('admin.channelMonitor.apiKeyDecryptFailed')">
                 <Icon name="exclamationTriangle" size="sm" class="text-red-500" />
               </HelpTooltip>
@@ -89,15 +89,19 @@
           </template>
 
           <template #cell-availability_7d="{ row }">
-            <span class="text-sm text-gray-900 dark:text-gray-100">{{ formatAvailability(row) }}</span>
+            <span class="text-sm text-ink-strong dark:text-gray-100">{{ formatAvailability(row) }}</span>
           </template>
 
           <template #cell-latency="{ row }">
-            <span class="text-sm text-gray-900 dark:text-gray-100">{{ formatLatency(row.primary_latency_ms) }}</span>
+            <span class="text-sm text-ink-strong dark:text-gray-100">{{ formatLatency(row.primary_latency_ms) }}</span>
           </template>
 
           <template #cell-enabled="{ row }">
-            <Toggle :modelValue="row.enabled" @update:modelValue="toggleEnabled(row)" />
+            <Toggle
+              :modelValue="row.enabled"
+              :aria-label="`${row.name} ${t('admin.channelMonitor.form.enabled')}`"
+              @update:modelValue="toggleEnabled(row)"
+            />
           </template>
 
           <template #cell-actions="{ row }">

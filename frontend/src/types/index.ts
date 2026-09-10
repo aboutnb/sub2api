@@ -330,6 +330,8 @@ export interface PublicSettings {
   available_channels_enabled: boolean
   smart_routing_enabled: boolean
   user_subscriptions_enabled: boolean
+  /** When false, active subscriptions are not limited by their expiry timestamp. */
+  subscription_expiration_enabled?: boolean
   model_plaza_enabled: boolean
   model_plaza_require_auth: boolean
   plugin_management_enabled: boolean

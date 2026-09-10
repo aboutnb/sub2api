@@ -6,11 +6,11 @@
     @close="emit('close')"
   >
     <form id="bulk-edit-user-limits-form" class="space-y-5" @submit.prevent="handleSubmit">
-      <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+      <p class="text-sm font-medium text-ink dark:text-ink-muted">
         {{ t('admin.users.bulkLimits.selectedCount', { count: selectedIds.length }) }}
       </p>
 
-      <div class="divide-y divide-gray-200 border-y border-gray-200 dark:divide-dark-700 dark:border-dark-700">
+      <div class="divide-y divide-line border-y border-line dark:divide-line dark:border-line">
         <div class="space-y-3 py-4">
           <div class="flex items-center justify-between gap-4">
             <label for="bulk-concurrency" class="input-label mb-0">

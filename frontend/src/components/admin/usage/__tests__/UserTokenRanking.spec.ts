@@ -47,7 +47,7 @@ describe('UserTokenRanking', () => {
     getUserBreakdown.mockResolvedValue({ users: [item(1, 100), item(2, 50)] })
   })
 
-  it('loads on mount with shared filters and emits select-user with id + email on row click', async () => {
+  it('loads on mount with shared filters and exposes a named keyboard-operable user action', async () => {
     const wrapper = mountRanking({ filters: { group_id: 3 }, model: 'claude-fable-5' })
     await flushPromises()
 
@@ -63,8 +63,32 @@ describe('UserTokenRanking', () => {
     const rows = wrapper.findAll('tbody tr')
     expect(rows).toHaveLength(2)
 
-    await rows[0].trigger('click')
+    const userButton = rows[0].find('button')
+    expect(userButton.attributes('aria-label')).toContain('u1@test.com')
+    await userButton.trigger('click')
     expect(wrapper.emitted('select-user')![0]).toEqual([1, 'u1@test.com'])
+  })
+
+  it('uses buttons and aria-sort for sortable columns', async () => {
+    const wrapper = mountRanking()
+    await flushPromises()
+
+    const sortableHeaders = wrapper.findAll('th[aria-sort]')
+    expect(sortableHeaders).toHaveLength(6)
+    expect(sortableHeaders.find((header) => header.attributes('aria-sort') === 'descending')).toBeTruthy()
+
+    await sortableHeaders[0].get('button').trigger('click')
+    await flushPromises()
+    expect(getUserBreakdown).toHaveBeenLastCalledWith(expect.objectContaining({ sort_by: 'requests' }))
+  })
+
+  it('makes the wide ranking table a named keyboard-scrollable region', async () => {
+    const wrapper = mountRanking()
+    await flushPromises()
+    const region = wrapper.get('[role="region"]')
+    expect(region.attributes('tabindex')).toBe('0')
+    expect(region.attributes('aria-label')).toBe('admin.usage.tokenRanking.subtitle')
+    expect(region.classes()).toContain('ranking-scroll-region')
   })
 
   it('reloads when shared filters change', async () => {

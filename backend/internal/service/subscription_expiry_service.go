@@ -29,6 +29,7 @@ const (
 type SubscriptionExpiryService struct {
 	userSubRepo              UserSubscriptionRepository
 	settingRepo              SettingRepository
+	subscriptionPolicy       *SubscriptionPolicy
 	notificationEmailService *NotificationEmailService
 	interval                 time.Duration
 	stopCh                   chan struct{}
@@ -65,6 +66,18 @@ func (s *SubscriptionExpiryService) SetLeaderLock(lockCache LeaderLockCache, db 
 
 func (s *SubscriptionExpiryService) SetSettingRepository(settingRepo SettingRepository) {
 	s.settingRepo = settingRepo
+}
+
+// SetSubscriptionPolicy connects the periodic expiry worker to the unified
+// subscription expiration switch.
+func (s *SubscriptionExpiryService) SetSubscriptionPolicy(policy *SubscriptionPolicy) {
+	if s != nil {
+		s.subscriptionPolicy = policy
+	}
+}
+
+func (s *SubscriptionExpiryService) subscriptionExpirationEnabled(ctx context.Context) bool {
+	return s == nil || s.subscriptionPolicy == nil || s.subscriptionPolicy.ExpirationEnabled(ctx)
 }
 
 func (s *SubscriptionExpiryService) SetNotificationEmailService(notificationEmailService *NotificationEmailService) {
@@ -106,6 +119,11 @@ func (s *SubscriptionExpiryService) Stop() {
 func (s *SubscriptionExpiryService) runOnce() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if !s.subscriptionExpirationEnabled(ctx) {
+		// Do not mutate active rows or send expiry reminders while expiration is
+		// disabled. Explicitly expired/suspended rows remain unchanged.
+		return
+	}
 
 	updated, err := s.userSubRepo.BatchUpdateExpiredStatus(ctx)
 	if err != nil {

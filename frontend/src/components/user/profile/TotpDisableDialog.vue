@@ -3,7 +3,7 @@
     <div class="flex min-h-full items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/50 transition-opacity" @click="$emit('close')"></div>
 
-      <div class="relative w-full max-w-md transform rounded-xl bg-white p-6 shadow-xl transition-all dark:bg-dark-800">
+      <div class="relative w-full max-w-md transform rounded-xl bg-white p-6 shadow-xl transition-all dark:bg-surface">
         <!-- Header -->
         <div class="mb-6">
           <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
@@ -11,10 +11,10 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
             </svg>
           </div>
-          <h3 class="mt-4 text-center text-xl font-semibold text-gray-900 dark:text-white">
+          <h3 class="mt-4 text-center text-xl font-semibold text-ink-strong dark:text-white">
             {{ t('profile.totp.disableTitle') }}
           </h3>
-          <p class="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+          <p class="mt-2 text-center text-sm text-ink-muted dark:text-ink-muted">
             {{ t('profile.totp.disableWarning') }}
           </p>
         </div>

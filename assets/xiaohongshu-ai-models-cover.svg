@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1242" height="1660" viewBox="0 0 1242 1660">
+  <defs>
+    <filter id="paperShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="24" stdDeviation="20" flood-color="#D8472F" flood-opacity="0.18"/>
+    </filter>
+    <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="4" r="3" fill="#F26B55" opacity="0.20"/>
+    </pattern>
+  </defs>
+
+  <rect width="1242" height="1660" fill="#FFF8EE"/>
+  <rect x="0" y="0" width="1242" height="510" fill="#F15A43"/>
+  <path d="M0 444C204 374 340 568 559 478C767 392 981 525 1242 386V610H0Z" fill="#FFF8EE"/>
+  <rect x="0" y="0" width="1242" height="510" fill="url(#dots)"/>
+  <circle cx="1032" cy="168" r="182" fill="#F9CD4F"/>
+  <circle cx="1032" cy="168" r="125" fill="none" stroke="#143F78" stroke-width="10" stroke-dasharray="18 18"/>
+  <path d="M972 153H1090M1031 94V212" stroke="#143F78" stroke-width="17" stroke-linecap="round"/>
+
+  <g transform="translate(82 76)">
+    <rect width="294" height="54" rx="27" fill="#143F78"/>
+    <text x="147" y="37" text-anchor="middle" fill="#FFFFFF" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="24" font-weight="700" letter-spacing="3">MODEL GUIDE</text>
+  </g>
+  <text x="82" y="242" fill="#FFF8EE" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="78" font-weight="800">模型和套餐</text>
+  <text x="82" y="340" fill="#FFF8EE" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="84" font-weight="800">怎么配？</text>
+  <text x="84" y="410" fill="#FFEAA0" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="36" font-weight="600">模型按需选，套餐按频率选</text>
+
+  <g filter="url(#paperShadow)">
+    <rect x="72" y="535" width="1098" height="390" rx="38" fill="#FFFFFF"/>
+  </g>
+  <text x="126" y="622" fill="#153C70" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="34" font-weight="700">先分清模型和套餐，选择会简单很多</text>
+
+  <g transform="translate(126 684)">
+    <rect width="292" height="168" rx="26" fill="#173F77"/>
+    <text x="32" y="55" fill="#FFDA5B" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="28" font-weight="700">PRO · 套餐</text>
+    <text x="32" y="105" fill="#FFFFFF" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="38" font-weight="800">高频更稳</text>
+    <path d="M212 126C236 100 254 117 276 72" fill="none" stroke="#5FE3C0" stroke-width="13" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(475 684)">
+    <rect width="292" height="168" rx="26" fill="#E7F0FF"/>
+    <text x="32" y="55" fill="#2866B1" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="28" font-weight="700">PLUS · 套餐</text>
+    <text x="32" y="105" fill="#143F78" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="38" font-weight="800">日常够用</text>
+    <path d="M212 126C236 100 254 117 276 72" fill="none" stroke="#2D7FE1" stroke-width="13" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(824 684)">
+    <rect width="292" height="168" rx="26" fill="#FFF0B7"/>
+    <text x="32" y="55" fill="#C35A12" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="26" font-weight="700">SPECIAL · 分组</text>
+    <text x="32" y="105" fill="#9A430A" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="38" font-weight="800">特惠分组</text>
+    <path d="M212 126C236 100 254 117 276 72" fill="none" stroke="#F0841A" stroke-width="13" stroke-linecap="round"/>
+  </g>
+
+  <text x="621" y="1075" text-anchor="middle" fill="#173F77" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="60" font-weight="800">模型看任务，套餐看频率</text>
+  <text x="621" y="1144" text-anchor="middle" fill="#6B7B92" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="34" font-weight="500">先从自己怎么用开始想</text>
+
+  <g transform="translate(83 1242)">
+    <rect width="1076" height="214" rx="34" fill="#153C70"/>
+    <path d="M58 108C114 48 185 175 253 112C319 52 383 154 445 91C509 26 574 156 642 93C710 31 778 147 844 91C909 37 957 117 1012 62" fill="none" stroke="#F9CD4F" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="105" cy="108" r="30" fill="#F15A43"/>
+    <circle cx="540" cy="102" r="24" fill="#5FE3C0"/>
+    <circle cx="935" cy="95" r="20" fill="#FFFFFF"/>
+    <text x="538" y="178" text-anchor="middle" fill="#FFFFFF" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="34" font-weight="700">分清这两件事，再做选择</text>
+  </g>
+
+  <text x="83" y="1544" fill="#E65A42" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="28" font-weight="700" letter-spacing="3">MODEL NOTES</text>
+  <text x="1159" y="1544" text-anchor="end" fill="#6B7B92" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="27">按需选择，慢慢找到适合的方式</text>
+</svg>

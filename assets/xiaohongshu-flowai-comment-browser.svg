@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <rect width="1080" height="1080" fill="#EFF7F5"/>
+  <rect x="136" y="76" width="808" height="928" rx="54" fill="#143B49"/>
+  <rect x="164" y="112" width="752" height="856" rx="34" fill="#FFFFFF"/>
+  <rect x="198" y="148" width="684" height="62" rx="31" fill="#F5F7F7" stroke="#C9DFDA" stroke-width="3"/>
+  <circle cx="235" cy="179" r="10" fill="#46B8A9"/>
+  <path d="M230 179h10M235 174v10" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+  <text x="540" y="188" text-anchor="middle" fill="#244D58" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="29" font-weight="700">flowai.cyou</text>
+  <rect x="212" y="246" width="656" height="114" rx="24" fill="#E6F2EF"/>
+  <text x="250" y="294" fill="#183E4B" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="42" font-weight="700">今天想用哪个模型？</text>
+  <text x="250" y="332" fill="#66838B" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="25">按任务挑模型，按频率挑分组</text>
+  <rect x="212" y="394" width="151" height="58" rx="29" fill="#1C6475"/>
+  <text x="287" y="432" text-anchor="middle" fill="#FFFFFF" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="26" font-weight="700">全部</text>
+  <rect x="382" y="394" width="151" height="58" rx="29" fill="#E7F0EE"/>
+  <text x="457" y="432" text-anchor="middle" fill="#416E76" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="26" font-weight="700">GPT</text>
+  <rect x="552" y="394" width="151" height="58" rx="29" fill="#E7F0EE"/>
+  <text x="627" y="432" text-anchor="middle" fill="#416E76" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="26" font-weight="700">Claude</text>
+  <rect x="212" y="490" width="656" height="166" rx="28" fill="#E4F2F0"/>
+  <rect x="244" y="522" width="104" height="104" rx="20" fill="#1D6778"/>
+  <text x="296" y="586" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="33" font-weight="700">GPT</text>
+  <text x="384" y="553" fill="#163D4A" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="35" font-weight="700">GPT 系列</text>
+  <text x="384" y="602" fill="#64818A" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="25">通用问答 · 写作 · 代码</text>
+  <circle cx="814" cy="573" r="25" fill="#4ABDAE"/>
+  <path d="M802 573l8 8 16-20" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="212" y="680" width="656" height="166" rx="28" fill="#F0ECFC"/>
+  <rect x="244" y="712" width="104" height="104" rx="20" fill="#6A51CA"/>
+  <text x="296" y="776" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="31" font-weight="700">Claude</text>
+  <text x="384" y="743" fill="#302662" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="35" font-weight="700">Claude 系列</text>
+  <text x="384" y="792" fill="#786FA7" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="25">分析整理 · 长文理解</text>
+  <circle cx="814" cy="763" r="25" fill="#8B70E0"/>
+  <path d="M802 763l8 8 16-20" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="212" y="910" fill="#173F4C" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="31" font-weight="700">常用模型，都在这里看</text>
+</svg>

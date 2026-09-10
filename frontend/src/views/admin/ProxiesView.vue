@@ -3,17 +3,17 @@
     <TablePageLayout>
       <template #filters>
         <div class="space-y-4">
-          <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-dark-700 dark:bg-dark-800">
+          <div class="rounded-lg border border-line bg-white px-4 py-3 dark:border-line dark:bg-surface">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div class="min-w-0">
-                <div class="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+                <div class="flex items-center gap-2 text-sm font-medium text-ink-strong dark:text-white">
                   <Icon name="server" size="sm" />
                   <span>{{ t('admin.proxies.projectMihomo.title') }}</span>
                 </div>
-                <div class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                <div class="mt-1 text-sm text-ink dark:text-ink-muted">
                   {{ t('admin.proxies.projectMihomo.summary') }}
                 </div>
-                <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-ink-muted dark:text-ink-muted">
                   <span>{{ t('admin.proxies.projectMihomo.summaryHint', { count: projectMihomoVisibleNodes.length }) }}</span>
                   <span>{{ t('admin.proxies.projectMihomo.listenerSummaryHint', { count: projectMihomoForm.listener_count || 0 }) }}</span>
                   <span>{{ t('admin.proxies.projectMihomo.protocolLabel', { protocol: projectMihomoForm.protocol.toUpperCase() }) }}</span>
@@ -39,7 +39,7 @@
             <Icon
               name="search"
               size="md"
-              class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+              class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted dark:text-ink-muted"
             />
             <input
               v-model="searchQuery"
@@ -133,7 +133,7 @@
           <template #header-select>
             <input
               type="checkbox"
-              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 cursor-pointer rounded border-line-strong text-primary-600 focus:ring-primary-500"
               :checked="allVisibleSelected"
               @click.stop
               @change="toggleSelectAllVisible($event)"
@@ -143,7 +143,7 @@
           <template #cell-select="{ row }">
             <input
               type="checkbox"
-              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 cursor-pointer rounded border-line-strong text-primary-600 focus:ring-primary-500"
               :checked="selectedProxyIds.has(row.id)"
               @click.stop
               @change="toggleSelectRow(row.id, $event)"
@@ -151,7 +151,7 @@
           </template>
 
           <template #cell-name="{ value }">
-            <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+            <span class="font-medium text-ink-strong dark:text-white">{{ value }}</span>
           </template>
 
           <template #cell-protocol="{ value }">
@@ -161,7 +161,7 @@
             >
               {{ value.toUpperCase() }}
             </span>
-            <span v-else class="text-sm text-gray-400">-</span>
+            <span v-else class="text-sm text-ink-muted">-</span>
           </template>
 
           <template #cell-address="{ row }">
@@ -170,7 +170,7 @@
               <div class="relative">
                 <button
                   type="button"
-                  class="rounded p-0.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+                  class="rounded p-0.5 text-ink-muted hover:text-primary-600 dark:hover:text-primary-400"
                   :title="t('admin.proxies.copyProxyUrl')"
                   @click.stop="copyProxyUrl(row)"
                   @contextmenu.prevent="toggleCopyMenu(row.id)"
@@ -180,15 +180,15 @@
                 <!-- 右键展开格式选择菜单 -->
                 <div
                   v-if="copyMenuProxyId === row.id"
-                  class="absolute left-0 top-full z-50 mt-1 w-auto min-w-[180px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-500 dark:bg-dark-700"
+                  class="absolute left-0 top-full z-50 mt-1 w-auto min-w-[180px] rounded-lg border border-line bg-white py-1 shadow-lg dark:border-line-strong dark:bg-surface-muted"
                 >
                   <button
                     v-for="fmt in getCopyFormats(row)"
                     :key="fmt.label"
-                    class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-gray-100 dark:hover:bg-dark-600"
+                    class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-surface-muted dark:hover:bg-dark-600"
                     @click.stop="copyFormat(fmt.value)"
                   >
-                    <span class="truncate font-mono text-gray-600 dark:text-gray-300">{{ fmt.label }}</span>
+                    <span class="truncate font-mono text-ink dark:text-ink-muted">{{ fmt.label }}</span>
                   </button>
                 </div>
               </div>
@@ -198,21 +198,21 @@
           <template #cell-auth="{ row }">
             <div v-if="row.username || row.password" class="flex items-center gap-1.5">
               <div class="flex flex-col text-xs">
-                <span v-if="row.username" class="text-gray-700 dark:text-gray-200">{{ row.username }}</span>
-                <span v-if="row.password" class="font-mono text-gray-500 dark:text-gray-400">
+                <span v-if="row.username" class="text-ink dark:text-gray-200">{{ row.username }}</span>
+                <span v-if="row.password" class="font-mono text-ink-muted dark:text-ink-muted">
                   {{ visiblePasswordIds.has(row.id) ? row.password : '••••••' }}
                 </span>
               </div>
               <button
                 v-if="row.password"
                 type="button"
-                class="ml-1 rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                class="ml-1 rounded p-0.5 text-ink-muted hover:text-ink dark:hover:text-ink-muted"
                 @click.stop="visiblePasswordIds.has(row.id) ? visiblePasswordIds.delete(row.id) : visiblePasswordIds.add(row.id)"
               >
                 <Icon :name="visiblePasswordIds.has(row.id) ? 'eyeOff' : 'eye'" size="sm" />
               </button>
             </div>
-            <span v-else class="text-sm text-gray-400">-</span>
+            <span v-else class="text-sm text-ink-muted">-</span>
           </template>
 
           <template #cell-location="{ row }">
@@ -223,10 +223,10 @@
                 :alt="row.country || row.country_code"
                 class="h-4 w-6 rounded-sm"
               />
-              <span v-if="formatLocation(row)" class="text-sm text-gray-700 dark:text-gray-200">
+              <span v-if="formatLocation(row)" class="text-sm text-ink dark:text-gray-200">
                 {{ formatLocation(row) }}
               </span>
-              <span v-else class="text-sm text-gray-400">-</span>
+              <span v-else class="text-sm text-ink-muted">-</span>
             </div>
           </template>
 
@@ -234,14 +234,14 @@
             <button
               v-if="(value || 0) > 0"
               type="button"
-              class="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-primary-700 hover:bg-gray-200 dark:bg-dark-600 dark:text-primary-300 dark:hover:bg-dark-500"
+              class="inline-flex items-center rounded bg-surface-muted px-2 py-0.5 text-xs font-medium text-primary-700 hover:bg-line dark:bg-line-strong dark:text-primary-300 dark:hover:bg-dark-500"
               @click="openAccountsModal(row)"
             >
               {{ t('admin.groups.accountsCount', { count: value || 0 }) }}
             </button>
             <span
               v-else
-              class="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-dark-600 dark:text-gray-300"
+              class="inline-flex items-center rounded bg-surface-muted px-2 py-0.5 text-xs font-medium text-ink-strong dark:bg-line-strong dark:text-ink-muted"
             >
               {{ t('admin.groups.accountsCount', { count: 0 }) }}
             </span>
@@ -262,10 +262,10 @@
               >
                 {{ row.latency_ms }}ms
               </span>
-              <span v-else class="text-sm text-gray-400">-</span>
+              <span v-else class="text-sm text-ink-muted">-</span>
               <div
                 v-if="typeof row.quality_checked === 'number'"
-                class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400"
+                class="flex items-center gap-1 text-xs text-ink-muted dark:text-ink-muted"
                 :title="row.quality_summary || undefined"
               >
                 <span>{{ t('admin.proxies.qualityInline', { grade: row.quality_grade || '-', score: row.quality_score ?? '-' }) }}</span>
@@ -277,15 +277,15 @@
           </template>
 
           <template #cell-expiry="{ row }">
-            <span v-if="!row.expires_at" class="text-sm text-gray-400">{{ t('admin.proxies.neverExpires') }}</span>
+            <span v-if="!row.expires_at" class="text-sm text-ink-muted">{{ t('admin.proxies.neverExpires') }}</span>
             <div v-else class="flex flex-col text-xs">
-              <span class="text-gray-700 dark:text-gray-200">{{ formatDateTime(row.expires_at) }}</span>
+              <span class="text-ink dark:text-gray-200">{{ formatDateTime(row.expires_at) }}</span>
               <span :class="expiryBadgeClass(row)">{{ expiryLabel(row) }}</span>
             </div>
           </template>
 
           <template #cell-created_at="{ row }">
-            <span class="text-xs text-gray-600 dark:text-gray-300">{{ formatDateTime(row.created_at) }}</span>
+            <span class="text-xs text-ink dark:text-ink-muted">{{ formatDateTime(row.created_at) }}</span>
           </template>
 
           <template #cell-status="{ value }">
@@ -304,7 +304,7 @@
               <button
                 @click="handleTestConnection(row)"
                 :disabled="testingProxyIds.has(row.id)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
               >
                 <svg
                   v-if="testingProxyIds.has(row.id)"
@@ -332,7 +332,7 @@
               <button
                 @click="handleQualityCheck(row)"
                 :disabled="qualityCheckingProxyIds.has(row.id)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
               >
                 <svg
                   v-if="qualityCheckingProxyIds.has(row.id)"
@@ -359,14 +359,14 @@
               </button>
               <button
                 @click="handleEdit(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-surface-muted hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
               >
                 <Icon name="edit" size="sm" />
                 <span class="text-xs">{{ t('common.edit') }}</span>
               </button>
               <button
                 @click="handleDelete(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
               >
                 <Icon name="trash" size="sm" />
                 <span class="text-xs">{{ t('common.delete') }}</span>
@@ -487,11 +487,11 @@
                       <span class="truncate text-sm font-semibold text-gray-950 dark:text-white">{{ source.label }}</span>
                       <span class="project-mihomo-mode-pill shrink-0">{{ source.fetchModeLabel }}</span>
                     </span>
-                    <span class="mt-2 flex min-w-0 items-center gap-2 pr-16 text-[11px] text-gray-500 dark:text-gray-400">
+                    <span class="mt-2 flex min-w-0 items-center gap-2 pr-16 text-[11px] text-ink-muted dark:text-ink-muted">
                       <span class="project-mihomo-node-pill shrink-0">{{ source.nodeCount }}</span>
                       <span class="truncate font-mono">{{ source.provider }}</span>
                     </span>
-                    <span class="mt-2 block truncate rounded-lg bg-white/70 px-2.5 py-1.5 font-mono text-[11px] text-gray-500 ring-1 ring-gray-200/70 dark:bg-dark-900/40 dark:text-gray-400 dark:ring-dark-600">{{ source.url }}</span>
+                    <span class="mt-2 block truncate rounded-lg bg-white/70 px-2.5 py-1.5 font-mono text-[11px] text-ink-muted ring-1 ring-line/70 dark:bg-canvas/40 dark:text-ink-muted dark:ring-line-strong">{{ source.url }}</span>
                   </button>
                   <div class="project-mihomo-source-actions">
                     <button
@@ -614,17 +614,20 @@
                 <input v-model.number="projectMihomoForm.listener_count" type="number" min="0" max="32" class="input" />
               </div>
             </div>
-            <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-700">
+            <div class="rounded-lg border border-line p-4 dark:border-line">
               <div class="flex items-start justify-between gap-4">
                 <div>
-                  <div class="text-sm font-medium text-gray-900 dark:text-white">
+                  <div class="text-sm font-medium text-ink-strong dark:text-white">
                     {{ t('admin.proxies.projectMihomo.autoRoute') }}
                   </div>
-                  <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  <div class="mt-1 text-xs text-ink-muted dark:text-ink-muted">
                     {{ t('admin.proxies.projectMihomo.autoRouteHint') }}
                   </div>
                 </div>
-                <Toggle v-model="projectMihomoForm.auto_route_enabled" />
+                <Toggle
+                  v-model="projectMihomoForm.auto_route_enabled"
+                  :aria-label="t('admin.proxies.projectMihomo.autoRoute')"
+                />
               </div>
               <div
                 v-if="projectMihomoForm.auto_route_enabled"
@@ -640,17 +643,20 @@
                 </div>
               </div>
             </div>
-            <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-700">
+            <div class="rounded-lg border border-line p-4 dark:border-line">
               <div class="flex items-start justify-between gap-4">
                 <div>
-                  <div class="text-sm font-medium text-gray-900 dark:text-white">
+                  <div class="text-sm font-medium text-ink-strong dark:text-white">
                     {{ t('admin.proxies.projectMihomo.nodeExclude') }}
                   </div>
-                  <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  <div class="mt-1 text-xs text-ink-muted dark:text-ink-muted">
                     {{ t('admin.proxies.projectMihomo.nodeExcludeHint') }}
                   </div>
                 </div>
-                <Toggle v-model="projectMihomoForm.node_exclude_enabled" />
+                <Toggle
+                  v-model="projectMihomoForm.node_exclude_enabled"
+                  :aria-label="t('admin.proxies.projectMihomo.nodeExclude')"
+                />
               </div>
               <textarea
                 v-if="projectMihomoForm.node_exclude_enabled"
@@ -723,8 +729,8 @@
                           <template #selected="{ option }">
                             <div v-if="option" class="flex min-w-0 items-center justify-between gap-3">
                               <div class="min-w-0 flex-1">
-                                <div class="truncate text-sm text-gray-900 dark:text-white">{{ option.label }}</div>
-                                <div v-if="option.meta" class="truncate text-xs text-gray-500 dark:text-gray-400">{{ option.meta }}</div>
+                                <div class="truncate text-sm text-ink-strong dark:text-white">{{ option.label }}</div>
+                                <div v-if="option.meta" class="truncate text-xs text-ink-muted dark:text-ink-muted">{{ option.meta }}</div>
                               </div>
                               <span v-if="option.latencyLabel" :class="['badge shrink-0', option.latencyClass]">
                                 {{ option.latencyLabel }}
@@ -739,8 +745,8 @@
                           <template #option="{ option }">
                             <div class="flex min-w-0 flex-1 items-center justify-between gap-3">
                               <div class="min-w-0">
-                                <div class="truncate text-sm text-gray-900 dark:text-white">{{ option.label }}</div>
-                                <div v-if="option.meta" class="truncate text-xs text-gray-500 dark:text-gray-400">{{ option.meta }}</div>
+                                <div class="truncate text-sm text-ink-strong dark:text-white">{{ option.label }}</div>
+                                <div v-if="option.meta" class="truncate text-xs text-ink-muted dark:text-ink-muted">{{ option.meta }}</div>
                               </div>
                               <span v-if="option.latencyLabel" :class="['badge shrink-0', option.latencyClass]">
                                 {{ option.latencyLabel }}
@@ -793,7 +799,7 @@
     >
       <!-- Tab Switch -->
       <div
-        class="mb-6 flex items-center justify-between gap-3 border-b border-gray-200 dark:border-dark-600"
+        class="mb-6 flex items-center justify-between gap-3 border-b border-line dark:border-line-strong"
       >
         <div class="flex min-w-0 shrink-0">
           <button
@@ -803,7 +809,7 @@
               '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors',
               createMode === 'standard'
                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                : 'border-transparent text-ink-muted hover:text-ink dark:text-ink-muted dark:hover:text-ink-muted'
             ]"
           >
             <Icon name="plus" size="sm" class="mr-1.5 inline" />
@@ -816,7 +822,7 @@
               '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors',
               createMode === 'batch'
                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                : 'border-transparent text-ink-muted hover:text-ink dark:text-ink-muted dark:hover:text-ink-muted'
             ]"
           >
             <svg
@@ -903,7 +909,7 @@
             />
             <button
               type="button"
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink dark:hover:text-ink-muted"
               @click="createPasswordVisible = !createPasswordVisible"
             >
               <Icon :name="createPasswordVisible ? 'eyeOff' : 'eye'" size="md" />
@@ -965,11 +971,11 @@
         </div>
 
         <!-- Parse Result -->
-        <div v-if="batchParseResult.total > 0" class="rounded-lg bg-gray-50 p-4 dark:bg-dark-700">
+        <div v-if="batchParseResult.total > 0" class="rounded-lg bg-surface-muted p-4 dark:bg-surface-muted">
             <div class="flex items-center gap-4 text-sm">
               <div class="flex items-center gap-1.5">
               <Icon name="checkCircle" size="sm" :stroke-width="2" class="text-primary-500" />
-              <span class="text-gray-700 dark:text-gray-300">
+              <span class="text-ink dark:text-ink-muted">
                 {{ t('admin.proxies.parsedCount', { count: batchParseResult.valid }) }}
               </span>
             </div>
@@ -986,7 +992,7 @@
             </div>
             <div v-if="batchParseResult.duplicate > 0" class="flex items-center gap-1.5">
               <svg
-                class="h-4 w-4 text-gray-400"
+                class="h-4 w-4 text-ink-muted"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -998,7 +1004,7 @@
                   d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75"
                 />
               </svg>
-              <span class="text-gray-500 dark:text-gray-400">
+              <span class="text-ink-muted dark:text-ink-muted">
                 {{ t('admin.proxies.duplicateCount', { count: batchParseResult.duplicate }) }}
               </span>
             </div>
@@ -1132,7 +1138,7 @@
             />
             <button
               type="button"
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink dark:hover:text-ink-muted"
               @click="editPasswordVisible = !editPasswordVisible"
             >
               <Icon :name="editPasswordVisible ? 'eyeOff' : 'eye'" size="md" />
@@ -1265,26 +1271,26 @@
       @close="closeQualityReportDialog"
     >
       <div v-if="qualityReport" class="space-y-4">
-        <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-700">
+        <div class="rounded-lg border border-line bg-surface-muted p-4 dark:border-line-strong dark:bg-surface-muted">
           <div class="flex items-center justify-between gap-4">
             <div>
-              <div class="text-sm text-gray-500 dark:text-gray-400">
+              <div class="text-sm text-ink-muted dark:text-ink-muted">
                 {{ qualityReportProxy?.name || '-' }}
               </div>
-              <div class="mt-1 text-sm text-gray-700 dark:text-gray-200">
+              <div class="mt-1 text-sm text-ink dark:text-gray-200">
                 {{ qualityReport.summary }}
               </div>
             </div>
             <div class="text-right">
-              <div class="text-2xl font-semibold text-gray-900 dark:text-white">
+              <div class="text-2xl font-semibold text-ink-strong dark:text-white">
                 {{ qualityReport.score }}
               </div>
-              <div class="text-xs text-gray-500 dark:text-gray-400">
+              <div class="text-xs text-ink-muted dark:text-ink-muted">
                 {{ t('admin.proxies.qualityGrade', { grade: qualityReport.grade }) }}
               </div>
             </div>
           </div>
-          <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
+          <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-ink dark:text-ink-muted">
             <div>{{ t('admin.proxies.qualityExitIP') }}: {{ qualityReport.exit_ip || '-' }}</div>
             <div>{{ t('admin.proxies.qualityCountry') }}: {{ qualityReport.country || '-' }}</div>
             <div>
@@ -1295,9 +1301,9 @@
           </div>
         </div>
 
-        <div class="max-h-80 overflow-auto rounded-lg border border-gray-200 dark:border-dark-600">
-          <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-700">
-            <thead class="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-dark-800 dark:text-dark-400">
+        <div class="max-h-80 overflow-auto rounded-lg border border-line dark:border-line-strong">
+          <table class="min-w-full divide-y divide-line text-sm dark:divide-line">
+            <thead class="bg-surface-muted text-xs uppercase text-ink-muted dark:bg-surface dark:text-ink-muted">
               <tr>
                 <th class="whitespace-nowrap px-3 py-2 text-left">{{ t('admin.proxies.qualityTableTarget') }}</th>
                 <th class="whitespace-nowrap px-3 py-2 text-left">{{ t('admin.proxies.qualityTableStatus') }}</th>
@@ -1306,19 +1312,19 @@
                 <th class="px-3 py-2 text-left">{{ t('admin.proxies.qualityTableMessage') }}</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
+            <tbody class="divide-y divide-line bg-white dark:divide-line dark:bg-canvas">
               <tr v-for="item in qualityReport.items" :key="item.target">
-                <td class="whitespace-nowrap px-3 py-2 text-gray-900 dark:text-white">{{ qualityTargetLabel(item.target) }}</td>
+                <td class="whitespace-nowrap px-3 py-2 text-ink-strong dark:text-white">{{ qualityTargetLabel(item.target) }}</td>
                 <td class="whitespace-nowrap px-3 py-2">
                   <span class="badge whitespace-nowrap" :class="qualityStatusClass(item.status)">{{ qualityStatusLabel(item.status) }}</span>
                 </td>
-                <td class="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{{ item.http_status ?? '-' }}</td>
-                <td class="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">
+                <td class="whitespace-nowrap px-3 py-2 text-ink dark:text-ink-muted">{{ item.http_status ?? '-' }}</td>
+                <td class="whitespace-nowrap px-3 py-2 text-ink dark:text-ink-muted">
                   {{ typeof item.latency_ms === 'number' ? `${item.latency_ms}ms` : '-' }}
                 </td>
-                <td class="px-3 py-2 text-gray-600 dark:text-gray-300">
+                <td class="px-3 py-2 text-ink dark:text-ink-muted">
                   <span>{{ item.message || '-' }}</span>
-                  <span v-if="item.cf_ray" class="ml-1 text-xs text-gray-400">(cf-ray: {{ item.cf_ray }})</span>
+                  <span v-if="item.cf_ray" class="ml-1 text-xs text-ink-muted">(cf-ray: {{ item.cf_ray }})</span>
                 </td>
               </tr>
             </tbody>
@@ -1341,29 +1347,29 @@
       width="normal"
       @close="closeAccountsModal"
     >
-      <div v-if="accountsLoading" class="flex items-center justify-center py-8 text-sm text-gray-500">
+      <div v-if="accountsLoading" class="flex items-center justify-center py-8 text-sm text-ink-muted">
         <Icon name="refresh" size="md" class="mr-2 animate-spin" />
         {{ t('common.loading') }}
       </div>
-      <div v-else-if="proxyAccounts.length === 0" class="py-6 text-center text-sm text-gray-500">
+      <div v-else-if="proxyAccounts.length === 0" class="py-6 text-center text-sm text-ink-muted">
         {{ t('admin.proxies.accountsEmpty') }}
       </div>
       <div v-else class="max-h-80 overflow-auto">
-        <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-700">
-          <thead class="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-dark-800 dark:text-dark-400">
+        <table class="min-w-full divide-y divide-line text-sm dark:divide-line">
+          <thead class="bg-surface-muted text-xs uppercase text-ink-muted dark:bg-surface dark:text-ink-muted">
             <tr>
               <th class="px-4 py-2 text-left">{{ t('admin.proxies.accountName') }}</th>
               <th class="px-4 py-2 text-left">{{ t('admin.accounts.columns.platformType') }}</th>
               <th class="px-4 py-2 text-left">{{ t('admin.proxies.accountNotes') }}</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
+          <tbody class="divide-y divide-line bg-white dark:divide-line dark:bg-canvas">
             <tr v-for="account in proxyAccounts" :key="account.id">
-              <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ account.name }}</td>
+              <td class="px-4 py-2 font-medium text-ink-strong dark:text-white">{{ account.name }}</td>
               <td class="px-4 py-2">
                 <PlatformTypeBadge :platform="account.platform" :type="account.type" />
               </td>
-              <td class="px-4 py-2 text-gray-600 dark:text-gray-300">
+              <td class="px-4 py-2 text-ink dark:text-ink-muted">
                 {{ account.notes || '-' }}
               </td>
             </tr>
@@ -3478,8 +3484,8 @@ onUnmounted(() => {
 
 <style scoped>
 .project-mihomo-panel {
-  @apply rounded-2xl border border-gray-200 bg-white p-4 shadow-sm;
-  @apply dark:border-dark-700 dark:bg-dark-800;
+  @apply rounded-2xl border border-line bg-white p-4 shadow-sm;
+  @apply dark:border-line dark:bg-surface;
 }
 
 .project-mihomo-panel-header {
@@ -3491,17 +3497,17 @@ onUnmounted(() => {
 }
 
 .project-mihomo-section-hint {
-  @apply mt-1 max-w-3xl text-xs leading-5 text-gray-500 dark:text-gray-400;
+  @apply mt-1 max-w-3xl text-xs leading-5 text-ink-muted dark:text-ink-muted;
 }
 
 .project-mihomo-count-pill {
-  @apply inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-gray-100 px-2 text-xs font-semibold text-gray-600;
-  @apply dark:bg-dark-700 dark:text-dark-200;
+  @apply inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-surface-muted px-2 text-xs font-semibold text-ink;
+  @apply dark:bg-surface-muted dark:text-ink-strong;
 }
 
 .project-mihomo-add-source {
-  @apply mt-4 grid items-end gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50/70 p-3;
-  @apply dark:border-dark-600 dark:bg-dark-900/30;
+  @apply mt-4 grid items-end gap-3 rounded-2xl border border-dashed border-line bg-surface-muted/70 p-3;
+  @apply dark:border-line-strong dark:bg-canvas/30;
   grid-template-columns: minmax(140px, 0.7fr) minmax(240px, 1.4fr);
 }
 
@@ -3510,7 +3516,7 @@ onUnmounted(() => {
 }
 
 .project-mihomo-field > span {
-  @apply block text-[11px] font-semibold tracking-wide text-gray-500 dark:text-gray-400;
+  @apply block text-[11px] font-semibold tracking-wide text-ink-muted dark:text-ink-muted;
 }
 
 .project-mihomo-add-actions {
@@ -3519,9 +3525,9 @@ onUnmounted(() => {
 }
 
 .project-mihomo-icon-btn {
-  @apply inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm;
+  @apply inline-flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-white text-ink shadow-sm;
   @apply transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700;
-  @apply dark:border-dark-600 dark:bg-dark-800 dark:text-dark-300 dark:hover:border-primary-700 dark:hover:bg-dark-700 dark:hover:text-primary-300;
+  @apply dark:border-line-strong dark:bg-surface dark:text-ink dark:hover:border-primary-700 dark:hover:bg-dark-700 dark:hover:text-primary-300;
 }
 
 .project-mihomo-icon-btn:disabled {
@@ -3543,8 +3549,8 @@ onUnmounted(() => {
 }
 
 .project-mihomo-source-card-idle {
-  @apply border-gray-200 bg-white text-gray-700 hover:border-primary-200 hover:bg-gray-50;
-  @apply dark:border-dark-700 dark:bg-dark-800 dark:text-dark-200 dark:hover:border-primary-800 dark:hover:bg-dark-700;
+  @apply border-line bg-white text-ink hover:border-primary-200 hover:bg-surface-muted;
+  @apply dark:border-line dark:bg-surface dark:text-ink-strong dark:hover:border-primary-800 dark:hover:bg-dark-700;
 }
 
 .project-mihomo-source-main {
@@ -3556,8 +3562,8 @@ onUnmounted(() => {
 }
 
 .project-mihomo-source-action {
-  @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/80 text-current shadow-sm ring-1 ring-gray-200/80;
-  @apply transition-colors hover:bg-white hover:text-primary-700 dark:bg-dark-900/70 dark:ring-dark-600 dark:hover:bg-dark-700 dark:hover:text-primary-300;
+  @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/80 text-current shadow-sm ring-1 ring-line/80;
+  @apply transition-colors hover:bg-white hover:text-primary-700 dark:bg-canvas/70 dark:ring-line-strong dark:hover:bg-dark-700 dark:hover:text-primary-300;
 }
 
 .project-mihomo-source-action:disabled {
@@ -3570,13 +3576,13 @@ onUnmounted(() => {
 }
 
 .project-mihomo-node-pill {
-  @apply inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gray-100 px-1.5 text-[11px] font-semibold text-gray-600;
-  @apply dark:bg-dark-700 dark:text-dark-200;
+  @apply inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-surface-muted px-1.5 text-[11px] font-semibold text-ink;
+  @apply dark:bg-surface-muted dark:text-ink-strong;
 }
 
 .project-mihomo-source-editor {
-  @apply mt-4 grid items-end gap-3 rounded-2xl border border-gray-200 bg-gray-50/70 p-3;
-  @apply dark:border-dark-600 dark:bg-dark-900/30;
+  @apply mt-4 grid items-end gap-3 rounded-2xl border border-line bg-surface-muted/70 p-3;
+  @apply dark:border-line-strong dark:bg-canvas/30;
   grid-template-columns: minmax(150px, 0.75fr) minmax(200px, 1fr) auto;
 }
 
@@ -3597,12 +3603,12 @@ onUnmounted(() => {
 }
 
 .project-mihomo-provider-key {
-  @apply rounded-xl bg-white px-3 py-2 font-mono text-xs text-gray-500 ring-1 ring-gray-200;
-  @apply dark:bg-dark-800 dark:text-gray-400 dark:ring-dark-600;
+  @apply rounded-xl bg-white px-3 py-2 font-mono text-xs text-ink-muted ring-1 ring-line;
+  @apply dark:bg-surface dark:text-ink-muted dark:ring-line-strong;
 }
 
 .project-mihomo-listener-panel {
-  @apply bg-gray-50/80 dark:bg-dark-900/20;
+  @apply bg-surface-muted/80 dark:bg-canvas/20;
 }
 
 .project-mihomo-listener-list {
@@ -3610,8 +3616,8 @@ onUnmounted(() => {
 }
 
 .project-mihomo-listener-card {
-  @apply rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-colors;
-  @apply hover:border-primary-200 dark:border-dark-700 dark:bg-dark-800 dark:hover:border-primary-800;
+  @apply rounded-xl border border-line bg-white p-3 shadow-sm transition-colors;
+  @apply hover:border-primary-200 dark:border-line dark:bg-surface dark:hover:border-primary-800;
 }
 
 .project-mihomo-listener-card-head {
@@ -3623,12 +3629,12 @@ onUnmounted(() => {
 }
 
 .project-mihomo-listener-name {
-  @apply mt-0.5 truncate font-mono text-[11px] leading-4 text-gray-500 dark:text-gray-400;
+  @apply mt-0.5 truncate font-mono text-[11px] leading-4 text-ink-muted dark:text-ink-muted;
 }
 
 .project-mihomo-listener-picker {
-  @apply flex items-stretch overflow-hidden rounded-xl border border-gray-200 bg-white transition-colors;
-  @apply dark:border-dark-600 dark:bg-dark-800;
+  @apply flex items-stretch overflow-hidden rounded-xl border border-line bg-white transition-colors;
+  @apply dark:border-line-strong dark:bg-surface;
 }
 
 .project-mihomo-listener-picker:focus-within {
@@ -3657,8 +3663,8 @@ onUnmounted(() => {
 }
 
 .project-mihomo-listener-action {
-  @apply inline-flex w-10 shrink-0 items-center justify-center border-l border-gray-200 bg-gray-50 text-gray-500 transition-colors;
-  @apply hover:bg-gray-50 hover:text-primary-700 dark:border-dark-600 dark:text-dark-300 dark:hover:bg-dark-700 dark:hover:text-primary-300;
+  @apply inline-flex w-10 shrink-0 items-center justify-center border-l border-line bg-surface-muted text-ink-muted transition-colors;
+  @apply hover:bg-surface-muted hover:text-primary-700 dark:border-line-strong dark:text-ink dark:hover:bg-dark-700 dark:hover:text-primary-300;
 }
 
 .project-mihomo-listener-action:disabled {

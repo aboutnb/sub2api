@@ -114,8 +114,9 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		ChannelMonitorShowQuota:              settings.ChannelMonitorShowQuota,
 		ChannelMonitorHideUserRanking:        settings.ChannelMonitorHideUserRanking,
 
-		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
-		UserSubscriptionsEnabled: settings.UserSubscriptionsEnabled,
+		AvailableChannelsEnabled:      settings.AvailableChannelsEnabled,
+		UserSubscriptionsEnabled:      settings.UserSubscriptionsEnabled,
+		SubscriptionExpirationEnabled: settings.SubscriptionExpirationEnabled,
 
 		ModelPlazaEnabled:       settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:   settings.ModelPlazaRequireAuth,

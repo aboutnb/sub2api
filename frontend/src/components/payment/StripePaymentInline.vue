@@ -11,23 +11,23 @@
     <template v-else-if="success">
       <div class="card p-6">
         <div class="flex flex-col items-center space-y-4 py-4">
-          <div class="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+          <div class="flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-green-600 bg-green-100 shadow-pixel dark:border-green-400 dark:bg-green-900/30">
             <Icon name="check" size="lg" class="text-green-500" />
           </div>
-          <p class="text-lg font-bold text-gray-900 dark:text-white">{{ t('payment.result.success') }}</p>
-          <div class="w-full rounded-xl bg-gray-50 p-4 dark:bg-dark-800">
+          <p class="text-lg font-bold text-ink-strong dark:text-white">{{ t('payment.result.success') }}</p>
+          <div class="w-full rounded-xl bg-surface-muted p-4 dark:bg-surface">
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">#{{ orderId }}</span>
+                <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.orders.orderId') }}</span>
+                <span class="font-medium text-ink-strong dark:text-white">#{{ orderId }}</span>
               </div>
               <div v-if="amount > 0" class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ creditedAmountSymbol }}{{ amount.toFixed(2) }}</span>
+                <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.orders.amount') }}</span>
+                <span class="font-medium text-ink-strong dark:text-white">{{ creditedAmountSymbol }}{{ amount.toFixed(2) }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ paymentAmountSymbol }}{{ payAmount.toFixed(2) }}</span>
+                <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.orders.payAmount') }}</span>
+                <span class="font-medium text-ink-strong dark:text-white">{{ paymentAmountSymbol }}{{ payAmount.toFixed(2) }}</span>
               </div>
             </div>
           </div>
@@ -38,7 +38,7 @@
     <template v-else>
       <!-- Amount -->
       <div class="card overflow-hidden">
-        <div class="bg-gradient-to-br from-[#635bff] to-[#4f46e5] px-6 py-5 text-center">
+        <div class="border-b-2 border-ink-strong bg-[#635bff] px-6 py-5 text-center dark:border-line">
           <p class="text-sm font-medium text-indigo-200">{{ t('payment.actualPay') }}</p>
           <p class="mt-1 text-3xl font-bold text-white">{{ paymentAmountSymbol }}{{ payAmount.toFixed(2) }}</p>
         </div>
@@ -64,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { extractI18nErrorMessage } from '@/utils/apiError'
@@ -74,6 +74,7 @@ import { getPaymentPopupFeatures } from '@/components/payment/providerConfig'
 import { currencySymbol } from '@/components/payment/currency'
 import type { Stripe, StripeElements } from '@stripe/stripe-js'
 import Icon from '@/components/icons/Icon.vue'
+import { useThemeMode } from '@/composables/useThemeMode'
 
 // Stripe payment methods that open a popup (redirect or QR code)
 const POPUP_METHODS = new Set(['alipay', 'wechat_pay'])
@@ -93,6 +94,7 @@ const emit = defineEmits<{ success: []; done: []; back: []; redirect: [orderId: 
 const { t } = useI18n()
 const router = useRouter()
 const appStore = useAppStore()
+const { isDark } = useThemeMode()
 
 const stripeMount = ref<HTMLElement | null>(null)
 const loading = ref(true)
@@ -109,6 +111,15 @@ const paymentAmountSymbol = computed(() => currencySymbol(props.currency))
 let stripeInstance: Stripe | null = null
 let elementsInstance: StripeElements | null = null
 
+const stripeAppearance = () => ({
+  theme: (isDark.value ? 'night' : 'stripe') as 'night' | 'stripe',
+  variables: { borderRadius: '8px' },
+})
+
+watch(isDark, () => {
+  elementsInstance?.update({ appearance: stripeAppearance() })
+})
+
 onMounted(async () => {
   try {
     const { loadStripe } = await import('@stripe/stripe-js/pure')
@@ -120,10 +131,9 @@ onMounted(async () => {
     await nextTick()
     if (!stripeMount.value) return
 
-    const isDark = document.documentElement.classList.contains('dark')
     const elements = stripe.elements({
       clientSecret: props.clientSecret,
-      appearance: { theme: isDark ? 'night' : 'stripe', variables: { borderRadius: '8px' } },
+      appearance: stripeAppearance(),
     })
     elementsInstance = elements
     const paymentElement = elements.create('payment', {
