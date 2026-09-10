@@ -3,7 +3,7 @@
 # Read-only pre-merge review for the FlowAI fork.
 set -Eeuo pipefail
 
-EXPECTED_BRANCH="sub2api-flowai"
+EXPECTED_BRANCH="main"
 UPSTREAM_REVIEW_ACK="${FLOWAI_UPSTREAM_REVIEW_ACK:-}"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 
@@ -73,12 +73,15 @@ printf 'root: %s\n' "$ROOT"
 
 branch="$(git symbolic-ref --quiet --short HEAD || true)"
 if [[ -z "$branch" ]]; then
-  branch="${GITHUB_REF_NAME:-}"
+  branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-}}"
 fi
-if [[ "$branch" == "$EXPECTED_BRANCH" ]]; then
-  pass "current branch is $EXPECTED_BRANCH"
-else
-  fail "expected branch $EXPECTED_BRANCH, got ${branch:-detached HEAD}"
+case "$branch" in
+  main|feature/*|fix/*|sync/*|migrate/*)
+    pass "Aivoza mainline or reviewed candidate branch: $branch" ;;
+  *) fail "expected main or feature/fix/sync/migrate candidate, got ${branch:-detached HEAD}" ;;
+esac
+if [[ -n "${GITHUB_BASE_REF:-}" && "$GITHUB_BASE_REF" != "main" ]]; then
+  fail "Aivoza pull requests must target main"
 fi
 
 if git show-ref --verify --quiet refs/remotes/upstream/main; then

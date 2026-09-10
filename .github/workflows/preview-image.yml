@@ -1,69 +1,98 @@
-name: Preview Image
+name: Aivoza Image
 
 on:
-  push:
-    branches:
-      - sub2api-flowai
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
   packages: write
+
+concurrency:
+  group: aivoza-image-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: false
 
 jobs:
   build:
+    if: github.repository == 'aboutnb/sub2api' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - name: Require successful CI and security checks on main
+        uses: actions/github-script@v8
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        with:
+          script: |
+            const sha = process.env.SOURCE_SHA;
+            if (context.eventName === 'workflow_dispatch' && context.ref !== 'refs/heads/main') {
+              throw new Error('Image publication is restricted to main');
+            }
+            for (let attempt = 0; attempt < 120; attempt++) {
+              const {data} = await github.rest.actions.listWorkflowRunsForRepo({
+                ...context.repo, head_sha: sha, branch: 'main', event: 'push', per_page: 100
+              });
+              const required = ['CI', 'Security Scan'].map(name =>
+                data.workflow_runs.find(run => run.name === name));
+              if (required.some(run => run?.status === 'completed' && run.conclusion !== 'success')) {
+                throw new Error('CI or Security Scan failed; refusing to publish');
+              }
+              if (required.every(run => run?.conclusion === 'success')) return;
+              await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+            throw new Error('Timed out waiting for successful main checks');
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
-      - name: Check FlowAI branch contract
-        shell: bash
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Verify source and reviewed upstream
+        env:
+          GITHUB_REF_NAME: main
         run: |
-          git fetch --no-tags --force https://github.com/Wei-Shaw/sub2api.git main:refs/remotes/upstream/main
-          make review-flowai-upstream
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor HEAD origin/main
+          upstream_sha="$(cat .github/aivoza-upstream-ref)"
+          git fetch --no-tags https://github.com/Wei-Shaw/sub2api.git "$upstream_sha"
+          git update-ref refs/remotes/upstream/main FETCH_HEAD
           make check-flowai-contract-strict
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Resolve image tags
+      - name: Resolve immutable image tag
         id: image
-        shell: bash
         run: |
-          image="ghcr.io/${GITHUB_REPOSITORY,,}"
-          short_sha="${GITHUB_SHA::12}"
-          build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
-          echo "image=${image}" >> "${GITHUB_OUTPUT}"
-          echo "date=${build_date}" >> "${GITHUB_OUTPUT}"
-          {
-            echo "tags<<EOF"
-            echo "${image}:sub2api-flowai"
-            echo "${image}:sub2api-flowai-${short_sha}"
-            echo "EOF"
-          } >> "${GITHUB_OUTPUT}"
-
-      - name: Build and push preview image
+          sha="$(git rev-parse HEAD)"
+          echo "tag=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/aivoza-sub2api:sha-${sha:0:12}" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - name: Build and publish tested image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: deploy/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.image.outputs.tags }}
+          tags: ${{ steps.image.outputs.tag }}
+          labels: |
+            org.opencontainers.image.title=aivoza-sub2api
+            org.opencontainers.image.source=https://github.com/aboutnb/sub2api
+            org.opencontainers.image.revision=${{ steps.image.outputs.sha }}
           build-args: |
-            COMMIT=${{ github.sha }}
+            COMMIT=${{ steps.image.outputs.sha }}
             DATE=${{ steps.image.outputs.date }}
             BUILD_TYPE=source
-          cache-from: type=gha,scope=sub2api-flowai
-          cache-to: type=gha,scope=sub2api-flowai,mode=max
+          cache-from: type=gha,scope=aivoza-sub2api
+          cache-to: type=gha,scope=aivoza-sub2api,mode=max
+      - name: Record deployment reference
+        env:
+          IMAGE: ${{ steps.image.outputs.tag }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          printf '%s@%s\n' "$IMAGE" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"

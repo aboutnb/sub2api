@@ -1,6 +1,13 @@
 # FlowAI 分支契约
 
-> 适用分支：sub2api-flowai
+> 2026-09-11 主线迁移：用户已授权以 `main` 为 Aivoza/FlowAI 唯一正式主线。
+> `upstream/main` 保留上游身份；旧 `sub2api-flowai` 与主题分支作为历史归档。
+> GitHub 测试通过后构建 `ghcr.io/aboutnb/aivoza-sub2api:sha-<sha12>`，生产固定 digest。
+> 本次要求不停机：新旧容器并存、健康验证、代理热切换、旧连接排空；不得直接执行旧的重建发布脚本。
+> 下文历史快照中的分支和旧镜像仅用于追溯，不再授权旧分支发布。
+
+
+> 适用分支：main
 >
 > 这份文档记录 FlowAI 分支相对于上游 main 的业务约定、必须保留的功能和
 > 发布边界。它不是上游项目的通用说明。每次合并上游或发布前，必须先阅读
@@ -11,13 +18,12 @@
 | 引用 | 作用 | 规则 |
 | --- | --- | --- |
 | upstream/main | Wei-Shaw/sub2api 的上游代码 | 可以定期合并；合并前必须审阅差异 |
-| origin/sub2api-flowai | FlowAI 发布源 | 只从该分支构建和发布 |
-| 本地 main | 上游镜像/本地工作引用 | 不作为 FlowAI 合并目标，不在发布流程中修改 |
+| origin/main | Aivoza/FlowAI 发布源 | PR 合入并通过完整 CI 后构建 |
+| upstream/main | 上游跟踪引用 | 经 sync/* PR 审阅合入 main；禁止整树覆盖 |
 
 必须遵守以下边界：
 
-1. FlowAI 的发布分支是 sub2api-flowai，不是本地 main，也不是临时
-   codex/* 工作分支。
+1. Aivoza/FlowAI 的发布分支是 main；feature/fix/sync/migrate 分支只作为待审候选。
 2. 合并上游使用明确的 upstream/main 合并提交。禁止用
    git checkout upstream/main -- .、整树覆盖或无审阅的 rebase 丢弃本分支提交。
 3. 冲突解决后按“上游新增行为”和“FlowAI 保留行为”逐项归类；不能只看最终能否编译。

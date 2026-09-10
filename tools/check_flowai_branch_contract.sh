@@ -4,7 +4,7 @@
 # than inferring behavior from commit names.
 set -Eeuo pipefail
 
-EXPECTED_BRANCH="sub2api-flowai"
+EXPECTED_BRANCH="main"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 CHANGELOG="docs/FLOWAI_CHANGELOG.md"
 CONTRACT="docs/FLOWAI_BRANCH_CONTRACT.md"
@@ -197,7 +197,7 @@ validate_ledger_section() {
 
 governance_path_allowed() {
   case "$1" in
-    .gitignore|Makefile|.github/workflows/preview-image.yml|tools/check_flowai_branch_contract.sh|tools/review_flowai_upstream.sh|docs/FLOWAI_*.md|deploy/README.md)
+    .gitignore|Makefile|.github/workflows/preview-image.yml|.github/workflows/release.yml|.github/workflows/backend-ci.yml|.github/aivoza-upstream-ref|tools/check_flowai_branch_contract.sh|tools/review_flowai_upstream.sh|docs/FLOWAI_*.md|deploy/README.md)
       return 0
       ;;
     *)
@@ -375,20 +375,15 @@ require_text "$RELEASE_CHECKLIST" \
 # so use GITHUB_REF_NAME there while still rejecting an unrelated local ref.
 branch="$(git symbolic-ref --quiet --short HEAD || true)"
 if [[ -z "$branch" ]]; then
-  branch="${GITHUB_REF_NAME:-}"
-  if [[ "$branch" == "$EXPECTED_BRANCH" ]]; then
-    pass "detached CI ref is $EXPECTED_BRANCH"
-  else
-    fail "expected branch $EXPECTED_BRANCH, got ${branch:-detached HEAD}"
-  fi
-elif [[ "$branch" == "$EXPECTED_BRANCH" ]]; then
-  pass "current branch is $EXPECTED_BRANCH"
-else
-  fail "expected branch $EXPECTED_BRANCH, got $branch"
+  branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-}}"
 fi
-
-if [[ "$branch" == "main" || "$branch" == "master" ]]; then
-  fail "main/master is not a FlowAI release target"
+case "$branch" in
+  main|feature/*|fix/*|sync/*|migrate/*)
+    pass "Aivoza mainline or reviewed candidate branch: $branch" ;;
+  *) fail "expected main or feature/fix/sync/migrate candidate, got ${branch:-detached HEAD}" ;;
+esac
+if [[ -n "${GITHUB_BASE_REF:-}" && "$GITHUB_BASE_REF" != "main" ]]; then
+  fail "Aivoza pull requests must target main"
 fi
 
 merge_base=""

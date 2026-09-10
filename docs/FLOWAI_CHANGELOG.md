@@ -1,6 +1,13 @@
 # FlowAI 分支变更台账
 
-> 适用分支：`sub2api-flowai`
+> 2026-09-11 主线迁移：用户已授权以 `main` 为 Aivoza/FlowAI 唯一正式主线。
+> `upstream/main` 保留上游身份；旧 `sub2api-flowai` 与主题分支作为历史归档。
+> GitHub 测试通过后构建 `ghcr.io/aboutnb/aivoza-sub2api:sha-<sha12>`，生产固定 digest。
+> 本次要求不停机：新旧容器并存、健康验证、代理热切换、旧连接排空；不得直接执行旧的重建发布脚本。
+> 下文历史快照中的分支和旧镜像仅用于追溯，不再授权旧分支发布。
+
+
+> 适用分支：`main`
 >
 > 这不是上游项目的 release note，而是 FlowAI 分支的业务上下文和所有权记录。
 > 上游合并、功能调整和正式发布都必须以本台账与
@@ -34,8 +41,7 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 
 ## 1.1 每次上游合并的固定流程
 
-1. `git fetch upstream main` 后，记录 `upstream/main` 的完整 hash；不要更新或切换
-   本地 `main`，然后执行 `make review-flowai-upstream`。若有待合入提交，必须先完成人工
+1. `git fetch upstream main` 后，记录 `upstream/main` 的完整 hash；从 `main` 创建同步候选分支，然后执行 `make review-flowai-upstream`。若有待合入提交，必须先完成人工
    核对，再用 `FLOWAI_UPSTREAM_REVIEW_ACK=<完整 hash>` 重跑并取得通过结果。
 2. 合并前查看 `git diff --name-status upstream/main...HEAD`，并单独查看上游新增迁移、
    调度代码、i18n 聚合入口、部署 compose 和锁文件。
@@ -44,7 +50,7 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 4. 合并完成后，把合并提交 hash、每个冲突区域的保留结论和验证方式写入本台账；新增
    功能提交同时登记行为、受保护路径、测试和迁移影响。
 5. 先运行 `make check-flowai-contract`，再运行目标测试；发布候选最后运行
-   `make check-flowai-contract-strict`。任一门禁失败都不能生成镜像或连接 23 服务器。
+   `make check-flowai-contract-strict`。任一门禁失败都不能生成发布镜像或切换生产流量；允许只读核对生产状态。
 
 未来新增功能条目至少包含以下信息：
 
