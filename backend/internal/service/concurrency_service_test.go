@@ -644,3 +644,18 @@ func TestIncrementAccountWaitCount_NilCache(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, allowed)
 }
+
+func TestProvideConcurrencyService_RollingDeploymentPreservesPeerSlots(t *testing.T) {
+	t.Setenv("AIVOZA_ROLLING_DEPLOY", "true")
+	cache := &trackingConcurrencyCache{}
+	svc := ProvideConcurrencyService(cache, nil, nil)
+	require.NotNil(t, svc)
+	require.Empty(t, cache.cleanupPrefix, "must not clear the serving peer process slots")
+}
+
+func TestProvideConcurrencyService_DefaultStartupCleanup(t *testing.T) {
+	t.Setenv("AIVOZA_ROLLING_DEPLOY", "")
+	cache := &trackingConcurrencyCache{}
+	ProvideConcurrencyService(cache, nil, nil)
+	require.Equal(t, RequestIDPrefix(), cache.cleanupPrefix)
+}
