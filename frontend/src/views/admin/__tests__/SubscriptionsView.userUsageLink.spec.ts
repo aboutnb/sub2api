@@ -19,7 +19,9 @@ vi.mock('@/api/admin', () => ({
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
     showError: vi.fn(),
-    showSuccess: vi.fn()
+    showSuccess: vi.fn(),
+    cachedPublicSettings: { subscription_expiration_enabled: true },
+    fetchPublicSettings: vi.fn().mockResolvedValue(undefined)
   })
 }))
 

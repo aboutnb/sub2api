@@ -43,6 +43,7 @@ export default {
 
     // Channel Management
     channels: {
+      status: 'Status',
       title: 'Channel Management',
       description: 'Manage channels and custom model pricing',
       searchChannels: 'Search channels...',

@@ -37,6 +37,7 @@ RUN pnpm install --frozen-lockfile
 COPY frontend/ ./
 COPY docs/legal/ /app/docs/legal/
 COPY aivoza-home-pixel.html /app/aivoza-home-pixel.html
+COPY aivoza-home-pixel.html /app/aivoza-home-pixel.html
 RUN pnpm run build
 
 # -----------------------------------------------------------------------------
@@ -92,9 +93,10 @@ FROM ${POSTGRES_IMAGE} AS pg-client
 FROM ${ALPINE_IMAGE}
 
 # Labels
-LABEL maintainer="Wei-Shaw <github.com/Wei-Shaw>"
+LABEL maintainer="aboutnb <github.com/aboutnb>"
 LABEL description="Sub2API - AI API Gateway Platform"
-LABEL org.opencontainers.image.source="https://github.com/Wei-Shaw/sub2api"
+LABEL org.opencontainers.image.source="https://github.com/aboutnb/sub2api"
+LABEL org.opencontainers.image.title="aivoza-sub2api"
 
 # Install runtime dependencies
 RUN apk add --no-cache \

@@ -693,7 +693,7 @@
             </div>
           </div>
           <div class="flex items-center gap-3">
-            <Toggle v-model="createForm.is_exclusive" />
+            <Toggle :aria-label="t('admin.groups.form.exclusive')" v-model="createForm.is_exclusive" />
             <span class="text-sm text-ink-muted dark:text-ink-muted">
               {{
                 createForm.is_exclusive
@@ -776,7 +776,7 @@
                 {{ t("admin.groups.modelAllowlist.hint") }}
               </p>
             </div>
-            <Toggle v-model="createModelAllowlistState.enabled" />
+            <Toggle :aria-label="t('admin.groups.modelAllowlist.title')" v-model="createModelAllowlistState.enabled" />
           </div>
           <div
             v-if="createModelAllowlistState.enabled"
@@ -1371,7 +1371,7 @@
             </div>
           </div>
           <div class="flex items-center gap-3">
-            <Toggle v-model="createForm.mcp_xml_inject" />
+            <Toggle :aria-label="t('admin.groups.mcpXml.title')" v-model="createForm.mcp_xml_inject" />
             <span class="text-sm text-ink-muted dark:text-ink-muted">
               {{
                 createForm.mcp_xml_inject
@@ -1413,7 +1413,7 @@
             </div>
           </div>
           <div class="flex items-center gap-3">
-            <Toggle v-model="createForm.claude_code_only" />
+            <Toggle :aria-label="t('admin.groups.claudeCode.title')" v-model="createForm.claude_code_only" />
             <span class="text-sm text-ink-muted dark:text-ink-muted">
               {{
                 createForm.claude_code_only
@@ -1603,7 +1603,7 @@
             <label class="text-sm text-ink dark:text-ink-muted">{{
               t("admin.groups.openaiLive.allow")
             }}</label>
-            <Toggle
+            <Toggle :aria-label="t('admin.groups.openaiLive.allow')"
               :model-value="createForm.allow_live"
               @update:model-value="toggleLive('create')"
             />
@@ -1627,7 +1627,7 @@
             <label class="text-sm text-ink dark:text-ink-muted">{{
               t("admin.groups.openaiMessages.allowDispatch")
             }}</label>
-            <Toggle v-model="createForm.allow_messages_dispatch" />
+            <Toggle :aria-label="t('admin.groups.openaiMessages.allowDispatch')" v-model="createForm.allow_messages_dispatch" />
           </div>
           <p class="text-xs text-ink-muted dark:text-ink-muted mt-1">
             {{ t("admin.groups.openaiMessages.allowDispatchHint") }}
@@ -1852,7 +1852,7 @@
                 }}
               </p>
             </div>
-            <Toggle v-model="createForm.require_oauth_only" />
+            <Toggle :aria-label="t('admin.groups.accountFilters.oauthOnly')" v-model="createForm.require_oauth_only" />
           </div>
 
           <!-- require_privacy_set toggle -->
@@ -1869,7 +1869,7 @@
                 }}
               </p>
             </div>
-            <Toggle v-model="createForm.require_privacy_set" />
+            <Toggle :aria-label="t('admin.groups.accountFilters.privacySetOnly')" v-model="createForm.require_privacy_set" />
           </div>
         </div>
 
@@ -1926,7 +1926,7 @@
           </div>
           <!-- 启用开关 -->
           <div class="flex items-center gap-3 mb-3">
-            <Toggle v-model="createForm.model_routing_enabled" />
+            <Toggle :aria-label="t('admin.groups.modelRouting.title')" v-model="createForm.model_routing_enabled" />
             <span class="text-sm text-ink-muted dark:text-ink-muted">
               {{
                 createForm.model_routing_enabled
@@ -2328,7 +2328,7 @@
             </div>
           </div>
           <div class="flex items-center gap-3">
-            <Toggle v-model="editForm.is_exclusive" />
+            <Toggle :aria-label="t('admin.groups.form.exclusive')" v-model="editForm.is_exclusive" />
             <span class="text-sm text-ink-muted dark:text-ink-muted">
               {{
                 editForm.is_exclusive
@@ -2416,7 +2416,7 @@
                 {{ t("admin.groups.modelAllowlist.hint") }}
               </p>
             </div>
-            <Toggle v-model="editModelAllowlistState.enabled" />
+            <Toggle :aria-label="t('admin.groups.modelAllowlist.title')" v-model="editModelAllowlistState.enabled" />
           </div>
           <div
             v-if="editModelAllowlistState.enabled"
@@ -3011,7 +3011,7 @@
             </div>
           </div>
           <div class="flex items-center gap-3">
-            <Toggle v-model="editForm.mcp_xml_inject" />
+            <Toggle :aria-label="t('admin.groups.mcpXml.title')" v-model="editForm.mcp_xml_inject" />
             <span class="text-sm text-ink-muted dark:text-ink-muted">
               {{
                 editForm.mcp_xml_inject
@@ -3053,7 +3053,7 @@
             </div>
           </div>
           <div class="flex items-center gap-3">
-            <Toggle v-model="editForm.claude_code_only" />
+            <Toggle :aria-label="t('admin.groups.claudeCode.title')" v-model="editForm.claude_code_only" />
             <span class="text-sm text-ink-muted dark:text-ink-muted">
               {{
                 editForm.claude_code_only
@@ -3253,7 +3253,7 @@
             <label class="text-sm text-ink dark:text-ink-muted">{{
               t("admin.groups.openaiLive.allow")
             }}</label>
-            <Toggle
+            <Toggle :aria-label="t('admin.groups.openaiLive.allow')"
               :model-value="editForm.allow_live"
               @update:model-value="toggleLive('edit')"
             />
@@ -3277,7 +3277,7 @@
             <label class="text-sm text-ink dark:text-ink-muted">{{
               t("admin.groups.openaiMessages.allowDispatch")
             }}</label>
-            <Toggle v-model="editForm.allow_messages_dispatch" />
+            <Toggle :aria-label="t('admin.groups.openaiMessages.allowDispatch')" v-model="editForm.allow_messages_dispatch" />
           </div>
           <p class="text-xs text-ink-muted dark:text-ink-muted mt-1">
             {{ t("admin.groups.openaiMessages.allowDispatchHint") }}
@@ -3501,7 +3501,7 @@
                 }}
               </p>
             </div>
-            <Toggle v-model="editForm.require_oauth_only" />
+            <Toggle :aria-label="t('admin.groups.accountFilters.oauthOnly')" v-model="editForm.require_oauth_only" />
           </div>
 
           <!-- require_privacy_set toggle -->
@@ -3518,7 +3518,7 @@
                 }}
               </p>
             </div>
-            <Toggle v-model="editForm.require_privacy_set" />
+            <Toggle :aria-label="t('admin.groups.accountFilters.privacySetOnly')" v-model="editForm.require_privacy_set" />
           </div>
         </div>
 
@@ -3575,7 +3575,7 @@
           </div>
           <!-- 启用开关 -->
           <div class="flex items-center gap-3 mb-3">
-            <Toggle v-model="editForm.model_routing_enabled" />
+            <Toggle :aria-label="t('admin.groups.modelRouting.title')" v-model="editForm.model_routing_enabled" />
             <span class="text-sm text-ink-muted dark:text-ink-muted">
               {{
                 editForm.model_routing_enabled
