@@ -1,18 +1,18 @@
 <template>
   <AppLayout>
     <div class="mx-auto max-w-7xl space-y-5">
-      <div class="flex flex-col gap-3 border-b border-gray-200 pb-5 sm:flex-row sm:items-end sm:justify-between dark:border-dark-700">
+      <div class="flex flex-col gap-3 border-b border-line pb-5 sm:flex-row sm:items-end sm:justify-between dark:border-line">
         <div class="grid grid-cols-3 gap-6">
           <div>
-            <div class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.emailBroadcasts.eligibleRecipients') }}</div>
+            <div class="text-xs font-medium text-ink-muted dark:text-ink-muted">{{ t('admin.emailBroadcasts.eligibleRecipients') }}</div>
             <div class="mt-1 text-2xl font-semibold text-gray-950 dark:text-white">{{ eligibleRecipients }}</div>
           </div>
           <div>
-            <div class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.emailBroadcasts.activeTasks') }}</div>
+            <div class="text-xs font-medium text-ink-muted dark:text-ink-muted">{{ t('admin.emailBroadcasts.activeTasks') }}</div>
             <div class="mt-1 text-2xl font-semibold text-gray-950 dark:text-white">{{ activeTaskCount }}</div>
           </div>
           <div>
-            <div class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.emailBroadcasts.completedTasks') }}</div>
+            <div class="text-xs font-medium text-ink-muted dark:text-ink-muted">{{ t('admin.emailBroadcasts.completedTasks') }}</div>
             <div class="mt-1 text-2xl font-semibold text-gray-950 dark:text-white">{{ completedTaskCount }}</div>
           </div>
         </div>
@@ -31,17 +31,17 @@
         </div>
       </div>
 
-      <div class="overflow-hidden border-y border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-800 sm:rounded-lg sm:border">
+      <div class="overflow-hidden border-y border-line bg-white dark:border-line dark:bg-surface sm:rounded-lg sm:border">
         <div v-if="loading && tasks.length === 0" class="flex items-center justify-center py-20">
-          <span class="h-7 w-7 animate-spin rounded-full border-2 border-gray-200 border-t-primary-600 dark:border-dark-600 dark:border-t-primary-400"></span>
+          <span class="h-7 w-7 animate-spin rounded-full border-2 border-line border-t-primary-600 dark:border-line-strong dark:border-t-primary-400"></span>
         </div>
-        <div v-else-if="tasks.length === 0" class="py-20 text-center text-sm text-gray-500 dark:text-gray-400">
-          <Icon name="mail" size="xl" class="mx-auto mb-3 text-gray-300 dark:text-dark-500" />
+        <div v-else-if="tasks.length === 0" class="py-20 text-center text-sm text-ink-muted dark:text-ink-muted">
+          <Icon name="mail" size="xl" class="mx-auto mb-3 text-ink-muted dark:text-ink-muted" />
           {{ t('admin.emailBroadcasts.noTasks') }}
         </div>
 
         <div v-else>
-          <div class="hidden grid-cols-[minmax(240px,1.5fr)_130px_minmax(220px,1fr)_160px_130px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-semibold text-gray-500 lg:grid dark:border-dark-700 dark:bg-dark-850 dark:text-gray-400">
+          <div class="hidden grid-cols-[minmax(240px,1.5fr)_130px_minmax(220px,1fr)_160px_130px] gap-4 border-b border-line bg-surface-muted px-5 py-3 text-xs font-semibold text-ink-muted lg:grid dark:border-line dark:bg-dark-850 dark:text-ink-muted">
             <span>{{ t('admin.emailBroadcasts.task') }}</span>
             <span>{{ t('common.status') }}</span>
             <span>{{ t('admin.emailBroadcasts.progress') }}</span>
@@ -52,11 +52,11 @@
           <article
             v-for="task in tasks"
             :key="task.id"
-            class="grid gap-4 border-b border-gray-100 px-5 py-4 last:border-b-0 lg:grid-cols-[minmax(240px,1.5fr)_130px_minmax(220px,1fr)_160px_130px] lg:items-center dark:border-dark-700/70"
+            class="grid gap-4 border-b border-line px-5 py-4 last:border-b-0 lg:grid-cols-[minmax(240px,1.5fr)_130px_minmax(220px,1fr)_160px_130px] lg:items-center dark:border-line/70"
           >
             <div class="min-w-0">
               <div class="truncate text-sm font-semibold text-gray-950 dark:text-white">{{ task.title }}</div>
-              <div class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-gray-500 dark:text-gray-400">
+              <div class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-ink-muted dark:text-ink-muted">
                 <span>#{{ task.id }}</span>
                 <span>{{ task.variables.broadcast_heading_zh || task.variables.broadcast_heading_en || task.variables.maintenance_title }}</span>
               </div>
@@ -69,23 +69,23 @@
             </div>
 
             <div>
-              <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
+              <div class="flex items-center justify-between text-xs text-ink dark:text-ink-muted">
                 <span>{{ task.sent_count + task.failed_count }} / {{ task.total_recipients }}</span>
                 <span>{{ progressPercent(task) }}%</span>
               </div>
-              <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
+              <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-muted dark:bg-surface-muted">
                 <div class="h-full bg-emerald-500 transition-all" :style="{ width: `${progressPercent(task)}%` }"></div>
               </div>
               <div class="mt-2 flex gap-3 text-xs">
                 <span class="text-emerald-700 dark:text-emerald-400">{{ t('admin.emailBroadcasts.sent') }} {{ task.sent_count }}</span>
-                <span :class="task.failed_count ? 'text-red-600 dark:text-red-400' : 'text-gray-400'">{{ t('admin.emailBroadcasts.failed') }} {{ task.failed_count }}</span>
-                <span v-if="pendingCount(task) > 0" class="text-gray-500 dark:text-gray-400">{{ t('admin.emailBroadcasts.pendingCount', { count: pendingCount(task) }) }}</span>
+                <span :class="task.failed_count ? 'text-red-600 dark:text-red-400' : 'text-ink-muted'">{{ t('admin.emailBroadcasts.failed') }} {{ task.failed_count }}</span>
+                <span v-if="pendingCount(task) > 0" class="text-ink-muted dark:text-ink-muted">{{ t('admin.emailBroadcasts.pendingCount', { count: pendingCount(task) }) }}</span>
               </div>
             </div>
 
-            <div class="text-xs text-gray-600 dark:text-gray-300">
+            <div class="text-xs text-ink dark:text-ink-muted">
               <div>{{ formatDateTime(task.scheduled_at) }}</div>
-              <div class="mt-1 text-gray-400">{{ audienceLabel(task) }}</div>
+              <div class="mt-1 text-ink-muted">{{ audienceLabel(task) }}</div>
             </div>
 
             <div class="flex items-center justify-start gap-1 lg:justify-end">
@@ -107,7 +107,7 @@
               </button>
               <button
                 v-if="isCancelable(task.status)"
-                class="icon-action text-gray-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                class="icon-action text-ink-muted hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
                 :title="t('admin.emailBroadcasts.cancel')"
                 @click="cancelTask(task)"
               >
@@ -147,10 +147,10 @@
           </div>
         </div>
 
-        <div class="border-t border-gray-200 pt-5 dark:border-dark-700">
+        <div class="border-t border-line pt-5 dark:border-line">
           <div class="mb-4 flex items-center justify-between gap-3">
             <label class="input-label mb-0">{{ t('admin.emailBroadcasts.content') }}</label>
-            <div class="inline-flex rounded-md bg-gray-100 p-1 dark:bg-dark-700">
+            <div class="inline-flex rounded-md bg-surface-muted p-1 dark:bg-surface-muted">
               <button type="button" class="language-button" :class="contentLocale === 'zh' && 'mode-button-active'" @click="contentLocale = 'zh'">中文</button>
               <button type="button" class="language-button" :class="contentLocale === 'en' && 'mode-button-active'" @click="contentLocale = 'en'">English</button>
             </div>
@@ -194,19 +194,19 @@
               </div>
             </div>
 
-            <div class="min-w-0 border-l-0 border-gray-200 lg:border-l lg:pl-5 dark:border-dark-700">
-              <div class="text-xs font-semibold uppercase text-gray-400">{{ t('admin.emailBroadcasts.preview') }}</div>
+            <div class="min-w-0 border-l-0 border-line lg:border-l lg:pl-5 dark:border-line">
+              <div class="text-xs font-semibold uppercase text-ink-muted">{{ t('admin.emailBroadcasts.preview') }}</div>
               <div class="mt-3 break-words text-base font-semibold text-gray-950 dark:text-white">{{ previewContent.subject }}</div>
-              <div class="mt-4 border-t border-gray-200 pt-4 dark:border-dark-700">
+              <div class="mt-4 border-t border-line pt-4 dark:border-line">
                 <div class="text-lg font-semibold text-gray-950 dark:text-white">{{ previewContent.heading }}</div>
-                <div class="mt-3 whitespace-pre-line break-words text-sm leading-6 text-gray-600 dark:text-gray-300">{{ previewContent.body }}</div>
-                <div v-if="previewContent.action" class="mt-4 text-sm font-medium text-gray-900 dark:text-white">{{ previewContent.action }}</div>
+                <div class="mt-3 whitespace-pre-line break-words text-sm leading-6 text-ink dark:text-ink-muted">{{ previewContent.body }}</div>
+                <div v-if="previewContent.action" class="mt-4 text-sm font-medium text-ink-strong dark:text-white">{{ previewContent.action }}</div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="border-t border-gray-200 pt-5 dark:border-dark-700">
+        <div class="border-t border-line pt-5 dark:border-line">
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label class="input-label">{{ t('admin.emailBroadcasts.audience') }}</label>
@@ -238,14 +238,14 @@
             <div v-if="form.audience_mode === 'inactive'">
               <label class="input-label">{{ t('admin.emailBroadcasts.inactiveDays') }}</label>
               <input v-model.number="form.inactive_days" type="number" min="1" max="3650" step="1" class="input" @change="loadEstimate" />
-              <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.emailBroadcasts.inactiveDaysHelp') }}</div>
+              <div class="mt-1 text-xs text-ink-muted dark:text-ink-muted">{{ t('admin.emailBroadcasts.inactiveDaysHelp') }}</div>
             </div>
           </div>
         </div>
 
-        <div class="border-t border-gray-200 pt-5 dark:border-dark-700">
+        <div class="border-t border-line pt-5 dark:border-line">
           <label class="input-label">{{ t('admin.emailBroadcasts.deliveryTime') }}</label>
-          <div class="inline-flex rounded-md bg-gray-100 p-1 dark:bg-dark-700">
+          <div class="inline-flex rounded-md bg-surface-muted p-1 dark:bg-surface-muted">
             <button type="button" class="mode-button" :class="form.delivery_mode === 'immediate' && 'mode-button-active'" @click="form.delivery_mode = 'immediate'">
               {{ t('admin.emailBroadcasts.immediate') }}
             </button>
@@ -259,7 +259,7 @@
           </div>
         </div>
 
-        <div class="border-t border-gray-200 pt-5 dark:border-dark-700">
+        <div class="border-t border-line pt-5 dark:border-line">
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_130px_auto] sm:items-end">
             <div>
               <label class="input-label">{{ t('admin.emailBroadcasts.testRecipient') }}</label>
@@ -297,15 +297,15 @@
 
     <BaseDialog :show="showFailuresDialog" :title="t('admin.emailBroadcasts.failedRecipients')" width="wide" @close="showFailuresDialog = false">
       <div v-if="failuresLoading" class="flex justify-center py-12">
-        <span class="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-primary-600"></span>
+        <span class="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-primary-600"></span>
       </div>
-      <div v-else-if="failedRecipients.length === 0" class="py-12 text-center text-sm text-gray-500">
+      <div v-else-if="failedRecipients.length === 0" class="py-12 text-center text-sm text-ink-muted">
         {{ t('admin.emailBroadcasts.noFailures') }}
       </div>
-      <div v-else class="divide-y divide-gray-100 dark:divide-dark-700">
+      <div v-else class="divide-y divide-line dark:divide-line">
         <div v-for="recipient in failedRecipients" :key="recipient.id" class="grid gap-2 py-3 text-sm sm:grid-cols-[minmax(180px,1fr)_100px_minmax(220px,1.5fr)]">
-          <div class="break-all font-medium text-gray-900 dark:text-white">{{ recipient.email }}</div>
-          <div class="text-gray-500">{{ t('admin.emailBroadcasts.attempts') }}: {{ recipient.attempts }}</div>
+          <div class="break-all font-medium text-ink-strong dark:text-white">{{ recipient.email }}</div>
+          <div class="text-ink-muted">{{ t('admin.emailBroadcasts.attempts') }}: {{ recipient.attempts }}</div>
           <div class="break-words text-red-600 dark:text-red-400">{{ recipient.last_error || '-' }}</div>
         </div>
       </div>
@@ -617,7 +617,7 @@ function isCancelable(status: EmailBroadcastStatus) {
 function statusClass(status: EmailBroadcastStatus) {
   if (status === 'succeeded') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
   if (status === 'partially_failed') return 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
-  if (status === 'canceled') return 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300'
+  if (status === 'canceled') return 'bg-surface-muted text-ink dark:bg-surface-muted dark:text-ink-muted'
   if (status === 'running') return 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
   return 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
 }

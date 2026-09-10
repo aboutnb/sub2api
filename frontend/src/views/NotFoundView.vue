@@ -1,57 +1,26 @@
 <template>
   <div
-    class="relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-50 px-4 dark:bg-dark-950"
+    class="not-found-shell relative flex min-h-screen min-h-dvh items-center justify-center overflow-hidden px-4 py-10"
   >
-    <!-- Background Decoration -->
-    <div class="pointer-events-none absolute inset-0 overflow-hidden">
-      <div
-        class="absolute -right-40 -top-40 h-80 w-80 rounded-full bg-primary-400/10 blur-3xl"
-      ></div>
-      <div
-        class="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-primary-500/10 blur-3xl"
-      ></div>
-    </div>
+    <div class="not-found-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>
 
-    <div class="relative z-10 w-full max-w-md text-center">
-      <!-- 404 Display -->
-      <div class="mb-8">
-        <div class="relative inline-block">
-          <span class="text-[12rem] font-bold leading-none text-gray-100 dark:text-dark-800"
-            >404</span
-          >
-          <div class="absolute inset-0 flex items-center justify-center">
-            <div
-              class="flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/30"
-            >
-              <svg
-                class="h-12 w-12 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="1.5"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
+    <main class="not-found-card relative z-10 w-full max-w-md text-center">
+      <div class="mb-5 flex items-center justify-center gap-3" aria-hidden="true">
+        <span class="not-found-code">404</span>
+        <span class="not-found-icon flex h-12 w-12 items-center justify-center rounded-xl">
+          <Icon name="exclamationTriangle" size="lg" />
+        </span>
       </div>
 
-      <!-- Text Content -->
-      <div class="mb-8">
-        <h1 class="mb-3 text-2xl font-bold text-gray-900 dark:text-white">
+      <div class="mb-7">
+        <h1 class="mb-3 text-2xl font-extrabold text-ink-strong dark:text-white">
           {{ t('errors.pageNotFound') }}
         </h1>
-        <p class="text-gray-500 dark:text-dark-400">
+        <p class="text-sm leading-6 text-ink dark:text-ink">
           The page you are looking for doesn't exist or has been moved.
         </p>
       </div>
 
-      <!-- Action Buttons -->
       <div class="flex flex-col justify-center gap-3 sm:flex-row">
         <button @click="goBack" class="btn btn-secondary">
           <Icon name="arrowLeft" size="md" class="mr-2" />
@@ -63,8 +32,7 @@
         </router-link>
       </div>
 
-      <!-- Help Link -->
-      <p class="mt-8 text-sm text-gray-400 dark:text-dark-500">
+      <p class="mt-7 text-sm text-ink-muted dark:text-ink-muted">
         Need help?
         <a
           href="#"
@@ -73,7 +41,7 @@
           Contact support
         </a>
       </p>
-    </div>
+    </main>
   </div>
 </template>
 
@@ -89,3 +57,64 @@ function goBack(): void {
   router.back()
 }
 </script>
+
+<style scoped>
+.not-found-shell {
+  isolation: isolate;
+  background: var(--av-paper, #fffaf4);
+}
+
+.not-found-grid {
+  z-index: -1;
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(255, 138, 92, 0.14), transparent 22rem),
+    radial-gradient(circle at 88% 4%, rgba(47, 185, 170, 0.15), transparent 24rem),
+    linear-gradient(var(--av-grid, rgba(23, 32, 51, 0.035)) 1px, transparent 1px),
+    linear-gradient(90deg, var(--av-grid, rgba(23, 32, 51, 0.035)) 1px, transparent 1px);
+  background-size: auto, auto, 32px 32px, 32px 32px;
+}
+
+.not-found-card {
+  border: 2px solid var(--av-ink, #172033);
+  border-radius: var(--av-radius-lg, 18px);
+  padding: 2rem;
+  background: var(--av-surface, #ffffff);
+  box-shadow: 6px 6px 0 rgba(23, 32, 51, 0.16);
+}
+
+.not-found-card::before {
+  position: absolute;
+  top: 11px;
+  left: 18px;
+  width: 38px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--av-coral, #ff8a5c) 0 45%, transparent 45% 56%, var(--av-teal, #2fb9aa) 56% 100%);
+  content: '';
+}
+
+.not-found-code {
+  color: var(--av-ink, #172033);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 2.25rem;
+  font-weight: 900;
+  letter-spacing: -0.06em;
+}
+
+.not-found-icon {
+  border: 2px solid var(--av-ink, #172033);
+  background: var(--av-yellow, #f7c95c);
+  color: #172033;
+  box-shadow: 3px 3px 0 rgba(23, 32, 51, 0.18);
+}
+
+:global(.dark) .not-found-card {
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.38);
+}
+
+@media (max-width: 420px) {
+  .not-found-card {
+    padding: 1.5rem;
+    box-shadow: 4px 4px 0 rgba(23, 32, 51, 0.16);
+  }
+}
+</style>

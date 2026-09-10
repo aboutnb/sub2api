@@ -1,29 +1,34 @@
 <template>
-  <div v-if="!isDesktopViewport" class="space-y-3">
+  <div
+    v-if="useCardLayout"
+    class="space-y-3"
+    role="region"
+    :aria-label="tableAriaLabel"
+  >
     <template v-if="loading">
-      <div v-for="i in 5" :key="i" class="rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900">
+      <div v-for="i in 5" :key="i" class="rounded-xl border-2 border-line bg-white p-4 shadow-card dark:border-line dark:bg-canvas">
         <div class="space-y-3">
           <div v-for="column in dataColumns" :key="column.key" class="flex justify-between">
-            <div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-dark-700"></div>
-            <div class="h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-dark-700"></div>
+            <div class="h-4 w-20 animate-pulse rounded bg-line dark:bg-surface-muted"></div>
+            <div class="h-4 w-32 animate-pulse rounded bg-line dark:bg-surface-muted"></div>
           </div>
-          <div v-if="hasActionsColumn" class="border-t border-gray-200 pt-3 dark:border-dark-700">
-            <div class="h-8 w-full animate-pulse rounded bg-gray-200 dark:bg-dark-700"></div>
+          <div v-if="hasActionsColumn" class="border-t border-line pt-3 dark:border-line">
+            <div class="h-8 w-full animate-pulse rounded bg-line dark:bg-surface-muted"></div>
           </div>
         </div>
       </div>
     </template>
 
     <template v-else-if="!data || data.length === 0">
-      <div class="rounded-lg border border-gray-200 bg-white p-12 text-center dark:border-dark-700 dark:bg-dark-900">
+      <div class="rounded-xl border-2 border-line bg-white p-12 text-center shadow-card dark:border-line dark:bg-canvas">
         <slot name="empty">
           <div class="flex flex-col items-center">
             <Icon
               name="inbox"
               size="xl"
-              class="mb-4 h-12 w-12 text-gray-400 dark:text-dark-500"
+              class="mb-4 h-12 w-12 text-ink-muted dark:text-ink-muted"
             />
-            <p class="text-lg font-medium text-gray-900 dark:text-gray-100">
+            <p class="text-lg font-medium text-ink-strong dark:text-gray-100">
               {{ t('empty.noData') }}
             </p>
           </div>
@@ -32,11 +37,30 @@
     </template>
 
     <template v-else>
+      <div
+        v-if="sortableColumns.length > 0"
+        class="flex flex-wrap items-center gap-2 px-1"
+        role="group"
+        :aria-label="sortControlsLabel"
+      >
+        <button
+          v-for="column in sortableColumns"
+          :key="column.key"
+          type="button"
+          class="inline-flex min-h-11 items-center gap-1 rounded-xl border-2 border-line bg-white px-3 py-2 text-sm font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 dark:border-line dark:bg-canvas dark:text-gray-200"
+          :class="sortKey === column.key ? 'border-primary-500 text-primary-700 dark:text-primary-300' : ''"
+          :aria-pressed="sortKey === column.key"
+          @click="handleSort(column.key)"
+        >
+          <span>{{ column.label }}</span>
+          <span aria-hidden="true">{{ sortKey === column.key && sortOrder === 'desc' ? '↓' : '↑' }}</span>
+        </button>
+      </div>
       <div v-if="selectable" class="flex items-center justify-end gap-2 px-1">
-        <label class="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300">
+        <label class="flex min-h-11 items-center gap-2 text-sm font-medium text-ink dark:text-ink-muted">
           <input
             type="checkbox"
-            class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800"
+            class="h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500 dark:border-line-strong dark:bg-surface"
             :checked="allVisibleSelected"
             :indeterminate="someVisibleSelected"
             data-test="select-all-mobile"
@@ -48,24 +72,29 @@
       <div
         v-for="(row, index) in sortedData"
         :key="resolveRowKey(row, index)"
-        class="rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900"
+        class="rounded-xl border-2 border-line bg-white p-4 shadow-card transition-colors dark:border-line dark:bg-canvas"
         :class="{
           'cursor-pointer': clickableRows,
           'border-primary-300 bg-primary-50/40 dark:border-primary-700 dark:bg-primary-900/10': selectable && isRowSelected(row, index)
         }"
-        @click="clickableRows && emit('rowClick', row)"
+        :role="clickableRows ? 'button' : undefined"
+        :tabindex="clickableRows ? 0 : undefined"
+        :aria-label="clickableRows ? getRowClickLabel(row, index) : undefined"
+        @click="handleRowClick($event, row)"
+        @keydown="handleRowKeydown($event, row)"
       >
         <div class="space-y-3">
           <div v-if="selectable" class="flex justify-end">
-            <input
-              type="checkbox"
-              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800"
-              :checked="isRowSelected(row, index)"
-              :aria-label="getRowSelectionLabel(row, index)"
-              data-test="select-row"
-              @click.stop
-              @change="toggleRowSelection(row, index, ($event.target as HTMLInputElement).checked)"
-            />
+            <label class="flex h-11 w-11 items-center justify-center" @click.stop>
+              <input
+                type="checkbox"
+                class="h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500 dark:border-line-strong dark:bg-surface"
+                :checked="isRowSelected(row, index)"
+                :aria-label="getRowSelectionLabel(row, index)"
+                data-test="select-row"
+                @change="toggleRowSelection(row, index, ($event.target as HTMLInputElement).checked)"
+              />
+            </label>
           </div>
           <div
             v-for="column in dataColumns"
@@ -73,16 +102,16 @@
             :data-field="column.key"
             class="flex min-w-0 items-start justify-between gap-4"
           >
-            <span class="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">
+            <span class="text-xs font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
               {{ column.label }}
             </span>
-            <div class="min-w-0 max-w-full text-right text-sm text-gray-900 dark:text-gray-100">
+            <div class="min-w-0 max-w-full text-right text-sm text-ink-strong dark:text-gray-100">
               <slot :name="`cell-${column.key}`" :row="row" :value="row[column.key]" :expanded="actionsExpanded">
                 {{ column.formatter ? column.formatter(row[column.key], row) : row[column.key] }}
               </slot>
             </div>
           </div>
-          <div v-if="hasActionsColumn" class="border-t border-gray-200 pt-3 dark:border-dark-700">
+          <div v-if="hasActionsColumn" class="mobile-table-actions border-t border-line pt-3 dark:border-line">
             <slot name="cell-actions" :row="row" :value="row['actions']" :expanded="actionsExpanded"></slot>
           </div>
         </div>
@@ -98,24 +127,30 @@
       'actions-expanded': actionsExpanded,
       'is-scrollable': isScrollable
     }"
+    role="region"
+    :aria-label="tableAriaLabel"
+    tabindex="0"
   >
-    <table class="w-full min-w-max divide-y divide-gray-200 dark:divide-dark-700">
-      <thead class="table-header bg-gray-50 dark:bg-dark-800">
+    <table class="w-full min-w-max divide-y divide-line dark:divide-line">
+      <caption v-if="caption" class="sr-only">{{ caption }}</caption>
+      <thead class="table-header bg-surface-muted dark:bg-surface">
         <tr>
           <th
             v-if="selectable"
             scope="col"
             class="sticky-header-cell w-11 min-w-11 px-3 py-3 text-center"
           >
-            <input
-              type="checkbox"
-              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800"
-              :checked="allVisibleSelected"
-              :indeterminate="someVisibleSelected"
-              :aria-label="t('common.selectAll')"
-              data-test="select-all"
-              @change="toggleAllVisible(($event.target as HTMLInputElement).checked)"
-            />
+            <label class="mx-auto flex h-9 w-9 items-center justify-center">
+              <input
+                type="checkbox"
+                class="h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500 dark:border-line-strong dark:bg-surface"
+                :checked="allVisibleSelected"
+                :indeterminate="someVisibleSelected"
+                :aria-label="t('common.selectAll')"
+                data-test="select-all"
+                @change="toggleAllVisible(($event.target as HTMLInputElement).checked)"
+              />
+            </label>
           </th>
           <th
             v-for="(column, index) in columns"
@@ -123,15 +158,21 @@
             scope="col"
             :aria-sort="column.sortable ? getColumnAriaSort(column.key) : undefined"
             :class="[
-              'sticky-header-cell py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400',
+              'sticky-header-cell py-3 text-left text-xs font-bold uppercase tracking-wider text-ink-muted dark:text-ink',
               getAdaptivePaddingClass(),
-              { 'cursor-pointer hover:bg-gray-100 dark:hover:bg-dark-700': column.sortable },
               getStickyColumnClass(column, index),
               column.class
             ]"
-            @click="column.sortable && handleSort(column.key)"
           >
-            <div :class="['flex items-center space-x-1', getHeaderContentAlignmentClass(column)]">
+            <button
+              v-if="column.sortable"
+              type="button"
+              :class="[
+                'group flex min-h-9 w-full cursor-pointer items-center space-x-1 rounded-lg text-left outline-none transition-colors hover:text-ink-strong focus-visible:ring-2 focus-visible:ring-primary-500/40 dark:hover:text-white',
+                getHeaderContentAlignmentClass(column)
+              ]"
+              @click="handleSort(column.key)"
+            >
               <slot
                 :name="`header-${column.key}`"
                 :column="column"
@@ -162,19 +203,32 @@
                   <path d="M5 8L1.5 3.5h7L5 8z" />
                 </svg>
               </span>
+            </button>
+            <div
+              v-else
+              :class="['flex min-h-8 items-center space-x-1', getHeaderContentAlignmentClass(column)]"
+            >
+              <slot
+                :name="`header-${column.key}`"
+                :column="column"
+                :sort-key="sortKey"
+                :sort-order="sortOrder"
+              >
+                <span>{{ column.label }}</span>
+              </slot>
             </div>
           </th>
         </tr>
       </thead>
-      <tbody class="table-body divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
+      <tbody class="table-body divide-y divide-line bg-white dark:divide-line dark:bg-canvas">
         <!-- Loading skeleton -->
         <tr v-if="loading" v-for="i in 5" :key="i">
           <td v-if="selectable" class="w-11 min-w-11 px-3 py-4">
-            <div class="mx-auto h-4 w-4 animate-pulse rounded bg-gray-200 dark:bg-dark-700"></div>
+            <div class="mx-auto h-4 w-4 animate-pulse rounded bg-line dark:bg-surface-muted"></div>
           </td>
           <td v-for="column in columns" :key="column.key" :class="['whitespace-nowrap py-4', getAdaptivePaddingClass()]">
             <div class="animate-pulse">
-              <div class="h-4 w-3/4 rounded bg-gray-200 dark:bg-dark-700"></div>
+              <div class="h-4 w-3/4 rounded bg-line dark:bg-surface-muted"></div>
             </div>
           </td>
         </tr>
@@ -183,16 +237,16 @@
         <tr v-else-if="!data || data.length === 0">
           <td
             :colspan="tableColumnCount"
-            :class="['py-12 text-center text-gray-500 dark:text-dark-400', getAdaptivePaddingClass()]"
+            :class="['py-12 text-center text-ink-muted dark:text-ink-muted', getAdaptivePaddingClass()]"
           >
             <slot name="empty">
               <div class="flex flex-col items-center">
                 <Icon
                   name="inbox"
                   size="xl"
-                  class="mb-4 h-12 w-12 text-gray-400 dark:text-dark-500"
+                  class="mb-4 h-12 w-12 text-ink-muted dark:text-ink-muted"
                 />
-                <p class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                <p class="text-lg font-medium text-ink-strong dark:text-gray-100">
                   {{ t('empty.noData') }}
                 </p>
               </div>
@@ -213,31 +267,36 @@
             :data-row-id="resolveRowKey(item.row, item.index)"
             :data-index="item.index"
             :ref="item.measure ? measureElement : undefined"
-            class="hover:bg-gray-50 dark:hover:bg-dark-800"
+            class="hover:bg-surface-muted dark:hover:bg-dark-800"
             :class="{
               'cursor-pointer': clickableRows,
               'bg-primary-50/40 dark:bg-primary-900/10': selectable && isRowSelected(item.row, item.index)
             }"
-            @click="clickableRows && emit('rowClick', item.row)"
+            :tabindex="clickableRows ? 0 : undefined"
+            :aria-label="clickableRows ? getRowClickLabel(item.row, item.index) : undefined"
+            @click="handleRowClick($event, item.row)"
+            @keydown="handleRowKeydown($event, item.row)"
           >
             <td v-if="selectable" class="w-11 min-w-11 px-3 py-4 text-center">
-              <input
-                type="checkbox"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-800"
-                :checked="isRowSelected(item.row, item.index)"
-                :aria-label="getRowSelectionLabel(item.row, item.index)"
-                data-test="select-row"
-                @click.stop
-                @change="toggleRowSelection(item.row, item.index, ($event.target as HTMLInputElement).checked)"
-              />
+              <label class="mx-auto flex h-9 w-9 items-center justify-center" @click.stop>
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500 dark:border-line-strong dark:bg-surface"
+                  :checked="isRowSelected(item.row, item.index)"
+                  :aria-label="getRowSelectionLabel(item.row, item.index)"
+                  data-test="select-row"
+                  @change="toggleRowSelection(item.row, item.index, ($event.target as HTMLInputElement).checked)"
+                />
+              </label>
             </td>
             <td
               v-for="(column, colIndex) in columns"
               :key="column.key"
               :class="[
-                'whitespace-nowrap py-4 text-sm text-gray-900 dark:text-gray-100',
+                'whitespace-nowrap py-4 text-sm text-ink-strong dark:text-gray-100',
                 getAdaptivePaddingClass(),
                 getStickyColumnClass(column, colIndex),
+                column.key === 'actions' && 'table-actions-cell',
                 column.class
               ]"
             >
@@ -271,7 +330,7 @@ import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
 
-const desktopViewportQuery = '(min-width: 768px)'
+const desktopViewportQuery = '(min-width: 1024px)'
 const isDesktopViewport = ref(
   typeof window === 'undefined' ? true : window.matchMedia(desktopViewportQuery).matches
 )
@@ -287,6 +346,41 @@ const emit = defineEmits<{
 const tableWrapperRef = ref<HTMLElement | null>(null)
 const isScrollable = ref(false)
 const actionsColumnNeedsExpanding = ref(false)
+
+const nestedInteractiveSelector = [
+  'a[href]',
+  'button',
+  'input',
+  'select',
+  'textarea',
+  'label',
+  '[contenteditable="true"]',
+  '[role="button"]',
+  '[role="link"]',
+].join(',')
+
+function isNestedInteractiveEvent(event: Event): boolean {
+  const target = event.target
+  const currentTarget = event.currentTarget
+  if (!(target instanceof Element) || !(currentTarget instanceof Element)) return false
+  if (target === currentTarget) return false
+
+  const interactive = target.closest(nestedInteractiveSelector)
+  return interactive !== null && interactive !== currentTarget && currentTarget.contains(interactive)
+}
+
+function handleRowClick(event: MouseEvent, row: any): void {
+  if (!props.clickableRows || isNestedInteractiveEvent(event)) return
+  emit('rowClick', row)
+}
+
+function handleRowKeydown(event: KeyboardEvent, row: any): void {
+  if (!props.clickableRows || event.target !== event.currentTarget) return
+  if (event.key !== 'Enter' && event.key !== ' ') return
+
+  event.preventDefault()
+  emit('rowClick', row)
+}
 
 // --- 虚拟滚动「整表空白」根治 ---
 // 根因:本组件根 .table-wrapper 为 flex:1 / min-h-0,高度由父级 flex 链决定。@tanstack 虚拟化器
@@ -471,6 +565,14 @@ interface Props {
   selectedKeys?: Array<string | number>
   /** Accessible label for a row selection checkbox. */
   selectionLabel?: string | ((row: any) => string)
+  /** Below 1024px, ordinary tables become cards while dense/log tables can opt into local scrolling. */
+  responsiveMode?: 'cards' | 'scroll'
+  /** Accessible name for the table/card region. */
+  ariaLabel?: string
+  /** Optional visually hidden native table caption. */
+  caption?: string
+  /** Accessible label for rows that emit rowClick. */
+  rowClickLabel?: string | ((row: any) => string)
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -481,7 +583,8 @@ const props = withDefaults(defineProps<Props>(), {
   defaultSortOrder: 'asc',
   serverSideSort: false,
   selectable: false,
-  selectedKeys: () => []
+  selectedKeys: () => [],
+  responsiveMode: 'cards'
 })
 
 const sortKey = ref<string>('')
@@ -558,7 +661,7 @@ const applySortState = (state: PersistedSortState | null) => {
 const getSortIndicatorClass = (key: string, order: 'asc' | 'desc') => {
   return sortKey.value === key && sortOrder.value === order
     ? 'text-primary-600 dark:text-primary-400'
-    : 'text-gray-300 transition-colors dark:text-dark-500'
+    : 'text-ink-muted transition-colors dark:text-ink-muted'
 }
 
 const getColumnAriaSort = (key: string) => {
@@ -635,15 +738,21 @@ const resolveStableRowKey = (row: any): string | number | undefined => {
 const resolveRowKey = (row: any, index: number) => resolveStableRowKey(row) ?? index
 
 const dataColumns = computed(() => props.columns.filter((column) => column.key !== 'actions'))
+const sortableColumns = computed(() => props.columns.filter((column) => column.sortable))
+const useCardLayout = computed(() =>
+  !isDesktopViewport.value && props.responsiveMode === 'cards'
+)
+const tableAriaLabel = computed(() => props.ariaLabel || props.caption || 'Data table')
+const sortControlsLabel = computed(() => `${tableAriaLabel.value}: sort`)
 const columnsSignature = computed(() =>
   props.columns.map((column) => `${column.key}:${column.sortable ? '1' : '0'}`).join('|')
 )
 
 watch(
-  isDesktopViewport,
-  async (isDesktop) => {
+  useCardLayout,
+  async (isCardLayout) => {
     detachDesktopTableTracking()
-    if (!isDesktop) return
+    if (isCardLayout) return
     await nextTick()
     attachDesktopTableTracking()
   },
@@ -731,6 +840,12 @@ const getRowSelectionLabel = (row: any, index: number) => {
   if (typeof props.selectionLabel === 'function') return props.selectionLabel(row)
   if (props.selectionLabel) return props.selectionLabel
   return `${t('common.selectOption')} ${resolveRowKey(row, index)}`
+}
+
+const getRowClickLabel = (row: any, index: number) => {
+  if (typeof props.rowClickLabel === 'function') return props.rowClickLabel(row)
+  if (props.rowClickLabel) return props.rowClickLabel
+  return `${t('common.view')} ${resolveRowKey(row, index)}`
 }
 
 const toggleRowSelection = (row: any, index: number, checked: boolean) => {
@@ -950,6 +1065,20 @@ defineExpose({
 })
 </script>
 
+<style>
+.table-actions-cell :where(button, a[href], [role='button']),
+.mobile-table-actions :where(button, a[href], [role='button']) {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  touch-action: manipulation;
+}
+
+.table-actions-cell > :where(.flex),
+.mobile-table-actions > :where(.flex) {
+  gap: 0.5rem !important;
+}
+</style>
+
 <style scoped>
 /* 表格横向滚动 */
 .table-wrapper {
@@ -967,11 +1096,11 @@ defineExpose({
   position: sticky;
   top: 0;
   z-index: 200;
-  background-color: rgb(249 250 251);
+  background-color: #edfbf7;
 }
 
 .dark .table-wrapper .table-header {
-  background-color: rgb(31 41 55);
+  background-color: #1b2f39;
 }
 
 /* 表体保持在表头下方 */
@@ -985,11 +1114,11 @@ defineExpose({
   position: sticky;
   top: 0;
   z-index: 210; /* 必须高于所有表体内容 */
-  background-color: rgb(249 250 251);
+  background-color: #edfbf7;
 }
 
 .dark .sticky-header-cell {
-  background-color: rgb(31 41 55);
+  background-color: #1b2f39;
 }
 
 /* Sticky 列基础样式 */
@@ -1025,20 +1154,20 @@ defineExpose({
 
 /* 表体 sticky 列背景 */
 tbody .sticky-col {
-  background-color: white;
+  background-color: var(--av-surface, #ffffff);
 }
 
 .dark tbody .sticky-col {
-  background-color: rgb(17 24 39);
+  background-color: var(--av-surface, #172033);
 }
 
 /* hover 状态保持 */
 tbody tr:hover .sticky-col {
-  background-color: rgb(249 250 251);
+  background-color: var(--av-paper, #fffaf4);
 }
 
 .dark tbody tr:hover .sticky-col {
-  background-color: rgb(31 41 55);
+  background-color: #263147;
 }
 
 /* 阴影只在可滚动时显示 */

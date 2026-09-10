@@ -17,7 +17,7 @@
         >
           <Icon :name="mode === 'normal' ? 'gift' : 'sparkles'" size="md" />
         </span>
-        <p class="pt-0.5 text-sm leading-6 text-gray-600 dark:text-dark-300">
+        <p class="pt-0.5 text-sm leading-6 text-ink dark:text-ink">
           {{ mode === 'normal'
             ? t('checkin.normalHint')
             : rewardType === 'multiplier' ? t('checkin.luckyMultiplierRisk') : t('checkin.luckyAmountRisk') }}
@@ -35,17 +35,17 @@
         </p>
       </div>
 
-      <p class="text-xs leading-5 text-gray-500 dark:text-dark-400">
+      <p class="text-xs leading-5 text-ink-muted dark:text-ink-muted">
         {{ mode === 'normal' ? t('checkin.normalConfirmOnce') : t('checkin.luckyConfirmOnce') }}
       </p>
 
       <div
         v-if="verificationRequired"
         :data-testid="mode === 'normal' ? 'normal-checkin-verification' : 'lucky-checkin-verification'"
-        class="border-t border-gray-100 pt-4 dark:border-dark-700"
+        class="border-t border-line pt-4 dark:border-line"
       >
         <div class="mb-3 flex items-center justify-between gap-3">
-          <p class="text-xs font-semibold text-gray-700 dark:text-dark-200">
+          <p class="text-xs font-semibold text-ink dark:text-ink-strong">
             {{ mode === 'normal' ? t('checkin.normalVerification') : t('checkin.luckyVerification') }}
           </p>
           <span v-if="verificationComplete" class="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">

@@ -38,9 +38,14 @@ function injectBranding(html: string, config: { site_name?: string; site_logo?: 
 
   const siteLogo = config.site_logo?.trim()
   if (siteLogo && isSafeImageUrl(siteLogo)) {
+    const themeManaged = new Set([
+      '/flowai-logo-mark.svg',
+      '/flowai-logo-mark-light.svg',
+      '/flowai-logo-mark-dark.svg',
+    ]).has(siteLogo)
     brandedHtml = brandedHtml.replace(
-      /<link\s+rel=["']icon["'][^>]*>/i,
-      `<link rel="icon" href="${escapeHtml(siteLogo)}" />`,
+      /<link\b[^>]*\brel\s*=\s*["']icon["'][^>]*>/i,
+      `<link rel="icon" href="${escapeHtml(siteLogo)}"${themeManaged ? ' data-theme-favicon="true"' : ''} />`,
     )
   }
   return brandedHtml
@@ -55,7 +60,9 @@ function injectPublicSettings(backendUrl: string): Plugin {
     name: 'inject-public-settings',
     apply: 'serve',
     transformIndexHtml: {
-      order: 'pre',
+      // Run after Vite's built-in favicon asset rewrite so theme-managed
+      // data attributes are not discarded during development.
+      order: 'post',
       async handler(html) {
         try {
           const response = await fetch(`${backendUrl}/api/v1/settings/public`, {
@@ -64,7 +71,11 @@ function injectPublicSettings(backendUrl: string): Plugin {
           if (response.ok) {
             const data = await response.json()
             if (data.code === 0 && data.data) {
-              const script = `<script>window.__APP_CONFIG__=${JSON.stringify(data.data)};</script>`
+              const settingsJson = JSON.stringify(data.data)
+                .replace(/</g, '\\u003c')
+                .replace(/\u2028/g, '\\u2028')
+                .replace(/\u2029/g, '\\u2029')
+              const script = `<script>window.__APP_CONFIG__=${settingsJson};</script>`
               return injectBranding(html, data.data).replace('</head>', `${script}\n</head>`)
             }
           }

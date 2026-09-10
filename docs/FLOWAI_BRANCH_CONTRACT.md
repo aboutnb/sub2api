@@ -19,7 +19,7 @@
 | --- | --- | --- |
 | upstream/main | Wei-Shaw/sub2api 的上游代码 | 可以定期合并；合并前必须审阅差异 |
 | origin/main | Aivoza/FlowAI 发布源 | PR 合入并通过完整 CI 后构建 |
-| upstream/main | 上游跟踪引用 | 经 sync/* PR 审阅合入 main；禁止整树覆盖 |
+| feature/*、fix/*、sync/* | 开发和上游同步候选 | 经 PR 审阅合入 main；不直接发布 |
 
 必须遵守以下边界：
 
@@ -34,8 +34,8 @@
 6. 每个新增或修改的功能提交都必须在变更台账中登记提交 hash、行为、受保护路径和
    验证方式；合并提交还必须记录冲突结论。没有台账记录的提交不得发布。
 
-当前代码检查基线是最后已审并合入的上游 0.2.3（`270eac6973049fe1b50eb75560a74a029e82884c`），
-合并提交为 `fa931c3458f91bb8cdc865d0ed77f791d22d34cf`。上游引用可以暂时前进，但在预审、
+当前代码检查基线是已审并合入的上游 0.2.4（`98d86915becae9fe9491a91ffc6defd5235c8d2b`），
+合并提交为 `d9af7dfe5b744b034cc353d43da68b0aade1538d`。上游引用可以暂时前进，但在预审、
 冲突结论和契约检查完成前，不能把新上游当作已同步版本发布。版本号会继续变化，行为契约
 不会因为版本号变化而自动变化。
 
@@ -239,44 +239,25 @@ bd3b7b205 又恢复为 DESC。本分支现再次明确采用“1 最高、数值
    和数据库状态，不要删除 schema_migrations 或手工改 checksum。
 6. 迁移编号可能与上游同编号但不同文件名并存，冲突解决必须以完整文件名为键。
 
-## 6. 预构建镜像发布约定
+## 6. Aivoza 主线与连续服务发布
 
-FlowAI 使用 GitHub Actions 在构建机打包，服务器只拉取镜像，不在生产机执行前端/Go 构建：
+- 正式主线为 `main`；feature/fix/sync/migrate 分支通过 PR 合入。旧 sub2api-flowai 与主题分支保留历史，不再作为发布源。
+- 上游已审基线记录在 `.github/aivoza-upstream-ref`，本次为 0.2.4 的 `98d86915becae9fe9491a91ffc6defd5235c8d2b`。同步 PR 先审阅差异/冲突，再更新该文件；CI 不追逐移动中的上游。
+- CI 与 Security Scan 必须在同一 main SHA 成功，然后 Aivoza Image 构建 linux/amd64 镜像 `ghcr.io/aboutnb/aivoza-sub2api:sha-<sha12>`；生产使用对应 digest。
+- 保留 BUILD_TYPE=source，避免内置上游二进制更新覆盖自定义版。版本文件仍对应上游 0.2.4，Aivoza 发布身份由仓库、镜像名及源码 SHA 确定。
+- 23 的 `/root/flowai/deploy/.env` 和持久化数据目录保持原生产配置。发布前在线备份 PostgreSQL、应用配置及数据，记录镜像和依赖容器启动时间。
+- `deploy/deploy-aivoza-bluegreen.py prepare --image <digest引用> --state <私有状态文件>`：复制当前应用的运行配置，在独立回环端口启动候选；不会停止现服务或切换路由。
+- 必须启用 `AIVOZA_ROLLING_DEPLOY=true`，防止启动时清理旧进程的并发槽位；正常 TTL 清理继续运行。SQL 迁移带 advisory lock；广播领取、支付/签到结算继续使用原事务幂等规则。
+- 候选健康、版本、迁移、关键业务验证完成后执行 promote：验证 Caddy 配置并热加载，仅改应用上游。GM 路由不变；PostgreSQL/Redis/Mihomo/Caddy/GM 容器不重建。
+- 新容器接管 `flowai-app` 名称，旧容器改名保留，记录回切所需 image/digest/config。旧连接排空且无后台任务进行时才可退役旧容器；不以固定短等待强制断开旧请求。
+- rollback 热切回已验证旧容器；不能靠换镜像撤销数据库迁移。禁止修改迁移 checksum 或重置邮件 sent/sending 状态。
 
-- 工作流：.github/workflows/preview-image.yml；触发分支：sub2api-flowai。
-- 镜像：ghcr.io/aboutnb/sub2api:sub2api-flowai（可变发布标签）以及带提交短 SHA 的
-  不可变标签 sub2api-flowai-<sha12>。
-- Compose：deploy/docker-compose.preview.yml。
-- 服务器脚本：deploy/deploy-preview-image.sh，执行 pull、只重建 sub2api 应用服务、
-  等待 /health，不删除 PostgreSQL、Redis、Mihomo 数据目录。
-- 默认持久化路径包括 /root/flowai-preview-data/app、postgres、redis 和 Caddy
-  目录；23 服务器当前实际发布目录为 /root/flowai/deploy，环境文件为 .env，不能用
-  .env.preview 替代生产配置。
+## 6.1 主题与订阅策略
 
-通过 Termius 连接服务器时，发布命令应指向已验证的 SHA 标签，例如：
-
-~~~bash
-cd /root/flowai/deploy
-ENV_FILE=.env \
-SUB2API_IMAGE=ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12> \
-SERVICE=sub2api \
-  ./deploy-preview-image.sh
-~~~
-
-发布后至少核对 /health、/api/v1/settings/public、容器状态、应用日志、迁移结果和
-关键业务 smoke test。回滚只切回上一个已验证的不可变镜像标签；数据库迁移不能靠简单
-回滚镜像逆向撤销，必须按迁移兼容性和备份方案处理。
-
-当 `upstream/main` 已前进时，`make review-flowai-upstream` 会列出新增提交、重叠路径、
-受保护路径和模拟冲突，并默认阻断后续操作。只有人工完成冲突矩阵核对后，才可以用本次
-上游的**完整 SHA**显式确认：
-
-```bash
-FLOWAI_UPSTREAM_REVIEW_ACK=<upstream-main-full-sha> make review-flowai-upstream
-```
-
-这个确认值只用于把审阅对象锁定到不可变提交，不代表可以跳过行为判断、测试或迁移检查。
-上游 SHA 变化后必须重新审阅，不能复用旧确认值。
+- Aivoza 首页、登录、用户/管理页面、明暗主题、图标、图表与中英文 locale 一起发布；构建必须包含 `aivoza-home-pixel.html`。
+- 订阅有效期开关 `subscription_expiration_enabled` 默认 true，保持历史行为；关闭不会恢复明确 expired/suspended 订阅，也不会取消额度检查。
+- 新增 `235_subscription_expiration_enabled.sql` 只插入缺失设置，不更新已有值；蓝绿并存期间保持默认/现有开启策略，避免两版本解释不同。
+- CSP nonce-bearing HTML 使用 no-store 保持 HTML/CSP 配对，不能恢复旧 304 行为。
 
 ## 7. 契约变更规则
 

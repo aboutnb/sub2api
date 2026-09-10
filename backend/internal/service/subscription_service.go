@@ -55,8 +55,9 @@ type SubscriptionService struct {
 	subCacheTTL    time.Duration
 	subCacheJitter int // 抖动百分比
 
-	maintenanceQueue *SubscriptionMaintenanceQueue
-	now              func() time.Time
+	maintenanceQueue   *SubscriptionMaintenanceQueue
+	now                func() time.Time
+	subscriptionPolicy *SubscriptionPolicy
 }
 
 // NewSubscriptionService 创建订阅服务
@@ -72,6 +73,29 @@ func NewSubscriptionService(groupRepo GroupRepository, userSubRepo UserSubscript
 	svc.initMaintenanceQueue(cfg)
 	svc.StartSubCacheInvalidationSubscriber(context.Background())
 	return svc
+}
+
+// SetSubscriptionPolicy connects the service to the shared expiration switch.
+// The constructor remains unchanged for compatibility with existing callers.
+func (s *SubscriptionService) SetSubscriptionPolicy(policy *SubscriptionPolicy) {
+	if s == nil {
+		return
+	}
+	s.subscriptionPolicy = policy
+	if s.billingCacheService != nil {
+		s.billingCacheService.SetSubscriptionPolicy(policy)
+	}
+}
+
+func (s *SubscriptionService) subscriptionExpirationEnabled(ctx context.Context) bool {
+	return s == nil || s.subscriptionPolicy == nil || s.subscriptionPolicy.ExpirationEnabled(ctx)
+}
+
+func (s *SubscriptionService) currentTime() time.Time {
+	if s != nil && s.now != nil {
+		return s.now()
+	}
+	return time.Now()
 }
 
 func (s *SubscriptionService) initMaintenanceQueue(cfg *config.Config) {
@@ -303,17 +327,17 @@ func (s *SubscriptionService) updateExistingSubscriptionTerm(
 			return nil
 		}
 
-		now := time.Now()
-		if s.now != nil {
-			now = s.now()
-		}
-		isExpired := !existingSub.ExpiresAt.After(now)
+		now := s.currentTime()
+		expirationEnabled := s.subscriptionExpirationEnabled(txCtx)
+		isExpired := expirationEnabled && !existingSub.ExpiresAt.After(now)
 		if assignmentSemantics {
 			isExpired = existingSub.Status == SubscriptionStatusExpired ||
-				(existingSub.Status != SubscriptionStatusSuspended && !existingSub.ExpiresAt.After(now))
+				(expirationEnabled && existingSub.Status != SubscriptionStatusSuspended && !existingSub.ExpiresAt.After(now))
 		}
 		newExpiresAt := existingSub.ExpiresAt.AddDate(0, 0, validityDays)
-		if isExpired {
+		if !expirationEnabled {
+			newExpiresAt = MaxExpiresAt
+		} else if isExpired {
 			newExpiresAt = now.AddDate(0, 0, validityDays)
 		}
 		if newExpiresAt.After(MaxExpiresAt) {
@@ -419,6 +443,9 @@ func (s *SubscriptionService) createSubscription(ctx context.Context, input *Ass
 
 	now := time.Now()
 	expiresAt := now.AddDate(0, 0, validityDays)
+	if !s.subscriptionExpirationEnabled(ctx) {
+		expiresAt = MaxExpiresAt
+	}
 	if expiresAt.After(MaxExpiresAt) {
 		expiresAt = MaxExpiresAt
 	}
@@ -524,8 +551,9 @@ func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, i
 			return nil, false, getErr
 		}
 		now := time.Now()
+		expirationEnabled := s.subscriptionExpirationEnabled(ctx)
 		if sub.Status == SubscriptionStatusExpired ||
-			(sub.Status != SubscriptionStatusSuspended && !sub.ExpiresAt.After(now)) {
+			(expirationEnabled && sub.Status != SubscriptionStatusSuspended && !sub.ExpiresAt.After(now)) {
 			validityDays := normalizeAssignValidityDays(input.ValidityDays)
 			if err := s.updateExistingSubscriptionTerm(ctx, sub.ID, validityDays, input.Notes, true); err != nil {
 				return nil, false, err
@@ -534,7 +562,7 @@ func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, i
 			renewed, getErr := s.userSubRepo.GetByID(ctx, sub.ID)
 			return renewed, true, getErr
 		}
-		if conflictReason, conflict := detectAssignSemanticConflict(sub, input); conflict {
+		if conflictReason, conflict := detectAssignSemanticConflictWithExpiry(sub, input, expirationEnabled); conflict {
 			return nil, false, ErrSubscriptionAssignConflict.WithMetadata(map[string]string{
 				"conflict_reason": conflictReason,
 			})
@@ -562,12 +590,16 @@ func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, i
 }
 
 func detectAssignSemanticConflict(existing *UserSubscription, input *AssignSubscriptionInput) (string, bool) {
+	return detectAssignSemanticConflictWithExpiry(existing, input, true)
+}
+
+func detectAssignSemanticConflictWithExpiry(existing *UserSubscription, input *AssignSubscriptionInput, checkExpiry bool) (string, bool) {
 	if existing == nil || input == nil {
 		return "", false
 	}
 
 	normalizedDays := normalizeAssignValidityDays(input.ValidityDays)
-	if !existing.StartsAt.IsZero() {
+	if checkExpiry && !existing.StartsAt.IsZero() {
 		expectedExpiresAt := existing.StartsAt.AddDate(0, 0, normalizedDays)
 		if expectedExpiresAt.After(MaxExpiresAt) {
 			expectedExpiresAt = MaxExpiresAt
@@ -635,7 +667,7 @@ func (s *SubscriptionService) RestoreSubscription(ctx context.Context, subscript
 
 	restoredStatus := sub.Status
 	now := time.Now()
-	if restoredStatus == SubscriptionStatusActive && !sub.ExpiresAt.After(now) {
+	if s.subscriptionExpirationEnabled(ctx) && restoredStatus == SubscriptionStatusActive && !sub.ExpiresAt.After(now) {
 		restoredStatus = SubscriptionStatusExpired
 	}
 
@@ -665,8 +697,16 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 		days = -MaxValidityDays
 	}
 
-	now := time.Now()
-	isExpired := !sub.ExpiresAt.After(now)
+	now := s.currentTime()
+	expirationEnabled := s.subscriptionExpirationEnabled(ctx)
+	if !expirationEnabled && sub.Status == SubscriptionStatusActive && sub.DeletedAt == nil {
+		// Keep an active subscription's quota windows rolling even when an old
+		// persisted expiry is already in the past. This is an in-memory
+		// normalization; the original timestamp remains available if the policy
+		// is enabled again.
+		sub.ExpiresAt = MaxExpiresAt
+	}
+	isExpired := expirationEnabled && !sub.ExpiresAt.After(now)
 
 	// 如果订阅已过期，不允许负向调整
 	if isExpired && days < 0 {
@@ -675,7 +715,9 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 
 	// 计算新的过期时间
 	var newExpiresAt time.Time
-	if isExpired {
+	if !expirationEnabled {
+		newExpiresAt = MaxExpiresAt
+	} else if isExpired {
 		// 已过期：从当前时间开始增加天数
 		newExpiresAt = now.AddDate(0, 0, days)
 	} else {
@@ -732,8 +774,15 @@ func (s *SubscriptionService) GetActiveSubscription(ctx context.Context, userID,
 	if s.subCacheL1 != nil {
 		if v, ok := s.subCacheL1.Get(key); ok {
 			if sub, ok := v.(*UserSubscription); ok {
-				cp := *sub
-				return &cp, nil
+				if sub.Status != SubscriptionStatusActive ||
+					(s.subscriptionExpirationEnabled(ctx) && !sub.ExpiresAt.After(s.currentTime())) {
+					// A policy toggle can make an entry cached under the previous
+					// policy stale. Drop it and reload from the repository.
+					s.subCacheL1.Del(key)
+				} else {
+					cp := *sub
+					return &cp, nil
+				}
 			}
 		}
 	}
@@ -743,6 +792,10 @@ func (s *SubscriptionService) GetActiveSubscription(ctx context.Context, userID,
 		sub, err := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, userID, groupID)
 		if err != nil {
 			return nil, err // 直接透传 repo 已翻译的错误（NotFound → ErrSubscriptionNotFound，其他错误原样返回）
+		}
+		if sub == nil || sub.Status != SubscriptionStatusActive ||
+			(s.subscriptionExpirationEnabled(ctx) && !sub.ExpiresAt.After(s.currentTime())) {
+			return nil, ErrSubscriptionNotFound
 		}
 		// 写入 L1 缓存
 		if s.subCacheL1 != nil {
@@ -769,7 +822,9 @@ func (s *SubscriptionService) ListUserSubscriptions(ctx context.Context, userID 
 		return nil, err
 	}
 	normalizeExpiredWindows(subs)
-	normalizeSubscriptionStatus(subs)
+	if s.subscriptionExpirationEnabled(ctx) {
+		normalizeSubscriptionStatus(subs)
+	}
 	return subs, nil
 }
 
@@ -791,7 +846,9 @@ func (s *SubscriptionService) ListGroupSubscriptions(ctx context.Context, groupI
 		return nil, nil, err
 	}
 	normalizeExpiredWindows(subs)
-	normalizeSubscriptionStatus(subs)
+	if s.subscriptionExpirationEnabled(ctx) {
+		normalizeSubscriptionStatus(subs)
+	}
 	return subs, pag, nil
 }
 
@@ -803,7 +860,9 @@ func (s *SubscriptionService) List(ctx context.Context, page, pageSize int, user
 		return nil, nil, err
 	}
 	normalizeExpiredWindows(subs)
-	normalizeSubscriptionStatus(subs)
+	if s.subscriptionExpirationEnabled(ctx) {
+		normalizeSubscriptionStatus(subs)
+	}
 	return subs, pag, nil
 }
 
@@ -853,7 +912,7 @@ func startOfDay(t time.Time) time.Time {
 
 // CheckAndActivateWindow 检查并激活窗口（首次使用时）
 func (s *SubscriptionService) CheckAndActivateWindow(ctx context.Context, sub *UserSubscription) error {
-	return s.checkAndActivateWindowAt(ctx, sub, s.now())
+	return s.checkAndActivateWindowAt(ctx, sub, s.currentTime())
 }
 
 func (s *SubscriptionService) checkAndActivateWindowAt(ctx context.Context, sub *UserSubscription, now time.Time) error {
@@ -875,7 +934,7 @@ func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionI
 	if err != nil {
 		return nil, err
 	}
-	now := s.now()
+	now := s.currentTime()
 	// 日窗口锚点取当天 0 点：手动重置只清空用量，不改变“每天 0 点刷新”的节奏。
 	// 周/月窗口保持锚定重置时刻（期限对齐滚动窗口语义）。
 	if err := s.userSubRepo.ResetUsageWindows(ctx, sub.ID, resetDaily, resetWeekly, resetMonthly, timezone.StartOfDay(now), now); err != nil {
@@ -894,7 +953,7 @@ func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionI
 
 // CheckAndResetWindows 检查并重置过期的窗口
 func (s *SubscriptionService) CheckAndResetWindows(ctx context.Context, sub *UserSubscription) error {
-	now := s.now()
+	now := s.currentTime()
 	needsInvalidateCache := false
 
 	// 日窗口重置（每天 0 点刷新，按日历日对齐）
@@ -986,7 +1045,7 @@ func (s *SubscriptionService) CheckUsageLimits(ctx context.Context, sub *UserSub
 // 仅做内存检查，不触发 DB 写入。调用方必须在放行请求前同步完成窗口维护。
 // 返回 needsMaintenance 表示是否需要执行窗口维护并回读数据库快照。
 func (s *SubscriptionService) ValidateAndCheckLimits(sub *UserSubscription, group *Group) (needsMaintenance bool, err error) {
-	now := s.now()
+	now := s.currentTime()
 	// 1. 验证订阅状态
 	if sub.Status == SubscriptionStatusExpired {
 		return false, ErrSubscriptionExpired
@@ -994,7 +1053,7 @@ func (s *SubscriptionService) ValidateAndCheckLimits(sub *UserSubscription, grou
 	if sub.Status == SubscriptionStatusSuspended {
 		return false, ErrSubscriptionSuspended
 	}
-	if !sub.ExpiresAt.After(now) {
+	if s.subscriptionExpirationEnabled(context.Background()) && !sub.ExpiresAt.After(now) {
 		return false, ErrSubscriptionExpired
 	}
 
@@ -1239,7 +1298,7 @@ func (s *SubscriptionService) ValidateSubscription(ctx context.Context, sub *Use
 	if sub.Status == SubscriptionStatusSuspended {
 		return ErrSubscriptionSuspended
 	}
-	if sub.IsExpired() {
+	if s.subscriptionExpirationEnabled(ctx) && sub.IsExpired() {
 		// 更新状态
 		_ = s.userSubRepo.UpdateStatus(ctx, sub.ID, SubscriptionStatusExpired)
 		return ErrSubscriptionExpired

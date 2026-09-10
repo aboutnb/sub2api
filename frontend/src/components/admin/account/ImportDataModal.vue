@@ -7,7 +7,7 @@
     @close="handleClose"
   >
     <form id="import-data-form" class="space-y-4" @submit.prevent="handleImport">
-      <div class="text-sm text-gray-600 dark:text-dark-300">
+      <div class="text-sm text-ink dark:text-ink">
         {{ t('admin.accounts.dataImportHint') }}
       </div>
       <div
@@ -18,7 +18,7 @@
 
       <div
         v-if="groupsLoading"
-        class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-400"
+        class="rounded-lg border border-line bg-surface-muted px-4 py-3 text-sm text-ink-muted dark:border-line dark:bg-surface dark:text-ink-muted"
       >
         {{ t('admin.accounts.dataImportGroupsLoading') }}
       </div>
@@ -30,17 +30,17 @@
           class="flex items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3 transition-colors"
           :class="dragActive
             ? 'border-primary-400 bg-primary-50/70 dark:border-primary-500 dark:bg-primary-900/20'
-            : 'border-gray-300 bg-gray-50 dark:border-dark-600 dark:bg-dark-800'"
+            : 'border-line-strong bg-surface-muted dark:border-line-strong dark:bg-surface'"
           @dragenter.prevent="handleDragEnter"
           @dragover.prevent
           @dragleave.prevent="handleDragLeave"
           @drop.prevent="handleDrop"
         >
           <div class="min-w-0">
-            <div class="truncate text-sm text-gray-700 dark:text-dark-200" :title="fileListTitle">
+            <div class="truncate text-sm text-ink dark:text-ink-strong" :title="fileListTitle">
               {{ selectedFilesLabel || t('admin.accounts.dataImportSelectFile') }}
             </div>
-            <div class="text-xs text-gray-500 dark:text-dark-400">
+            <div class="text-xs text-ink-muted dark:text-ink-muted">
               JSON (.json)
               <span v-if="files.length > 1"> · {{ fileListTitle }}</span>
             </div>
@@ -59,15 +59,15 @@
         />
       </div>
 
-      <label class="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-200">
+      <label class="flex items-start gap-3 rounded-lg border border-line bg-surface-muted px-4 py-3 text-sm text-ink dark:border-line dark:bg-surface dark:text-ink-strong">
         <input
           v-model="useProjectMihomoPool"
           type="checkbox"
-          class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          class="mt-0.5 h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
         />
         <span>
           <span class="block font-medium">{{ t('admin.accounts.dataImportUseProjectMihomo') }}</span>
-          <span class="mt-1 block text-xs text-gray-500 dark:text-dark-400">
+          <span class="mt-1 block text-xs text-ink-muted dark:text-ink-muted">
             {{ t('admin.accounts.dataImportUseProjectMihomoHint') }}
           </span>
         </span>
@@ -75,12 +75,12 @@
 
       <div
         v-if="result"
-        class="space-y-2 rounded-xl border border-gray-200 p-4 dark:border-dark-700"
+        class="space-y-2 rounded-xl border border-line p-4 dark:border-line"
       >
-        <div class="text-sm font-medium text-gray-900 dark:text-white">
+        <div class="text-sm font-medium text-ink-strong dark:text-white">
           {{ t('admin.accounts.dataImportResult') }}
         </div>
-        <div class="text-sm text-gray-700 dark:text-dark-300">
+        <div class="text-sm text-ink dark:text-ink">
           {{ t('admin.accounts.dataImportResultSummary', result) }}
         </div>
 
@@ -89,7 +89,7 @@
             {{ t('admin.accounts.dataImportErrors') }}
           </div>
           <div
-            class="mt-2 max-h-48 overflow-auto rounded-lg bg-gray-50 p-3 font-mono text-xs dark:bg-dark-800"
+            class="mt-2 max-h-48 overflow-auto rounded-lg bg-surface-muted p-3 font-mono text-xs dark:bg-surface"
           >
             <div v-for="(item, idx) in errorItems" :key="idx" class="whitespace-pre-wrap">
               {{ item.kind }} {{ item.name || item.proxy_key || '-' }} — {{ item.message }}

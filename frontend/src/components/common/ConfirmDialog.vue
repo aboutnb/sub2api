@@ -1,7 +1,13 @@
 <template>
-  <BaseDialog :show="show" :title="title" width="narrow" @close="handleCancel">
+  <BaseDialog
+    :show="show"
+    :title="title"
+    width="narrow"
+    :pending="pending"
+    @close="handleCancel"
+  >
     <div class="space-y-4">
-      <p class="text-sm text-gray-600 dark:text-gray-400">{{ message }}</p>
+      <p class="text-sm text-ink dark:text-ink-muted">{{ message }}</p>
       <slot></slot>
     </div>
 
@@ -10,20 +16,28 @@
         <button
           @click="handleCancel"
           type="button"
-          class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-200 dark:hover:bg-dark-600 dark:focus:ring-offset-dark-800"
+          class="btn btn-secondary"
+          :disabled="pending || cancelDisabled"
         >
           {{ cancelText }}
         </button>
         <button
           @click="handleConfirm"
           type="button"
+          :disabled="pending || confirmDisabled"
+          :aria-busy="pending || undefined"
           :class="[
-            'rounded-md px-4 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-dark-800',
+            'btn',
             danger
-              ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-              : 'bg-primary-600 hover:bg-primary-700 focus:ring-primary-500'
+              ? 'btn-danger'
+              : 'btn-primary'
           ]"
         >
+          <span
+            v-if="pending"
+            class="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent"
+            aria-hidden="true"
+          ></span>
           {{ confirmText }}
         </button>
       </div>
@@ -45,6 +59,9 @@ interface Props {
   confirmText?: string
   cancelText?: string
   danger?: boolean
+  pending?: boolean
+  confirmDisabled?: boolean
+  cancelDisabled?: boolean
 }
 
 interface Emits {
@@ -53,7 +70,10 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  danger: false
+  danger: false,
+  pending: false,
+  confirmDisabled: false,
+  cancelDisabled: false
 })
 
 const confirmText = computed(() => props.confirmText || t('common.confirm'))
@@ -62,10 +82,12 @@ const cancelText = computed(() => props.cancelText || t('common.cancel'))
 const emit = defineEmits<Emits>()
 
 const handleConfirm = () => {
+  if (props.pending || props.confirmDisabled) return
   emit('confirm')
 }
 
 const handleCancel = () => {
+  if (props.pending || props.cancelDisabled) return
   emit('cancel')
 }
 </script>

@@ -186,7 +186,7 @@ export function useOnboardingTour(options: OnboardingOptions) {
             const hintClass = 'driver-popover-description-hint'
             if (!popover.description.querySelector(`.${hintClass}`)) {
               const hint = document.createElement('div')
-              hint.className = `${hintClass} mt-2 text-xs text-gray-500 flex items-center gap-1`
+              hint.className = `${hintClass} mt-2 text-xs text-ink-muted flex items-center gap-1`
 
               const iconSpan = document.createElement('span')
               iconSpan.className = 'i-mdi-keyboard-return mr-1'

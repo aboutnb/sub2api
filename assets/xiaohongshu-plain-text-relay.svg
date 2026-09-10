@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1440" viewBox="0 0 1080 1440">
+  <rect width="1080" height="1440" fill="#FCFBF7"/>
+  <rect x="0" y="0" width="1080" height="30" fill="#E95845"/>
+  <text x="94" y="160" fill="#E95845" font-size="28" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif" letter-spacing="2">JUST A QUICK NOTE</text>
+  <text x="90" y="318" fill="#1E2526" font-size="76" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">第一次用中转站，</text>
+  <text x="90" y="425" fill="#1E2526" font-size="76" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">先别急着找地址</text>
+  <path d="M92 506 H988" stroke="#1E2526" stroke-width="4"/>
+  <text x="92" y="608" fill="#57605F" font-size="31" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">我会先过一遍这三件事：</text>
+  <g transform="translate(92 700)">
+    <text x="0" y="0" fill="#E95845" font-size="32" font-weight="700" font-family="Arial, sans-serif">01</text>
+    <text x="88" y="0" fill="#1E2526" font-size="40" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">实际模型有没有写清楚</text>
+    <path d="M0 66 H895" stroke="#DEDCD5" stroke-width="3"/>
+  </g>
+  <g transform="translate(92 848)">
+    <text x="0" y="0" fill="#E95845" font-size="32" font-weight="700" font-family="Arial, sans-serif">02</text>
+    <text x="88" y="0" fill="#1E2526" font-size="40" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">常用任务能不能顺手试一遍</text>
+    <path d="M0 66 H895" stroke="#DEDCD5" stroke-width="3"/>
+  </g>
+  <g transform="translate(92 996)">
+    <text x="0" y="0" fill="#E95845" font-size="32" font-weight="700" font-family="Arial, sans-serif">03</text>
+    <text x="88" y="0" fill="#1E2526" font-size="40" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">入口和切换自己用得明白吗</text>
+  </g>
+  <rect x="90" y="1160" width="900" height="132" rx="12" fill="#1E2526"/>
+  <text x="135" y="1240" fill="#FFFFFF" font-size="37" font-weight="700" font-family="Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif">想要中转地址的，可以私信我。</text>
+  <text x="92" y="1360" fill="#8B918D" font-size="24" font-family="Arial, sans-serif" letter-spacing="2">MODEL / TASK / WORKFLOW</text>
+</svg>

@@ -9,11 +9,11 @@
       <div
         v-for="r in results"
         :key="r.model"
-        class="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-dark-600"
+        class="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm dark:border-line-strong"
       >
         <div class="flex flex-col">
-          <span class="font-medium text-gray-900 dark:text-white">{{ formatMonitorModel(r.model) }}</span>
-          <span v-if="r.message" class="text-xs text-gray-500 dark:text-gray-400">{{ r.message }}</span>
+          <span class="font-medium text-ink-strong dark:text-white">{{ formatMonitorModel(r.model) }}</span>
+          <span v-if="r.message" class="text-xs text-ink-muted dark:text-ink-muted">{{ r.message }}</span>
           <MonitorQuotaView :snapshot="r.quota" class="mt-1" />
         </div>
         <div class="flex items-center gap-2">
@@ -23,7 +23,7 @@
           >
             {{ statusLabel(r.status) }}
           </span>
-          <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatLatency(r.latency_ms) }} ms</span>
+          <span class="text-xs text-ink-muted dark:text-ink-muted">{{ formatLatency(r.latency_ms) }} ms</span>
         </div>
       </div>
     </div>

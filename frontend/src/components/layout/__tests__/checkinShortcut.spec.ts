@@ -135,11 +135,11 @@ describe('check-in header shortcut', () => {
     const dir = dirname(fileURLToPath(import.meta.url))
     const headerSource = readFileSync(resolve(dir, '../AppHeader.vue'), 'utf8')
     const shortcutIndex = headerSource.indexOf('<CheckinShortcut')
-    const balanceIndex = headerSource.indexOf('<!-- Balance Display -->')
+    const walletIndex = headerSource.indexOf('data-testid="header-wallet"')
 
     expect(shortcutIndex).toBeGreaterThan(-1)
-    expect(balanceIndex).toBeGreaterThan(shortcutIndex)
-    expect(headerSource).toContain('<CheckinShortcut v-if="user && !authStore.isSimpleMode" />')
+    expect(walletIndex).toBeGreaterThan(shortcutIndex)
+    expect(headerSource).toContain('<CheckinShortcut v-if="user && !authStore.isSimpleMode && checkinEnabled" />')
   })
 
   it('shows quick check-in for an eligible administrator', async () => {
@@ -147,7 +147,7 @@ describe('check-in header shortcut', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="checkin-shortcut"]').text()).toContain('checkin.quickAction')
-    expect(wrapper.get('[data-testid="checkin-shortcut-actions"]').classes()).toContain('xl:flex')
+    expect(wrapper.get('[data-testid="checkin-shortcut-actions"]').classes()).toContain('2xl:flex')
     expect(wrapper.get('[data-testid="quick-checkin-normal"]').text()).toContain('checkin.normal')
     expect(wrapper.get('[data-testid="quick-checkin-lucky"]').text()).toContain('checkin.lucky')
   })
@@ -202,7 +202,7 @@ describe('check-in header shortcut', () => {
     expect(wrapper.get('[data-testid="quick-checkin-menu-lucky"]').text()).toContain('checkin.lucky')
   })
 
-  it('hides disabled modes and hides the shortcut when no mode is enabled', async () => {
+  it('hides disabled modes but keeps the check-in destination visible when no mode is enabled', async () => {
     getStatus
       .mockResolvedValueOnce({ ...status, lucky_enabled: false })
       .mockResolvedValueOnce({ ...status, normal_enabled: false, lucky_enabled: false, can_check_in: false, unavailable_reason: 'no_modes_enabled' })
@@ -215,7 +215,11 @@ describe('check-in header shortcut', () => {
     window.dispatchEvent(new Event('focus'))
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="checkin-shortcut"]').exists()).toBe(false)
+    const fallback = wrapper.get('[data-testid="checkin-shortcut"]')
+    expect(fallback.text()).toContain('nav.checkin')
+    expect(fallback.attributes('aria-haspopup')).toBeUndefined()
+    await fallback.trigger('click')
+    expect(push).toHaveBeenCalledWith('/checkin')
   })
 
   it('ignores repeated clicks while a check-in request is pending', async () => {
@@ -252,7 +256,7 @@ describe('check-in header shortcut', () => {
 
     const shortcut = wrapper.get('[data-testid="checkin-shortcut"]')
     expect(shortcut.text()).toContain('checkin.checkedToday')
-    expect(shortcut.attributes('aria-expanded')).toBe('false')
+    expect(shortcut.attributes('aria-expanded')).toBeUndefined()
     expect(refreshUser).toHaveBeenCalledTimes(1)
     expect(getStatus).toHaveBeenCalledTimes(2)
   })

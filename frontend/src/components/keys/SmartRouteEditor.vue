@@ -2,7 +2,7 @@
   <section class="space-y-4" aria-labelledby="smart-route-mode-label">
     <div>
       <label id="smart-route-mode-label" class="input-label">{{ t('smartRouting.mode') }}</label>
-      <div class="grid grid-cols-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-700" role="radiogroup">
+      <div class="grid grid-cols-2 rounded-lg bg-surface-muted p-1 dark:bg-surface-muted" role="radiogroup">
         <button
           type="button"
           role="radio"
@@ -53,7 +53,7 @@
             :peak-end="groupOption(option).group.peak_end"
             :peak-rate-multiplier="groupOption(option).group.peak_rate_multiplier"
           />
-          <span v-else class="text-gray-400">{{ t('keys.selectGroup') }}</span>
+          <span v-else class="text-ink-muted">{{ t('keys.selectGroup') }}</span>
         </template>
         <template #option="{ option, selected }">
           <GroupOptionItem
@@ -88,9 +88,9 @@
               <Icon :name="strategy.icon" size="sm" />
             </span>
             <span class="min-w-0 text-left">
-              <span class="block text-sm font-semibold text-gray-900 dark:text-white">{{ t(strategy.label) }}</span>
-              <span class="mt-0.5 block text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t(strategy.hint) }}</span>
-              <span class="mt-1 block text-[11px] leading-4 text-gray-400 dark:text-gray-500">
+              <span class="block text-sm font-semibold text-ink-strong dark:text-white">{{ t(strategy.label) }}</span>
+              <span class="mt-0.5 block text-xs leading-5 text-ink-muted dark:text-ink-muted">{{ t(strategy.hint) }}</span>
+              <span class="mt-1 block text-[11px] leading-4 text-ink-muted dark:text-ink-muted">
                 {{ t('smartRouting.weightSummary', { ...strategyWeights(strategy.value) }) }}
               </span>
             </span>
@@ -111,7 +111,7 @@
               class="input pr-8 tabular-nums"
               @input="setWeight(weight.key, $event)"
             />
-            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">%</span>
+            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">%</span>
           </div>
         </label>
         <p class="sm:col-span-3 text-right text-xs font-medium" :class="weightTotal === 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'">
@@ -122,7 +122,7 @@
       <div>
         <div class="mb-2 flex items-center justify-between gap-3">
           <label class="input-label mb-0">{{ t('smartRouting.candidates') }}</label>
-          <span class="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+          <span class="text-xs tabular-nums text-ink-muted dark:text-ink-muted">
             {{ t('smartRouting.candidateCount', { count: modelValue.candidate_group_ids.length }) }}
           </span>
         </div>
@@ -135,7 +135,7 @@
             <input
               type="checkbox"
               checked
-              class="h-4 w-4 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 shrink-0 rounded border-line-strong text-primary-600 focus:ring-primary-500"
               @change="toggleCandidate(groupID)"
             />
             <span class="min-w-0 flex-1 text-sm text-amber-800 dark:text-amber-200">
@@ -149,7 +149,7 @@
           >
             <input
               type="checkbox"
-              class="h-4 w-4 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 shrink-0 rounded border-line-strong text-primary-600 focus:ring-primary-500"
               :checked="isSelected(group.id)"
               :disabled="isDisabled(group)"
               @change="toggleCandidate(group.id)"
@@ -166,12 +166,12 @@
                 :peak-end="group.peak_end"
                 :peak-rate-multiplier="group.peak_rate_multiplier"
               />
-              <span v-if="disabledReason(group)" class="mt-1 block text-xs text-gray-400">
+              <span v-if="disabledReason(group)" class="mt-1 block text-xs text-ink-muted">
                 {{ disabledReason(group) }}
               </span>
             </span>
           </label>
-          <p v-if="candidateGroups.length === 0 && missingCandidateIDs.length === 0" class="py-3 text-center text-sm text-gray-500">
+          <p v-if="candidateGroups.length === 0 && missingCandidateIDs.length === 0" class="py-3 text-center text-sm text-ink-muted">
             {{ t('smartRouting.noCompatibleGroups') }}
           </p>
         </div>
@@ -180,8 +180,8 @@
       <div class="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-800 dark:bg-emerald-950/20">
         <div class="flex items-start justify-between gap-4">
           <div>
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('smartRouting.rateGuard') }}</h3>
-            <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('smartRouting.rateGuardHint') }}</p>
+            <h3 class="text-sm font-semibold text-ink-strong dark:text-white">{{ t('smartRouting.rateGuard') }}</h3>
+            <p class="mt-1 text-xs leading-5 text-ink-muted dark:text-ink-muted">{{ t('smartRouting.rateGuardHint') }}</p>
           </div>
           <button
             type="button"
@@ -189,7 +189,7 @@
             :aria-checked="modelValue.rate_guard.enabled"
             :class="[
               'relative mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              modelValue.rate_guard.enabled ? 'bg-emerald-600' : 'bg-gray-300 dark:bg-dark-600'
+              modelValue.rate_guard.enabled ? 'bg-emerald-600' : 'bg-line-strong dark:bg-line-strong'
             ]"
             @click="setGuardEnabled(!modelValue.rate_guard.enabled)"
           >
@@ -324,14 +324,14 @@ const isDisabled = (group: Group) => {
 
 const modeButtonClass = (active: boolean) => [
   'flex min-h-9 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-45',
-  active ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-600 dark:text-primary-300' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
+  active ? 'bg-white text-primary-700 shadow-sm dark:bg-line-strong dark:text-primary-300' : 'text-ink hover:text-ink-strong dark:text-ink-muted dark:hover:text-white'
 ]
 
 const strategyClass = (strategy: SmartRouteStrategy) => [
   'flex min-h-[76px] items-start gap-3 rounded-lg border p-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500',
   props.modelValue.strategy === strategy
     ? 'border-emerald-400 bg-emerald-50/70 dark:border-emerald-700 dark:bg-emerald-950/20'
-    : 'border-gray-200 bg-white hover:border-gray-300 dark:border-dark-600 dark:bg-dark-800 dark:hover:border-dark-500',
+    : 'border-line bg-white hover:border-line-strong dark:border-line-strong dark:bg-surface dark:hover:border-line-strong',
   strategy === 'custom' ? 'sm:col-span-2' : ''
 ]
 
@@ -339,8 +339,8 @@ const candidateClass = (group: Group) => [
   'flex min-h-11 items-center gap-3 rounded-lg border px-3 py-2 transition-colors',
   isSelected(group.id)
     ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/20'
-    : 'border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800',
-  isDisabled(group) ? 'cursor-not-allowed opacity-55' : 'cursor-pointer hover:border-gray-300 dark:hover:border-dark-500'
+    : 'border-line bg-white dark:border-line-strong dark:bg-surface',
+  isDisabled(group) ? 'cursor-not-allowed opacity-55' : 'cursor-pointer hover:border-line-strong dark:hover:border-line-strong'
 ]
 
 const setMode = (mode: SmartRouteMode) => {

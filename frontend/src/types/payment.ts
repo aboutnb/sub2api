@@ -31,7 +31,7 @@ export interface RechargeBonusTier {
 }
 
 export interface PaymentConfig {
-  payment_enabled: boolean
+  enabled: boolean
   min_amount: number
   max_amount: number
   daily_limit: number

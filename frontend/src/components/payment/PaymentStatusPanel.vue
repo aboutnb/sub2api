@@ -9,24 +9,24 @@
           <div class="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
             <Icon name="check" size="lg" class="text-green-500" />
           </div>
-          <p class="text-lg font-bold text-gray-900 dark:text-white">{{ props.orderType === 'subscription' ? t('payment.result.subscriptionSuccess') : t('payment.result.success') }}</p>
-          <div v-if="paidOrder" class="w-full rounded-xl bg-gray-50 p-4 dark:bg-dark-800">
+          <p class="text-lg font-bold text-ink-strong dark:text-white">{{ props.orderType === 'subscription' ? t('payment.result.subscriptionSuccess') : t('payment.result.success') }}</p>
+          <div v-if="paidOrder" class="w-full rounded-xl bg-surface-muted p-4 dark:bg-surface">
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">#{{ paidOrder.id }}</span>
+                <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.orders.orderId') }}</span>
+                <span class="font-medium text-ink-strong dark:text-white">#{{ paidOrder.id }}</span>
               </div>
               <div v-if="paidOrder.out_trade_no" class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderNo') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ paidOrder.out_trade_no }}</span>
+                <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.orders.orderNo') }}</span>
+                <span class="font-medium text-ink-strong dark:text-white">{{ paidOrder.out_trade_no }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ creditedAmountSymbol }}{{ paidOrder.amount.toFixed(2) }}</span>
+                <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.orders.amount') }}</span>
+                <span class="font-medium text-ink-strong dark:text-white">{{ creditedAmountSymbol }}{{ paidOrder.amount.toFixed(2) }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(paidOrder.pay_amount, paidOrder.currency) }}</span>
+                <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.orders.payAmount') }}</span>
+                <span class="font-medium text-ink-strong dark:text-white">{{ formatGatewayAmount(paidOrder.pay_amount, paidOrder.currency) }}</span>
               </div>
             </div>
           </div>
@@ -39,13 +39,13 @@
     <template v-else-if="outcome === 'cancelled'">
       <div class="card p-6">
         <div class="flex flex-col items-center space-y-4 py-4">
-          <div class="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700">
-            <svg class="h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <div class="flex h-16 w-16 items-center justify-center rounded-full bg-surface-muted dark:bg-surface-muted">
+            <svg class="h-8 w-8 text-ink-muted dark:text-ink-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <p class="text-lg font-bold text-gray-900 dark:text-white">{{ t('payment.qr.cancelled') }}</p>
-          <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.cancelledDesc') }}</p>
+          <p class="text-lg font-bold text-ink-strong dark:text-white">{{ t('payment.qr.cancelled') }}</p>
+          <p class="text-sm text-ink-muted dark:text-ink-muted">{{ t('payment.qr.cancelledDesc') }}</p>
           <button class="btn btn-primary" @click="handleDone">{{ t('common.confirm') }}</button>
         </div>
       </div>
@@ -60,8 +60,8 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <p class="text-lg font-bold text-gray-900 dark:text-white">{{ t('payment.qr.expired') }}</p>
-          <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.expiredDesc') }}</p>
+          <p class="text-lg font-bold text-ink-strong dark:text-white">{{ t('payment.qr.expired') }}</p>
+          <p class="text-sm text-ink-muted dark:text-ink-muted">{{ t('payment.qr.expiredDesc') }}</p>
           <button class="btn btn-primary" @click="handleDone">{{ t('common.confirm') }}</button>
         </div>
       </div>
@@ -84,10 +84,10 @@
             >
               <Icon name="checkCircle" size="lg" class="text-[#00AEEF]" />
             </div>
-            <p class="text-lg font-semibold text-gray-900 dark:text-white">
+            <p class="text-lg font-semibold text-ink-strong dark:text-white">
               {{ deepLinkState === 'backgrounded' ? t('payment.qr.alipayContinueInApp') : t('payment.qr.alipayOpening') }}
             </p>
-            <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.alipayWaitingHint') }}</p>
+            <p class="text-sm text-ink-muted dark:text-ink-muted">{{ t('payment.qr.alipayWaitingHint') }}</p>
             <button
               v-if="deepLinkState === 'backgrounded'"
               data-test="reopen-alipay"
@@ -100,32 +100,32 @@
           </div>
         </div>
         <div class="card p-4 text-center">
-          <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.expiresIn') }}</p>
-          <p class="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</p>
-          <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ t('payment.qr.waitingPayment') }}</p>
+          <p class="text-sm text-ink-muted dark:text-ink-muted">{{ t('payment.qr.expiresIn') }}</p>
+          <p class="mt-1 text-2xl font-bold tabular-nums text-ink-strong dark:text-white">{{ countdownDisplay }}</p>
+          <p class="mt-1 text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.qr.waitingPayment') }}</p>
         </div>
       </template>
       <template v-else>
         <div data-test="alipay-qr-fallback" class="card p-6">
           <div class="flex flex-col items-center space-y-4">
             <div class="text-center">
-              <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('payment.qr.alipayFallbackTitle') }}</p>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.alipayFallbackHint') }}</p>
+              <p class="text-lg font-semibold text-ink-strong dark:text-white">{{ t('payment.qr.alipayFallbackTitle') }}</p>
+              <p class="mt-1 text-sm text-ink-muted dark:text-ink-muted">{{ t('payment.qr.alipayFallbackHint') }}</p>
             </div>
-            <div class="w-full space-y-2 border-y border-gray-100 py-3 text-sm dark:border-dark-600">
+            <div class="w-full space-y-2 border-y border-line py-3 text-sm dark:border-line-strong">
               <div class="flex items-start justify-between gap-4">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
-                <span class="font-semibold text-gray-900 dark:text-white">{{ displayPaymentAmount }}</span>
+                <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.orders.payAmount') }}</span>
+                <span class="font-semibold text-ink-strong dark:text-white">{{ displayPaymentAmount }}</span>
               </div>
               <div class="flex items-start justify-between gap-4">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderNo') }}</span>
-                <span class="max-w-[70%] break-all text-right font-mono text-xs text-gray-900 dark:text-white">
+                <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.orders.orderNo') }}</span>
+                <span class="max-w-[70%] break-all text-right font-mono text-xs text-ink-strong dark:text-white">
                   {{ displayOrderNumber }}
                 </span>
               </div>
               <div class="flex items-start justify-between gap-4">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.qr.expiresIn') }}</span>
-                <span class="font-semibold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</span>
+                <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.qr.expiresIn') }}</span>
+                <span class="font-semibold tabular-nums text-ink-strong dark:text-white">{{ countdownDisplay }}</span>
               </div>
             </div>
             <div :class="['relative rounded-lg border-2 p-4', qrBorderClass]">
@@ -136,7 +136,7 @@
                 </span>
               </div>
             </div>
-            <p class="text-center text-sm leading-6 text-gray-600 dark:text-gray-300">
+            <p class="text-center text-sm leading-6 text-ink dark:text-ink-muted">
               {{ t('payment.qr.alipaySaveAndScanHint') }}
             </p>
             <div class="grid w-full gap-2 sm:grid-cols-2">
@@ -169,7 +169,7 @@
     <template v-else-if="showQRCode">
       <div class="card p-6">
         <div class="flex flex-col items-center space-y-4">
-          <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ scanTitle }}</p>
+          <p class="text-lg font-semibold text-ink-strong dark:text-white">{{ scanTitle }}</p>
           <div :class="['relative rounded-lg border-2 p-4', qrBorderClass]">
             <canvas ref="qrCanvas" class="mx-auto"></canvas>
             <!-- Brand logo overlay -->
@@ -179,16 +179,16 @@
               </span>
             </div>
           </div>
-          <p v-if="scanHint" class="text-center text-sm text-gray-500 dark:text-gray-400">{{ scanHint }}</p>
+          <p v-if="scanHint" class="text-center text-sm text-ink-muted dark:text-ink-muted">{{ scanHint }}</p>
           <button v-if="payUrl" class="btn btn-secondary text-sm" @click="reopenPopup">
             {{ t('payment.qr.openPayWindow') }}
           </button>
         </div>
       </div>
       <div class="card p-4 text-center">
-        <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.expiresIn') }}</p>
-        <p class="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</p>
-        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ t('payment.qr.waitingPayment') }}</p>
+        <p class="text-sm text-ink-muted dark:text-ink-muted">{{ t('payment.qr.expiresIn') }}</p>
+        <p class="mt-1 text-2xl font-bold tabular-nums text-ink-strong dark:text-white">{{ countdownDisplay }}</p>
+        <p class="mt-1 text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.qr.waitingPayment') }}</p>
       </div>
       <button class="btn btn-secondary w-full" :disabled="cancelling" @click="handleCancel">
         {{ cancelling ? t('common.processing') : t('payment.qr.cancelOrder') }}
@@ -200,15 +200,15 @@
       <div class="card p-6">
         <div class="flex flex-col items-center space-y-4 py-4">
           <div class="h-10 w-10 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
-          <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.payInNewWindowHint') }}</p>
+          <p class="text-sm text-ink-muted dark:text-ink-muted">{{ t('payment.qr.payInNewWindowHint') }}</p>
           <button v-if="payUrl" class="btn btn-secondary text-sm" @click="reopenPopup">
             {{ t('payment.qr.openPayWindow') }}
           </button>
         </div>
       </div>
       <div class="card p-4 text-center">
-        <p class="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</p>
-        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ t('payment.qr.waitingPayment') }}</p>
+        <p class="mt-1 text-2xl font-bold tabular-nums text-ink-strong dark:text-white">{{ countdownDisplay }}</p>
+        <p class="mt-1 text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.qr.waitingPayment') }}</p>
       </div>
       <button class="btn btn-secondary w-full" :disabled="cancelling" @click="handleCancel">
         {{ cancelling ? t('common.processing') : t('payment.qr.cancelOrder') }}
@@ -300,7 +300,7 @@ const showQRCode = computed(() => !!qrUrl.value && (!isMobileAlipayDeepLink.valu
 const qrBorderClass = computed(() => {
   if (isAlipay.value) return 'border-[#00AEEF] bg-blue-50 dark:border-[#00AEEF]/70 dark:bg-blue-950/20'
   if (isWxpay.value) return 'border-[#2BB741] bg-green-50 dark:border-[#2BB741]/70 dark:bg-green-950/20'
-  return 'border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800'
+  return 'border-line bg-white dark:border-line-strong dark:bg-surface'
 })
 
 const qrLogoBgClass = computed(() => {

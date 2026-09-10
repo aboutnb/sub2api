@@ -7,6 +7,9 @@
         :columns="columns"
         :data="rows"
         :loading="loading"
+        responsive-mode="scroll"
+        :aria-label="t('admin.ops.errors')"
+        :caption="t('admin.ops.errors')"
         clickable-rows
         server-side-sort
         default-sort-key="created_at"
@@ -16,7 +19,7 @@
       >
         <template #cell-created_at="{ row }">
           <span
-            class="text-sm text-gray-600 dark:text-gray-400"
+            class="text-sm text-ink dark:text-ink-muted"
             :title="row.request_id || row.client_request_id"
           >{{ formatDateTime(row.created_at) }}</span>
         </template>
@@ -29,28 +32,28 @@
 
         <template #cell-endpoint="{ row }">
           <div class="max-w-[320px] space-y-1 text-xs">
-            <div class="break-all text-gray-700 dark:text-gray-300">
-              <span class="font-medium text-gray-500 dark:text-gray-400">{{ t('usage.inbound') }}:</span>
+            <div class="break-all text-ink dark:text-ink-muted">
+              <span class="font-medium text-ink-muted dark:text-ink-muted">{{ t('usage.inbound') }}:</span>
               <span class="ml-1">{{ row.inbound_endpoint?.trim() || '-' }}</span>
             </div>
-            <div v-if="row.upstream_endpoint" class="break-all text-gray-700 dark:text-gray-300">
-              <span class="font-medium text-gray-500 dark:text-gray-400">{{ t('usage.upstream') }}:</span>
+            <div v-if="row.upstream_endpoint" class="break-all text-ink dark:text-ink-muted">
+              <span class="font-medium text-ink-muted dark:text-ink-muted">{{ t('usage.upstream') }}:</span>
               <span class="ml-1">{{ row.upstream_endpoint?.trim() || '-' }}</span>
             </div>
           </div>
         </template>
 
         <template #cell-platform="{ row }">
-          <span class="text-sm text-gray-900 dark:text-white">{{ row.platform || '-' }}</span>
+          <span class="text-sm text-ink-strong dark:text-white">{{ row.platform || '-' }}</span>
         </template>
 
         <template #cell-model="{ row }">
           <div v-if="hasModelMapping(row)" class="space-y-0.5 text-xs">
-            <div class="break-all font-medium text-gray-900 dark:text-white">{{ row.requested_model }}</div>
-            <div class="break-all text-gray-500 dark:text-gray-400"><span class="mr-0.5">↳</span>{{ row.upstream_model }}</div>
+            <div class="break-all font-medium text-ink-strong dark:text-white">{{ row.requested_model }}</div>
+            <div class="break-all text-ink-muted dark:text-ink-muted"><span class="mr-0.5">↳</span>{{ row.upstream_model }}</div>
           </div>
-          <span v-else-if="displayModel(row)" class="text-sm font-medium text-gray-900 dark:text-white">{{ displayModel(row) }}</span>
-          <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+          <span v-else-if="displayModel(row)" class="text-sm font-medium text-ink-strong dark:text-white">{{ displayModel(row) }}</span>
+          <span v-else class="text-sm text-ink-muted dark:text-ink-muted">-</span>
         </template>
 
         <template #cell-group="{ row }">
@@ -61,47 +64,47 @@
           >
             {{ row.group_name || '#' + row.group_id }}
           </span>
-          <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+          <span v-else class="text-sm text-ink-muted dark:text-ink-muted">-</span>
         </template>
 
         <template #cell-user="{ row }">
           <div v-if="row.user_id" class="text-sm">
             <button
               v-if="userClickable && row.user_email"
-              class="font-medium text-primary-600 underline decoration-dashed underline-offset-2 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+              class="inline-flex min-h-9 items-center rounded-lg px-2 font-medium text-primary-600 underline decoration-dashed underline-offset-2 transition-colors hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 dark:text-primary-400 dark:hover:bg-primary-900/30 dark:hover:text-primary-300"
               :title="t('admin.usage.clickToViewBalance')"
               @click.stop="emit('userClick', row.user_id, row.user_email)"
             >
               {{ row.user_email }}
             </button>
-            <span v-else class="font-medium text-gray-900 dark:text-white">{{ row.user_email || '-' }}</span>
-            <span class="ml-1 text-gray-500 dark:text-gray-400">#{{ row.user_id }}</span>
+            <span v-else class="font-medium text-ink-strong dark:text-white">{{ row.user_email || '-' }}</span>
+            <span class="ml-1 text-ink-muted dark:text-ink-muted">#{{ row.user_id }}</span>
           </div>
-          <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+          <span v-else class="text-sm text-ink-muted dark:text-ink-muted">-</span>
         </template>
 
         <template #cell-api_key="{ row }">
           <div v-if="row.api_key_id || row.api_key_name" class="text-sm">
-            <span class="text-gray-900 dark:text-white">{{ row.api_key_name || '#' + row.api_key_id }}</span>
+            <span class="text-ink-strong dark:text-white">{{ row.api_key_name || '#' + row.api_key_id }}</span>
             <span
               v-if="row.api_key_deleted"
               class="ml-1 inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:ring-rose-500/30"
             >{{ t('admin.ops.errorLog.keyDeletedBadge') }}</span>
           </div>
-          <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+          <span v-else class="text-sm text-ink-muted dark:text-ink-muted">-</span>
         </template>
 
         <template #cell-account="{ row }">
           <span
             v-if="row.account_id"
-            class="text-sm text-gray-900 dark:text-white"
+            class="text-sm text-ink-strong dark:text-white"
             :title="t('admin.ops.errorLog.accountId') + ' ' + row.account_id"
           >{{ row.account_name || '#' + row.account_id }}</span>
-          <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+          <span v-else class="text-sm text-ink-muted dark:text-ink-muted">-</span>
         </template>
 
         <template #cell-category="{ row }">
-          <span class="text-sm text-gray-900 dark:text-white">
+          <span class="text-sm text-ink-strong dark:text-white">
             {{ t('usage.errors.categories.' + mapErrorCategory(row.phase, row.type)) }}
           </span>
         </template>
@@ -117,7 +120,7 @@
             >{{ row.severity }}</span>
             <span
               v-if="row.request_type != null && row.request_type > 0"
-              class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-800 dark:bg-dark-700 dark:text-gray-200"
+              class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-surface-muted text-ink-strong dark:bg-surface-muted dark:text-gray-200"
             >{{ formatRequestType(row.request_type) }}</span>
           </div>
         </template>
@@ -125,36 +128,37 @@
         <template #cell-message="{ row }">
           <span
             v-if="row.message"
-            class="block max-w-[280px] truncate text-sm text-gray-600 dark:text-gray-400"
+            class="block max-w-[280px] truncate text-sm text-ink dark:text-ink-muted"
             :title="row.message"
           >{{ formatSmartMessage(row.message) || '-' }}</span>
-          <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+          <span v-else class="text-sm text-ink-muted dark:text-ink-muted">-</span>
         </template>
 
         <template #cell-user_agent="{ row }">
           <span
             v-if="row.user_agent"
-            class="block max-w-[320px] truncate text-sm text-gray-600 dark:text-gray-400"
+            class="block max-w-[320px] truncate text-sm text-ink dark:text-ink-muted"
             :title="row.user_agent"
           >{{ row.user_agent }}</span>
-          <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+          <span v-else class="text-sm text-ink-muted dark:text-ink-muted">-</span>
         </template>
 
         <template #cell-client_ip="{ row }">
           <div @click.stop>
             <div v-if="row.client_ip">
-              <span class="text-sm font-mono text-gray-600 dark:text-gray-400">{{ row.client_ip }}</span>
+              <span class="text-sm font-mono text-ink dark:text-ink-muted">{{ row.client_ip }}</span>
               <IpGeoCell :ip="row.client_ip" />
             </div>
-            <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+            <span v-else class="text-sm text-ink-muted dark:text-ink-muted">-</span>
           </div>
         </template>
 
         <template #cell-actions="{ row }">
           <button
             type="button"
-            class="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-600 dark:hover:text-primary-400"
+            class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-muted hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 dark:hover:bg-dark-600 dark:hover:text-primary-400"
             :title="t('admin.ops.errorLog.details')"
+            :aria-label="t('admin.ops.errorLog.details')"
             @click.stop="emit('openErrorDetail', row.id)"
           >
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -271,11 +275,11 @@ function getTypeBadge(log: OpsErrorLog): { label: string; className: string } {
     return { label: t('admin.ops.errorLog.typeRouting'), className: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' }
   }
   if (phase === 'internal' && owner === 'platform') {
-    return { label: t('admin.ops.errorLog.typeInternal'), className: 'bg-gray-100 text-gray-800 dark:bg-dark-700 dark:text-gray-200' }
+    return { label: t('admin.ops.errorLog.typeInternal'), className: 'bg-surface-muted text-ink-strong dark:bg-surface-muted dark:text-gray-200' }
   }
 
   const fallback = phase || owner || t('common.unknown')
-  return { label: fallback, className: 'bg-gray-100 text-gray-800 dark:bg-dark-700 dark:text-gray-200' }
+  return { label: fallback, className: 'bg-surface-muted text-ink-strong dark:bg-surface-muted dark:text-gray-200' }
 }
 
 interface Props {

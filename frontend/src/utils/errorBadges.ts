@@ -12,7 +12,7 @@ export function statusCodeBadgeClass(code: number): string {
   if (code >= 500) return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
   if (code === 429) return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
   if (code >= 400) return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
-  return 'bg-gray-100 text-gray-800 dark:bg-dark-700 dark:text-gray-200'
+  return 'bg-surface-muted text-ink-strong'
 }
 
 /** 请求类型徽章配色(cyber 红、live 绿、ws 紫、stream 蓝、sync 灰、未知琥珀) */
@@ -21,7 +21,7 @@ export function requestTypeBadgeClass(kind: UsageRequestKind): string {
   if (kind === 'live') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
   if (kind === 'ws_v2') return 'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200'
   if (kind === 'stream') return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-  if (kind === 'sync') return 'bg-gray-100 text-gray-800 dark:bg-dark-700 dark:text-gray-200'
+  if (kind === 'sync') return 'bg-surface-muted text-ink-strong'
   return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
 }
 

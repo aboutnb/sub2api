@@ -4,7 +4,7 @@
       <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 class="text-2xl font-semibold text-gray-950 dark:text-white">{{ t('payment.orders.title') }}</h1>
-          <p v-if="invoiceConfig.enabled" class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('payment.invoice.eligibleHint') }}</p>
+          <p v-if="invoiceConfig.enabled" class="mt-1 text-sm text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.eligibleHint') }}</p>
         </div>
         <div class="flex items-center gap-2">
           <button class="btn btn-secondary" @click="router.push('/purchase')">
@@ -17,7 +17,7 @@
         </div>
       </header>
 
-      <div class="flex flex-col gap-3 border-b border-gray-200 pb-4 sm:flex-row sm:items-center dark:border-dark-700">
+      <div class="flex flex-col gap-3 border-b border-line pb-4 sm:flex-row sm:items-center dark:border-line">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Select v-model="currentFilter" :options="statusFilters" class="w-full sm:w-40" @change="fetchOrders" />
           <div v-if="invoiceConfig.enabled" class="flex flex-1 items-center gap-2 sm:justify-end">
@@ -40,7 +40,7 @@
       >
         <div class="min-w-0">
           <p class="text-sm font-semibold text-gray-950 dark:text-white">{{ t('payment.invoice.draftPending') }}</p>
-          <p class="mt-0.5 text-xs text-gray-600 dark:text-gray-300">
+          <p class="mt-0.5 text-xs text-ink dark:text-ink-muted">
             {{ t('payment.invoice.draftSummary', { count: invoiceDraft.order_ids.length }) }}
           </p>
         </div>
@@ -55,21 +55,21 @@
         </div>
       </section>
 
-      <div v-if="invoiceSelectionMode && !invoiceDraft" data-test="invoice-selection-bar" class="sticky top-3 z-20 border-l-2 border-primary-500 bg-white p-4 shadow-md dark:bg-dark-800">
+      <div v-if="invoiceSelectionMode && !invoiceDraft" data-test="invoice-selection-bar" class="sticky top-3 z-20 border-l-2 border-primary-500 bg-white p-4 shadow-md dark:bg-surface">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div class="min-w-0 sm:w-64">
-            <p class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+            <p class="mb-2 text-xs font-medium text-ink-muted dark:text-ink-muted">
               {{ t(invoiceAllowsFeePayerChoice ? 'payment.invoice.taxMode' : 'payment.invoice.feePolicy') }}
             </p>
             <div
               v-if="invoiceAllowsFeePayerChoice"
               data-test="invoice-tax-mode"
-              class="grid grid-cols-2 rounded-md bg-gray-100 p-1 dark:bg-dark-700"
+              class="grid grid-cols-2 rounded-md bg-surface-muted p-1 dark:bg-surface-muted"
             >
               <button
                 type="button"
                 class="rounded px-2 py-1.5 text-xs font-medium transition-colors"
-                :class="!invoiceNeedPayTax ? 'bg-white text-gray-950 shadow-sm dark:bg-dark-800 dark:text-white' : 'text-gray-600 dark:text-gray-300'"
+                :class="!invoiceNeedPayTax ? 'bg-white text-gray-950 shadow-sm dark:bg-surface dark:text-white' : 'text-ink dark:text-ink-muted'"
                 :aria-pressed="!invoiceNeedPayTax"
                 @click="invoiceNeedPayTax = false"
               >
@@ -78,7 +78,7 @@
               <button
                 type="button"
                 class="rounded px-2 py-1.5 text-xs font-medium transition-colors"
-                :class="invoiceNeedPayTax ? 'bg-white text-gray-950 shadow-sm dark:bg-dark-800 dark:text-white' : 'text-gray-600 dark:text-gray-300'"
+                :class="invoiceNeedPayTax ? 'bg-white text-gray-950 shadow-sm dark:bg-surface dark:text-white' : 'text-ink dark:text-ink-muted'"
                 :aria-pressed="invoiceNeedPayTax"
                 @click="invoiceNeedPayTax = true"
               >
@@ -93,7 +93,7 @@
               <Icon name="lock" size="xs" class="text-primary-600 dark:text-primary-400" />
               {{ t(invoiceNeedPayTax ? 'payment.invoice.taxRequired' : 'payment.invoice.taxNotRequired') }}
             </div>
-            <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
+            <p class="mt-2 text-xs leading-5 text-ink-muted dark:text-ink-muted">
               {{ invoiceNeedPayTax ? t('payment.invoice.userPaysTaxNotice') : t('payment.invoice.platformPaysTaxNotice') }}
             </p>
           </div>
@@ -137,7 +137,7 @@
             >
               <input
                 type="checkbox"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                class="h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
                 :checked="selectedInvoiceOrderIds.has(row.id)"
                 :disabled="!!row.invoice_status || (!selectedInvoiceOrderIds.has(row.id) && selectedInvoiceOrderIds.size >= invoiceConfig.max_orders)"
                 @change="toggleInvoiceOrder(row.id)"
@@ -156,7 +156,7 @@
               <Icon name="x" size="sm" />
               <span>{{ t('payment.orders.cancel') }}</span>
             </button>
-            <button v-if="canRequestRefund(row)" @click="openRefundDialog(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700">
+            <button v-if="canRequestRefund(row)" @click="openRefundDialog(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink hover:bg-surface-muted dark:text-ink-muted dark:hover:bg-dark-700">
               <Icon name="dollar" size="sm" />
               <span>{{ t('payment.orders.requestRefund') }}</span>
             </button>
@@ -177,7 +177,7 @@
 
     <!-- Cancel Confirm Dialog -->
     <BaseDialog :show="!!cancelTargetId" :title="t('payment.orders.cancel')" width="narrow" @close="cancelTargetId = null">
-      <p class="text-sm text-gray-600 dark:text-gray-300">{{ t('payment.confirmCancel') }}</p>
+      <p class="text-sm text-ink dark:text-ink-muted">{{ t('payment.confirmCancel') }}</p>
       <template #footer>
         <div class="flex justify-end gap-3">
           <button class="btn btn-secondary" @click="cancelTargetId = null">{{ t('common.cancel') }}</button>
@@ -189,14 +189,14 @@
     <!-- Refund Dialog -->
     <BaseDialog :show="!!refundTarget" :title="t('payment.orders.requestRefund')" @close="refundTarget = null">
       <div v-if="refundTarget" class="space-y-4">
-        <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-800">
+        <div class="rounded-xl bg-surface-muted p-4 dark:bg-surface">
           <div class="flex justify-between text-sm">
-            <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
-            <span class="font-mono text-gray-900 dark:text-white">#{{ refundTarget.id }}</span>
+            <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.orders.orderId') }}</span>
+            <span class="font-mono text-ink-strong dark:text-white">#{{ refundTarget.id }}</span>
           </div>
           <div class="mt-2 flex justify-between text-sm">
-            <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</span>
-            <span class="text-gray-900 dark:text-white">${{ refundTarget.amount.toFixed(2) }}</span>
+            <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.orders.amount') }}</span>
+            <span class="text-ink-strong dark:text-white">${{ refundTarget.amount.toFixed(2) }}</span>
           </div>
         </div>
         <div>
@@ -220,42 +220,42 @@
       @close="closeInvoiceDialog"
     >
       <div v-if="invoiceDraft" class="space-y-5">
-        <ol data-test="invoice-progress" class="relative grid grid-cols-3 gap-2 pb-2 before:absolute before:left-[16.66%] before:right-[16.66%] before:top-3 before:h-px before:bg-gray-200 dark:before:bg-dark-600">
+        <ol data-test="invoice-progress" class="relative grid grid-cols-3 gap-2 pb-2 before:absolute before:left-[16.66%] before:right-[16.66%] before:top-3 before:h-px before:bg-line dark:before:bg-dark-600">
           <li class="relative z-10 flex min-w-0 flex-col items-center gap-2 text-center text-emerald-700 dark:text-emerald-300">
-            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 ring-4 ring-white dark:bg-emerald-900/40 dark:ring-dark-800">
+            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 ring-4 ring-white dark:bg-emerald-900/40 dark:ring-line">
               <Icon name="check" size="xs" :stroke-width="2.5" />
             </span>
             <span class="text-xs font-medium leading-4">{{ t('payment.invoice.selectOrdersStep') }}</span>
           </li>
           <li class="relative z-10 flex min-w-0 flex-col items-center gap-2 text-center" :class="invoiceReady ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'">
-            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-4 ring-white dark:ring-dark-800" :class="invoiceReady ? 'bg-emerald-100 dark:bg-emerald-900/40' : 'bg-amber-100 dark:bg-amber-900/40'">
+            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-4 ring-white dark:ring-line" :class="invoiceReady ? 'bg-emerald-100 dark:bg-emerald-900/40' : 'bg-amber-100 dark:bg-amber-900/40'">
               <Icon :name="invoiceReady ? 'check' : 'creditCard'" size="xs" :stroke-width="2.5" />
             </span>
             <span class="text-xs font-medium leading-4">{{ t('payment.invoice.taxReviewStep') }}</span>
           </li>
-          <li class="relative z-10 flex min-w-0 flex-col items-center gap-2 text-center" :class="invoiceReady ? 'text-primary-700 dark:text-primary-300' : 'text-gray-400 dark:text-gray-500'">
-            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-4 ring-white dark:ring-dark-800" :class="invoiceReady ? 'bg-primary-100 dark:bg-primary-900/40' : 'bg-gray-100 dark:bg-dark-700'">
+          <li class="relative z-10 flex min-w-0 flex-col items-center gap-2 text-center" :class="invoiceReady ? 'text-primary-700 dark:text-primary-300' : 'text-ink-muted dark:text-ink-muted'">
+            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-4 ring-white dark:ring-line" :class="invoiceReady ? 'bg-primary-100 dark:bg-primary-900/40' : 'bg-surface-muted dark:bg-surface-muted'">
               <Icon name="document" size="xs" :stroke-width="2" />
             </span>
             <span class="text-xs font-medium leading-4">{{ t('payment.invoice.buyerInfoStep') }}</span>
           </li>
         </ol>
 
-        <div data-test="invoice-amount-summary" class="grid grid-cols-2 gap-x-4 gap-y-3 border-y border-gray-200 py-4 sm:grid-cols-4 dark:border-dark-700">
+        <div data-test="invoice-amount-summary" class="grid grid-cols-2 gap-x-4 gap-y-3 border-y border-line py-4 sm:grid-cols-4 dark:border-line">
           <div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.invoice.orderCount') }}</div>
+            <div class="text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.orderCount') }}</div>
             <div class="mt-1 text-lg font-semibold tabular-nums text-gray-950 dark:text-white">{{ invoiceDraft.order_ids.length }}</div>
           </div>
           <div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.invoice.orderAmount') }}</div>
+            <div class="text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.orderAmount') }}</div>
             <div class="mt-1 text-lg font-semibold tabular-nums text-gray-950 dark:text-white">{{ invoiceCurrency }} {{ invoiceValidation.totalAmount || '--' }}</div>
           </div>
           <div v-if="invoiceDraft.need_pay_tax">
-            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.invoice.taxAmount') }}</div>
+            <div class="text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.taxAmount') }}</div>
             <div class="mt-1 text-lg font-semibold tabular-nums text-gray-950 dark:text-white">{{ invoiceCurrency }} {{ invoiceValidation.taxAmount || '--' }}</div>
           </div>
           <div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.invoice.invoiceAmount') }}</div>
+            <div class="text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.invoiceAmount') }}</div>
             <div data-test="invoice-final-amount" class="mt-1 text-lg font-semibold tabular-nums text-primary-700 dark:text-primary-300">
               {{ invoiceCurrency }} {{ invoiceValidation.invoiceAmount || invoiceValidation.totalAmount || '--' }}
             </div>
@@ -265,12 +265,12 @@
         <section
           v-if="invoiceDraft.need_pay_tax && !invoiceReady"
           data-test="invoice-tax-step"
-          class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-850"
+          class="overflow-hidden rounded-lg border border-line bg-white dark:border-line dark:bg-dark-850"
         >
           <div class="grid md:grid-cols-[minmax(0,1fr)_220px]">
             <div class="p-4 sm:p-5">
               <div class="flex items-start gap-3">
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface-muted text-ink dark:bg-surface-muted dark:text-ink-muted">
                   <Icon name="creditCard" size="md" :stroke-width="1.8" />
                 </span>
                 <div class="min-w-0">
@@ -280,7 +280,7 @@
                       {{ t('payment.invoice.taxPending') }}
                     </span>
                   </div>
-                  <p class="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                  <p class="mt-1 text-sm leading-6 text-ink-muted dark:text-ink-muted">
                     {{ t('payment.invoice.payTaxNotice', {
                       fee: `${invoiceCurrency} ${invoiceValidation.taxAmount || '--'}`,
                     }) }}
@@ -289,7 +289,7 @@
               </div>
 
               <div class="mt-5">
-                <p class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('payment.paymentMethod') }}</p>
+                <p class="mb-2 text-xs font-medium text-ink-muted dark:text-ink-muted">{{ t('payment.paymentMethod') }}</p>
                 <div class="grid gap-2 sm:grid-cols-2">
                   <button
                     v-for="paymentOption in invoiceTaxPayments"
@@ -300,15 +300,15 @@
                     class="group flex h-14 min-w-0 items-center gap-3 rounded-md border px-3 text-left transition-colors"
                     :class="selectedTaxOrderNo === paymentOption.taxOrderNo
                       ? 'border-primary-500 bg-primary-50/50 ring-1 ring-primary-500/20 dark:bg-primary-950/20'
-                      : 'border-gray-200 bg-transparent hover:border-gray-400 dark:border-dark-600 dark:hover:border-dark-500'"
+                      : 'border-line bg-transparent hover:border-line-strong dark:border-line-strong dark:hover:border-line-strong'"
                     @click="openInvoiceTaxPayment(paymentOption)"
                   >
                     <img :src="invoicePaymentMethodIcon(paymentOption.channel)" alt="" class="h-7 w-7 shrink-0 object-contain" />
                     <span class="min-w-0 flex-1">
-                      <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">{{ taxChannelLabel(paymentOption.channel) }}</span>
-                      <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">{{ t('payment.invoice.openCashier') }}</span>
+                      <span class="block truncate text-sm font-semibold text-ink-strong dark:text-white">{{ taxChannelLabel(paymentOption.channel) }}</span>
+                      <span class="mt-0.5 block text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.openCashier') }}</span>
                     </span>
-                    <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors group-hover:bg-gray-100 group-hover:text-gray-700 dark:group-hover:bg-dark-700 dark:group-hover:text-gray-200">
+                    <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-muted transition-colors group-hover:bg-surface-muted group-hover:text-ink dark:group-hover:bg-dark-700 dark:group-hover:text-gray-200">
                       <Icon name="externalLink" size="sm" />
                     </span>
                   </button>
@@ -316,21 +316,21 @@
               </div>
             </div>
 
-            <div class="flex flex-col justify-between border-t border-gray-200 bg-gray-50/70 p-4 md:border-l md:border-t-0 sm:p-5 dark:border-dark-700 dark:bg-dark-900/40">
+            <div class="flex flex-col justify-between border-t border-line bg-surface-muted/70 p-4 md:border-l md:border-t-0 sm:p-5 dark:border-line dark:bg-canvas/40">
               <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('payment.invoice.taxDue') }}</p>
+                <p class="text-xs font-medium text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.taxDue') }}</p>
                 <p class="mt-1 flex items-baseline gap-1.5 text-gray-950 dark:text-white">
                   <span class="text-xs font-semibold">{{ invoiceCurrency }}</span>
                   <span class="text-3xl font-semibold tabular-nums">{{ invoiceValidation.taxDueAmount || '--' }}</span>
                 </p>
-                <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('payment.invoice.returnToConfirm') }}</p>
+                <p class="mt-2 text-xs leading-5 text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.returnToConfirm') }}</p>
               </div>
               <button
                 type="button"
                 class="btn mt-5 w-full justify-center"
                 :class="selectedTaxOrderNo
                   ? 'btn-primary'
-                  : 'cursor-not-allowed border-gray-200 bg-gray-200 text-gray-500 shadow-none dark:border-dark-700 dark:bg-dark-700 dark:text-gray-400'"
+                  : 'cursor-not-allowed border-line bg-line text-ink-muted shadow-none dark:border-line dark:bg-surface-muted dark:text-ink-muted'"
                 :disabled="invoiceBusy || !selectedTaxOrderNo"
                 @click="checkInvoiceTaxPayment"
               >
@@ -347,14 +347,14 @@
             <div>
               <h4 class="text-sm font-semibold text-gray-950 dark:text-white">{{ t('payment.invoice.buyerType') }}</h4>
             </div>
-            <div class="grid grid-cols-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
+            <div class="grid grid-cols-2 rounded-lg bg-surface-muted p-1 dark:bg-surface">
               <button
                 v-for="type in invoiceBuyerTypes"
                 :key="type.value"
                 type="button"
                 :aria-pressed="invoiceForm.buyer_type === type.value"
                 class="rounded-md px-3 py-2 text-sm font-medium transition-colors"
-                :class="invoiceForm.buyer_type === type.value ? 'bg-white text-gray-950 shadow-sm dark:bg-dark-700 dark:text-white' : 'text-gray-600 dark:text-gray-300'"
+                :class="invoiceForm.buyer_type === type.value ? 'bg-white text-gray-950 shadow-sm dark:bg-surface-muted dark:text-white' : 'text-ink dark:text-ink-muted'"
                 @click="invoiceForm.buyer_type = type.value"
               >
                 {{ type.label }}
@@ -362,7 +362,7 @@
             </div>
           </section>
 
-          <section class="grid gap-5 border-t border-gray-200 pt-5 md:grid-cols-[180px_minmax(0,1fr)] dark:border-dark-700">
+          <section class="grid gap-5 border-t border-line pt-5 md:grid-cols-[180px_minmax(0,1fr)] dark:border-line">
             <div>
               <h4 class="text-sm font-semibold text-gray-950 dark:text-white">{{ t('payment.invoice.requiredInfo') }}</h4>
             </div>
@@ -378,12 +378,12 @@
               <div class="sm:col-span-2">
                 <label class="input-label" for="invoice-email">{{ t('payment.invoice.recipientEmail') }}</label>
                 <input id="invoice-email" v-model.trim="invoiceForm.recipient_email" type="email" class="input mt-1 w-full" maxlength="255" required />
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.invoice.emailNotice') }}</p>
+                <p class="mt-1 text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.emailNotice') }}</p>
               </div>
             </div>
           </section>
 
-          <section class="grid gap-5 border-t border-gray-200 pt-5 md:grid-cols-[180px_minmax(0,1fr)] dark:border-dark-700">
+          <section class="grid gap-5 border-t border-line pt-5 md:grid-cols-[180px_minmax(0,1fr)] dark:border-line">
             <div>
               <h4 class="text-sm font-semibold text-gray-950 dark:text-white">{{ t('payment.invoice.optionalInfo') }}</h4>
             </div>
@@ -407,7 +407,7 @@
             </div>
           </section>
 
-          <div class="flex flex-col-reverse gap-2 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end dark:border-dark-700">
+          <div class="flex flex-col-reverse gap-2 border-t border-line pt-4 sm:flex-row sm:justify-end dark:border-line">
             <button type="button" class="btn btn-secondary" :disabled="invoiceBusy" @click="closeInvoiceDialog">{{ t('payment.invoice.saveAndClose') }}</button>
             <button type="submit" class="btn btn-primary" :disabled="invoiceBusy || !invoiceFormValid">
               <Icon v-if="invoiceBusy" name="refresh" size="md" class="animate-spin" />
@@ -422,27 +422,27 @@
     <BaseDialog :show="invoiceRecordsOpen" :title="t('payment.invoice.recordsTitle')" width="extra-wide" @close="invoiceRecordsOpen = false">
       <div class="space-y-4">
         <div class="flex items-center justify-between gap-3">
-          <span class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.invoice.recordCount', { count: invoiceRecordTotal }) }}</span>
+          <span class="text-sm text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.recordCount', { count: invoiceRecordTotal }) }}</span>
           <button class="btn btn-secondary px-3" :disabled="invoiceRecordsLoading" :title="t('common.refresh')" @click="fetchInvoiceRecords">
             <Icon name="refresh" size="md" :class="invoiceRecordsLoading ? 'animate-spin' : ''" />
           </button>
         </div>
-        <div v-if="invoiceRecordsLoading && invoiceRecords.length === 0" class="rounded-lg border border-dashed border-gray-300 py-12 text-center text-sm text-gray-500 dark:border-dark-600">{{ t('common.loading') }}</div>
-        <div v-else-if="invoiceRecords.length === 0" class="rounded-lg border border-dashed border-gray-300 py-12 text-center dark:border-dark-600">
-          <Icon name="document" size="xl" class="mx-auto mb-3 text-gray-300 dark:text-dark-600" />
-          <p class="text-sm text-gray-500">{{ t('payment.invoice.noRecords') }}</p>
+        <div v-if="invoiceRecordsLoading && invoiceRecords.length === 0" class="rounded-lg border border-dashed border-line-strong py-12 text-center text-sm text-ink-muted dark:border-line-strong">{{ t('common.loading') }}</div>
+        <div v-else-if="invoiceRecords.length === 0" class="rounded-lg border border-dashed border-line-strong py-12 text-center dark:border-line-strong">
+          <Icon name="document" size="xl" class="mx-auto mb-3 text-ink-muted dark:text-dark-600" />
+          <p class="text-sm text-ink-muted">{{ t('payment.invoice.noRecords') }}</p>
         </div>
         <template v-else>
-          <div data-test="invoice-record-cards" class="divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 sm:hidden dark:divide-dark-700 dark:border-dark-700">
+          <div data-test="invoice-record-cards" class="divide-y divide-line overflow-hidden rounded-lg border border-line sm:hidden dark:divide-line dark:border-line">
             <div
               v-for="application in invoiceRecords"
               :key="application.id"
-              class="bg-white p-4 dark:bg-dark-800"
+              class="bg-white p-4 dark:bg-surface"
             >
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.invoice.applicationNo') }}</div>
-                  <div class="mt-1 break-all font-mono text-xs text-gray-700 dark:text-gray-300">
+                  <div class="text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.applicationNo') }}</div>
+                  <div class="mt-1 break-all font-mono text-xs text-ink dark:text-ink-muted">
                     {{ application.external_id || `#${application.id}` }}
                   </div>
                 </div>
@@ -452,19 +452,19 @@
               </div>
               <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
                 <div class="min-w-0">
-                  <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.invoice.invoiceTitle') }}</div>
+                  <div class="text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.invoiceTitle') }}</div>
                   <div class="mt-1 break-words font-medium text-gray-950 dark:text-white">{{ application.title || '--' }}</div>
                 </div>
                 <div class="text-right">
-                  <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.invoice.invoiceAmount') }}</div>
+                  <div class="text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.invoice.invoiceAmount') }}</div>
                   <div class="mt-1 text-lg font-semibold tabular-nums text-gray-950 dark:text-white">{{ application.currency }} {{ application.total_amount || '--' }}</div>
                 </div>
                 <div class="col-span-2">
-                  <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.orders.createdAt') }}</div>
-                  <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ formatDate(application.created_at) }}</div>
+                  <div class="text-xs text-ink-muted dark:text-ink-muted">{{ t('payment.orders.createdAt') }}</div>
+                  <div class="mt-1 text-xs text-ink-muted dark:text-ink-muted">{{ formatDate(application.created_at) }}</div>
                 </div>
               </div>
-              <div v-if="application.status === 'completed' || application.status === 'pending' || application.status === 'approved'" class="mt-4 flex justify-end border-t border-gray-100 pt-3 dark:border-dark-700">
+              <div v-if="application.status === 'completed' || application.status === 'pending' || application.status === 'approved'" class="mt-4 flex justify-end border-t border-line pt-3 dark:border-line">
                 <button
                   v-if="application.status === 'completed'"
                   class="btn btn-secondary btn-sm"
@@ -486,9 +486,9 @@
               </div>
             </div>
           </div>
-          <div data-test="invoice-record-table" class="hidden overflow-x-auto rounded-lg border border-gray-200 sm:block dark:border-dark-700">
+          <div data-test="invoice-record-table" class="hidden overflow-x-auto rounded-lg border border-line sm:block dark:border-line">
           <table class="w-full min-w-[760px] text-left text-sm">
-            <thead class="border-b border-gray-200 bg-gray-50 text-xs text-gray-500 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-400">
+            <thead class="border-b border-line bg-surface-muted text-xs text-ink-muted dark:border-line dark:bg-surface dark:text-ink-muted">
               <tr>
                 <th class="px-3 py-3 font-medium">{{ t('payment.invoice.applicationNo') }}</th>
                 <th class="px-3 py-3 font-medium">{{ t('payment.invoice.invoiceTitle') }}</th>
@@ -498,17 +498,17 @@
                 <th class="px-3 py-3 text-right font-medium">{{ t('common.actions') }}</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-dark-800">
+            <tbody class="divide-y divide-line dark:divide-line">
               <tr v-for="application in invoiceRecords" :key="application.id">
-                <td class="px-3 py-3 font-mono text-xs text-gray-700 dark:text-gray-300">{{ application.external_id || `#${application.id}` }}</td>
-                <td class="px-3 py-3 text-gray-900 dark:text-white">{{ application.title || '--' }}</td>
-                <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ application.currency }} {{ application.total_amount || '--' }}</td>
+                <td class="px-3 py-3 font-mono text-xs text-ink dark:text-ink-muted">{{ application.external_id || `#${application.id}` }}</td>
+                <td class="px-3 py-3 text-ink-strong dark:text-white">{{ application.title || '--' }}</td>
+                <td class="px-3 py-3 text-ink dark:text-ink-muted">{{ application.currency }} {{ application.total_amount || '--' }}</td>
                 <td class="px-3 py-3">
                   <span class="inline-flex rounded-full px-2 py-1 text-xs font-medium" :class="invoiceStatusClass(application.status)">
                     {{ t(`payment.invoice.status.${application.status}`, application.status) }}
                   </span>
                 </td>
-                <td class="px-3 py-3 text-xs text-gray-500 dark:text-gray-400">{{ formatDate(application.created_at) }}</td>
+                <td class="px-3 py-3 text-xs text-ink-muted dark:text-ink-muted">{{ formatDate(application.created_at) }}</td>
                 <td class="px-3 py-3">
                   <div class="flex justify-end gap-2">
                     <button
@@ -536,9 +536,9 @@
           </table>
         </div>
         </template>
-        <div v-if="invoiceRecordTotal > invoiceRecordPageSize" class="flex items-center justify-between border-t border-gray-200 pt-4 dark:border-dark-700">
+        <div v-if="invoiceRecordTotal > invoiceRecordPageSize" class="flex items-center justify-between border-t border-line pt-4 dark:border-line">
           <button class="btn btn-secondary" :disabled="invoiceRecordPage <= 1 || invoiceRecordsLoading" @click="changeInvoiceRecordPage(-1)">{{ t('common.back') }}</button>
-          <span class="text-sm text-gray-500">{{ invoiceRecordPage }} / {{ invoiceRecordPages }}</span>
+          <span class="text-sm text-ink-muted">{{ invoiceRecordPage }} / {{ invoiceRecordPages }}</span>
           <button class="btn btn-secondary" :disabled="invoiceRecordPage >= invoiceRecordPages || invoiceRecordsLoading" @click="changeInvoiceRecordPage(1)">{{ t('common.next') }}</button>
         </div>
       </div>
@@ -979,7 +979,7 @@ async function downloadInvoice(application: InvoiceApplication) {
 function invoiceStatusClass(status: InvoiceStatus): string {
   if (status === 'completed') return 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300'
   if (status === 'rejected' || status === 'failed') return 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300'
-  if (status === 'canceled') return 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300'
+  if (status === 'canceled') return 'bg-surface-muted text-ink dark:bg-surface-muted dark:text-ink-muted'
   if (status === 'approved') return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
   if (status === 'submission_unknown') return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
   return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300'

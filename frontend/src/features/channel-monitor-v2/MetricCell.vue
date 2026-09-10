@@ -1,6 +1,6 @@
 <template>
   <div
-    class="stat-card !min-h-[6.5rem] !rounded-3xl !border-0 !p-4 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700"
+    class="stat-card !min-h-[6.5rem] !p-4"
     :title="title || undefined"
   >
     <div
@@ -10,14 +10,14 @@
       aria-hidden="true"
     ></div>
     <div class="min-w-0 flex-1">
-      <span class="stat-label text-[10px] font-bold uppercase tracking-wider text-gray-400">{{ label }}</span>
+      <span class="stat-label text-[10px] font-bold uppercase tracking-wider text-ink-muted">{{ label }}</span>
       <strong
         class="stat-value mt-1 block overflow-visible text-xl tabular-nums leading-tight !text-clip !whitespace-normal"
         :class="stateClass"
       >{{ value }}</strong>
       <div
         v-if="detailParts.length > 1"
-        class="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] leading-snug text-gray-400 dark:text-dark-400"
+        class="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] leading-snug text-ink-muted dark:text-ink-muted"
       >
         <span
           v-for="(part, index) in detailParts"
@@ -27,7 +27,7 @@
       </div>
       <small
         v-else-if="detail"
-        class="mt-1.5 block text-[11px] leading-snug text-gray-400 dark:text-dark-400"
+        class="mt-1.5 block text-[11px] leading-snug text-ink-muted dark:text-ink-muted"
       >{{ detail }}</small>
     </div>
   </div>
@@ -64,17 +64,17 @@ const missingValue = computed(() => {
 const resolvedState = computed(() => (missingValue.value ? undefined : props.state))
 
 const stateClass = computed(() => {
-  if (!resolvedState.value) return missingValue.value ? 'text-gray-500 dark:text-dark-400' : 'text-gray-900 dark:text-white'
+  if (!resolvedState.value) return missingValue.value ? 'text-ink-muted dark:text-ink-muted' : 'text-ink-strong dark:text-white'
   if (resolvedState.value === 'healthy') return 'text-emerald-600 dark:text-emerald-400'
   if (resolvedState.value === 'warning') return 'text-amber-600 dark:text-amber-400'
   if (resolvedState.value === 'critical') return 'text-red-600 dark:text-red-400'
-  return 'text-gray-500 dark:text-dark-400'
+  return 'text-ink-muted dark:text-ink-muted'
 })
 
 const dotClass = computed(() => {
   if (resolvedState.value === 'healthy') return 'bg-emerald-500'
   if (resolvedState.value === 'warning') return 'bg-amber-500'
   if (resolvedState.value === 'critical') return 'bg-red-500'
-  return 'bg-gray-300 dark:bg-dark-600'
+  return 'bg-line-strong dark:bg-line-strong'
 })
 </script>

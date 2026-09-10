@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+  <rect width="1200" height="1200" fill="#F8F4EB"/>
+  <text x="100" y="152" fill="#244451" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="62" font-weight="700">长文档，我会这样拆</text>
+  <text x="100" y="216" fill="#75888D" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="34">别急着一页页看完，先把问题拆开</text>
+  <rect x="100" y="286" width="1000" height="188" rx="34" fill="#FFFFFF"/>
+  <circle cx="178" cy="380" r="38" fill="#ED9B54"/>
+  <text x="178" y="393" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="31" font-weight="700">1</text>
+  <text x="248" y="361" fill="#5A401F" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="38" font-weight="700">先问：这份文档是给谁解决什么问题？</text>
+  <text x="248" y="418" fill="#8D785D" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="29">把目标、概念、章节关系先弄清楚</text>
+  <rect x="100" y="518" width="1000" height="188" rx="34" fill="#FFFFFF"/>
+  <circle cx="178" cy="612" r="38" fill="#367F8E"/>
+  <text x="178" y="625" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="31" font-weight="700">2</text>
+  <text x="248" y="593" fill="#244451" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="38" font-weight="700">再问：我现在真正卡住的细节是什么？</text>
+  <text x="248" y="650" fill="#70878C" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="29">带着代码片段或报错，答案会更有用</text>
+  <rect x="100" y="750" width="1000" height="188" rx="34" fill="#FFFFFF"/>
+  <circle cx="178" cy="844" r="38" fill="#7658D4"/>
+  <text x="178" y="857" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="31" font-weight="700">3</text>
+  <text x="248" y="825" fill="#44336D" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="38" font-weight="700">最后：回到原文核对关键结论</text>
+  <text x="248" y="882" fill="#887DA3" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="29">模型帮你读得更快，原文才是最终依据</text>
+  <text x="600" y="1074" text-anchor="middle" fill="#365562" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="38" font-weight="700">把“看不完”变成一段段能解决的问题</text>
+</svg>

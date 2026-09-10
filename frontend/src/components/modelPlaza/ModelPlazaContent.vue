@@ -1,22 +1,23 @@
 <template>
   <div class="space-y-5">
     <!-- 页头(独立形态下展示标题;后台形态 AppHeader 已有页面标题) -->
-    <div v-if="!embedded">
-      <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-3xl">{{ t('modelPlaza.title') }}</h1>
-      <p class="mt-1.5 text-sm text-gray-500 dark:text-dark-400">{{ t('modelPlaza.description') }}</p>
+    <div v-if="!embedded" class="public-panel p-5 sm:p-6">
+      <p class="pixel-kicker mb-3">MODEL PLAZA</p>
+      <h1 class="text-2xl font-bold tracking-tight text-ink-strong dark:text-white">{{ t('modelPlaza.title') }}</h1>
+      <p class="mt-1.5 text-sm text-ink-muted dark:text-ink-muted">{{ t('modelPlaza.description') }}</p>
     </div>
 
     <!-- 全局价格说明(管理员配置,Markdown) -->
     <div
       v-if="descriptionHtml"
-      class="plaza-description rounded-2xl border border-gray-100 bg-white px-5 py-4 text-sm shadow-card dark:border-dark-700/50 dark:bg-dark-800/50"
+      class="plaza-description card px-5 py-4 text-sm"
       v-html="descriptionHtml"
     ></div>
 
     <!-- 未登录提示 -->
     <p
       v-if="!isAuthenticated"
-      class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-dark-500"
+      class="flex items-center gap-1.5 text-xs text-ink-muted dark:text-ink-muted"
     >
       <Icon name="infoCircle" size="xs" class="h-3.5 w-3.5" />
       {{ t('modelPlaza.anonymousHint') }}
@@ -28,7 +29,7 @@
     </div>
     <div
       v-else-if="error"
-      class="rounded-2xl border border-red-200 bg-red-50 px-5 py-8 text-center text-sm text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+      class="card border-red-300 bg-red-50 px-5 py-8 text-center text-sm text-red-600 dark:border-red-700 dark:bg-red-950/20 dark:text-red-300"
     >
       {{ t('modelPlaza.loadFailed') }}
     </div>
@@ -54,7 +55,7 @@
       </div>
       <div
         v-else
-        class="rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center text-sm text-gray-500 dark:border-dark-600 dark:text-dark-400"
+        class="rounded-2xl border-2 border-dashed border-line-strong px-5 py-12 text-center text-sm text-ink-muted dark:border-line-strong dark:text-ink-muted"
       >
         {{ searchActive ? t('modelPlaza.noSearchResult') : t('modelPlaza.empty') }}
       </div>
@@ -162,11 +163,11 @@ const filteredGroups = computed(() => {
 .plaza-description :deep(h1),
 .plaza-description :deep(h2),
 .plaza-description :deep(h3) {
-  @apply mb-2 mt-3 font-semibold text-gray-900 first:mt-0 dark:text-white;
+  @apply mb-2 mt-3 font-semibold text-ink-strong first:mt-0 dark:text-white;
 }
 
 .plaza-description :deep(p) {
-  @apply mb-2 text-gray-700 last:mb-0 dark:text-dark-200;
+  @apply mb-2 text-ink last:mb-0 dark:text-ink-strong;
 }
 
 .plaza-description :deep(a) {
@@ -182,14 +183,14 @@ const filteredGroups = computed(() => {
 }
 
 .plaza-description :deep(li) {
-  @apply mb-0.5 text-gray-700 dark:text-dark-200;
+  @apply mb-0.5 text-ink dark:text-ink-strong;
 }
 
 .plaza-description :deep(code) {
-  @apply rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs dark:bg-dark-800;
+  @apply rounded bg-surface-muted px-1.5 py-0.5 font-mono text-xs dark:bg-surface;
 }
 
 .plaza-description :deep(blockquote) {
-  @apply my-2 border-l-4 border-gray-300 pl-3 text-gray-600 dark:border-dark-600 dark:text-dark-300;
+  @apply my-2 border-l-4 border-line-strong pl-3 text-ink dark:border-line-strong dark:text-ink;
 }
 </style>

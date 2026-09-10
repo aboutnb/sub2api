@@ -2,7 +2,7 @@
   <div v-if="snapshot" class="space-y-1" data-testid="monitor-quota-view">
     <!-- 套餐等级徽章（如智谱 plan level / Claude 订阅档） -->
     <div v-if="snapshot.plan_level" class="flex flex-wrap items-center gap-1.5">
-      <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-dark-600 dark:text-gray-300">
+      <span class="rounded bg-surface-muted px-1.5 py-0.5 text-[10px] font-medium text-ink dark:bg-line-strong dark:text-ink-muted">
         {{ snapshot.plan_level }}
       </span>
     </div>
@@ -27,7 +27,7 @@
       <span
         v-for="b in balanceRows"
         :key="b.currency"
-        :class="['font-medium', b.balance <= 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300']"
+        :class="['font-medium', b.balance <= 0 ? 'text-red-600 dark:text-red-400' : 'text-ink dark:text-ink-muted']"
       >
         {{ b.balance.toFixed(2) }} {{ b.currency }}
       </span>

@@ -125,11 +125,42 @@ func TestInjectSiteFavicon(t *testing.T) {
 		assert.NotContains(t, string(result), `/logo.png`)
 	})
 
+	t.Run("replaces_multiline_favicon_from_production_template", func(t *testing.T) {
+		html := []byte(`<html><head>
+<link
+  rel="icon"
+  type="image/svg+xml"
+  href="/flowai-logo-mark-light.svg"
+  data-theme-favicon
+/>
+</head></html>`)
+		settingsJSON := []byte(`{"site_logo":"/uploads/official-logo.svg"}`)
+
+		result := injectSiteFavicon(html, settingsJSON)
+
+		assert.Contains(t, string(result), `<link rel="icon" href="/uploads/official-logo.svg" />`)
+		assert.NotContains(t, string(result), `data-theme-favicon`)
+		assert.NotContains(t, string(result), `/flowai-logo-mark-light.svg`)
+	})
+
 	t.Run("supports_relative_and_data_image_urls", func(t *testing.T) {
 		html := []byte(`<link rel="icon" href="/logo.png" />`)
 
 		assert.Contains(t, string(injectSiteFavicon(html, []byte(`{"site_logo":"/uploads/logo.svg"}`))), `/uploads/logo.svg`)
 		assert.Contains(t, string(injectSiteFavicon(html, []byte(`{"site_logo":"data:image/png;base64,abc"}`))), `data:image/png;base64,abc`)
+	})
+
+	t.Run("keeps_theme_marker_for_bundled_logo_variants", func(t *testing.T) {
+		html := []byte(`<link rel="icon" href="/fallback.svg" data-theme-favicon />`)
+		for _, logo := range []string{
+			"/flowai-logo-mark.svg",
+			"/flowai-logo-mark-light.svg",
+			"/flowai-logo-mark-dark.svg",
+		} {
+			result := injectSiteFavicon(html, []byte(`{"site_logo":"`+logo+`"}`))
+			assert.Contains(t, string(result), `href="`+logo+`"`)
+			assert.Contains(t, string(result), `data-theme-favicon`)
+		}
 	})
 
 	t.Run("rejects_unsafe_logo_urls", func(t *testing.T) {
@@ -331,7 +362,7 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 		assert.Contains(t, w2.Body.String(), `nonce="nonce2"`)
 	})
 
-	t.Run("sets_etag_header", func(t *testing.T) {
+	t.Run("does_not_expose_reusable_etag_for_nonce_html", func(t *testing.T) {
 		provider := &mockSettingsProvider{
 			settings: map[string]string{"test": "value"},
 		}
@@ -346,13 +377,11 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 
 		server.serveIndexHTML(c)
 
-		etag := w.Header().Get("ETag")
-		assert.NotEmpty(t, etag)
-		assert.True(t, strings.HasPrefix(etag, `"`))
-		assert.True(t, strings.HasSuffix(etag, `"`))
+		assert.Empty(t, w.Header().Get("ETag"))
+		assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 	})
 
-	t.Run("returns_304_for_matching_etag", func(t *testing.T) {
+	t.Run("returns_fresh_body_for_matching_legacy_etag", func(t *testing.T) {
 		provider := &mockSettingsProvider{
 			settings: map[string]string{"test": "value"},
 		}
@@ -368,21 +397,22 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 		})
 		router.Use(server.Middleware())
 
-		// First request to populate cache and get ETag
+		// First request to populate the server-side cache.
 		w1 := httptest.NewRecorder()
 		req1 := httptest.NewRequest(http.MethodGet, "/", nil)
 		router.ServeHTTP(w1, req1)
-		etag := w1.Header().Get("ETag")
-		require.NotEmpty(t, etag)
 
-		// Second request with If-None-Match
+		// A legacy client may still send an old ETag. It must receive a fresh
+		// body because the response nonce is intentionally regenerated.
 		w2 := httptest.NewRecorder()
 		req2 := httptest.NewRequest(http.MethodGet, "/", nil)
-		req2.Header.Set("If-None-Match", etag)
+		req2.Header.Set("If-None-Match", `"legacy-index"`)
 		router.ServeHTTP(w2, req2)
 
-		assert.Equal(t, http.StatusNotModified, w2.Code)
-		assert.Empty(t, w2.Body.String())
+		assert.Equal(t, http.StatusOK, w2.Code)
+		assert.NotEmpty(t, w2.Body.String())
+		assert.Empty(t, w2.Header().Get("ETag"))
+		assert.Equal(t, "no-store", w2.Header().Get("Cache-Control"))
 	})
 
 	t.Run("sets_cache_control_header", func(t *testing.T) {
@@ -400,7 +430,7 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 
 		server.serveIndexHTML(c)
 
-		assert.Equal(t, "no-cache", w.Header().Get("Cache-Control"))
+		assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 	})
 
 	t.Run("fallback_on_settings_error", func(t *testing.T) {
@@ -648,13 +678,13 @@ func TestFrontendServer_Middleware(t *testing.T) {
 		router := gin.New()
 		router.Use(server.Middleware())
 
-		// Request for existing static file
+		// Request for an existing bundled SVG static file.
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/logo.png", nil)
+		req := httptest.NewRequest(http.MethodGet, "/logo.svg", nil)
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
+		assert.Contains(t, w.Header().Get("Content-Type"), "image/svg+xml")
 		assert.Empty(t, w.Header().Get("Cache-Control"))
 
 		entries, err := fs.ReadDir(server.distFS, "assets")
@@ -735,11 +765,11 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 		router.Use(middleware)
 
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/logo.png", nil)
+		req := httptest.NewRequest(http.MethodGet, "/logo.svg", nil)
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
+		assert.Contains(t, w.Header().Get("Content-Type"), "image/svg+xml")
 	})
 
 	t.Run("serves_index_html_for_root", func(t *testing.T) {

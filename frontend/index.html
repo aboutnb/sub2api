@@ -2,16 +2,40 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/flowai-logo-mark-light.svg" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/flowai-logo-mark-light.svg"
+      data-theme-favicon
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sub2API - AI API Gateway</title>
     <script nonce="__CSP_NONCE_VALUE__">
       (() => {
-        const savedTheme = localStorage.getItem('theme')
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        const isDark = savedTheme === 'dark' || (!savedTheme && prefersDark)
-        const favicon = document.querySelector('link[rel="icon"]')
-        if (favicon) {
+        let savedTheme = null
+        try {
+          savedTheme = localStorage.getItem('theme')
+        } catch {
+          // Storage can be unavailable in hardened/private browser contexts.
+        }
+
+        const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+        const isDark = savedTheme === 'dark' || (savedTheme !== 'light' && prefersDark)
+        document.documentElement.classList.toggle('dark', isDark)
+        document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
+
+        // Only swap bundled marks. Vite may normalize a favicon link and remove
+        // custom data attributes, so the known paths are also checked directly.
+        const favicon = document.querySelector('link[rel="icon"][data-theme-favicon]')
+          || document.querySelector('link[rel="icon"]')
+        const faviconHref = favicon?.getAttribute('href') || ''
+        const themeManagedFavicon = favicon?.hasAttribute('data-theme-favicon')
+          || [
+            '/flowai-logo-mark.svg',
+            '/flowai-logo-mark-light.svg',
+            '/flowai-logo-mark-dark.svg',
+          ].includes(faviconHref)
+        if (favicon && themeManagedFavicon) {
           favicon.href = isDark ? '/flowai-logo-mark-dark.svg' : '/flowai-logo-mark-light.svg'
         }
       })()

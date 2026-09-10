@@ -551,6 +551,7 @@ const baseSettingsResponse = {
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [],
   user_subscriptions_enabled: true,
+  subscription_expiration_enabled: true,
   // 平台限额嵌套字段（新后端契约）
   default_platform_quotas: {
     anthropic:   { daily: null, weekly: null, monthly: null },
@@ -618,6 +619,16 @@ async function openUsersTab(wrapper: ReturnType<typeof mountView>) {
 
   expect(usersTabButton).toBeDefined();
   await usersTabButton?.trigger("click");
+  await flushPromises();
+}
+
+async function openFeaturesTab(wrapper: ReturnType<typeof mountView>) {
+  const featuresTabButton = wrapper
+    .findAll("button")
+    .find((node) => node.text().includes("admin.settings.tabs.features"));
+
+  expect(featuresTabButton).toBeDefined();
+  await featuresTabButton?.trigger("click");
   await flushPromises();
 }
 
@@ -737,20 +748,48 @@ describe("admin SettingsView payment visible method controls", () => {
     adminSettingsFetch.mockResolvedValue(undefined);
   });
 
-  it("submits the compact home page toggle", async () => {
+  it("hides legacy homepage controls while preserving their stored values", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      home_content: '<section id="legacy-home">Legacy home</section>',
+      compact_home_enabled: true,
+    });
+
     const wrapper = mountView();
     await flushPromises();
 
-    const toggle = wrapper.get('[data-testid="compact-home-toggle"]');
-    expect((toggle.element as HTMLInputElement).checked).toBe(false);
-
-    await toggle.setValue(true);
+    expect(wrapper.find('[data-testid="compact-home-toggle"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("admin.settings.site.homeContent");
+    expect(wrapper.text()).not.toContain("admin.settings.site.compactHome");
     await wrapper.find("form").trigger("submit.prevent");
     await flushPromises();
 
     expect(updateSettings).toHaveBeenCalledWith(
-      expect.objectContaining({ compact_home_enabled: true }),
+      expect.objectContaining({
+        home_content: '<section id="legacy-home">Legacy home</section>',
+        compact_home_enabled: true,
+      }),
     );
+  });
+
+  it("shows and persists the unified subscription expiration switch", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+    await openFeaturesTab(wrapper);
+
+    const toggle = wrapper.get(
+      '[aria-label="admin.settings.features.subscriptionExpiration.enabled"]',
+    );
+    expect((toggle.element as HTMLInputElement).checked).toBe(true);
+    await toggle.setValue(false);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ subscription_expiration_enabled: false }),
+    );
+    expect(zhSettings.settings.features.subscriptionExpiration.enabledHint).toContain("限额");
+    expect(enSettings.settings.features.subscriptionExpiration.enabledHint).toContain("quota");
   });
 
   it("renders panel rate limit card and saves settings", async () => {

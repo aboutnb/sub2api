@@ -1,6 +1,6 @@
 <template>
   <div class="card p-4">
-    <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
+    <h3 class="mb-4 text-sm font-semibold text-ink-strong dark:text-white">
       {{ t('admin.dashboard.tokenUsageTrend') }}
     </h3>
     <div v-if="loading" class="flex h-48 items-center justify-center">
@@ -11,7 +11,7 @@
     </div>
     <div
       v-else
-      class="flex h-48 items-center justify-center text-sm text-gray-500 dark:text-gray-400"
+      class="flex h-48 items-center justify-center text-sm text-ink-muted dark:text-ink-muted"
     >
       {{ t('admin.dashboard.noDataAvailable') }}
     </div>
@@ -34,6 +34,7 @@ import {
 } from 'chart.js'
 import { Line } from 'vue-chartjs'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { useChartTheme } from '@/composables/useChartTheme'
 import type { TrendDataPoint } from '@/types'
 
 ChartJS.register(
@@ -48,24 +49,26 @@ ChartJS.register(
 )
 
 const { t } = useI18n()
+const { chartTheme } = useChartTheme()
 
 const props = defineProps<{
   trendData: TrendDataPoint[]
   loading?: boolean
 }>()
 
-const isDarkMode = computed(() => {
-  return document.documentElement.classList.contains('dark')
-})
-
 const chartColors = computed(() => ({
-  text: isDarkMode.value ? '#e5e7eb' : '#374151',
-  grid: isDarkMode.value ? '#374151' : '#e5e7eb',
-  input: '#3b82f6',
-  output: '#10b981',
-  cacheCreation: '#f59e0b',
-  cacheRead: '#06b6d4',
-  cacheHitRate: '#8b5cf6'
+  text: chartTheme.value.text,
+  grid: chartTheme.value.grid,
+  input: chartTheme.value.series[0],
+  inputSoft: chartTheme.value.seriesSoft[0],
+  output: chartTheme.value.series[1],
+  outputSoft: chartTheme.value.seriesSoft[1],
+  cacheCreation: chartTheme.value.series[4],
+  cacheCreationSoft: chartTheme.value.seriesSoft[4],
+  cacheRead: chartTheme.value.series[10],
+  cacheReadSoft: chartTheme.value.seriesSoft[10],
+  cacheHitRate: chartTheme.value.series[5],
+  cacheHitRateSoft: chartTheme.value.seriesSoft[5]
 }))
 
 const chartData = computed(() => {
@@ -78,7 +81,7 @@ const chartData = computed(() => {
         label: 'Input',
         data: props.trendData.map((d) => d.input_tokens),
         borderColor: chartColors.value.input,
-        backgroundColor: `${chartColors.value.input}20`,
+        backgroundColor: chartColors.value.inputSoft,
         fill: true,
         tension: 0.3
       },
@@ -86,7 +89,7 @@ const chartData = computed(() => {
         label: 'Output',
         data: props.trendData.map((d) => d.output_tokens),
         borderColor: chartColors.value.output,
-        backgroundColor: `${chartColors.value.output}20`,
+        backgroundColor: chartColors.value.outputSoft,
         fill: true,
         tension: 0.3
       },
@@ -94,7 +97,7 @@ const chartData = computed(() => {
         label: 'Cache Creation',
         data: props.trendData.map((d) => d.cache_creation_tokens),
         borderColor: chartColors.value.cacheCreation,
-        backgroundColor: `${chartColors.value.cacheCreation}20`,
+        backgroundColor: chartColors.value.cacheCreationSoft,
         fill: true,
         tension: 0.3
       },
@@ -102,7 +105,7 @@ const chartData = computed(() => {
         label: 'Cache Read',
         data: props.trendData.map((d) => d.cache_read_tokens),
         borderColor: chartColors.value.cacheRead,
-        backgroundColor: `${chartColors.value.cacheRead}20`,
+        backgroundColor: chartColors.value.cacheReadSoft,
         fill: true,
         tension: 0.3
       },
@@ -113,7 +116,7 @@ const chartData = computed(() => {
           return totalPromptTokens > 0 ? (d.cache_read_tokens / totalPromptTokens) * 100 : 0
         }),
         borderColor: chartColors.value.cacheHitRate,
-        backgroundColor: `${chartColors.value.cacheHitRate}20`,
+        backgroundColor: chartColors.value.cacheHitRateSoft,
         borderDash: [5, 5],
         fill: false,
         tension: 0.3,
@@ -144,6 +147,11 @@ const lineOptions = computed(() => ({
       }
     },
     tooltip: {
+      backgroundColor: chartTheme.value.tooltipBackground,
+      titleColor: chartTheme.value.tooltipTitle,
+      bodyColor: chartTheme.value.tooltipBody,
+      borderColor: chartTheme.value.tooltipBorder,
+      borderWidth: 1,
       callbacks: {
         label: (context: any) => {
           if (context.dataset.yAxisID === 'yPercent') {

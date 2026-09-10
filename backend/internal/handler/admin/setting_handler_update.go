@@ -364,6 +364,8 @@ type UpdateSettingsRequest struct {
 
 	// User-facing subscription page and sidebar entry
 	UserSubscriptionsEnabled *bool `json:"user_subscriptions_enabled"`
+	// Subscription expiration enforcement; false keeps active subscriptions valid indefinitely.
+	SubscriptionExpirationEnabled *bool `json:"subscription_expiration_enabled"`
 
 	// Model Plaza feature switches + description
 	ModelPlazaEnabled     *bool   `json:"model_plaza_enabled"`
@@ -1974,6 +1976,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.UserSubscriptionsEnabled
 		}(),
+		SubscriptionExpirationEnabled: func() bool {
+			if req.SubscriptionExpirationEnabled != nil {
+				return *req.SubscriptionExpirationEnabled
+			}
+			return previousSettings.SubscriptionExpirationEnabled
+		}(),
 		ModelPlazaEnabled: func() bool {
 			if req.ModelPlazaEnabled != nil {
 				return *req.ModelPlazaEnabled
@@ -2472,9 +2480,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		GrokCrossClientModelMapEnabled: updatedSettings.GrokCrossClientModelMapEnabled,
 		GrokDefaultBaseURLMode:         updatedSettings.GrokDefaultBaseURLMode,
 
-		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
-		SmartRoutingEnabled:      updatedSettings.SmartRoutingEnabled,
-		UserSubscriptionsEnabled: updatedSettings.UserSubscriptionsEnabled,
+		AvailableChannelsEnabled:      updatedSettings.AvailableChannelsEnabled,
+		SmartRoutingEnabled:           updatedSettings.SmartRoutingEnabled,
+		UserSubscriptionsEnabled:      updatedSettings.UserSubscriptionsEnabled,
+		SubscriptionExpirationEnabled: updatedSettings.SubscriptionExpirationEnabled,
 
 		ModelPlazaEnabled:       updatedSettings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:   updatedSettings.ModelPlazaRequireAuth,

@@ -5,9 +5,9 @@
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary-600 dark:text-primary-400">{{ t('nav.securityAudit') }}</p>
           <h1 class="mt-1 text-2xl font-semibold tracking-tight text-gray-950 dark:text-white">{{ t('admin.promptAudit.title') }}</h1>
-          <p class="mt-2 max-w-3xl text-sm text-gray-500 dark:text-dark-300">{{ t('admin.promptAudit.description') }}</p>
+          <p class="mt-2 max-w-3xl text-sm text-ink-muted dark:text-ink">{{ t('admin.promptAudit.description') }}</p>
         </div>
-        <div v-if="draft" class="text-right text-xs text-gray-500 dark:text-dark-400">
+        <div v-if="draft" class="text-right text-xs text-ink-muted dark:text-ink-muted">
           <p>{{ t('admin.promptAudit.configVersion', { version: draft.config_version }) }}</p>
           <p v-if="draft.updated_at" class="mt-1">{{ formatDate(draft.updated_at) }}</p>
         </div>
@@ -90,7 +90,7 @@
       </template>
     </div>
 
-    <div v-if="draft && activeTab === 'config'" class="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-[0_-12px_35px_rgba(15,23,42,0.08)] backdrop-blur dark:border-dark-700/80 dark:bg-dark-900/95 dark:shadow-[0_-12px_35px_rgba(0,0,0,0.35)] lg:left-64">
+    <div v-if="draft && activeTab === 'config'" class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 px-4 py-3 shadow-[0_-12px_35px_rgba(15,23,42,0.08)] backdrop-blur dark:border-line/80 dark:bg-canvas/95 dark:shadow-[0_-12px_35px_rgba(0,0,0,0.35)] lg:left-64">
       <div class="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3">
         <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
           <SaveToggle :label="t('admin.promptAudit.saveBar.enabled')" :model-value="draft.enabled" data-test="enabled-toggle" @update:model-value="setEnabled" />
@@ -99,7 +99,7 @@
           <SaveToggle :label="t('admin.promptAudit.saveBar.storePass')" :model-value="draft.store_pass_events" data-test="store-pass-toggle" @update:model-value="replaceDraft({ ...draft!, store_pass_events: $event })" />
         </div>
         <div class="flex items-center gap-3">
-          <span class="text-sm" :class="dirty ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-dark-400'">
+          <span class="text-sm" :class="dirty ? 'text-amber-700 dark:text-amber-300' : 'text-ink-muted dark:text-ink-muted'">
             {{ dirty ? t('admin.promptAudit.saveBar.dirty') : t('admin.promptAudit.saveBar.synced') }}
           </span>
           <button type="button" class="btn btn-secondary" :disabled="!dirty || loading.saving" @click="resetDraft">{{ t('common.reset') }}</button>
@@ -215,7 +215,7 @@ const SaveToggle = defineComponent({
         disabled: props.disabled,
         class: [
           'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
-          props.modelValue ? 'bg-primary-600' : 'bg-gray-300 dark:bg-dark-600',
+          props.modelValue ? 'bg-primary-600' : 'bg-line-strong dark:bg-line-strong',
           props.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
         ],
         onClick: (event: MouseEvent) => {
@@ -230,7 +230,7 @@ const SaveToggle = defineComponent({
           ],
         }),
       ]),
-      h('span', { class: 'select-none text-gray-700 dark:text-dark-200' }, props.label),
+      h('span', { class: 'select-none text-ink dark:text-ink-strong' }, props.label),
     ])
   },
 })

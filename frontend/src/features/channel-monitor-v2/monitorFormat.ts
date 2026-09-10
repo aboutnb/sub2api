@@ -69,7 +69,7 @@ export function formatMonitorPercent(value: number, locale = monitorIntlLocale()
  */
 export function availabilityBadgeClass(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) {
-    return 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300'
+    return 'bg-surface-muted text-ink dark:bg-surface-muted dark:text-ink-muted'
   }
   if (value < 30) return 'bg-gray-950 text-white dark:bg-black dark:text-white'
   if (value < 50) return 'bg-red-600 text-white dark:bg-red-500 dark:text-white'
@@ -80,7 +80,7 @@ export function availabilityBadgeClass(value: number | null | undefined): string
 }
 
 export function availabilityBarClass(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return 'bg-gray-300 dark:bg-dark-600'
+  if (value == null || !Number.isFinite(value)) return 'bg-line-strong dark:bg-line-strong'
   if (value < 30) return 'bg-gray-950 dark:bg-black'
   if (value < 50) return 'bg-red-500 dark:bg-red-400'
   if (value < 60) return 'bg-amber-400 dark:bg-amber-300'
@@ -90,7 +90,7 @@ export function availabilityBarClass(value: number | null | undefined): string {
 }
 
 export function availabilityTextClass(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return 'text-gray-900 dark:text-gray-100'
+  if (value == null || !Number.isFinite(value)) return 'text-ink-strong dark:text-gray-100'
   if (value < 30) return 'text-gray-950 dark:text-white'
   if (value < 50) return 'text-red-600 dark:text-red-400'
   if (value < 60) return 'text-amber-700 dark:text-amber-300'

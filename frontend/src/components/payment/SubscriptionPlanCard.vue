@@ -1,6 +1,6 @@
 <template>
   <div
-    class="group relative flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-[border-color,box-shadow] hover:border-gray-300 hover:shadow-md dark:border-dark-700 dark:bg-dark-800 dark:hover:border-dark-600"
+    class="group relative flex flex-col overflow-hidden rounded-lg border border-line bg-white shadow-sm transition-[border-color,box-shadow] hover:border-line-strong hover:shadow-md dark:border-line dark:bg-surface dark:hover:border-line-strong"
   >
     <div :class="['h-0.5', accentClass]" />
 
@@ -10,64 +10,64 @@
         <div class="min-w-0 flex-1">
           <h3
             :title="plan.name"
-            class="h-12 min-w-0 break-words [overflow-wrap:anywhere] text-base font-bold leading-6 text-gray-900 dark:text-white line-clamp-2"
+            class="h-12 min-w-0 break-words [overflow-wrap:anywhere] text-base font-bold leading-6 text-ink-strong dark:text-white line-clamp-2"
           >
             {{ plan.name }}
           </h3>
-          <p v-if="plan.description" class="mt-0.5 text-xs leading-relaxed text-gray-500 dark:text-dark-400 line-clamp-2">
+          <p v-if="plan.description" class="mt-0.5 text-xs leading-relaxed text-ink-muted dark:text-ink-muted line-clamp-2">
             {{ plan.description }}
           </p>
         </div>
         <div class="shrink-0 text-right">
           <div class="flex items-baseline gap-1">
-            <span class="text-xs text-gray-400 dark:text-dark-500">{{ planCurrencySymbol }}</span>
+            <span class="text-xs text-ink-muted dark:text-ink-muted">{{ planCurrencySymbol }}</span>
             <span class="text-2xl font-bold tabular-nums text-gray-950 dark:text-white">{{ plan.price }}</span>
-            <span v-if="plan.currency" class="text-xs font-medium text-gray-400 dark:text-dark-500">{{ plan.currency }}</span>
+            <span v-if="plan.currency" class="text-xs font-medium text-ink-muted dark:text-ink-muted">{{ plan.currency }}</span>
           </div>
           <div class="flex items-center justify-end gap-1">
             <span :class="['inline-flex shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', badgeLightClass]">
               {{ pLabel }}
             </span>
-            <span class="text-[11px] text-gray-400 dark:text-dark-500">/ {{ validitySuffix }}</span>
+            <span class="text-[11px] text-ink-muted dark:text-ink-muted">/ {{ validitySuffix }}</span>
           </div>
           <div v-if="plan.original_price" class="mt-0.5 flex items-center justify-end gap-1.5">
-            <span class="text-xs text-gray-400 line-through dark:text-dark-500">{{ planCurrencySymbol }}{{ plan.original_price }}<template v-if="plan.currency"> {{ plan.currency }}</template></span>
+            <span class="text-xs text-ink-muted line-through dark:text-ink-muted">{{ planCurrencySymbol }}{{ plan.original_price }}<template v-if="plan.currency"> {{ plan.currency }}</template></span>
             <span :class="['rounded px-1 py-0.5 text-[10px] font-semibold', discountClass]">{{ discountText }}</span>
           </div>
         </div>
       </div>
 
       <!-- Group quota info (compact) -->
-      <div class="mb-3 grid grid-cols-2 gap-x-3 gap-y-1 border-y border-gray-100 bg-gray-50/60 px-3 py-3 text-xs dark:border-dark-700 dark:bg-dark-900/30">
+      <div class="mb-3 grid grid-cols-2 gap-x-3 gap-y-1 border-y border-line bg-surface-muted/60 px-3 py-3 text-xs dark:border-line dark:bg-canvas/30">
         <div class="flex items-center justify-between">
-          <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.rate') }}</span>
-          <span class="font-medium text-gray-700 dark:text-gray-300">{{ rateDisplay }}</span>
+          <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.planCard.rate') }}</span>
+          <span class="font-medium text-ink dark:text-ink-muted">{{ rateDisplay }}</span>
         </div>
         <div v-if="hasPeakRate" class="col-span-2 flex items-center justify-between gap-2">
-          <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.peakRate') }}</span>
+          <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.planCard.peakRate') }}</span>
           <span class="text-right font-medium text-amber-700 dark:text-amber-300">{{ peakRateDisplay }}</span>
         </div>
         <div v-if="plan.daily_limit_usd != null" class="flex items-center justify-between">
-          <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.dailyLimit') }}</span>
-          <span class="font-medium text-gray-700 dark:text-gray-300">${{ plan.daily_limit_usd }}</span>
+          <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.planCard.dailyLimit') }}</span>
+          <span class="font-medium text-ink dark:text-ink-muted">${{ plan.daily_limit_usd }}</span>
         </div>
         <div v-if="plan.weekly_limit_usd != null" class="flex items-center justify-between">
-          <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.weeklyLimit') }}</span>
-          <span class="font-medium text-gray-700 dark:text-gray-300">${{ plan.weekly_limit_usd }}</span>
+          <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.planCard.weeklyLimit') }}</span>
+          <span class="font-medium text-ink dark:text-ink-muted">${{ plan.weekly_limit_usd }}</span>
         </div>
         <div v-if="plan.monthly_limit_usd != null" class="flex items-center justify-between">
-          <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.monthlyLimit') }}</span>
-          <span class="font-medium text-gray-700 dark:text-gray-300">${{ plan.monthly_limit_usd }}</span>
+          <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.planCard.monthlyLimit') }}</span>
+          <span class="font-medium text-ink dark:text-ink-muted">${{ plan.monthly_limit_usd }}</span>
         </div>
         <div v-if="plan.daily_limit_usd == null && plan.weekly_limit_usd == null && plan.monthly_limit_usd == null" class="flex items-center justify-between">
-          <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.quota') }}</span>
-          <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.planCard.unlimited') }}</span>
+          <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.planCard.quota') }}</span>
+          <span class="font-medium text-ink dark:text-ink-muted">{{ t('payment.planCard.unlimited') }}</span>
         </div>
         <div v-if="modelScopeLabels.length > 0" class="col-span-2 flex items-center justify-between">
-          <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.models') }}</span>
+          <span class="text-ink-muted dark:text-ink-muted">{{ t('payment.planCard.models') }}</span>
           <div class="flex flex-wrap justify-end gap-1">
             <span v-for="scope in modelScopeLabels" :key="scope"
-              class="rounded bg-gray-200/80 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-dark-600 dark:text-gray-300">
+              class="rounded bg-line/80 px-1.5 py-0.5 text-[10px] font-medium text-ink dark:bg-line-strong dark:text-ink-muted">
               {{ scope }}
             </span>
           </div>
@@ -78,7 +78,7 @@
       <div v-if="plan.features.length > 0" class="mb-3 space-y-1">
         <div v-for="feature in plan.features" :key="feature" class="flex items-start gap-1.5">
           <Icon name="check" size="sm" class="mt-0.5 flex-shrink-0 text-primary-600 dark:text-primary-400" :stroke-width="2.5" />
-          <span class="text-xs text-gray-600 dark:text-gray-300">{{ feature }}</span>
+          <span class="text-xs text-ink dark:text-ink-muted">{{ feature }}</span>
         </div>
       </div>
 
@@ -87,7 +87,7 @@
       <!-- Subscribe Button -->
       <button
         type="button"
-        class="flex w-full items-center justify-center gap-2 rounded-md bg-gray-950 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200"
+        class="flex w-full items-center justify-center gap-2 rounded-md bg-gray-950 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800 dark:bg-white dark:text-gray-950 dark:hover:bg-line"
         @click="emit('select', plan)"
       >
         <span>{{ isRenewal ? t('payment.renewNow') : t('payment.subscribeNow') }}</span>

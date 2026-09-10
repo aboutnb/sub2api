@@ -145,14 +145,14 @@ describe('ChannelMonitorView check-mode badge', () => {
     const badges = cell.findAll('span')
     const modeBadge = badges.find(el => el.text() === label)
     expect(modeBadge).toBeDefined()
-    // quota 系=蓝、probe=中性灰的配色区分。
+    // quota 系=数据蓝、probe=语义中性色的配色区分。
     const cls = modeBadge!.attributes('class')
     if (mode === 'probe') {
-      expect(cls).toContain('bg-gray-100')
+      expect(cls).toContain('bg-surface-muted')
       expect(cls).not.toContain('bg-blue-100')
     } else {
       expect(cls).toContain('bg-blue-100')
-      expect(cls).not.toContain('bg-gray-100')
+      expect(cls).not.toContain('bg-surface-muted')
     }
     wrapper.unmount()
   })

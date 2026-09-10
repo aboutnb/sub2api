@@ -55,11 +55,11 @@ describe('PlatformTypeBadge Grok plans', () => {
     expect(wrapper.find('[data-testid="grok-plan-icon"]').exists()).toBe(false)
   })
 
-  it('colors free gray, SuperGrok cyan, and Heavy purple', async () => {
+  it('colors free with semantic neutrals, SuperGrok cyan, and Heavy purple', async () => {
     const free = mount(PlatformTypeBadge, {
       props: { platform: 'grok', type: 'oauth', planType: 'free' },
     })
-    expect(free.html()).toContain('bg-gray-100')
+    expect(free.html()).toContain('bg-surface-muted')
     expect(free.html()).not.toContain('bg-purple-100')
     expect(free.html()).not.toContain('bg-cyan-100')
 
