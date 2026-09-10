@@ -332,6 +332,15 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.ContactInfo != after.ContactInfo {
 		changed = append(changed, "contact_info")
 	}
+	if before.CommunityGroupName != after.CommunityGroupName {
+		changed = append(changed, "community_group_name")
+	}
+	if before.CommunityGroupIcon != after.CommunityGroupIcon {
+		changed = append(changed, "community_group_icon")
+	}
+	if before.CommunityGroupURL != after.CommunityGroupURL {
+		changed = append(changed, "community_group_url")
+	}
 	if before.DocURL != after.DocURL {
 		changed = append(changed, "doc_url")
 	}
@@ -578,6 +587,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.AvailableChannelsEnabled != after.AvailableChannelsEnabled {
 		changed = append(changed, "available_channels_enabled")
+	}
+	if before.UserSubscriptionsEnabled != after.UserSubscriptionsEnabled {
+		changed = append(changed, "user_subscriptions_enabled")
 	}
 	if before.ModelPlazaEnabled != after.ModelPlazaEnabled {
 		changed = append(changed, "model_plaza_enabled")

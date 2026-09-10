@@ -69,6 +69,41 @@ func TestNotificationEmailTemplateOverrideAndRestore(t *testing.T) {
 	require.ErrorIs(t, err, ErrSettingNotFound)
 }
 
+func TestReactivationTemplateIsListedPreviewableAndCustomizable(t *testing.T) {
+	ctx := context.Background()
+	repo := newNotificationEmailMemorySettingRepo()
+	svc := NewNotificationEmailService(repo, nil)
+
+	var reactivation *NotificationEmailEventInfo
+	for _, info := range svc.ListEventInfos() {
+		if info.Event == NotificationEmailEventReactivation {
+			copy := info
+			reactivation = &copy
+			break
+		}
+	}
+	require.NotNil(t, reactivation)
+	require.Contains(t, reactivation.Placeholders, "broadcast_body_zh")
+
+	preview, err := svc.PreviewTemplate(ctx, NotificationEmailPreviewInput{
+		Event:  NotificationEmailEventReactivation,
+		Locale: "zh-CN",
+		Variables: map[string]string{
+			"broadcast_subject_zh": "好久不见",
+			"broadcast_heading_zh": "欢迎回来",
+			"broadcast_body_zh":    "平台最近有不少更新。",
+			"broadcast_action_zh":  "登录后即可继续使用。",
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "好久不见", preview.Subject)
+	require.Contains(t, preview.HTML, "平台最近有不少更新")
+
+	updated, err := svc.UpdateTemplate(ctx, NotificationEmailEventReactivation, "zh", "{{broadcast_subject_zh}}", "<p>{{broadcast_action_zh}}</p>")
+	require.NoError(t, err)
+	require.True(t, updated.IsCustom)
+}
+
 func TestNotificationEmailTemplateRejectsUnsupportedPlaceholder(t *testing.T) {
 	ctx := context.Background()
 	svc := NewNotificationEmailService(newNotificationEmailMemorySettingRepo(), nil)
@@ -309,12 +344,21 @@ func TestNotificationEmailFallbackClassification(t *testing.T) {
 
 func TestEmailQueueTasksPreserveLocaleHints(t *testing.T) {
 	queue := &EmailQueueService{taskChan: make(chan EmailTask, 2)}
-	require.NoError(t, queue.EnqueueVerifyCode("user@example.com", "Sub2API", "zh-CN"))
+	ctx := WithRegistrationVerificationContext(context.Background(), RegistrationVerificationContext{
+		Action:            "send_verify_code",
+		ClientIPHash:      "ip-hash",
+		UserAgentHash:     "ua-hash",
+		NetworkBucketHash: "bucket-hash",
+	})
+	require.NoError(t, queue.EnqueueVerifyCodeWithContext(ctx, "user@example.com", "Sub2API", "zh-CN"))
 	require.NoError(t, queue.EnqueuePasswordReset("user@example.com", "Sub2API", "https://example.com/reset", "en-US"))
 
 	verifyTask := <-queue.taskChan
 	require.Equal(t, TaskTypeVerifyCode, verifyTask.TaskType)
 	require.Equal(t, "zh-CN", verifyTask.Locale)
+	require.NotNil(t, verifyTask.RegistrationVerificationCtx)
+	require.Equal(t, "send_verify_code", verifyTask.RegistrationVerificationCtx.Action)
+	require.Equal(t, "ua-hash", verifyTask.RegistrationVerificationCtx.UserAgentHash)
 
 	resetTask := <-queue.taskChan
 	require.Equal(t, TaskTypePasswordReset, resetTask.TaskType)

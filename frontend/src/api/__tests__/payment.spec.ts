@@ -37,4 +37,5 @@ describe('payment api', () => {
       resume_token: 'resume-token-123',
     })
   })
+
 })

@@ -75,6 +75,8 @@ type DataAccount struct {
 type DataImportRequest struct {
 	Data                 DataPayload `json:"data"`
 	SkipDefaultGroupBind *bool       `json:"skip_default_group_bind"`
+	GroupIDs             []int64     `json:"group_ids"`
+	ProxyProvider        string      `json:"proxy_provider"`
 }
 
 type DataImportResult struct {
@@ -83,6 +85,7 @@ type DataImportResult struct {
 	ProxyFailed    int               `json:"proxy_failed"`
 	AccountCreated int               `json:"account_created"`
 	AccountFailed  int               `json:"account_failed"`
+	AccountIDs     []int64           `json:"account_ids,omitempty"`
 	Errors         []DataImportError `json:"errors,omitempty"`
 }
 
@@ -249,7 +252,12 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 	}
 
 	dataPayload := req.Data
+	groupIDs := normalizeDataImportGroupIDs(req.GroupIDs)
 	result := DataImportResult{}
+	allocator, err := h.newProjectMihomoProxyAllocator(ctx, isProjectMihomoProxyProvider(req.ProxyProvider))
+	if err != nil {
+		return result, err
+	}
 
 	existingProxies, err := h.listAllProxies(ctx)
 	if err != nil {
@@ -416,7 +424,8 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 		}
 
 		var proxyID *int64
-		if item.ProxyKey != nil && *item.ProxyKey != "" {
+		useProjectMihomoPool := isProjectMihomoProxyProvider(req.ProxyProvider)
+		if !useProjectMihomoPool && item.ProxyKey != nil && *item.ProxyKey != "" {
 			if id, ok := proxyKeyToID[*item.ProxyKey]; ok {
 				proxyID = &id
 			} else {
@@ -430,6 +439,16 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 				continue
 			}
 		}
+		resolvedProxyID, resolveErr := h.resolveProjectMihomoProxyID(ctx, proxyID, req.ProxyProvider, allocator)
+		if resolveErr != nil {
+			result.AccountFailed++
+			result.Errors = append(result.Errors, DataImportError{
+				Kind:    "account",
+				Name:    item.Name,
+				Message: resolveErr.Error(),
+			})
+			continue
+		}
 
 		enrichCredentialsFromIDToken(&item)
 
@@ -440,11 +459,11 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 			Type:                 item.Type,
 			Credentials:          item.Credentials,
 			Extra:                item.Extra,
-			ProxyID:              proxyID,
+			ProxyID:              resolvedProxyID,
 			Concurrency:          item.Concurrency,
 			Priority:             item.Priority,
 			RateMultiplier:       item.RateMultiplier,
-			GroupIDs:             nil,
+			GroupIDs:             groupIDs,
 			ExpiresAt:            item.ExpiresAt,
 			AutoPauseOnExpired:   item.AutoPauseOnExpired,
 			SkipDefaultGroupBind: skipDefaultGroupBind,
@@ -466,6 +485,7 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 		}
 		h.scheduleGrokImportProbe(created)
 		result.AccountCreated++
+		result.AccountIDs = append(result.AccountIDs, created.ID)
 	}
 
 	// 异步设置 Antigravity 隐私，避免大量导入时阻塞请求
@@ -622,6 +642,28 @@ func parseAccountIDs(c *gin.Context) ([]int64, error) {
 		}
 	}
 	return ids, nil
+}
+
+func normalizeDataImportGroupIDs(ids []int64) []int64 {
+	if len(ids) == 0 {
+		return nil
+	}
+	seen := make(map[int64]struct{}, len(ids))
+	out := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func parseIncludeProxies(c *gin.Context) (bool, error) {

@@ -1,9 +1,10 @@
 # =============================================================================
-# Sub2API Docker Compose - Local Directory Version
+# Sub2API Docker Compose - Stateful Restore Version
 # =============================================================================
-# This configuration uses local directories for data storage instead of named
-# volumes, making it easy to migrate the entire deployment by simply copying
-# the deploy directory.
+# This configuration deliberately uses local directories for state. It is for
+# restoring an existing instance or operator-managed backups, not for a fresh
+# server deployment. Never copy data/, postgres_data/, or redis_data/ from a
+# development machine into a new production instance.
 #
 # Quick Start:
 #   1. Copy .env.example to .env and configure
@@ -12,7 +13,7 @@
 #   4. Check logs: docker-compose -f docker-compose.local.yml logs -f sub2api
 #   5. Access: http://localhost:8080
 #
-# Migration to New Server:
+# Stateful restore only (not a fresh deployment):
 #   1. docker-compose -f docker-compose.local.yml down
 #   2. tar czf sub2api-deploy.tar.gz deploy/
 #   3. Transfer to new server and extract
@@ -24,7 +25,7 @@ services:
   # Sub2API Application
   # ===========================================================================
   sub2api:
-    image: weishaw/sub2api:latest
+    image: ${SUB2API_IMAGE:-ghcr.io/aboutnb/sub2api:sub2api-flowai}
     container_name: sub2api
     restart: unless-stopped
     security_opt:
@@ -35,9 +36,13 @@ services:
         hard: 100000
     ports:
       - "${BIND_HOST:-0.0.0.0}:${SERVER_PORT:-8080}:8080"
+    extra_hosts:
+      # Keep migrated host.docker.internal API bases reachable on Linux hosts.
+      - "host.docker.internal:host-gateway"
     volumes:
-      # Local directory mapping for easy migration
-      - ./data:/app/data:Z
+      # Stateful restore mapping; do not populate from a local development copy.
+      - ${DATA_DIR:-./data}:/app/data:Z
+      - ${DATA_DIR:-./data}/mihomo:/app/data/mihomo:Z
       # Optional: Mount custom config.yaml (uncomment and create the file first)
       # Copy config.example.yaml to config.yaml, modify it, then uncomment:
       # - ./config.yaml:/app/data/config.yaml
@@ -56,7 +61,11 @@ services:
       - ENABLE_SERVER_TIMING=${ENABLE_SERVER_TIMING:-false}
       - RUN_MODE=${RUN_MODE:-standard}
       - UPDATE_GITHUB_TOKEN=${UPDATE_GITHUB_TOKEN:-}
-
+      - XZNOAUTH_INVOICE_ENABLED=${XZNOAUTH_INVOICE_ENABLED:-false}
+      - XZNOAUTH_BASE_URL=${XZNOAUTH_BASE_URL:-https://oauth.xzncraft.cn}
+      - XZNOAUTH_CLIENT_ID=${XZNOAUTH_CLIENT_ID:-}
+      - XZNOAUTH_CLIENT_SECRET=${XZNOAUTH_CLIENT_SECRET:-}
+      - XZNOAUTH_INVOICE_TIMEOUT_SECONDS=${XZNOAUTH_INVOICE_TIMEOUT_SECONDS:-15}
       # =======================================================================
       # Database Configuration (PostgreSQL)
       # =======================================================================
@@ -217,6 +226,21 @@ services:
       retries: 3
       start_period: 30s
 
+  mihomo-sub2api:
+    image: metacubex/mihomo:latest
+    container_name: mihomo-sub2api
+    restart: unless-stopped
+    command: ["-d", "/root/.config/mihomo", "-ext-ctl", "0.0.0.0:9097"]
+    ports:
+      - "127.0.0.1:${MIHOMO_CONTROLLER_PORT:-9097}:9097"
+      - "127.0.0.1:${MIHOMO_PROXY_PORT_RANGE:-61000-61031}:61000-61031"
+    environment:
+      - SAFE_PATHS=/root/.config/mihomo
+    volumes:
+      - ${DATA_DIR:-./data}/mihomo:/root/.config/mihomo
+    networks:
+      - sub2api-network
+
   # ===========================================================================
   # PostgreSQL Database
   # ===========================================================================
@@ -229,7 +253,7 @@ services:
         soft: 100000
         hard: 100000
     volumes:
-      # Local directory mapping for easy migration
+      # Stateful restore mapping; do not populate from a local development copy.
       - ./postgres_data:/var/lib/postgresql/data:Z
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-sub2api}
@@ -260,7 +284,7 @@ services:
         soft: 100000
         hard: 100000
     volumes:
-      # Local directory mapping for easy migration
+      # Stateful restore mapping; do not populate from a local development copy.
       - ./redis_data:/data:Z
     # The command is one quoted script for the inner `sh -c`. Compose keeps
     # the newlines inside the quoted string, so every line needs a trailing

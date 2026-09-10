@@ -154,6 +154,9 @@ type SystemSettings struct {
 	SiteSubtitle                string
 	APIBaseURL                  string
 	ContactInfo                 string
+	CommunityGroupName          string
+	CommunityGroupIcon          string
+	CommunityGroupURL           string
 	DocURL                      string
 	HomeContent                 string
 	CompactHomeEnabled          bool
@@ -211,6 +214,12 @@ type SystemSettings struct {
 
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+
+	// Smart routing feature switch (opt-in; existing single-group keys are unaffected).
+	SmartRoutingEnabled bool `json:"smart_routing_enabled"`
+
+	// User-facing subscription page and sidebar entry
+	UserSubscriptionsEnabled bool `json:"user_subscriptions_enabled"`
 
 	// Model Plaza feature (public group/model pricing showcase)
 	ModelPlazaEnabled       bool   `json:"model_plaza_enabled"`
@@ -346,10 +355,14 @@ type PublicSettings struct {
 	SiteSubtitle                        string
 	APIBaseURL                          string
 	ContactInfo                         string
+	CommunityGroupName                  string
+	CommunityGroupIcon                  string
+	CommunityGroupURL                   string
 	DocURL                              string
 	HomeContent                         string
 	CompactHomeEnabled                  bool
 	HideCcsImportButton                 bool
+	CheckinEnabled                      bool
 
 	PurchaseSubscriptionEnabled bool
 	PurchaseSubscriptionURL     string
@@ -393,6 +406,12 @@ type PublicSettings struct {
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
+	// Smart routing feature switch (opt-in).
+	SmartRoutingEnabled bool `json:"smart_routing_enabled"`
+
+	// User-facing subscription page and sidebar entry
+	UserSubscriptionsEnabled bool `json:"user_subscriptions_enabled"`
+
 	// Model Plaza feature (public group/model pricing showcase)
 	ModelPlazaEnabled       bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth   bool `json:"model_plaza_require_auth"`
@@ -406,6 +425,10 @@ type PublicSettings struct {
 
 	// 允许终端用户在用量页查看自己的失败请求
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
+
+	PublicAccessGuardEnabled bool
+	PublicAccessPublishKey   string
+	PublicAccessHeaderName   string
 }
 
 type LoginAgreementDocument struct {

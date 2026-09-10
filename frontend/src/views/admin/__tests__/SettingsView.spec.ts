@@ -385,6 +385,9 @@ const baseSettingsResponse = {
   site_subtitle: "",
   api_base_url: "",
   contact_info: "",
+  community_group_name: "",
+  community_group_icon: "",
+  community_group_url: "",
   doc_url: "",
   home_content: "",
   compact_home_enabled: false,
@@ -478,6 +481,7 @@ const baseSettingsResponse = {
   openai_codex_user_agent: "",
   payment_enabled: true,
   payment_min_amount: 1,
+  payment_usdt_min_amount: 50,
   payment_max_amount: 10000,
   payment_daily_limit: 50000,
   payment_order_timeout_minutes: 30,
@@ -485,8 +489,14 @@ const baseSettingsResponse = {
   payment_enabled_types: [],
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
+  payment_recharge_bonus_tiers: [
+    { min_amount: 50, bonus_percent: 5 },
+    { min_amount: 100, bonus_percent: 10 },
+  ],
   payment_subscription_usd_to_cny_rate: 0,
+  payment_subscription_fee_enabled: true,
   payment_recharge_fee_rate: 0,
+  payment_recharge_fee_credited: false,
   payment_load_balance_strategy: "round-robin",
   payment_product_name_prefix: "",
   payment_product_name_suffix: "",
@@ -497,6 +507,12 @@ const baseSettingsResponse = {
   payment_cancel_rate_limit_window: 1,
   payment_cancel_rate_limit_unit: "day",
   payment_cancel_rate_limit_window_mode: "rolling",
+  invoice_enabled: false,
+  invoice_base_url: "https://oauth.xzncraft.cn",
+  invoice_client_id: "",
+  invoice_client_secret_configured: false,
+  invoice_timeout_seconds: 15,
+  invoice_fee_payer: "customer",
   payment_visible_method_alipay_source: "alipay_direct",
   payment_visible_method_wxpay_source: "invalid-source",
   payment_visible_method_alipay_enabled: true,
@@ -534,6 +550,7 @@ const baseSettingsResponse = {
   subscription_expiry_notify_enabled: true,
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [],
+  user_subscriptions_enabled: true,
   // 平台限额嵌套字段（新后端契约）
   default_platform_quotas: {
     anthropic:   { daily: null, weekly: null, monthly: null },
@@ -1075,6 +1092,177 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(payload).not.toHaveProperty("payment_visible_method_wxpay_enabled");
   });
 
+  it("submits the recharge fee credited setting", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      payment_recharge_fee_rate: 2,
+      payment_recharge_fee_credited: true,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_recharge_fee_credited: true }),
+    );
+  });
+
+  it("submits configurable recharge bonus tiers", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      payment_recharge_bonus_tiers: [
+        { min_amount: 80, bonus_percent: 6.5 },
+        { min_amount: 150, bonus_percent: 12 },
+      ],
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_recharge_bonus_tiers: [
+          { min_amount: 80, bonus_percent: 6.5 },
+          { min_amount: 150, bonus_percent: 12 },
+        ],
+      }),
+    );
+  });
+
+  it("submits the subscription fee setting", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      payment_recharge_fee_rate: 2,
+      payment_subscription_fee_enabled: false,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_subscription_fee_enabled: false }),
+    );
+  });
+
+  it("shows configured invoice credentials without exposing the secret", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      invoice_enabled: true,
+      invoice_base_url: "https://invoice.example.test",
+      invoice_client_id: "invoice-client",
+      invoice_client_secret_configured: true,
+      invoice_timeout_seconds: 25,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openPaymentTab(wrapper);
+
+    const invoiceSettings = wrapper.get('[data-testid="invoice-settings"]');
+    const secretInput = invoiceSettings.get('input[type="password"]');
+    expect((secretInput.element as HTMLInputElement).value).toBe("");
+    expect(secretInput.attributes("placeholder")).toBe(
+      "admin.settings.payment.invoice.secretConfiguredPlaceholder",
+    );
+    expect(wrapper.text()).toContain(
+      "admin.settings.payment.invoice.configured",
+    );
+  });
+
+  it("keeps an existing invoice secret when the secret input is blank", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      invoice_enabled: true,
+      invoice_base_url: "https://invoice.example.test",
+      invoice_client_id: "invoice-client",
+      invoice_client_secret_configured: true,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        invoice_enabled: true,
+        invoice_client_secret: "",
+      }),
+    );
+  });
+
+  it("submits the administrator-owned invoice fee payer policy", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      invoice_enabled: true,
+      invoice_base_url: "https://invoice.example.test",
+      invoice_client_id: "invoice-client",
+      invoice_client_secret_configured: true,
+      invoice_fee_payer: "customer",
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openPaymentTab(wrapper);
+    const feePayer = wrapper.get('[data-testid="invoice-fee-payer"]');
+    await feePayer
+      .findAll('button')
+      .find((button) =>
+        button.text().includes("admin.settings.payment.invoice.feePayerPlatform"),
+      )!
+      .trigger("click");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ invoice_fee_payer: "platform" }),
+    );
+  });
+
+  it("blocks enabling invoices until all credentials are present", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      invoice_enabled: true,
+      invoice_client_id: "",
+      invoice_client_secret_configured: false,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).not.toHaveBeenCalled();
+    expect(showError).toHaveBeenCalledWith(
+      "admin.settings.payment.invoice.incompleteError",
+    );
+    expect(wrapper.text()).toContain(
+      "admin.settings.payment.invoice.secretEncryptionKeyRequired",
+    );
+  });
+
+  it("submits the user subscription entry setting", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      user_subscriptions_enabled: false,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ user_subscriptions_enabled: false }),
+    );
+  });
+
   it("submits the admin recharge affiliate rebate setting", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
@@ -1112,6 +1300,29 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         enable_anthropic_cache_ttl_1h_injection: true,
+      }),
+    );
+  });
+
+  it("submits the configured community group settings", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      community_group_name: "技术交流",
+      community_group_icon: "data:image/svg+xml;base64,PHN2Zz4=",
+      community_group_url: "https://example.com/community",
+    });
+
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        community_group_name: "技术交流",
+        community_group_icon: "data:image/svg+xml;base64,PHN2Zz4=",
+        community_group_url: "https://example.com/community",
       }),
     );
   });

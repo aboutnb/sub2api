@@ -35,6 +35,9 @@ import affiliatesAPI from './affiliates'
 import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
+import authIPBansAPI from './authIPBans'
+import checkinAdminAPI from './checkin'
+import emailBroadcastsAPI from './emailBroadcasts'
 import pluginsAPI from './plugins'
 
 /**
@@ -73,6 +76,9 @@ export const adminAPI = {
   riskControl: riskControlAPI,
   compliance: adminComplianceAPI,
   audit: auditAPI,
+  authIPBans: authIPBansAPI,
+  checkin: checkinAdminAPI,
+  emailBroadcasts: emailBroadcastsAPI,
   plugins: pluginsAPI
 }
 
@@ -109,6 +115,9 @@ export {
   riskControlAPI,
   adminComplianceAPI,
   auditAPI,
+  authIPBansAPI,
+  checkinAdminAPI,
+  emailBroadcastsAPI,
   pluginsAPI
 }
 
@@ -121,6 +130,16 @@ export type { ErrorPassthroughRule, CreateRuleRequest, UpdateRuleRequest } from 
 export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
 export type { TLSFingerprintProfile, CreateProfileRequest, UpdateProfileRequest } from './tlsFingerprintProfile'
 export type { ContentModerationConfig, ContentModerationLog, ModerationMode } from './riskControl'
+export type { AuthIPBan, AuthIPBanPolicy, AuthIPBanStatus, AuthUserAgentCategory } from './authIPBans'
+export type {
+  EmailBroadcastTask,
+  EmailBroadcastRecipient,
+  EmailBroadcastPayload,
+  EmailBroadcastStatus,
+  EmailBroadcastAudience,
+  EmailBroadcastAudienceMode,
+  EmailBroadcastEvent
+} from './emailBroadcasts'
 export type {
   PluginInstallation,
   PluginCompatibility,

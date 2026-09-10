@@ -160,7 +160,9 @@ const subscriptionCnyPreview = computed(() => {
   if (price <= 0 || rate <= 0) return null
 
   const amount = roundCnyAmount(price * rate)
-  const feeRate = Number(props.paymentConfig?.recharge_fee_rate) || 0
+  const feeRate = props.paymentConfig?.subscription_fee_enabled !== false
+    ? Number(props.paymentConfig?.recharge_fee_rate) || 0
+    : 0
   const fee = feeRate > 0 ? ceilCnyAmount((amount * feeRate) / 100) : 0
   const total = feeRate > 0 ? roundCnyAmount(amount + fee) : amount
 

@@ -13,6 +13,35 @@ var registrationEmailDomainPattern = regexp.MustCompile(
 	`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$`,
 )
 
+var disposableRegistrationEmailDomains = map[string]struct{}{
+	"10minutemail.com":       {},
+	"10minutemail.net":       {},
+	"20minutemail.com":       {},
+	"anonaddy.com":           {},
+	"dispostable.com":        {},
+	"emailondeck.com":        {},
+	"fakeinbox.com":          {},
+	"guerrillamail.biz":      {},
+	"guerrillamail.com":      {},
+	"guerrillamail.de":       {},
+	"guerrillamail.info":     {},
+	"guerrillamail.net":      {},
+	"guerrillamail.org":      {},
+	"guerrillamailblock.com": {},
+	"maildrop.cc":            {},
+	"mailinator.com":         {},
+	"moakt.com":              {},
+	"sharklasers.com":        {},
+	"spam4.me":               {},
+	"tempmail.com":           {},
+	"tempmail.net":           {},
+	"temp-mail.io":           {},
+	"temp-mail.org":          {},
+	"throwawaymail.com":      {},
+	"trashmail.com":          {},
+	"yopmail.com":            {},
+}
+
 // RegistrationEmailSuffix extracts normalized suffix in "@domain" form.
 func RegistrationEmailSuffix(email string) string {
 	_, domain, ok := splitEmailForPolicy(email)
@@ -67,6 +96,31 @@ func IsRegistrationEmailSuffixAllowed(email string, whitelist []string) bool {
 		}
 	}
 	return false
+}
+
+// IsRegistrationEmailAlias rejects obvious provider aliases for new account creation.
+// Login keeps using the stored email as-is, so existing accounts are not locked out.
+func IsRegistrationEmailAlias(email string) bool {
+	local, domain, ok := splitEmailForPolicy(email)
+	if !ok {
+		return false
+	}
+	if strings.Contains(local, "+") {
+		return true
+	}
+	if domain == "gmail.com" || domain == "googlemail.com" {
+		return strings.Contains(local, ".")
+	}
+	return false
+}
+
+func IsDisposableRegistrationEmailDomain(email string) bool {
+	_, domain, ok := splitEmailForPolicy(email)
+	if !ok {
+		return false
+	}
+	_, denied := disposableRegistrationEmailDomains[domain]
+	return denied
 }
 
 // IsRegistrationEmailSuffixLimited 判断非空白名单是否对该邮箱域名启用单账户额度。

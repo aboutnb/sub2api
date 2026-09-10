@@ -12,7 +12,7 @@
 
 services:
   sub2api:
-    image: weishaw/sub2api:latest
+    image: ${SUB2API_IMAGE:-ghcr.io/aboutnb/sub2api:sub2api-flowai}
     container_name: sub2api
     restart: unless-stopped
     security_opt:
@@ -42,7 +42,11 @@ services:
       - ENABLE_SERVER_TIMING=${ENABLE_SERVER_TIMING:-false}
       - RUN_MODE=${RUN_MODE:-standard}
       - UPDATE_GITHUB_TOKEN=${UPDATE_GITHUB_TOKEN:-}
-
+      - XZNOAUTH_INVOICE_ENABLED=${XZNOAUTH_INVOICE_ENABLED:-false}
+      - XZNOAUTH_BASE_URL=${XZNOAUTH_BASE_URL:-https://oauth.xzncraft.cn}
+      - XZNOAUTH_CLIENT_ID=${XZNOAUTH_CLIENT_ID:-}
+      - XZNOAUTH_CLIENT_SECRET=${XZNOAUTH_CLIENT_SECRET:-}
+      - XZNOAUTH_INVOICE_TIMEOUT_SECONDS=${XZNOAUTH_INVOICE_TIMEOUT_SECONDS:-15}
       # =======================================================================
       # Database Configuration (PostgreSQL) - Required
       # =======================================================================

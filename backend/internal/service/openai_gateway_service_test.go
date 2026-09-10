@@ -1081,8 +1081,8 @@ func TestOpenAISelectAccountWithLoadAwareness_LoadBatchErrorFallback(t *testing.
 	groupID := int64(1)
 	repo := stubOpenAIAccountRepo{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 2},
-			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 2},
 		},
 	}
 	cache := &stubGatewayCache{}
@@ -1103,10 +1103,10 @@ func TestOpenAISelectAccountWithLoadAwareness_LoadBatchErrorFallback(t *testing.
 	if selection == nil || selection.Account == nil {
 		t.Fatalf("expected selection")
 	}
-	if selection.Account.ID != 2 {
-		t.Fatalf("expected account 2, got %d", selection.Account.ID)
+	if selection.Account.ID != 1 {
+		t.Fatalf("expected account 1, got %d", selection.Account.ID)
 	}
-	if cache.sessionBindings["openai:fallback"] != 2 {
+	if cache.sessionBindings["openai:fallback"] != 1 {
 		t.Fatalf("expected sticky session updated")
 	}
 	if selection.ReleaseFunc != nil {
@@ -1817,6 +1817,7 @@ func TestOpenAIStreamingResponseFailedBeforeOutputCapacityErrorReturnsFailover(t
 	require.ErrorAs(t, err, &failoverErr)
 	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
 	require.True(t, failoverErr.RetryableOnSameAccount)
+	require.True(t, failoverErr.RequestScopedTransient)
 	require.Contains(t, string(failoverErr.ResponseBody), "Selected model is at capacity")
 	require.False(t, c.Writer.Written())
 	require.Empty(t, rec.Body.String())

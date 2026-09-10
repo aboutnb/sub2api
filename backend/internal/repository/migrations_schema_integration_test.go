@@ -143,11 +143,30 @@ WHERE ns.nspname = 'public'
 	var settingsRegclass sql.NullString
 	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.settings')").Scan(&settingsRegclass))
 	require.True(t, settingsRegclass.Valid, "expected settings table to exist")
+	var ipMax, fingerprintWindow, fingerprintMax string
+	require.NoError(t, tx.QueryRowContext(context.Background(), `
+SELECT
+  MAX(value) FILTER (WHERE key = 'checkin_ip_max_users'),
+  MAX(value) FILTER (WHERE key = 'checkin_fingerprint_window_minutes'),
+  MAX(value) FILTER (WHERE key = 'checkin_fingerprint_max_users')
+FROM settings
+`).Scan(&ipMax, &fingerprintWindow, &fingerprintMax))
+	require.Equal(t, "5", ipMax, "migration 207 should tighten the default IP user limit")
+	require.Equal(t, "1440", fingerprintWindow, "migration 206 should seed the default fingerprint window")
+	require.Equal(t, "1", fingerprintMax, "migration 206 should seed the default fingerprint user limit")
 
 	// security_secrets table should exist
 	var securitySecretsRegclass sql.NullString
 	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.security_secrets')").Scan(&securitySecretsRegclass))
 	require.True(t, securitySecretsRegclass.Valid, "expected security_secrets table to exist")
+
+	var signupRiskRegclass sql.NullString
+	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.signup_risk_accounts')").Scan(&signupRiskRegclass))
+	require.True(t, signupRiskRegclass.Valid, "expected signup_risk_accounts table to exist")
+	requireColumn(t, tx, "signup_risk_accounts", "fingerprint_hash", "character varying", 64, false)
+	requireColumn(t, tx, "signup_risk_accounts", "grant_allowed", "boolean", 0, false)
+	requireIndex(t, tx, "signup_risk_accounts", "signup_risk_accounts_one_grant_per_fingerprint")
+	requireForeignKeyOnDelete(t, tx, "signup_risk_accounts", "user_id", "users", "SET NULL")
 
 	// scheduler_outbox pending dedup support
 	requireColumn(t, tx, "scheduler_outbox", "dedup_key", "text", 0, true)

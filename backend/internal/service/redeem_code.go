@@ -2,8 +2,16 @@ package service
 
 import (
 	"crypto/rand"
-	"encoding/hex"
+	"strings"
 	"time"
+)
+
+const (
+	redeemCodeAlphabet  = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	redeemCodeLength    = 16
+	redeemCodeGroupSize = 4
+
+	checkinHistoryModeNotePrefix = "checkin_mode:"
 )
 
 type RedeemCode struct {
@@ -47,10 +55,41 @@ func (r *RedeemCode) CanUse() bool {
 	return r.Status == StatusUnused && !r.IsExpired()
 }
 
+func CheckinHistoryModeNote(mode string) string {
+	return checkinHistoryModeNotePrefix + strings.ToLower(strings.TrimSpace(mode))
+}
+
+func (r *RedeemCode) CheckinMode() string {
+	if r == nil || r.Type != RedeemTypeCheckin {
+		return ""
+	}
+	mode, found := strings.CutPrefix(r.Notes, checkinHistoryModeNotePrefix)
+	if !found {
+		return ""
+	}
+	switch mode {
+	case "normal", "lucky":
+		return mode
+	default:
+		return ""
+	}
+}
+
 func GenerateRedeemCode() (string, error) {
-	b := make([]byte, 16)
+	b := make([]byte, redeemCodeLength)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(b), nil
+
+	var builder strings.Builder
+	builder.Grow(redeemCodeLength + (redeemCodeLength/redeemCodeGroupSize - 1))
+
+	for i, v := range b {
+		if i > 0 && i%redeemCodeGroupSize == 0 {
+			_ = builder.WriteByte('-')
+		}
+		_ = builder.WriteByte(redeemCodeAlphabet[int(v)&31])
+	}
+
+	return builder.String(), nil
 }

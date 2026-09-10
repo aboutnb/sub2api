@@ -1,0 +1,3286 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="data:," />
+  <title>Sub2API 每日签到设计稿</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --canvas: #f8fafc;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --surface-muted: #f1f5f9;
+      --ink: #0f172a;
+      --ink-secondary: #334155;
+      --muted: #64748b;
+      --muted-light: #94a3b8;
+      --line: #e2e8f0;
+      --line-soft: #edf2f7;
+      --teal: #0d9488;
+      --teal-dark: #0f766e;
+      --teal-soft: #ccfbf1;
+      --emerald: #059669;
+      --emerald-soft: #d1fae5;
+      --amber: #d97706;
+      --amber-soft: #fef3c7;
+      --blue: #2563eb;
+      --blue-soft: #dbeafe;
+      --violet: #7c3aed;
+      --violet-soft: #ede9fe;
+      --red: #dc2626;
+      --red-soft: #fee2e2;
+      --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.05);
+      --shadow-float: 0 18px 50px rgba(15, 23, 42, 0.16);
+      --sidebar: 256px;
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--canvas);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 78% -16%, rgba(20, 184, 166, 0.08), transparent 32rem),
+        var(--canvas);
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+      letter-spacing: 0;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 3px solid rgba(20, 184, 166, 0.22);
+      outline-offset: 2px;
+    }
+
+    svg {
+      display: block;
+    }
+
+    .icon {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex: 0 0 auto;
+    }
+
+    .icon-sm {
+      width: 16px;
+      height: 16px;
+    }
+
+    .icon-lg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 20;
+      width: var(--sidebar);
+      padding: 18px 14px;
+      border-right: 1px solid var(--line-soft);
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      height: 44px;
+      padding: 0 10px;
+      font-size: 16px;
+      font-weight: 750;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      border-radius: 9px;
+      background: var(--teal);
+      color: white;
+      box-shadow: 0 6px 18px rgba(13, 148, 136, 0.24);
+    }
+
+    .nav-group {
+      margin-top: 22px;
+    }
+
+    .nav-label {
+      margin: 0 10px 8px;
+      color: var(--muted-light);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 42px;
+      margin: 3px 0;
+      padding: 0 12px;
+      border-radius: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 570;
+    }
+
+    .nav-item.active {
+      background: var(--teal-soft);
+      color: var(--teal-dark);
+      font-weight: 680;
+    }
+
+    .nav-item .nav-spacer {
+      flex: 1;
+    }
+
+    .nav-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--teal);
+    }
+
+    .sidebar-footer {
+      position: absolute;
+      right: 14px;
+      bottom: 18px;
+      left: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border-top: 1px solid var(--line-soft);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .workspace {
+      min-height: 100vh;
+      margin-left: var(--sidebar);
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      padding: 0 28px;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.88);
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar-left,
+    .topbar-actions,
+    .inline {
+      display: flex;
+      align-items: center;
+    }
+
+    .topbar-left {
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .topbar-title {
+      overflow: hidden;
+      color: var(--ink-secondary);
+      font-size: 14px;
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mobile-menu {
+      display: none;
+      width: 36px;
+      height: 36px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: white;
+      color: var(--ink-secondary);
+    }
+
+    .topbar-actions {
+      gap: 8px;
+    }
+
+    .icon-button {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+    }
+
+    .icon-button:hover {
+      border-color: var(--line);
+      background: white;
+    }
+
+    .balance-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 34px;
+      padding: 0 11px;
+      border: 1px solid #bbf7d0;
+      border-radius: 10px;
+      background: #f0fdf4;
+      color: #047857;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .checkin-shortcut {
+      position: relative;
+      display: inline-flex;
+      min-height: 34px;
+      align-items: center;
+      gap: 7px;
+      padding: 0 10px;
+      border: 1px solid #99f6e4;
+      border-radius: 10px;
+      background: #f0fdfa;
+      color: var(--teal-dark);
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .checkin-shortcut:hover {
+      border-color: #5eead4;
+      background: #ccfbf1;
+    }
+
+    .checkin-shortcut.success {
+      border-color: #bbf7d0;
+      background: #f0fdf4;
+      color: #047857;
+    }
+
+    .shortcut-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12);
+    }
+
+    .checkin-shortcut.success .shortcut-dot {
+      background: var(--emerald);
+      box-shadow: none;
+    }
+
+    body[data-screen="admin"] .checkin-shortcut {
+      display: none;
+    }
+
+    .avatar {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border-radius: 10px;
+      background: #e2e8f0;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .main {
+      padding: 28px 32px 56px;
+    }
+
+    .page-stack {
+      display: grid;
+      gap: 24px;
+      width: 100%;
+      max-width: 1540px;
+      margin: 0 auto;
+    }
+
+    .user-page {
+      max-width: 1120px;
+    }
+
+    .page-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .page-heading h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    .page-heading p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .card {
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow-card);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .user-summary-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .user-summary-grid .stat-card {
+      min-height: 104px;
+    }
+
+    .stat-card {
+      display: flex;
+      min-height: 96px;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .stat-icon {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border-radius: 10px;
+    }
+
+    .stat-icon.emerald {
+      background: var(--emerald-soft);
+      color: var(--emerald);
+    }
+
+    .stat-icon.blue {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .stat-icon.violet {
+      background: var(--violet-soft);
+      color: var(--violet);
+    }
+
+    .stat-icon.amber {
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .stat-copy {
+      min-width: 0;
+    }
+
+    .stat-label {
+      margin: 0 0 3px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .stat-value {
+      margin: 0;
+      overflow: hidden;
+      color: var(--ink);
+      font-size: 21px;
+      font-weight: 760;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .stat-unit {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .stat-value.emerald {
+      color: var(--emerald);
+    }
+
+    .stat-note {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .checkin-hero {
+      display: flex;
+      min-height: 124px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      overflow: hidden;
+      padding: 24px;
+      border: 0;
+      background: linear-gradient(135deg, #10b981 0%, #0891b2 100%);
+      color: white;
+      box-shadow: 0 14px 30px rgba(8, 145, 178, 0.16);
+    }
+
+    .checkin-hero-main {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .checkin-hero-icon {
+      display: grid;
+      width: 48px;
+      height: 48px;
+      place-items: center;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      backdrop-filter: blur(8px);
+    }
+
+    .checkin-hero-label,
+    .checkin-hero-status-title,
+    .checkin-hero-date {
+      margin: 0;
+    }
+
+    .checkin-hero-label {
+      color: rgba(236, 253, 245, 0.92);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .checkin-hero-balance {
+      margin: 5px 0 0;
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .checkin-hero-status {
+      min-width: 160px;
+      padding: 13px 16px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.16);
+      color: white;
+      backdrop-filter: blur(8px);
+    }
+
+    .checkin-hero-status-title {
+      font-size: 15px;
+      font-weight: 750;
+    }
+
+    .checkin-hero-date {
+      margin-top: 9px;
+      color: rgba(236, 253, 245, 0.76);
+      font-size: 11px;
+    }
+
+    .checkin-panel {
+      position: relative;
+      min-height: 0;
+    }
+
+    .checkin-panel.state-success {
+      border-color: transparent;
+      background: transparent;
+    }
+
+    .checkin-layout {
+      display: grid;
+      gap: 16px;
+    }
+
+    .checkin-mode-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .mode-card {
+      display: flex;
+      min-width: 0;
+      min-height: 208px;
+      flex-direction: column;
+      padding: 24px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow-card);
+      color: var(--ink);
+      text-align: left;
+      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    }
+
+    .mode-card:hover:not(:disabled) {
+      border-color: #6ee7b7;
+      box-shadow: 0 12px 26px rgba(15, 23, 42, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .mode-card.lucky:hover:not(:disabled) {
+      border-color: #67e8f9;
+    }
+
+    .mode-card:disabled {
+      cursor: not-allowed;
+      opacity: 0.58;
+    }
+
+    .mode-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .mode-card-icon {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--emerald-soft);
+      color: var(--emerald);
+    }
+
+    .mode-card.lucky .mode-card-icon {
+      background: #cffafe;
+      color: #0891b2;
+    }
+
+    .mode-card h2 {
+      margin: 20px 0 0;
+      font-size: 17px;
+    }
+
+    .mode-card p {
+      margin: 8px 0 0;
+      max-width: 34em;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .mode-card-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: auto;
+      padding-top: 20px;
+      color: var(--emerald);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .mode-card.lucky .mode-card-action {
+      color: #0891b2;
+    }
+
+    .mode-card-warning {
+      margin-top: 7px;
+      color: #9a3412 !important;
+      font-size: 11px !important;
+    }
+
+    .checkin-feedback {
+      display: flex;
+      min-height: 160px;
+      align-items: center;
+      gap: 18px;
+      padding: 24px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow-card);
+    }
+
+    .checkin-feedback.state-success {
+      border-color: #b7e4d1;
+      background: #f7fffb;
+    }
+
+    .checkin-feedback.state-unavailable,
+    .checkin-feedback.state-unknown {
+      border-color: #fde68a;
+      background: #fffbeb;
+    }
+
+    .checkin-feedback-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .checkin-feedback-copy h2 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .checkin-feedback-copy p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .checkin-feedback-result {
+      min-width: 170px;
+      padding: 0 22px;
+      border-left: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+    }
+
+    .checkin-feedback-result .reward-label,
+    .checkin-feedback-result .reward-note {
+      margin: 0;
+    }
+
+    .checkin-feedback-actions {
+      display: grid;
+      min-width: 180px;
+      justify-items: end;
+      gap: 11px;
+      text-align: right;
+    }
+
+    .checkin-identity {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .checkin-icon {
+      display: grid;
+      width: 48px;
+      height: 48px;
+      place-items: center;
+      border-radius: 14px;
+      background: var(--teal-soft);
+      color: var(--teal-dark);
+      flex: 0 0 auto;
+    }
+
+    .state-success .checkin-icon {
+      background: var(--emerald-soft);
+      color: var(--emerald);
+    }
+
+    .state-unavailable .checkin-icon,
+    .state-unknown .checkin-icon {
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .eyebrow-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .eyebrow-row h2 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      min-height: 22px;
+      align-items: center;
+      gap: 5px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: #ecfeff;
+      color: #0e7490;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge-icon {
+      width: 12px;
+      height: 12px;
+      stroke-width: 2.5;
+    }
+
+    .state-success .status-badge {
+      background: var(--emerald-soft);
+      color: #047857;
+    }
+
+    .state-unavailable .status-badge,
+    .state-unknown .status-badge {
+      background: var(--amber-soft);
+      color: #b45309;
+    }
+
+    .checkin-copy {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .reward-block {
+      display: flex;
+      min-height: 100%;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 24px;
+      border-right: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+
+    .reward-label {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .reward-value {
+      margin: 0;
+      color: var(--amber);
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    .state-success .reward-value {
+      color: var(--emerald);
+    }
+
+    .reward-note {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .mode-picker {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .mode-option {
+      display: grid;
+      min-width: 0;
+      gap: 3px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: white;
+      color: var(--ink-secondary);
+      text-align: left;
+      transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+    }
+
+    .mode-option strong {
+      font-size: 12px;
+    }
+
+    .mode-option small {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.3;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mode-option.active {
+      border-color: var(--teal);
+      background: var(--teal-soft);
+      color: var(--teal-dark);
+      box-shadow: inset 0 0 0 1px var(--teal);
+    }
+
+    .mode-option.active small {
+      color: var(--teal-dark);
+    }
+
+    .mode-option:disabled {
+      cursor: not-allowed;
+      opacity: 0.65;
+    }
+
+    .mode-hint {
+      min-height: 30px;
+      margin: 1px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+      text-align: right;
+    }
+
+    .mode-hint.lucky {
+      color: #9a3412;
+    }
+
+    .settled-mode {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .mode-chip {
+      display: inline-flex;
+      min-height: 24px;
+      align-items: center;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: var(--teal-soft);
+      color: var(--teal-dark);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .mode-chip.lucky {
+      background: var(--amber-soft);
+      color: #92400e;
+    }
+
+    .checkin-action {
+      display: grid;
+      min-width: 235px;
+      justify-items: stretch;
+      gap: 10px;
+      padding-left: 24px;
+      text-align: right;
+    }
+
+    .checkin-streak-inline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 5px;
+      color: var(--amber);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .checkin-action-bottom {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 14px;
+    }
+
+    .checkin-action-bottom .reset-copy {
+      max-width: 112px;
+      text-align: right;
+    }
+
+    .checkin-action-bottom .primary-button {
+      min-width: 126px;
+    }
+
+    .checkin-info-band {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      overflow: hidden;
+    }
+
+    .checkin-info-item {
+      min-width: 0;
+      padding: 18px 20px;
+    }
+
+    .checkin-info-item + .checkin-info-item {
+      border-left: 1px solid var(--line-soft);
+    }
+
+    .checkin-info-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 0 0 7px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .checkin-info-value {
+      margin: 0;
+      overflow-wrap: anywhere;
+      color: var(--ink-secondary);
+      font-size: 15px;
+      font-weight: 720;
+    }
+
+    .checkin-info-note {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .calendar-card {
+      padding: 20px 20px 16px;
+    }
+
+    .calendar-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .calendar-header .section-title h2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .calendar-weekdays,
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .calendar-weekdays {
+      margin-bottom: 8px;
+      color: var(--muted-light);
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .calendar-cell {
+      display: grid;
+      min-height: 62px;
+      align-content: center;
+      justify-items: center;
+      gap: 4px;
+      padding: 7px 4px;
+      border: 1px solid var(--line-soft);
+      border-radius: 10px;
+      background: white;
+      color: var(--ink-secondary);
+      text-align: center;
+    }
+
+    .calendar-placeholder {
+      visibility: hidden;
+      border-color: transparent;
+      background: transparent;
+    }
+
+    .calendar-loading {
+      grid-column: 1 / -1;
+      padding: 28px 0;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .calendar-cell.checked {
+      border-color: #a7f3d0;
+      background: #ecfdf5;
+      color: var(--emerald);
+    }
+
+    .calendar-cell.today {
+      border: 2px solid var(--teal);
+      background: #f0fdfa;
+      color: var(--teal-dark);
+    }
+
+    .calendar-cell.future,
+    .calendar-cell.unavailable {
+      background: var(--surface-soft);
+      color: var(--muted-light);
+    }
+
+    .calendar-cell.checked.today {
+      border-color: var(--emerald);
+      background: var(--emerald-soft);
+      color: var(--emerald);
+    }
+
+    .calendar-day {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .calendar-amount {
+      max-width: 100%;
+      overflow: hidden;
+      color: currentColor;
+      font-size: 10px;
+      font-weight: 750;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .calendar-legend {
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .calendar-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-swatch {
+      width: 9px;
+      height: 9px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: white;
+    }
+
+    .legend-swatch.checked {
+      border-color: #a7f3d0;
+      background: var(--emerald-soft);
+    }
+
+    .legend-swatch.today {
+      border-color: var(--teal);
+      background: var(--teal-soft);
+    }
+
+    .legend-swatch.future {
+      background: var(--surface-soft);
+    }
+
+    .today-record {
+      overflow: hidden;
+    }
+
+    .today-record-body {
+      display: grid;
+      gap: 10px;
+      padding: 16px 20px 10px;
+    }
+
+    .record-row {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: var(--surface-soft);
+    }
+
+    .record-mode-icon {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 11px;
+      background: var(--emerald-soft);
+      color: var(--emerald);
+    }
+
+    .record-mode-icon.lucky {
+      background: #cffafe;
+      color: #0891b2;
+    }
+
+    .record-row-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .record-row-title,
+    .record-row-meta,
+    .record-row-amount,
+    .record-row-balance {
+      margin: 0;
+    }
+
+    .record-row-title {
+      color: var(--ink-secondary);
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    .record-row-meta,
+    .record-row-balance {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .record-row-result {
+      min-width: 116px;
+      text-align: right;
+    }
+
+    .record-row-amount {
+      color: var(--emerald);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .record-row-amount.negative {
+      color: #c2410c;
+    }
+
+    .record-list-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 20px 16px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .record-item {
+      min-width: 0;
+    }
+
+    .record-label {
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .record-value {
+      margin: 0;
+      overflow: hidden;
+      color: var(--ink-secondary);
+      font-size: 16px;
+      font-weight: 750;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .record-value.emerald {
+      color: var(--emerald);
+    }
+
+    .record-empty {
+      grid-column: 1 / -1;
+      padding: 8px 0 4px;
+      color: var(--muted-light);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .reset-copy {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .primary-button,
+    .secondary-button,
+    .danger-button {
+      display: inline-flex;
+      min-height: 42px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 18px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      font-size: 13px;
+      font-weight: 700;
+      transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .primary-button {
+      background: var(--teal);
+      color: white;
+      box-shadow: 0 7px 18px rgba(13, 148, 136, 0.2);
+    }
+
+    .primary-button:hover:not(:disabled) {
+      background: var(--teal-dark);
+      transform: translateY(-1px);
+    }
+
+    .primary-button:disabled {
+      border-color: var(--line);
+      background: var(--surface-muted);
+      color: var(--muted);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    .secondary-button {
+      border-color: var(--line);
+      background: white;
+      color: var(--ink-secondary);
+    }
+
+    .secondary-button:hover {
+      background: var(--surface-soft);
+    }
+
+    .danger-button {
+      background: var(--red);
+      color: white;
+    }
+
+    .button-small {
+      min-height: 36px;
+      padding: 0 13px;
+      border-radius: 9px;
+      font-size: 12px;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .dashboard-lower {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+      gap: 24px;
+    }
+
+    .chart-card,
+    .actions-card {
+      min-height: 300px;
+      padding: 20px;
+    }
+
+    .card-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .card-heading h2,
+    .section-title h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .card-heading span,
+    .section-title p {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .chart-placeholder {
+      position: relative;
+      height: 210px;
+      overflow: hidden;
+      border-bottom: 1px solid var(--line);
+      background-image:
+        linear-gradient(to right, var(--line-soft) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--line-soft) 1px, transparent 1px);
+      background-size: 12.5% 25%;
+    }
+
+    .chart-placeholder svg {
+      position: absolute;
+      inset: 20px 0 12px;
+      width: 100%;
+      height: calc(100% - 32px);
+    }
+
+    .quick-action {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      gap: 12px;
+      margin: 10px 0;
+      padding: 13px;
+      border: 0;
+      border-radius: 12px;
+      background: var(--surface-soft);
+      color: var(--ink-secondary);
+      text-align: left;
+    }
+
+    .quick-action .stat-icon {
+      width: 40px;
+      height: 40px;
+    }
+
+    .quick-action-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .quick-action-copy strong,
+    .quick-action-copy small {
+      display: block;
+    }
+
+    .quick-action-copy strong {
+      font-size: 13px;
+    }
+
+    .quick-action-copy small {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .admin-page {
+      display: none;
+    }
+
+    body[data-screen="admin"] .user-page {
+      display: none;
+    }
+
+    body[data-screen="admin"] .admin-page {
+      display: grid;
+    }
+
+    body[data-screen="admin"] .user-nav {
+      display: none;
+    }
+
+    body:not([data-screen="admin"]) .admin-nav {
+      display: none;
+    }
+
+    .section-card {
+      overflow: hidden;
+    }
+
+    .section-header {
+      display: flex;
+      min-height: 70px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 17px 20px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .section-title h2 {
+      line-height: 1.3;
+    }
+
+    .section-title p {
+      margin: 5px 0 0;
+    }
+
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--ink-secondary);
+      font-size: 13px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .toggle {
+      position: relative;
+      width: 43px;
+      height: 24px;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: var(--teal);
+    }
+
+    .toggle::after {
+      position: absolute;
+      top: 3px;
+      left: 22px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.24);
+      content: "";
+      transition: left 150ms ease;
+    }
+
+    .toggle.off {
+      background: #cbd5e1;
+    }
+
+    .toggle.off::after {
+      left: 3px;
+    }
+
+    .mode-switches {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .mode-switch-item {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-soft);
+    }
+
+    .mode-switch-copy {
+      min-width: 0;
+    }
+
+    .mode-switch-copy strong,
+    .mode-switch-copy span {
+      display: block;
+    }
+
+    .mode-switch-copy strong {
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .mode-switch-copy span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .alert {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      margin: 16px 20px 0;
+      padding: 12px 14px;
+      border: 1px solid;
+      border-radius: 11px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .alert strong {
+      display: block;
+      margin-bottom: 2px;
+      font-size: 13px;
+    }
+
+    .alert-warning {
+      border-color: #fcd34d;
+      background: #fffbeb;
+      color: #92400e;
+    }
+
+    .alert-danger {
+      border-color: #fecaca;
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    .alert-info {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+      color: #1e40af;
+    }
+
+    body[data-admin-state="invalid"] .invalid-alert,
+    body[data-admin-state="conflict"] .conflict-alert {
+      display: flex;
+    }
+
+    .current-config {
+      display: grid;
+      grid-template-columns: 1.15fr repeat(3, minmax(0, 1fr));
+      margin: 18px 20px 0;
+      padding: 14px 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface-soft);
+    }
+
+    .current-label,
+    .current-item {
+      min-width: 0;
+      padding: 2px 16px;
+    }
+
+    .current-item {
+      border-left: 1px solid var(--line);
+    }
+
+    .current-kicker {
+      margin: 0 0 5px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .current-value {
+      margin: 0;
+      overflow-wrap: anywhere;
+      color: var(--ink-secondary);
+      font-size: 14px;
+      font-weight: 720;
+    }
+
+    .current-label .current-value {
+      color: var(--teal-dark);
+    }
+
+    .config-form {
+      padding: 20px;
+    }
+
+    .form-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .form-heading strong {
+      font-size: 14px;
+    }
+
+    .effective-badge {
+      display: inline-flex;
+      min-height: 24px;
+      align-items: center;
+      padding: 0 8px;
+      border-radius: 7px;
+      background: var(--blue-soft);
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .text-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--teal-dark);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px 16px;
+    }
+
+    .field {
+      min-width: 0;
+    }
+
+    .field-wide {
+      grid-column: 1 / -1;
+    }
+
+    .reward-type-field {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-soft);
+    }
+
+    .reward-type-copy strong,
+    .reward-type-copy span {
+      display: block;
+    }
+
+    .reward-type-copy strong {
+      color: var(--ink-secondary);
+      font-size: 12px;
+    }
+
+    .reward-type-copy span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .segmented-control {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: repeat(2, minmax(88px, 1fr));
+      gap: 3px;
+      padding: 3px;
+      border-radius: 9px;
+      background: #e8edef;
+    }
+
+    .segmented-button {
+      min-height: 32px;
+      padding: 0 11px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 680;
+    }
+
+    .segmented-button.active {
+      background: white;
+      color: var(--ink);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+    }
+
+    .field label {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+      color: var(--ink-secondary);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .field label small {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap input,
+    .field textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: white;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .input-wrap input {
+      height: 40px;
+      padding: 0 58px 0 12px;
+    }
+
+    .input-suffix {
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      color: var(--muted);
+      font-size: 11px;
+      transform: translateY(-50%);
+    }
+
+    .field textarea {
+      min-height: 68px;
+      padding: 10px 12px;
+      resize: vertical;
+    }
+
+    .form-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .form-note {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .overview-card {
+      min-height: 108px;
+      padding: 17px;
+    }
+
+    .overview-card .stat-value {
+      margin-top: 7px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 5px;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--surface-muted);
+    }
+
+    .progress-fill {
+      width: 32%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--teal);
+    }
+
+    .records-card {
+      overflow: hidden;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: minmax(210px, 1.2fr) minmax(130px, 0.7fr) minmax(180px, 1fr) auto;
+      gap: 10px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--line-soft);
+      background: var(--surface-soft);
+    }
+
+    .filter-input {
+      width: 100%;
+      height: 38px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: white;
+      color: var(--ink-secondary);
+      font-size: 12px;
+    }
+
+    .filter-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 880px;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--line-soft);
+      color: var(--ink-secondary);
+      font-size: 12px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      background: white;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 680;
+    }
+
+    td strong {
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    .money-positive {
+      color: var(--emerald);
+      font-weight: 700;
+    }
+
+    .money-negative {
+      color: #c2410c;
+      font-weight: 700;
+    }
+
+    .user-cell {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .user-cell .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      font-size: 10px;
+    }
+
+    .table-footer {
+      display: flex;
+      min-height: 52px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 16px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .pagination {
+      display: flex;
+      gap: 5px;
+    }
+
+    .page-button {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .page-button.active {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: white;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, 0.42);
+      backdrop-filter: blur(4px);
+    }
+
+    body[data-admin-state="confirm"] #confirm-modal,
+    body[data-lucky-confirm="true"] #lucky-confirm-modal {
+      display: flex;
+    }
+
+    .modal {
+      width: min(560px, 100%);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 16px;
+      background: white;
+      box-shadow: var(--shadow-float);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+      padding: 20px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .modal-header .stat-icon {
+      width: 42px;
+      height: 42px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .modal-header p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .lucky-confirm-modal {
+      width: min(470px, 100%);
+    }
+
+    .lucky-risk-copy {
+      margin: 0;
+      color: var(--ink-secondary);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .lucky-range {
+      margin-top: 16px;
+      padding: 13px 14px;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      background: #fffbeb;
+    }
+
+    .lucky-range small,
+    .lucky-range strong {
+      display: block;
+    }
+
+    .lucky-range small {
+      color: #b45309;
+      font-size: 11px;
+      font-weight: 680;
+    }
+
+    .lucky-range strong {
+      margin-top: 5px;
+      color: #78350f;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 20px;
+    }
+
+    .lucky-confirm-note {
+      margin: 13px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .diff-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 14px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--surface-soft);
+    }
+
+    .diff-side small,
+    .diff-side strong {
+      display: block;
+    }
+
+    .diff-side small {
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .diff-side strong {
+      margin-top: 4px;
+      color: var(--ink-secondary);
+      font-size: 12px;
+    }
+
+    .diff-arrow {
+      color: var(--teal);
+    }
+
+    .reason-box {
+      margin-top: 13px;
+      color: var(--ink-secondary);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .reason-box strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 9px;
+      padding: 14px 20px;
+      border-top: 1px solid var(--line-soft);
+      background: var(--surface-soft);
+    }
+
+    .review-toolbar {
+      position: fixed;
+      z-index: 100;
+      right: 20px;
+      bottom: 20px;
+      display: flex;
+      max-width: calc(100vw - 40px);
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: var(--shadow-float);
+      backdrop-filter: blur(18px);
+    }
+
+    .review-toolbar button,
+    .review-toolbar select {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      color: var(--ink-secondary);
+      font-size: 12px;
+    }
+
+    .review-toolbar button {
+      padding: 0 10px;
+    }
+
+    .review-toolbar button.active {
+      border-color: var(--teal);
+      background: var(--teal-soft);
+      color: var(--teal-dark);
+      font-weight: 700;
+    }
+
+    .review-toolbar select {
+      max-width: 180px;
+      padding: 0 26px 0 9px;
+    }
+
+    body.capture .review-toolbar {
+      display: none;
+    }
+
+    @media (max-width: 1100px) {
+      .checkin-layout {
+        grid-template-columns: minmax(240px, 1.18fr) minmax(170px, 0.82fr) minmax(220px, 0.9fr);
+      }
+
+      .reward-block,
+      .checkin-action {
+        padding-right: 18px;
+        padding-left: 18px;
+      }
+
+      .checkin-action {
+        min-width: 220px;
+      }
+    }
+
+    @media (max-width: 1023px) {
+      :root {
+        --sidebar: 0px;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .workspace {
+        margin-left: 0;
+      }
+
+      .mobile-menu {
+        display: inline-flex;
+      }
+
+      .topbar {
+        padding: 0 18px;
+      }
+
+      .main {
+        padding: 22px 20px 48px;
+      }
+
+      .dashboard-lower {
+        grid-template-columns: 1fr;
+      }
+
+      .filters {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .filter-actions {
+        justify-content: flex-end;
+      }
+    }
+
+    @media (max-width: 760px) {
+      body {
+        background: var(--canvas);
+      }
+
+      .topbar {
+        height: 58px;
+        padding: 0 14px;
+      }
+
+      .topbar-actions .icon-button:nth-of-type(1),
+      .topbar-actions .icon-button:nth-of-type(2),
+      .balance-pill {
+        display: none;
+      }
+
+      .checkin-shortcut {
+        width: 36px;
+        min-height: 36px;
+        justify-content: center;
+        padding: 0;
+      }
+
+      .checkin-shortcut .shortcut-label {
+        display: none;
+      }
+
+      .checkin-shortcut .shortcut-dot {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+      }
+
+      .main {
+        padding: 16px 14px 80px;
+      }
+
+      .page-stack {
+        gap: 16px;
+      }
+
+      .page-heading {
+        gap: 12px;
+      }
+
+      .page-heading h1 {
+        font-size: 19px;
+      }
+
+      .page-heading p {
+        font-size: 11px;
+      }
+
+      .checkin-hero {
+        min-height: 190px;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 18px;
+        padding: 22px 20px;
+      }
+
+      .checkin-hero-balance {
+        font-size: 32px;
+      }
+
+      .checkin-hero-status {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .user-summary-grid .stat-card:last-child {
+        grid-column: 1 / -1;
+      }
+
+      .stat-card {
+        min-height: 90px;
+        gap: 9px;
+        padding: 12px;
+      }
+
+      .stat-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+      }
+
+      .stat-value {
+        font-size: 18px;
+      }
+
+      .stat-note {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .checkin-layout {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 0;
+      }
+
+      .checkin-mode-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .mode-switches {
+        grid-template-columns: 1fr;
+      }
+
+      .mode-card {
+        min-height: 190px;
+        padding: 20px;
+      }
+
+      .checkin-feedback {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 16px;
+        padding: 20px;
+      }
+
+      .checkin-feedback-result {
+        min-width: 0;
+        padding: 14px 0;
+        border-top: 1px solid var(--line);
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        border-left: 0;
+      }
+
+      .checkin-feedback-actions {
+        min-width: 0;
+        justify-items: stretch;
+        text-align: left;
+      }
+
+      .checkin-info-band {
+        grid-template-columns: 1fr;
+      }
+
+      .checkin-info-item + .checkin-info-item {
+        border-top: 1px solid var(--line-soft);
+        border-left: 0;
+      }
+
+      .checkin-identity {
+        align-items: flex-start;
+      }
+
+      .checkin-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 12px;
+      }
+
+      .eyebrow-row {
+        flex-wrap: wrap;
+      }
+
+      .reward-block {
+        display: block;
+        align-items: start;
+        padding: 14px 0 0;
+        border-top: 1px solid var(--line);
+        border-right: 0;
+        border-left: 0;
+      }
+
+      .reward-note {
+        margin: 6px 0 0;
+        text-align: left;
+      }
+
+      .mode-picker {
+        gap: 8px;
+      }
+
+      .mode-hint {
+        text-align: left;
+      }
+
+      .settled-mode {
+        justify-content: flex-start;
+      }
+
+      .checkin-action {
+        grid-template-columns: 1fr;
+        min-width: 0;
+        align-items: center;
+        justify-items: stretch;
+        gap: 10px;
+        padding: 0;
+        text-align: left;
+      }
+
+      .checkin-streak-inline {
+        justify-content: flex-start;
+      }
+
+      .checkin-action-bottom {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+      }
+
+      .checkin-action-bottom .reset-copy {
+        max-width: none;
+        text-align: left;
+      }
+
+      .checkin-action .primary-button {
+        min-width: 128px;
+      }
+
+      .record-row {
+        align-items: flex-start;
+      }
+
+      .record-row-result {
+        min-width: 86px;
+      }
+
+      .record-list-footer {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 10px 16px 16px;
+      }
+
+      .calendar-card {
+        padding: 16px 12px 14px;
+      }
+
+      .calendar-header {
+        align-items: flex-start;
+        margin-bottom: 14px;
+      }
+
+      .calendar-header .section-title h2 {
+        font-size: 15px;
+      }
+
+      .calendar-header .section-title p {
+        max-width: 190px;
+        line-height: 1.4;
+      }
+
+      .calendar-weekdays,
+      .calendar-grid {
+        gap: 4px;
+      }
+
+      .calendar-cell {
+        min-height: 54px;
+        padding: 5px 2px;
+        border-radius: 8px;
+      }
+
+      .calendar-day {
+        font-size: 12px;
+      }
+
+      .calendar-amount {
+        font-size: 8px;
+      }
+
+      .calendar-legend {
+        gap: 10px;
+        margin-top: 12px;
+        font-size: 10px;
+      }
+
+      .today-record-body {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        padding: 15px 16px 18px;
+      }
+
+      .reset-copy {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .dashboard-lower {
+        display: none;
+      }
+
+      .section-header {
+        padding: 15px 16px;
+      }
+
+      .current-config {
+        grid-template-columns: 1fr 1fr;
+        margin: 14px 16px 0;
+        padding: 0;
+      }
+
+      .current-label,
+      .current-item {
+        padding: 12px;
+        border-top: 1px solid var(--line);
+        border-left: 0;
+      }
+
+      .current-label,
+      .current-item:nth-child(2) {
+        border-top: 0;
+      }
+
+      .current-item:nth-child(even) {
+        border-left: 1px solid var(--line);
+      }
+
+      .config-form {
+        padding: 16px;
+      }
+
+      .form-heading {
+        align-items: flex-start;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .field-wide {
+        grid-column: auto;
+      }
+
+      .reward-type-field {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .segmented-control {
+        width: 100%;
+      }
+
+      .form-footer {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .form-footer .primary-button {
+        width: 100%;
+      }
+
+      .overview-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .overview-card {
+        min-height: 98px;
+        padding: 14px;
+      }
+
+      .filters {
+        grid-template-columns: 1fr;
+        padding: 12px 14px;
+      }
+
+      .filter-actions {
+        justify-content: stretch;
+      }
+
+      .filter-actions button {
+        flex: 1;
+      }
+
+      .table-footer {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 12px 14px;
+      }
+
+      .table-scroll {
+        overflow: visible;
+        padding: 12px 14px 0;
+        background: var(--surface-soft);
+      }
+
+      table,
+      tbody {
+        display: block;
+        width: 100%;
+        min-width: 0;
+      }
+
+      thead {
+        display: none;
+      }
+
+      tbody {
+        display: grid;
+        gap: 12px;
+      }
+
+      tbody tr {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+      }
+
+      tbody td {
+        display: block;
+        min-width: 0;
+        padding: 11px 12px;
+        border-bottom: 1px solid var(--line-soft);
+        white-space: normal;
+      }
+
+      tbody td:nth-child(even) {
+        border-left: 1px solid var(--line-soft);
+      }
+
+      tbody td::before {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--muted);
+        content: attr(data-label);
+        font-size: 10px;
+        font-weight: 680;
+      }
+
+      tbody td:nth-last-child(-n + 2) {
+        border-bottom: 0;
+      }
+
+      .user-cell {
+        align-items: flex-start;
+      }
+
+      .user-cell strong {
+        display: block;
+        max-width: 118px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .review-toolbar {
+        right: 10px;
+        bottom: 10px;
+        left: 10px;
+        overflow-x: auto;
+      }
+
+      .review-toolbar button,
+      .review-toolbar select {
+        flex: 0 0 auto;
+      }
+
+      .modal {
+        max-height: calc(100vh - 28px);
+        overflow-y: auto;
+      }
+
+      .diff-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .diff-arrow {
+        transform: rotate(90deg);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+  </style>
+</head>
+<body data-screen="user" data-user-state="ready" data-admin-state="default">
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute">
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15 8l3 3M18 5l3 3"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 16 4-5 4 3 5-7"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M20 7V6a2 2 0 0 0-2-2H5a3 3 0 0 0 0 6h15v9a2 2 0 0 1-2 2H5a3 3 0 0 1-3-3V7"/><path d="M16 14h.01"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="17" rx="2"/><path d="m9 16 2 2 4-5"/></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M5 12v9h14v-9M7.5 8C6.1 8 5 6.9 5 5.5S6.1 3 7.5 3C10 3 12 8 12 8s2-5 4.5-5C17.9 3 19 4.1 19 5.5S17.9 8 16.5 8"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m12 3 1.4 5.6L19 10l-5.6 1.4L12 17l-1.4-5.6L5 10l5.6-1.4L12 3ZM19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15Z"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 22c4.4 0 7-2.7 7-6.6 0-3.1-1.6-5.4-4.2-8.4.2 2.4-.8 3.8-2.1 4.6.2-3.8-1.5-6.2-4.1-8.6.1 3.4-3.6 5.9-3.6 10.4C5 18.9 7.7 22 12 22Z"/><path d="M10.4 16.2c0 1.5.8 2.7 2.2 2.7s2.2-1.1 2.2-2.7c0-1.1-.5-2-1.4-3.2-.1 1.2-.5 1.8-1 2.2-.2-1-.7-1.7-1.4-2.4-.1 1.1-.6 1.8-.6 3.4Z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.7 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.12.38.34.72.6 1 .3.3.7.5 1.1.5H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51.5Z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  </svg>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark"><svg class="icon"><use href="#i-box" /></svg></span>Sub2API</div>
+      <nav class="user-nav">
+        <div class="nav-group">
+          <p class="nav-label">工作台</p>
+          <div class="nav-item"><svg class="icon"><use href="#i-grid" /></svg>仪表盘</div>
+          <div class="nav-item"><svg class="icon"><use href="#i-key" /></svg>API 密钥</div>
+          <div class="nav-item"><svg class="icon"><use href="#i-chart" /></svg>使用记录</div>
+          <div class="nav-item"><svg class="icon"><use href="#i-wallet" /></svg>余额充值</div>
+        </div>
+        <div class="nav-group">
+          <p class="nav-label">账户</p>
+          <div class="nav-item"><svg class="icon"><use href="#i-settings" /></svg>个人设置</div>
+        </div>
+      </nav>
+      <nav class="admin-nav">
+        <div class="nav-group">
+          <p class="nav-label">管理</p>
+          <div class="nav-item"><svg class="icon"><use href="#i-grid" /></svg>管理仪表盘</div>
+          <div class="nav-item"><svg class="icon"><use href="#i-users" /></svg>用户管理</div>
+          <div class="nav-item"><svg class="icon"><use href="#i-key" /></svg>密钥管理</div>
+          <div class="nav-item active"><svg class="icon"><use href="#i-calendar" /></svg>每日签到<span class="nav-spacer"></span><span class="nav-dot"></span></div>
+          <div class="nav-item"><svg class="icon"><use href="#i-settings" /></svg>系统设置</div>
+        </div>
+        <div class="nav-group">
+          <p class="nav-label">运营</p>
+          <div class="nav-item"><svg class="icon"><use href="#i-chart" /></svg>数据分析</div>
+          <div class="nav-item"><svg class="icon"><use href="#i-list" /></svg>审计日志</div>
+        </div>
+      </nav>
+      <div class="sidebar-footer"><svg class="icon icon-sm"><use href="#i-box" /></svg><span>v1.0.0 · Standard</span></div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="mobile-menu" aria-label="打开菜单"><svg class="icon"><use href="#i-menu" /></svg></button>
+          <span class="topbar-title" id="topbar-title">每日签到</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-button" aria-label="切换主题"><svg class="icon"><use href="#i-sun" /></svg></button>
+          <button class="icon-button" aria-label="通知"><svg class="icon"><use href="#i-bell" /></svg></button>
+          <a class="checkin-shortcut" id="checkin-shortcut" href="/checkin" aria-label="打开每日签到页面"><svg class="icon icon-sm"><use href="#i-calendar" /></svg><span class="shortcut-label" id="shortcut-label">未签到</span><span class="shortcut-dot"></span></a>
+          <span class="balance-pill"><svg class="icon icon-sm"><use href="#i-wallet" /></svg><span id="header-balance">18.25</span></span>
+          <span class="avatar">XB</span>
+        </div>
+      </header>
+
+      <main class="main">
+        <div class="page-stack user-page">
+          <section class="checkin-hero card" aria-label="签到余额状态">
+            <div class="checkin-hero-main">
+              <span class="checkin-hero-icon"><svg class="icon icon-lg"><use href="#i-calendar" /></svg></span>
+              <div>
+                <p class="checkin-hero-label">当前余额</p>
+                <p class="checkin-hero-balance">$<span id="summary-balance">18.25</span></p>
+              </div>
+            </div>
+            <div class="checkin-hero-status">
+              <p class="checkin-hero-status-title" id="hero-status-title">未签到</p>
+            </div>
+          </section>
+
+          <section class="checkin-panel state-ready" id="checkin-panel" aria-live="polite">
+            <div class="checkin-layout" id="checkin-content"></div>
+          </section>
+
+          <section class="card calendar-card" id="checkin-calendar" aria-labelledby="calendar-title">
+            <header class="calendar-header"><div class="section-title"><h2 id="calendar-title"><svg class="icon icon-sm"><use href="#i-calendar" /></svg>签到日历</h2><p id="calendar-period">2026年7月 · 当月签到</p></div></header>
+            <div class="calendar-weekdays" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+            <div class="calendar-grid" id="calendar-grid" aria-live="polite"></div>
+            <div class="calendar-legend" aria-label="日历图例"><span><i class="legend-swatch checked"></i>已签到</span><span><i class="legend-swatch today"></i>今日</span><span><i class="legend-swatch future"></i>不可用</span></div>
+          </section>
+
+          <section class="card today-record" id="today-record" aria-labelledby="today-record-title" aria-live="polite">
+            <header class="section-header"><div class="section-title"><h2 id="today-record-title">签到记录</h2><p>只读记录 · 按时间倒序</p></div><button class="secondary-button button-small" id="refresh-user-records"><svg class="icon icon-sm"><use href="#i-refresh" /></svg>刷新</button></header>
+            <div class="today-record-body" id="today-record-body"></div>
+            <footer class="record-list-footer"><span>第 1-3 条，共 6 条</span><div class="pagination"><button class="page-button" disabled>‹</button><button class="page-button active">1</button><button class="page-button">2</button><button class="page-button">›</button></div></footer>
+          </section>
+        </div>
+
+        <div class="page-stack admin-page">
+          <div class="page-heading">
+            <div><h1>每日签到</h1><p>配置两种签到模式并审阅余额发放记录</p></div>
+            <button class="secondary-button button-small"><svg class="icon icon-sm"><use href="#i-refresh" /></svg>刷新</button>
+          </div>
+
+          <section class="card section-card">
+            <header class="section-header">
+              <div class="section-title"><h2>签到配置</h2><p>开关与奖励参数保存后立即用于新的签到请求</p></div>
+              <div class="toggle-wrap"><span id="toggle-label">全局已启用</span><button class="toggle" id="enable-toggle" role="switch" aria-checked="true" aria-label="启用每日签到"></button></div>
+            </header>
+
+            <div class="alert alert-danger invalid-alert"><svg class="icon"><use href="#i-alert" /></svg><div><strong>配置读取失败，签到已安全关闭</strong>请修复配置后重新保存，保存成功后立即生效。</div></div>
+            <div class="alert alert-info conflict-alert"><svg class="icon"><use href="#i-refresh" /></svg><div><strong>配置已被其他管理员更新</strong>请重新加载并确认最新值。系统不会自动覆盖其他管理员的修改。</div></div>
+
+            <div class="current-config">
+              <div class="current-label"><p class="current-kicker">当前配置</p><p class="current-value">版本 v5</p></div>
+              <div class="current-item"><p class="current-kicker">普通签到</p><p class="current-value">0.01 - 0.05 余额</p></div>
+              <div class="current-item"><p class="current-kicker">运气签到</p><p class="current-value" id="lucky-current-value">70% 正向 · -5% 至 +10%</p></div>
+            </div>
+
+            <div class="config-form">
+              <div class="form-heading"><div class="inline" style="gap:9px"><strong>编辑配置</strong><span class="effective-badge">保存后立即生效</span></div><button class="text-button"><svg class="icon icon-sm"><use href="#i-refresh" /></svg>恢复当前值</button></div>
+              <div class="mode-switches" aria-label="签到模式开关">
+                <div class="mode-switch-item">
+                  <div class="mode-switch-copy"><strong>普通签到</strong><span>关闭后仅隐藏并拒绝普通签到</span></div>
+                  <div class="toggle-wrap"><span id="normal-toggle-label">已启用</span><button class="toggle" id="normal-toggle" role="switch" aria-checked="true" aria-label="启用普通签到"></button></div>
+                </div>
+                <div class="mode-switch-item">
+                  <div class="mode-switch-copy"><strong>运气签到</strong><span>关闭后仅隐藏并拒绝运气签到</span></div>
+                  <div class="toggle-wrap"><span id="lucky-toggle-label">已启用</span><button class="toggle" id="lucky-toggle" role="switch" aria-checked="true" aria-label="启用运气签到"></button></div>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="field"><label for="normal-min">普通下限 <small>0 - 100</small></label><div class="input-wrap"><input id="normal-min" value="0.01" inputmode="decimal" /><span class="input-suffix">余额</span></div></div>
+                <div class="field"><label for="normal-max">普通上限 <small>不小于下限</small></label><div class="input-wrap"><input id="normal-max" value="0.08" inputmode="decimal" /><span class="input-suffix">余额</span></div></div>
+                <div class="reward-type-field field-wide"><div class="reward-type-copy"><strong>运气结算方式</strong><span>按活动需要切换，不影响历史记录</span></div><div class="segmented-control" role="group" aria-label="运气结算方式"><button type="button" class="segmented-button active" data-reward-type="multiplier">余额比例</button><button type="button" class="segmented-button" data-reward-type="amount">固定金额</button></div></div>
+                <div class="field field-wide"><label for="lucky-positive-probability">正向结果概率 <small>独立于倍率或金额范围</small></label><div class="input-wrap"><input id="lucky-positive-probability" value="70" inputmode="decimal" /><span class="input-suffix">%</span></div></div>
+                <div class="field"><label for="lucky-min" id="lucky-min-label">负向最低倍率 <small>-1 至 0</small></label><div class="input-wrap"><input id="lucky-min" value="-0.05" inputmode="decimal" /><span class="input-suffix" id="lucky-min-suffix">倍率</span></div></div>
+                <div class="field"><label for="lucky-max" id="lucky-max-label">正向最高倍率 <small>0 至 10</small></label><div class="input-wrap"><input id="lucky-max" value="0.12" inputmode="decimal" /><span class="input-suffix" id="lucky-max-suffix">倍率</span></div></div>
+                <div class="field field-wide"><label for="reason">变更原因 <small>必填，1-500 字</small></label><textarea id="reason">调整普通与运气签到参数</textarea></div>
+              </div>
+              <div class="form-footer"><span class="form-note">服务端使用安全随机数结算，客户端不提交金额或倍率。运气模式可能产生负向余额调整；保存前会展示完整配置差异，敏感操作可能需要 TOTP 二次验证。</span><button class="primary-button" id="save-config"><svg class="icon icon-sm"><use href="#i-check" /></svg>审核并保存</button></div>
+            </div>
+          </section>
+
+          <section>
+            <div class="card-heading"><div class="section-title"><h2>今日概览</h2><p>2026-07-24</p></div></div>
+            <div class="overview-grid">
+              <article class="card overview-card"><p class="stat-label">签到人数</p><p class="stat-value">128</p><p class="stat-note">每日一次</p></article>
+              <article class="card overview-card"><p class="stat-label">普通签到</p><p class="stat-value">94</p><p class="stat-note">73.4% 的签到</p></article>
+              <article class="card overview-card"><p class="stat-label">运气签到</p><p class="stat-value">34</p><p class="stat-note">26.6% 的签到</p></article>
+              <article class="card overview-card"><p class="stat-label">正向发放</p><p class="stat-value emerald">+51.42</p><p class="stat-note">余额增加合计</p></article>
+              <article class="card overview-card"><p class="stat-label">负向调整</p><p class="stat-value">-2.18</p><p class="stat-note">运气模式产生</p></article>
+            </div>
+          </section>
+
+          <section class="card records-card">
+            <header class="section-header"><div class="section-title"><h2>发放记录</h2><p>记录只读，默认查询当前业务日</p></div><span class="status-badge">共 128 条</span></header>
+            <div class="filters">
+              <input class="filter-input" value="2026-07-24 至 2026-07-24" aria-label="日期范围" />
+              <input class="filter-input" placeholder="用户 ID" aria-label="用户 ID" />
+              <input class="filter-input" placeholder="邮箱关键字" aria-label="邮箱关键字" />
+              <div class="filter-actions"><button class="secondary-button button-small">重置</button><button class="primary-button button-small"><svg class="icon icon-sm"><use href="#i-search" /></svg>查询</button></div>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>签到时间</th><th>用户</th><th>模式</th><th>结算参数</th><th>发放前余额</th><th>余额变动</th><th>发放后余额</th><th>配置版本</th></tr></thead>
+                <tbody>
+                  <tr><td data-label="签到时间"><strong>16:21:03</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">XL</span><span><strong>xiaolin@example.com</strong><br><span class="stat-note">ID 2841</span></span></div></td><td data-label="模式"><span class="mode-chip">普通</span></td><td data-label="结算参数">+0.37</td><td data-label="发放前余额">18.25</td><td data-label="余额变动" class="money-positive">+0.37</td><td data-label="发放后余额"><strong>18.62</strong></td><td data-label="配置版本">v4</td></tr>
+                  <tr><td data-label="签到时间"><strong>16:18:44</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">CY</span><span><strong>chenyu@example.com</strong><br><span class="stat-note">ID 1726</span></span></div></td><td data-label="模式"><span class="mode-chip lucky">运气</span></td><td data-label="结算参数">-4.00%</td><td data-label="发放前余额">3.12</td><td data-label="余额变动" class="money-negative">-0.12</td><td data-label="发放后余额"><strong>3.00</strong></td><td data-label="配置版本">v4</td></tr>
+                  <tr><td data-label="签到时间"><strong>16:09:27</strong><br><span class="stat-note">2026-07-24</span></td><td data-label="用户"><div class="user-cell"><span class="avatar">WK</span><span><strong>wangkai@example.com</strong><br><span class="stat-note">ID 946</span></span></div></td><td data-label="模式"><span class="mode-chip">普通</span></td><td data-label="结算参数">+0.44</td><td data-label="发放前余额">0.20</td><td data-label="余额变动" class="money-positive">+0.44</td><td data-label="发放后余额"><strong>0.64</strong></td><td data-label="配置版本">v4</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <footer class="table-footer"><span>第 1-20 条，共 128 条</span><div class="pagination"><button class="page-button">‹</button><button class="page-button active">1</button><button class="page-button">2</button><button class="page-button">3</button><button class="page-button">›</button></div></footer>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal">
+      <header class="modal-header"><span class="stat-icon amber"><svg class="icon icon-lg"><use href="#i-alert" /></svg></span><div><h2 id="confirm-title">确认更新签到配置</h2><p>开关与两种签到模式参数将在保存后立即生效。</p></div></header>
+      <div class="modal-body">
+        <div class="diff-grid">
+          <div class="diff-side"><small>当前配置 · 正在使用</small><strong>普通 0.01 - 0.05 余额</strong><strong>运气 -5% - +10% 余额比例</strong></div>
+          <svg class="icon diff-arrow"><use href="#i-arrow" /></svg>
+          <div class="diff-side"><small>新配置 · 保存后生效</small><strong>普通 0.01 - 0.08 余额</strong><strong>运气 -5% - +12% 余额比例</strong></div>
+        </div>
+        <div class="reason-box"><strong>变更原因</strong>调整普通与运气签到参数</div>
+      </div>
+      <footer class="modal-footer"><button class="secondary-button" id="cancel-confirm">返回修改</button><button class="primary-button"><svg class="icon icon-sm"><use href="#i-check" /></svg>确认保存</button></footer>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="lucky-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="lucky-confirm-title">
+    <div class="modal lucky-confirm-modal">
+      <header class="modal-header"><span class="stat-icon amber"><svg class="icon icon-lg"><use href="#i-sparkles" /></svg></span><div><h2 id="lucky-confirm-title">确认运气签到</h2><p>请确认可能的余额变化后再继续。</p></div></header>
+      <div class="modal-body">
+        <p class="lucky-risk-copy">运气签到会按当前余额结算，结果可能增加或扣减余额，最终余额不会低于 0。</p>
+        <div class="lucky-range"><small>可能所得倍率</small><strong>-0.05x ~ +0.10x</strong></div>
+        <p class="lucky-confirm-note">每天只能完成一次签到，确认后不能再改用普通签到。</p>
+      </div>
+      <footer class="modal-footer"><button class="secondary-button" id="cancel-lucky-confirm">取消</button><button class="primary-button" id="confirm-lucky-checkin"><svg class="icon icon-sm"><use href="#i-sparkles" /></svg>确认运气签到</button></footer>
+    </div>
+  </div>
+
+  <div class="review-toolbar" aria-label="设计稿控制器">
+    <button id="show-user">用户签到页</button>
+    <button id="show-admin">管理端</button>
+    <select id="user-state" aria-label="用户端状态">
+      <option value="ready">可签到</option>
+      <option value="luckyConfirm">运气签到确认</option>
+      <option value="loading">页面加载</option>
+      <option value="disabled">功能关闭</option>
+      <option value="checking">提交中</option>
+      <option value="success">今日已签到</option>
+      <option value="disabledChecked">关闭后仍显示已签到</option>
+      <option value="unknown">结果确认中</option>
+      <option value="error">刷新失败</option>
+    </select>
+    <select id="admin-state" aria-label="管理端状态">
+      <option value="default">正常配置</option>
+      <option value="confirm">保存确认</option>
+      <option value="conflict">版本冲突</option>
+      <option value="invalid">配置损坏</option>
+    </select>
+  </div>
+
+  <script>
+    const userStates = {
+      ready: {
+        panelClass: 'state-ready',
+        icon: 'i-star',
+        badge: '未签到',
+        title: '每日签到',
+        copy: '2026年7月24日',
+        rewardLabel: '今日状态',
+        reward: '未签到',
+        rewardNote: '签到前不展示金额或倍率',
+        reset: '',
+        button: '<svg class="icon icon-sm"><use href="#i-gift" /></svg>立即签到',
+        disabled: false,
+        showModes: true
+      },
+      loading: {
+        panelClass: 'state-ready',
+        icon: 'i-refresh',
+        badge: '正在加载',
+        title: '每日签到',
+        copy: '正在读取服务端业务日和今日签到状态',
+        rewardLabel: '今日状态',
+        reward: '--',
+        rewardNote: '加载完成后可签到',
+        reset: '正在同步服务端时间<br>请稍候',
+        button: '<span class="spinner"></span>加载中',
+        disabled: true
+      },
+      disabled: {
+        panelClass: 'state-unavailable',
+        icon: 'i-calendar',
+        badge: '暂未开放',
+        title: '签到暂未开放',
+        copy: '当前业务日暂不可领取，明日 00:00 后再试',
+        rewardLabel: '当前状态',
+        reward: '未开放',
+        rewardNote: '不会发起领取请求',
+        reset: '当前暂不可用<br>请稍后再试',
+        button: '<svg class="icon icon-sm"><use href="#i-clock" /></svg>暂未开放',
+        disabled: true
+      },
+      checking: {
+        panelClass: 'state-ready',
+        icon: 'i-star',
+        badge: '正在提交',
+        title: '每日签到',
+        copy: '请保持当前页面，系统正在发放奖励',
+        rewardLabel: '结算状态',
+        reward: '处理中',
+        rewardNote: '确认后展示服务端实际结果',
+        reset: '服务端正在处理<br>预计几秒内完成',
+        button: '<span class="spinner"></span>签到中',
+        disabled: true,
+        showSubmittedMode: true
+      },
+      success: {
+        panelClass: 'state-success',
+        icon: 'i-check-circle',
+        badge: '已到账',
+        title: '今日已签到',
+        copy: '16:21 完成签到 · 2026年7月24日',
+        rewardLabel: '本次余额变动',
+        reward: '+0.37',
+        rewardNote: '最新余额 18.62 · 16:21 到账',
+        reset: '下次可签到：明日 00:00',
+        button: '<svg class="icon icon-sm"><use href="#i-check" /></svg>今日已签到',
+        disabled: true,
+        showSubmittedMode: true
+      },
+      disabledChecked: {
+        panelClass: 'state-success',
+        icon: 'i-check-circle',
+        badge: '已到账',
+        title: '今日已签到',
+        copy: '功能当前已关闭 · 今日签到结果仍保留',
+        rewardLabel: '本次余额变动',
+        reward: '+0.37',
+        rewardNote: '最新余额 18.62 · 16:21 到账',
+        reset: '今日记录不受功能关闭影响<br>2026-07-24 16:21',
+        button: '<svg class="icon icon-sm"><use href="#i-check" /></svg>今日已签到',
+        disabled: true,
+        showSubmittedMode: true
+      },
+      unknown: {
+        panelClass: 'state-unknown',
+        icon: 'i-refresh',
+        badge: '结果确认中',
+        title: '正在确认签到结果',
+        copy: '请求结果暂时未知，系统正在查询到账状态',
+        rewardLabel: '结果状态',
+        reward: '--',
+        rewardNote: '确认前不会重复发放',
+        reset: '正在同步签到结果<br>请稍候',
+        button: '<span class="spinner"></span>确认中',
+        disabled: true,
+        showSubmittedMode: true
+      },
+      error: {
+        panelClass: 'state-ready',
+        icon: 'i-alert',
+        badge: '刷新失败',
+        title: '每日签到',
+        copy: '暂时无法刷新状态，已保留上一次有效结果',
+        rewardLabel: '结果状态',
+        reward: '--',
+        rewardNote: '重试后查看签到结果',
+        reset: '网络恢复后将自动重试<br>也可手动刷新',
+        button: '<svg class="icon icon-sm"><use href="#i-refresh" /></svg>重试',
+        disabled: false
+      }
+    };
+
+    const params = new URLSearchParams(location.search);
+    const initialScreen = params.get('screen') === 'admin' ? 'admin' : 'user';
+    const initialLuckyConfirm = params.get('state') === 'luckyConfirm';
+    const initialUserState = userStates[params.get('state')] ? params.get('state') : 'ready';
+    const validAdminStates = ['default', 'confirm', 'conflict', 'invalid'];
+    const initialAdminState = validAdminStates.includes(params.get('state')) ? params.get('state') : 'default';
+    const demoBusinessDate = isValidBusinessDate(params.get('date')) ? params.get('date') : '2026-07-24';
+    let selectedMode = params.get('mode') === 'lucky' ? 'lucky' : 'normal';
+    if (params.get('capture') === '1') document.body.classList.add('capture');
+
+    const panel = document.getElementById('checkin-panel');
+    const content = document.getElementById('checkin-content');
+    const calendarGrid = document.getElementById('calendar-grid');
+    const todayRecordBody = document.getElementById('today-record-body');
+    const userSelect = document.getElementById('user-state');
+    const adminSelect = document.getElementById('admin-state');
+    const userButton = document.getElementById('show-user');
+    const adminButton = document.getElementById('show-admin');
+
+    function icon(name, extra = '') {
+      return `<svg class="icon ${extra}"><use href="#${name}" /></svg>`;
+    }
+
+    function parseBusinessDate(value) {
+      const [year, month, day] = value.split('-').map(Number);
+      return new Date(Date.UTC(year, month - 1, day));
+    }
+
+    function isValidBusinessDate(value) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
+      const date = parseBusinessDate(value);
+      const [year, month, day] = value.split('-').map(Number);
+      return date.getUTCFullYear() === year && date.getUTCMonth() + 1 === month && date.getUTCDate() === day;
+    }
+
+    function padDatePart(value) {
+      return String(value).padStart(2, '0');
+    }
+
+    function renderCalendar(name, checked, mode) {
+      const businessDate = parseBusinessDate(demoBusinessDate);
+      const year = businessDate.getUTCFullYear();
+      const monthIndex = businessDate.getUTCMonth();
+      const month = monthIndex + 1;
+      const businessDay = businessDate.getUTCDate();
+      const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+      const firstWeekday = (new Date(Date.UTC(year, monthIndex, 1)).getUTCDay() + 6) % 7;
+      document.getElementById('calendar-period').textContent = `${year}年${month}月 · 当月签到`;
+      if (name === 'loading') {
+        calendarGrid.innerHTML = '<div class="calendar-loading">正在同步签到日历...</div>';
+        return;
+      }
+      const checkedAmounts = new Map([[17, '+0.21'], [20, '+0.44'], [21, '+0.13'], [22, '+0.37'], [23, '+0.28']]);
+      if (checked) checkedAmounts.set(businessDay, mode === 'lucky' ? '-0.18' : '+0.37');
+      let markup = '';
+      for (let index = 0; index < firstWeekday; index += 1) {
+        markup += '<span class="calendar-cell calendar-placeholder" aria-hidden="true"></span>';
+      }
+      for (let day = 1; day <= daysInMonth; day += 1) {
+        let status = 'not_checked';
+        if (day > businessDay) status = 'future';
+        if (day === businessDay) status = checked ? 'checked' : (name === 'disabled' ? 'unavailable' : 'today');
+        if (checkedAmounts.has(day) && day !== businessDay) status = 'checked';
+        const amount = status === 'checked' ? checkedAmounts.get(day) : '';
+        const isoDate = `${year}-${padDatePart(month)}-${padDatePart(day)}`;
+        const label = status === 'checked' ? `${isoDate} 已签到，奖励 ${amount}` : `${isoDate} ${status === 'today' ? '今日待签到' : status === 'future' ? '未来日期' : status === 'unavailable' ? '暂不可用' : '未签到'}`;
+        markup += `<span class="calendar-cell ${status === 'checked' ? 'checked' : ''} ${status === 'today' ? 'today' : ''} ${status === 'future' ? 'future' : ''} ${status === 'unavailable' ? 'unavailable' : ''}" aria-label="${label}"><span class="calendar-day">${day}</span>${status === 'checked' ? icon('i-check', 'icon-sm') : ''}</span>`;
+      }
+      const trailingPlaceholders = (7 - ((firstWeekday + daysInMonth) % 7)) % 7;
+      for (let index = 0; index < trailingPlaceholders; index += 1) {
+        markup += '<span class="calendar-cell calendar-placeholder" aria-hidden="true"></span>';
+      }
+      calendarGrid.innerHTML = markup;
+    }
+
+    function recordRow(mode, date, time, amount, before, after) {
+      const isLucky = mode === 'lucky';
+      const modeLabel = isLucky ? '运气签到' : '普通签到';
+      const amountClass = Number(amount) < 0 ? 'negative' : '';
+      return `<div class="record-row">
+        <span class="record-mode-icon ${isLucky ? 'lucky' : ''}">${icon(isLucky ? 'i-sparkles' : 'i-gift', 'icon-sm')}</span>
+        <div class="record-row-copy"><p class="record-row-title">${modeLabel}</p><p class="record-row-meta">${date} · ${time}</p></div>
+        <div class="record-row-result"><p class="record-row-amount ${amountClass}">${amount}</p><p class="record-row-balance">${before} → ${after}</p></div>
+      </div>`;
+    }
+
+    function renderTodayRecord(name, checked, mode) {
+      if (name === 'loading') {
+        todayRecordBody.innerHTML = '<p class="record-empty">正在读取签到记录...</p>';
+        return;
+      }
+      const history = [
+        recordRow('normal', '2026-07-23', '16:18', '+0.28', '17.97', '18.25'),
+        recordRow('lucky', '2026-07-22', '16:03', '-0.06', '18.03', '17.97'),
+        recordRow('normal', '2026-07-21', '15:47', '+0.13', '17.90', '18.03')
+      ];
+      if (checked) {
+        const reward = mode === 'lucky' ? '-0.18' : '+0.37';
+        const balance = mode === 'lucky' ? '18.07' : '18.62';
+        todayRecordBody.innerHTML = recordRow(mode, '2026-07-24', '16:21', reward, '18.25', balance) + history.join('');
+        return;
+      }
+      const status = name === 'disabled'
+        ? '<p class="record-empty">签到功能未开启，以下为历史记录</p>'
+        : name === 'unknown'
+          ? '<p class="record-empty">正在确认今日结果，历史记录仍可查看</p>'
+          : '<p class="record-empty">今日尚未签到 · 以下为历史记录</p>';
+      todayRecordBody.innerHTML = status + history.join('');
+    }
+
+    function renderUserState(name, modeOverride) {
+      const state = userStates[name] || userStates.ready;
+      const checked = name === 'success' || name === 'disabledChecked';
+      if (modeOverride) selectedMode = modeOverride;
+      const modeLabel = selectedMode === 'lucky' ? '运气签到' : '普通签到';
+      const reward = checked ? (selectedMode === 'lucky' ? '-0.18' : '+0.37') : state.reward;
+      const balance = checked ? (selectedMode === 'lucky' ? '18.07' : '18.62') : '18.25';
+      const rewardNote = checked ? `最新余额 ${balance} · 16:21 到账` : state.rewardNote;
+      const isReady = name === 'ready';
+      document.body.dataset.userState = name;
+      panel.className = `checkin-panel ${state.panelClass}`;
+      if (isReady) {
+        content.innerHTML = `<div class="checkin-mode-grid">
+          <button class="mode-card" type="button" data-mode="normal">
+            <div class="mode-card-top"><span class="mode-card-icon">${icon('i-gift', 'icon-lg')}</span><span class="status-badge">未签到</span></div>
+            <h2>普通签到</h2>
+            <p>按当前规则结算实际余额，签到前不展示金额或预估值。</p>
+            <span class="mode-card-action">立即签到 ${icon('i-arrow', 'icon-sm')}</span>
+          </button>
+          <button class="mode-card lucky" type="button" data-mode="lucky">
+            <div class="mode-card-top"><span class="mode-card-icon">${icon('i-sparkles', 'icon-lg')}</span><span class="status-badge">未签到</span></div>
+            <h2>运气签到</h2>
+            <p>按当前余额结算，结果可能增加或减少余额，余额不会低于 0。</p>
+            <p class="mode-card-warning">结果以提交后的实际结算为准。</p>
+            <span class="mode-card-action">立即签到 ${icon('i-arrow', 'icon-sm')}</span>
+          </button>
+        </div>`;
+      } else {
+        content.innerHTML = `<div class="checkin-feedback ${state.panelClass}">
+          <span class="checkin-icon">${icon(state.icon, 'icon-lg')}</span>
+          <div class="checkin-feedback-copy"><div class="eyebrow-row"><h2>${state.title}</h2><span class="status-badge">${checked ? icon('i-check', 'badge-icon') : ''}${state.badge}</span></div><p>${state.copy}</p></div>
+          <div class="checkin-feedback-result"><p class="reward-label">${checked ? '本次余额变动' : state.rewardLabel}</p><p class="reward-value ${selectedMode === 'lucky' && checked ? 'money-negative' : ''}">${reward}</p><p class="reward-note">${rewardNote}</p></div>
+          <div class="checkin-feedback-actions">${state.showSubmittedMode ? `<div class="settled-mode"><span class="mode-chip ${selectedMode === 'lucky' ? 'lucky' : ''}">${modeLabel}</span><span>${name === 'checking' || name === 'unknown' ? '正在确认服务端结果' : '服务端已结算'}</span></div>` : ''}${state.reset ? `<span class="reset-copy">${state.reset}</span>` : ''}<button class="primary-button" id="checkin-button" ${state.disabled ? 'disabled' : ''}>${state.button}</button></div>
+        </div>`;
+      }
+      userSelect.value = name;
+      content.querySelectorAll('.mode-card').forEach((button) => {
+        button.addEventListener('click', () => {
+          selectedMode = button.dataset.mode;
+          if (selectedMode === 'lucky') {
+            openLuckyConfirm();
+            return;
+          }
+          submitDemoCheckin(selectedMode);
+        });
+      });
+      const checkinButton = document.getElementById('checkin-button');
+      if (name === 'error' && checkinButton) checkinButton.addEventListener('click', () => renderUserState('ready'));
+      document.getElementById('header-balance').textContent = balance;
+      document.getElementById('summary-balance').textContent = balance;
+      document.getElementById('hero-status-title').textContent = checked ? '已签到' : name === 'disabled' ? '签到未开启' : name === 'loading' ? '正在读取签到状态' : name === 'checking' ? '正在提交签到' : name === 'unknown' ? '正在确认今日结果' : '未签到';
+      renderCalendar(name, checked, selectedMode);
+      renderTodayRecord(name, checked, selectedMode);
+      const shortcut = document.getElementById('checkin-shortcut');
+      const shortcutLabel = document.getElementById('shortcut-label');
+      shortcut.style.display = ['disabled', 'loading'].includes(name) ? 'none' : '';
+      shortcut.classList.toggle('success', checked);
+      shortcutLabel.textContent = checked ? '已签到' : '未签到';
+    }
+
+    function submitDemoCheckin(mode) {
+      renderUserState('checking', mode);
+      window.setTimeout(() => renderUserState('success', mode), 850);
+    }
+
+    function openLuckyConfirm() {
+      selectedMode = 'lucky';
+      document.body.dataset.luckyConfirm = 'true';
+      userSelect.value = 'luckyConfirm';
+    }
+
+    function closeLuckyConfirm() {
+      document.body.dataset.luckyConfirm = 'false';
+      userSelect.value = document.body.dataset.userState || 'ready';
+    }
+
+    function renderAdminState(name) {
+      document.body.dataset.adminState = name;
+      adminSelect.value = name;
+    }
+
+    function setScreen(screen) {
+      document.body.dataset.screen = screen;
+      userButton.classList.toggle('active', screen === 'user');
+      adminButton.classList.toggle('active', screen === 'admin');
+      userSelect.style.display = screen === 'user' ? '' : 'none';
+      adminSelect.style.display = screen === 'admin' ? '' : 'none';
+      document.getElementById('topbar-title').textContent = screen === 'admin' ? '管理控制台 / 每日签到' : '每日签到';
+    }
+
+    document.getElementById('checkin-shortcut').addEventListener('click', (event) => {
+      event.preventDefault();
+      setScreen('user');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    userButton.addEventListener('click', () => setScreen('user'));
+    adminButton.addEventListener('click', () => setScreen('admin'));
+    userSelect.addEventListener('change', (event) => {
+      if (event.target.value === 'luckyConfirm') {
+        renderUserState('ready', 'lucky');
+        openLuckyConfirm();
+        return;
+      }
+      closeLuckyConfirm();
+      renderUserState(event.target.value);
+    });
+    adminSelect.addEventListener('change', (event) => renderAdminState(event.target.value));
+    document.getElementById('save-config').addEventListener('click', () => renderAdminState('confirm'));
+    document.getElementById('cancel-confirm').addEventListener('click', () => renderAdminState('default'));
+    document.getElementById('confirm-modal').addEventListener('click', (event) => {
+      if (event.target.id === 'confirm-modal') renderAdminState('default');
+    });
+    document.getElementById('cancel-lucky-confirm').addEventListener('click', closeLuckyConfirm);
+    document.getElementById('confirm-lucky-checkin').addEventListener('click', () => {
+      closeLuckyConfirm();
+      submitDemoCheckin('lucky');
+    });
+    document.getElementById('lucky-confirm-modal').addEventListener('click', (event) => {
+      if (event.target.id === 'lucky-confirm-modal') closeLuckyConfirm();
+    });
+    document.getElementById('enable-toggle').addEventListener('click', (event) => {
+      const button = event.currentTarget;
+      const enabled = button.getAttribute('aria-checked') !== 'true';
+      button.setAttribute('aria-checked', String(enabled));
+      button.classList.toggle('off', !enabled);
+      document.getElementById('toggle-label').textContent = enabled ? '全局已启用' : '全局已关闭';
+    });
+    [['normal-toggle', 'normal-toggle-label'], ['lucky-toggle', 'lucky-toggle-label']].forEach(([toggleId, labelId]) => {
+      document.getElementById(toggleId).addEventListener('click', (event) => {
+        const button = event.currentTarget;
+        const enabled = button.getAttribute('aria-checked') !== 'true';
+        button.setAttribute('aria-checked', String(enabled));
+        button.classList.toggle('off', !enabled);
+        document.getElementById(labelId).textContent = enabled ? '已启用' : '已关闭';
+      });
+    });
+    document.querySelectorAll('[data-reward-type]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const amountMode = button.dataset.rewardType === 'amount';
+        document.querySelectorAll('[data-reward-type]').forEach((item) => item.classList.toggle('active', item === button));
+        document.getElementById('lucky-min-label').innerHTML = amountMode ? '负向最低金额 <small>-100 至 0</small>' : '负向最低倍率 <small>-1 至 0</small>';
+        document.getElementById('lucky-max-label').innerHTML = amountMode ? '正向最高金额 <small>0 至 100</small>' : '正向最高倍率 <small>0 至 10</small>';
+        document.getElementById('lucky-min-suffix').textContent = amountMode ? '余额' : '倍率';
+        document.getElementById('lucky-max-suffix').textContent = amountMode ? '余额' : '倍率';
+        document.getElementById('lucky-current-value').textContent = amountMode ? '70% 正向 · -0.05 至 +0.10' : '70% 正向 · -5% 至 +10%';
+      });
+    });
+
+    renderUserState(initialUserState);
+    renderAdminState(initialAdminState);
+    setScreen(initialScreen);
+    if (initialLuckyConfirm && initialScreen === 'user') openLuckyConfirm();
+  </script>
+</body>
+</html>

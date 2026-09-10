@@ -323,6 +323,37 @@ func TestAuthServiceBindEmailIdentity_AllowsOnlyOneConcurrentAliasVariant(t *tes
 	require.Equal(t, 1, boundCount)
 }
 
+func TestAuthServiceBindEmailIdentity_AllowsVerifiedAliasWhenSuffixWhitelistIsEmpty(t *testing.T) {
+	cache := &emailBindCacheStub{
+		data: &service.VerificationCodeData{
+			Code:      "123456",
+			CreatedAt: time.Now().UTC(),
+			ExpiresAt: time.Now().UTC().Add(10 * time.Minute),
+		},
+	}
+	svc, _, client := newAuthServiceForEmailBind(t, nil, cache, nil)
+
+	ctx := context.Background()
+	user := createEmailBindTestUser(
+		t,
+		client,
+		"legacy-user"+service.OIDCConnectSyntheticEmailDomain,
+		"legacy-user",
+		"old-hash",
+	)
+
+	updatedUser, err := svc.BindEmailIdentity(
+		ctx,
+		user.ID,
+		"verified-inbox+tag@gmail.com",
+		"123456",
+		"new-password",
+	)
+	require.NoError(t, err)
+	require.NotNil(t, updatedUser)
+	require.Equal(t, "verified-inbox+tag@gmail.com", updatedUser.Email)
+}
+
 func TestAuthServiceBindEmailIdentity_RejectsNewAliasWhenAnotherUserSharesCurrentUserInbox(t *testing.T) {
 	cache := &emailBindCacheStub{
 		data: &service.VerificationCodeData{

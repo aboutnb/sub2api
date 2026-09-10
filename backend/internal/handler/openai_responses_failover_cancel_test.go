@@ -60,7 +60,7 @@ func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUp
 			Status:      service.StatusActive,
 			Schedulable: true,
 			Concurrency: 0,
-			Priority:    0,
+			Priority:    1,
 			Credentials: map[string]any{"access_token": "token-1"},
 		},
 		{
@@ -71,7 +71,7 @@ func newOpenAIResponsesFailoverTestHandler(t *testing.T, upstream service.HTTPUp
 			Status:      service.StatusActive,
 			Schedulable: true,
 			Concurrency: 0,
-			Priority:    1,
+			Priority:    2,
 			Credentials: map[string]any{"access_token": "token-2"},
 		},
 	}

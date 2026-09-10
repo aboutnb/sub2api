@@ -5,6 +5,7 @@ import {
   decidePaymentLaunch,
   getVisibleMethods,
   readPaymentRecoverySnapshot,
+  shouldPreopenPaymentPopup,
   type PaymentRecoverySnapshot,
 } from '@/components/payment/paymentFlow'
 
@@ -70,6 +71,23 @@ describe('getVisibleMethods', () => {
       ldc: methodLimit({ single_min: 3 }),
       usdt_trc20: methodLimit({ fee_rate: 1 }),
     })
+  })
+})
+
+describe('shouldPreopenPaymentPopup', () => {
+  it('preopens a desktop popup payment while the click is active', () => {
+    expect(shouldPreopenPaymentPopup(' popup ', false)).toBe(true)
+  })
+
+  it('does not preopen on mobile or during a resumed flow', () => {
+    expect(shouldPreopenPaymentPopup('popup', true)).toBe(false)
+    expect(shouldPreopenPaymentPopup('popup', false, true)).toBe(false)
+  })
+
+  it('does not preopen other launch modes', () => {
+    expect(shouldPreopenPaymentPopup('redirect', false)).toBe(false)
+    expect(shouldPreopenPaymentPopup('qrcode', false)).toBe(false)
+    expect(shouldPreopenPaymentPopup('', false)).toBe(false)
   })
 })
 

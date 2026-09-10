@@ -34,6 +34,7 @@ function refreshedResponse() {
 describe('refreshAuthTokens', () => {
   beforeEach(() => {
     localStorage.clear()
+    window.__APP_CONFIG__ = undefined
     mockedPost.mockReset()
     vi.resetModules()
     Object.defineProperty(navigator, 'locks', {
@@ -65,6 +66,29 @@ describe('refreshAuthTokens', () => {
     await expect(first).resolves.toMatchObject({ access_token: 'new-access' })
     await expect(second).resolves.toMatchObject({ refresh_token: 'new-refresh' })
     expect(localStorage.getItem('refresh_token')).toBe('new-refresh')
+  })
+
+  it('attaches the FlowAI publish key to refresh requests', async () => {
+    window.__APP_CONFIG__ = {
+      public_access_guard_enabled: true,
+      public_access_publish_key: 'pub-test-key',
+      public_access_header_name: 'x-custom-public-key'
+    } as any
+    seedSession()
+    mockedPost.mockResolvedValueOnce(refreshedResponse())
+    const { refreshAuthTokens } = await import('@/api/tokenRefresh')
+
+    await refreshAuthTokens({ failedAccessToken: 'old-access' })
+
+    expect(mockedPost).toHaveBeenCalledWith(
+      '/api/v1/auth/refresh',
+      { refresh_token: 'old-refresh' },
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'x-custom-public-key': 'pub-test-key'
+        })
+      })
+    )
   })
 
   it('adopts tokens refreshed by another tab after acquiring the Web Lock', async () => {

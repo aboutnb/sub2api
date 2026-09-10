@@ -34,6 +34,8 @@ type stubConcurrencyCacheForTest struct {
 	apiKeyReleaseErr     error
 	apiKeyConcurrency    map[int64]int
 	apiKeyConcurrencyErr error
+	accountAcquireCalls  int
+	userAcquireCalls     int
 
 	// 记录调用
 	releasedAccountIDs       []int64
@@ -88,6 +90,7 @@ var _ ConcurrencyCache = (*stubConcurrencyCacheForTest)(nil)
 var _ OpenAIWSIngressLeaseCache = (*ingressLeaseCacheForTest)(nil)
 
 func (c *stubConcurrencyCacheForTest) AcquireAccountSlot(_ context.Context, _ int64, _ int, _ string) (bool, error) {
+	c.accountAcquireCalls++
 	return c.acquireResult, c.acquireErr
 }
 func (c *stubConcurrencyCacheForTest) ReleaseAccountSlot(_ context.Context, accountID int64, requestID string) error {
@@ -118,6 +121,7 @@ func (c *stubConcurrencyCacheForTest) GetAccountWaitingCount(_ context.Context, 
 	return c.waitCount, c.waitCountErr
 }
 func (c *stubConcurrencyCacheForTest) AcquireUserSlot(_ context.Context, _ int64, _ int, _ string) (bool, error) {
+	c.userAcquireCalls++
 	return c.acquireResult, c.acquireErr
 }
 func (c *stubConcurrencyCacheForTest) ReleaseUserSlot(_ context.Context, _ int64, _ string) error {
@@ -214,14 +218,25 @@ func TestAcquireAccountSlot_Failure(t *testing.T) {
 }
 
 func TestAcquireAccountSlot_UnlimitedConcurrency(t *testing.T) {
-	svc := NewConcurrencyService(&stubConcurrencyCacheForTest{})
+	cache := &stubConcurrencyCacheForTest{}
+	svc := NewConcurrencyService(cache)
 
-	for _, maxConcurrency := range []int{0, -1} {
-		result, err := svc.AcquireAccountSlot(context.Background(), 1, maxConcurrency)
-		require.NoError(t, err)
-		require.True(t, result.Acquired, "maxConcurrency=%d 应无限制通过", maxConcurrency)
-		require.NotNil(t, result.ReleaseFunc, "ReleaseFunc 应为 no-op 函数")
-	}
+	result, err := svc.AcquireAccountSlot(context.Background(), 1, 0)
+	require.NoError(t, err)
+	require.True(t, result.Acquired)
+	require.NotNil(t, result.ReleaseFunc, "ReleaseFunc 应为 no-op 函数")
+	require.Zero(t, cache.accountAcquireCalls, "0 不应访问 Redis")
+}
+
+func TestAcquireAccountSlot_DenyAll(t *testing.T) {
+	cache := &stubConcurrencyCacheForTest{acquireResult: true}
+	svc := NewConcurrencyService(cache)
+
+	result, err := svc.AcquireAccountSlot(context.Background(), 1, -1)
+	require.NoError(t, err)
+	require.False(t, result.Acquired)
+	require.Nil(t, result.ReleaseFunc)
+	require.Zero(t, cache.accountAcquireCalls, "-1 不应访问 Redis")
 }
 
 func TestAcquireAccountSlot_CacheError(t *testing.T) {
@@ -262,11 +277,24 @@ func TestAcquireUserSlot_IndependentFromAccount(t *testing.T) {
 }
 
 func TestAcquireUserSlot_UnlimitedConcurrency(t *testing.T) {
-	svc := NewConcurrencyService(&stubConcurrencyCacheForTest{})
+	cache := &stubConcurrencyCacheForTest{}
+	svc := NewConcurrencyService(cache)
 
 	result, err := svc.AcquireUserSlot(context.Background(), 1, 0)
 	require.NoError(t, err)
 	require.True(t, result.Acquired)
+	require.Zero(t, cache.userAcquireCalls, "0 不应访问 Redis")
+}
+
+func TestAcquireUserSlot_DenyAll(t *testing.T) {
+	cache := &stubConcurrencyCacheForTest{acquireResult: true}
+	svc := NewConcurrencyService(cache)
+
+	result, err := svc.AcquireUserSlot(context.Background(), 1, -1)
+	require.NoError(t, err)
+	require.False(t, result.Acquired)
+	require.Nil(t, result.ReleaseFunc)
+	require.Zero(t, cache.userAcquireCalls, "-1 不应访问 Redis")
 }
 
 func TestTrackAPIKeySlot_ReleaseDecrements(t *testing.T) {

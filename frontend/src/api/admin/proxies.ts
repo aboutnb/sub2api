@@ -8,6 +8,12 @@ import type {
   Proxy,
   ProxyAccountSummary,
   ProxyQualityCheckResult,
+  ProjectMihomoNode,
+  ProjectMihomoNodeTestResult,
+  ProjectMihomoSettings,
+  ProjectMihomoSingleNodeTestResult,
+  ProjectMihomoStatus,
+  ProjectMihomoSyncResult,
   CreateProxyRequest,
   UpdateProxyRequest,
   PaginatedResponse,
@@ -264,6 +270,48 @@ export async function importData(payload: {
   return data
 }
 
+export async function getProjectMihomo(): Promise<ProjectMihomoStatus> {
+  const { data } = await apiClient.get<ProjectMihomoStatus>('/admin/proxies/project-mihomo')
+  return data
+}
+
+export async function updateProjectMihomo(payload: ProjectMihomoSettings): Promise<ProjectMihomoSettings> {
+  const { data } = await apiClient.put<ProjectMihomoSettings>('/admin/proxies/project-mihomo', payload)
+  return data
+}
+
+export async function syncProjectMihomo(payload: ProjectMihomoSettings): Promise<ProjectMihomoSyncResult> {
+  const { data } = await apiClient.post<ProjectMihomoSyncResult>('/admin/proxies/project-mihomo/sync', payload)
+  return data
+}
+
+export async function testProjectMihomoNodes(payload: ProjectMihomoSettings): Promise<{
+  nodes: ProjectMihomoNode[]
+  available_regions: string[]
+}> {
+  const { data } = await apiClient.post<{
+    nodes: ProjectMihomoNode[]
+    available_regions: string[]
+  }>('/admin/proxies/project-mihomo/test-nodes', payload)
+  return data
+}
+
+export async function testProjectMihomoSelectedNodes(payload: ProjectMihomoSettings, nodes: ProjectMihomoNode[]): Promise<ProjectMihomoNodeTestResult> {
+  const { data } = await apiClient.post<ProjectMihomoNodeTestResult>('/admin/proxies/project-mihomo/test-selected-nodes', {
+    ...payload,
+    nodes
+  })
+  return data
+}
+
+export async function testProjectMihomoNode(payload: ProjectMihomoSettings, node: ProjectMihomoNode): Promise<ProjectMihomoSingleNodeTestResult> {
+  const { data } = await apiClient.post<ProjectMihomoSingleNodeTestResult>('/admin/proxies/project-mihomo/test-node', {
+    ...payload,
+    node
+  })
+  return data
+}
+
 export const proxiesAPI = {
   list,
   getAll,
@@ -280,7 +328,13 @@ export const proxiesAPI = {
   batchCreate,
   batchDelete,
   exportData,
-  importData
+  importData,
+  getProjectMihomo,
+  updateProjectMihomo,
+  syncProjectMihomo,
+  testProjectMihomoNodes,
+  testProjectMihomoSelectedNodes,
+  testProjectMihomoNode
 }
 
 export default proxiesAPI

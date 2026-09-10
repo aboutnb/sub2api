@@ -691,6 +691,7 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 	upstreamStart := time.Now()
 	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
 	SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
+	SetOpsHTTPUpstreamTrace(c, upstreamReq)
 	if err != nil {
 		return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, err, false)
 	}
@@ -1341,6 +1342,7 @@ func writeGrokMediaErrorResponse(c *gin.Context, statusCode int, errType, messag
 	if c == nil || c.Writer == nil || c.Writer.Written() {
 		return
 	}
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(statusCode, gin.H{
 		"error": gin.H{
 			"type":    strings.TrimSpace(errType),

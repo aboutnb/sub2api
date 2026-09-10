@@ -70,6 +70,7 @@ func ProvideAuthService(
 	defaultSubAssigner DefaultSubscriptionAssigner,
 	affiliateService *AffiliateService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	signupRiskGrantStore SignupRiskGrantStore,
 ) *AuthService {
 	svc := NewAuthService(
 		entClient,
@@ -86,6 +87,7 @@ func ProvideAuthService(
 		affiliateService,
 		userPlatformQuotaRepo,
 	)
+	svc.SetSignupRiskGrantStore(signupRiskGrantStore)
 	svc.SetTencentCaptchaService(tencentCaptchaService)
 	svc.SetAliyunCaptchaService(aliyunCaptchaService)
 	return svc
@@ -677,6 +679,26 @@ func ProvideImageStorageSettingService(
 	return NewImageStorageSettingService(settingRepo, encryptor, backup, factory, cfg.ImageStorage)
 }
 
+// ProvideInvoiceSettingsService keeps invoice credentials editable at runtime
+// while retaining config.yaml and environment variables as the initial fallback.
+func ProvideInvoiceSettingsService(
+	settingRepo SettingRepository,
+	encryptor SecretEncryptor,
+	cfg *config.Config,
+) *InvoiceSettingsService {
+	return NewInvoiceSettingsService(settingRepo, encryptor, cfg.Invoice, cfg.Totp.EncryptionKeyConfigured)
+}
+
+func ProvideInvoiceService(
+	entClient *dbent.Client,
+	cfg *config.Config,
+	settings *InvoiceSettingsService,
+) *InvoiceService {
+	svc := NewInvoiceService(entClient, cfg)
+	svc.SetSettingsService(settings)
+	return svc
+}
+
 // ProvideImageTaskService 构造异步图片任务服务。
 //
 // 对象存储是异步图片任务的启用前提：仅当开关打开且凭证齐全时功能才可用，否则整体禁用
@@ -786,6 +808,10 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 	return svc
 }
 
+func ProvideProjectMihomoService(settingRepo SettingRepository, adminService AdminService) *ProjectMihomoService {
+	return NewProjectMihomoService(settingRepo, adminService)
+}
+
 // ProvideBillingCacheService wires BillingCacheService with its RPM dependencies.
 func ProvideBillingCacheService(
 	cache BillingCache,
@@ -825,6 +851,7 @@ var ProviderSet = wire.NewSet(
 	NewPasskeyService,
 	NewUserService,
 	ProvideAPIKeyService,
+	NewSmartRouteService,
 	ProvideAPIKeyAuthCacheInvalidator,
 	ProvideAuthCacheInvalidationWorker,
 	NewGroupService,
@@ -879,12 +906,16 @@ var ProviderSet = wire.NewSet(
 	ProvideUpstreamBillingProbeService,
 	ProvideOllamaCloudUsageService,
 	ProvideSettingService,
+	ProvideCheckinService,
+	NewAdminCheckinService,
+	ProvideProjectMihomoService,
 	NewDataManagementService,
 	ProvideBackupService,
 	ProvideOpsSystemLogSink,
 	ProvideOpsService,
 	ProvideOpsIngressRejectAggregator,
 	ProvideAuditLogService,
+	NewAuthIPBanService,
 	ProvideOpsMetricsCollector,
 	ProvideOpsAggregationService,
 	ProvideOpsAlertEvaluatorService,
@@ -914,6 +945,7 @@ var ProviderSet = wire.NewSet(
 	ProvideTimingWheelService,
 	ProvideDashboardAggregationService,
 	ProvideUsageCleanupService,
+	ProvideEmailBroadcastService,
 	ProvideDeferredService,
 	NewAntigravityQuotaFetcher,
 	NewGrokQuotaFetcher,
@@ -938,6 +970,8 @@ var ProviderSet = wire.NewSet(
 	NewAffiliateService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,
+	ProvideInvoiceSettingsService,
+	ProvideInvoiceService,
 	ProvidePaymentOrderExpiryService,
 	ProvideBalanceNotifyService,
 	ProvideChannelMonitorService,

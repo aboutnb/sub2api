@@ -272,6 +272,9 @@ func (h *ConcurrencyHelper) AcquireUserSlotWithWait(c *gin.Context, userID int64
 }
 
 func (h *ConcurrencyHelper) acquireUserSlotWithWaitTimeout(c *gin.Context, userID int64, maxConcurrency int, timeout time.Duration, isStream bool, streamStarted *bool) (func(), error) {
+	if maxConcurrency < 0 {
+		return nil, &ConcurrencyError{SlotType: "user"}
+	}
 	ctx := c.Request.Context()
 
 	// Try to acquire immediately
@@ -335,6 +338,9 @@ func (h *ConcurrencyHelper) withAPIKeySlot(ctx context.Context, apiKeyID int64, 
 // For streaming requests, sends ping events during the wait.
 // streamStarted is updated if streaming response has begun.
 func (h *ConcurrencyHelper) AcquireAccountSlotWithWait(c *gin.Context, accountID int64, maxConcurrency int, isStream bool, streamStarted *bool) (func(), error) {
+	if maxConcurrency < 0 {
+		return nil, &ConcurrencyError{SlotType: "account"}
+	}
 	ctx := c.Request.Context()
 
 	// Try to acquire immediately
@@ -359,6 +365,9 @@ func (h *ConcurrencyHelper) waitForSlotWithPing(c *gin.Context, slotType string,
 
 // waitForSlotWithPingTimeout waits for a concurrency slot with a custom timeout.
 func (h *ConcurrencyHelper) waitForSlotWithPingTimeout(c *gin.Context, slotType string, id int64, maxConcurrency int, timeout time.Duration, isStream bool, streamStarted *bool, tryImmediate bool) (func(), error) {
+	if maxConcurrency < 0 {
+		return nil, &ConcurrencyError{SlotType: slotType}
+	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
 	defer cancel()
 

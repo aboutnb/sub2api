@@ -204,6 +204,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/checkin',
+    name: 'Checkin',
+    component: () => import('@/views/user/CheckinView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Check-in Center',
+      titleKey: 'checkin.title',
+      descriptionKey: 'checkin.description'
+    }
+  },
+  {
     path: '/keys',
     name: 'Keys',
     component: () => import('@/views/user/KeysView.vue'),
@@ -295,6 +307,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
+      requiresUserSubscriptions: true,
       title: 'My Subscriptions',
       titleKey: 'userSubscriptions.title',
       descriptionKey: 'userSubscriptions.description'
@@ -438,6 +451,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/auth-ip-bans',
+    name: 'AdminAuthIPBans',
+    component: () => import('@/views/admin/AuthIPBanView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Login Protection',
+      titleKey: 'admin.authIPBan.title',
+      descriptionKey: 'admin.authIPBan.description'
+    }
+  },
+  {
     path: '/admin/users',
     name: 'AdminUsers',
     component: () => import('@/views/admin/UsersView.vue'),
@@ -549,6 +574,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/email-broadcasts',
+    name: 'AdminEmailBroadcasts',
+    component: () => import('@/views/admin/EmailBroadcastsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Email Broadcasts',
+      titleKey: 'admin.emailBroadcasts.title',
+      descriptionKey: 'admin.emailBroadcasts.description'
+    }
+  },
+  {
     path: '/admin/proxies',
     name: 'AdminProxies',
     component: () => import('@/views/admin/ProxiesView.vue'),
@@ -594,6 +631,18 @@ const routes: RouteRecordRaw[] = [
       title: 'System Settings',
       titleKey: 'admin.settings.title',
       descriptionKey: 'admin.settings.description'
+    }
+  },
+  {
+    path: '/admin/checkin',
+    name: 'AdminCheckin',
+    component: () => import('@/views/admin/CheckinView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Check-in Center',
+      titleKey: 'admin.checkin.title',
+      descriptionKey: 'admin.checkin.description'
     }
   },
   {
@@ -907,7 +956,10 @@ router.beforeEach(async (to, _from, next) => {
   // 公共设置可能尚未加载（App.vue 的 onMounted 异步拉取晚于首次导航，且纯静态部署
   // 无 __APP_CONFIG__ 注入）。此时 cachedPublicSettings 为空会把 payment/risk_control
   // 误判为“未启用”而错误拦截，故这里先确保设置加载完成。
-  if ((to.meta.requiresPayment || to.meta.requiresRiskControl) && !appStore.publicSettingsLoaded) {
+  if (
+    (to.meta.requiresPayment || to.meta.requiresRiskControl || to.meta.requiresUserSubscriptions) &&
+    !appStore.publicSettingsLoaded
+  ) {
     try {
       await appStore.fetchPublicSettings()
     } catch (error) {
@@ -935,13 +987,23 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
+  if (
+    to.meta.requiresUserSubscriptions &&
+    appStore.publicSettingsLoaded &&
+    appStore.cachedPublicSettings?.user_subscriptions_enabled === false
+  ) {
+    next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+    return
+  }
+
   // 简易模式下限制访问某些页面
   if (authStore.isSimpleMode) {
     const restrictedPaths = [
       '/admin/subscriptions',
       '/admin/redeem',
       '/subscriptions',
-      '/redeem'
+      '/redeem',
+      '/checkin'
     ]
 
     if (restrictedPaths.some((path) => to.path.startsWith(path))) {

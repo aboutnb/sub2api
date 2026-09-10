@@ -21,10 +21,40 @@
         </div>
       </div>
 
-      <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
+      <!-- Right: Announcements + Community + Docs + Language + Subscriptions + Balance + User Dropdown -->
       <div class="flex min-w-0 items-center gap-1 sm:gap-3">
         <!-- Announcement Bell -->
         <AnnouncementBell v-if="user" />
+
+        <!-- Community Group Link -->
+        <a
+          v-if="communityGroupUrl"
+          :href="communityGroupUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          :aria-label="communityGroupName"
+          :title="communityGroupName"
+          class="group flex h-9 w-9 flex-shrink-0 items-center justify-center gap-1.5 rounded-lg text-sm font-medium text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:text-gray-900 hover:shadow-sm active:scale-[0.98] dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white sm:w-auto sm:px-2.5"
+        >
+          <img
+            v-if="communityGroupIcon"
+            :src="communityGroupIcon"
+            alt=""
+            class="h-5 w-5 flex-shrink-0 object-contain opacity-75 transition-opacity duration-200 group-hover:opacity-100"
+          />
+          <svg
+            v-else
+            class="h-5 w-5 flex-shrink-0 text-gray-500 transition-colors duration-200 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-200"
+            viewBox="0 0 1024 1024"
+            aria-hidden="true"
+          >
+            <path
+              d="M928 585.344c0-67.328-40.832-125.024-98.592-151.456-4.8-170.752-144.288-310.24-317.408-310.24-173.152 0-312.608 137.056-317.408 310.208C136.864 460.32 96 518.016 96 585.344a166.24 166.24 0 0 0 165.92 165.92h4.8c12.032 0 24.064-12 24.064-24.032v-283.744c0-12.032-12.032-24.032-24.064-24.032h-21.632c9.6-137.056 125.024-247.68 266.912-247.68 141.92 0 257.28 110.624 269.344 250.08h-24.096c-12 0-24 12.032-24 24.032V720c-76.96 84.192-182.784 132.288-295.808 132.288-14.432 0-24.032 9.632-24.032 24.032 0 14.432 9.632 24.032 24.032 24.032 127.488 0 247.68-55.328 331.84-149.088 88.96-4.8 158.72-76.928 158.72-165.92zM240.256 700.736a116.384 116.384 0 0 1-96.16-115.392c0-57.696 40.864-105.792 98.592-115.392v230.816h-2.432z m541.088 0v-230.816c55.328 9.632 98.56 57.728 98.56 115.392 0 57.76-43.232 105.856-98.56 115.424z"
+              fill="currentColor"
+            />
+          </svg>
+          <span class="hidden max-w-28 truncate sm:inline">{{ communityGroupName }}</span>
+        </a>
 
         <!-- Docs Link -->
         <a
@@ -53,6 +83,9 @@
 
         <!-- Subscription Progress (for users with active subscriptions) -->
         <SubscriptionProgressMini v-if="user" />
+
+        <!-- Daily check-in shortcut sits immediately before the balance amount. -->
+        <CheckinShortcut v-if="user && !authStore.isSimpleMode" />
 
         <!-- Balance Display -->
         <div
@@ -258,6 +291,7 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
+import CheckinShortcut from '@/components/checkin/CheckinShortcut.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
@@ -274,6 +308,12 @@ const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
+const communityGroupName = computed(() => appStore.communityGroupName.trim() || t('nav.communityGroup'))
+const communityGroupIcon = computed(() => sanitizeUrl(appStore.communityGroupIcon, {
+  allowRelative: true,
+  allowDataUrl: true
+}))
+const communityGroupUrl = computed(() => sanitizeUrl(appStore.communityGroupUrl))
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const modelPlazaEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')

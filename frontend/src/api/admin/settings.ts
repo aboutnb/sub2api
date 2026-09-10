@@ -10,6 +10,7 @@ import type {
   LoginAgreementDocument,
   NotifyEmailEntry,
 } from "@/types";
+import type { RechargeBonusTier } from "@/types/payment";
 
 export interface DefaultSubscriptionSetting {
   group_id: number;
@@ -152,6 +153,12 @@ const AUTH_SOURCE_TYPES: AuthSourceType[] = [
 ];
 const AUTH_SOURCE_DEFAULT_BALANCE = 0;
 const AUTH_SOURCE_DEFAULT_CONCURRENCY = 5;
+
+function normalizeConcurrency(value: unknown, fallback = AUTH_SOURCE_DEFAULT_CONCURRENCY): number {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.max(-1, Math.trunc(parsed))
+}
 const PAYMENT_VISIBLE_METHOD_SOURCE_OPTIONS: Record<
   PaymentVisibleMethod,
   PaymentVisibleMethodSourceOption[]
@@ -260,12 +267,9 @@ export function buildAuthSourceDefaultsState(
         raw[`auth_source_default_${source}_balance`] ??
           AUTH_SOURCE_DEFAULT_BALANCE,
       ),
-      concurrency: Math.max(
-        1,
-        Number(
-          raw[`auth_source_default_${source}_concurrency`] ??
-            AUTH_SOURCE_DEFAULT_CONCURRENCY,
-        ),
+      concurrency: normalizeConcurrency(
+        raw[`auth_source_default_${source}_concurrency`] ??
+          AUTH_SOURCE_DEFAULT_CONCURRENCY,
       ),
       subscriptions: normalizeDefaultSubscriptionSettings(
         Array.isArray(subscriptions)
@@ -292,11 +296,8 @@ export function appendAuthSourceDefaultsToUpdateRequest(
     const current = authSourceDefaults[source];
     target[`auth_source_default_${source}_balance`] =
       Number(current.balance) || 0;
-    target[`auth_source_default_${source}_concurrency`] = Math.max(
-      1,
-      Math.floor(
-        Number(current.concurrency) || AUTH_SOURCE_DEFAULT_CONCURRENCY,
-      ),
+    target[`auth_source_default_${source}_concurrency`] = normalizeConcurrency(
+      current.concurrency,
     );
     target[`auth_source_default_${source}_subscriptions`] =
       normalizeDefaultSubscriptionSettings(current.subscriptions);
@@ -479,6 +480,9 @@ export interface SystemSettings {
   site_subtitle: string;
   api_base_url: string;
   contact_info: string;
+  community_group_name: string;
+  community_group_icon: string;
+  community_group_url: string;
   doc_url: string;
   home_content: string;
   compact_home_enabled: boolean;
@@ -655,6 +659,7 @@ export interface SystemSettings {
   cyber_session_block_ttl_seconds: number;
 
   payment_min_amount: number;
+  payment_usdt_min_amount: number;
   payment_max_amount: number;
   payment_daily_limit: number;
   payment_order_timeout_minutes: number;
@@ -662,8 +667,11 @@ export interface SystemSettings {
   payment_enabled_types: string[];
   payment_balance_disabled: boolean;
   payment_balance_recharge_multiplier: number;
+  payment_recharge_bonus_tiers: RechargeBonusTier[];
   payment_subscription_usd_to_cny_rate: number;
+  payment_subscription_fee_enabled: boolean;
   payment_recharge_fee_rate: number;
+  payment_recharge_fee_credited: boolean;
   payment_load_balance_strategy: string;
   payment_product_name_prefix: string;
   payment_product_name_suffix: string;
@@ -676,6 +684,14 @@ export interface SystemSettings {
   payment_cancel_rate_limit_window_mode: string;
   payment_alipay_force_qrcode?: boolean;
   payment_alipay_mobile_precreate_deep_link?: boolean;
+
+  // XZNOAuth self-service invoice integration
+  invoice_enabled: boolean;
+  invoice_base_url: string;
+  invoice_client_id: string;
+  invoice_client_secret_configured: boolean;
+  invoice_timeout_seconds: number;
+  invoice_fee_payer: "customer" | "platform" | "user_choice";
   payment_visible_method_alipay_source?: string;
   payment_visible_method_wxpay_source?: string;
   payment_visible_method_alipay_enabled?: boolean;
@@ -726,6 +742,10 @@ export interface SystemSettings {
 
   // Available Channels feature switch
   available_channels_enabled: boolean;
+  smart_routing_enabled: boolean;
+
+  // User-facing subscription page and sidebar entry
+  user_subscriptions_enabled: boolean;
 
   // Model Plaza feature switches + description
   model_plaza_enabled: boolean;
@@ -820,6 +840,9 @@ export interface UpdateSettingsRequest {
   site_subtitle?: string;
   api_base_url?: string;
   contact_info?: string;
+  community_group_name?: string;
+  community_group_icon?: string;
+  community_group_url?: string;
   doc_url?: string;
   home_content?: string;
   compact_home_enabled?: boolean;
@@ -969,6 +992,7 @@ export interface UpdateSettingsRequest {
   cyber_session_block_ttl_seconds?: number;
 
   payment_min_amount?: number;
+  payment_usdt_min_amount?: number;
   payment_max_amount?: number;
   payment_daily_limit?: number;
   payment_order_timeout_minutes?: number;
@@ -976,8 +1000,11 @@ export interface UpdateSettingsRequest {
   payment_enabled_types?: string[];
   payment_balance_disabled?: boolean;
   payment_balance_recharge_multiplier?: number;
+  payment_recharge_bonus_tiers?: RechargeBonusTier[];
   payment_subscription_usd_to_cny_rate?: number;
+  payment_subscription_fee_enabled?: boolean;
   payment_recharge_fee_rate?: number;
+  payment_recharge_fee_credited?: boolean;
   payment_load_balance_strategy?: string;
   payment_product_name_prefix?: string;
   payment_product_name_suffix?: string;
@@ -990,6 +1017,12 @@ export interface UpdateSettingsRequest {
   payment_cancel_rate_limit_window_mode?: string;
   payment_alipay_force_qrcode?: boolean;
   payment_alipay_mobile_precreate_deep_link?: boolean;
+  invoice_enabled?: boolean;
+  invoice_base_url?: string;
+  invoice_client_id?: string;
+  invoice_client_secret?: string;
+  invoice_timeout_seconds?: number;
+  invoice_fee_payer?: "customer" | "platform" | "user_choice";
   payment_visible_method_alipay_source?: string;
   payment_visible_method_wxpay_source?: string;
   payment_visible_method_alipay_enabled?: boolean;
@@ -1028,6 +1061,10 @@ export interface UpdateSettingsRequest {
 
   // Available Channels feature switch
   available_channels_enabled?: boolean;
+  smart_routing_enabled?: boolean;
+
+  // User-facing subscription page and sidebar entry
+  user_subscriptions_enabled?: boolean;
 
   // Model Plaza feature switches + description
   model_plaza_enabled?: boolean;

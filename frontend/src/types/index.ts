@@ -2,6 +2,9 @@
  * Core Type Definitions for Sub2API Frontend
  */
 
+import type { SmartRouteConfig, SmartRouteInput } from './smart-routing'
+export type * from './smart-routing'
+
 // ==================== Common Types ====================
 
 export interface SelectOption {
@@ -101,6 +104,41 @@ export interface User {
   deleted_at?: string | null
 }
 
+export interface CheckinRecord {
+  id: number
+  user_id: number
+  checkin_date: string
+  mode: 'normal' | 'lucky'
+  reward_type: 'multiplier' | 'amount'
+  random_value: number
+  reward_amount: number
+  balance_before: number
+  balance_after: number
+  checked_in_at: string
+}
+
+export interface CheckinStatus {
+  enabled: boolean
+  normal_enabled: boolean
+  lucky_enabled: boolean
+  lucky_reward_type: 'multiplier' | 'amount'
+  lucky_min_multiplier: number
+  lucky_max_multiplier: number
+  eligible: boolean
+  can_check_in: boolean
+  unavailable_reason: string
+  business_date: string
+  timezone: string
+  server_time: string
+  next_reset_at: string
+  checked_in_today: boolean
+  today_record?: CheckinRecord | null
+  days_in_month: number
+  first_weekday: number
+  turnstile_enabled?: boolean
+  turnstile_site_key?: string
+}
+
 export interface AdminUser extends User {
   // 管理员备注（普通用户接口不返回）
   notes: string
@@ -138,11 +176,20 @@ export interface RegisterRequest {
   password: string
   verify_code?: string
   turnstile_token?: string
+  registration_challenge?: RegistrationChallengeSubmission
   tencent_captcha_ticket?: string
   tencent_captcha_randstr?: string
   promo_code?: string
   invitation_code?: string
   aff_code?: string
+}
+
+export interface RegistrationChallengeSubmission {
+  token: string
+  completed_at: number
+  proof: string
+  trap_field: string
+  trap_value: string
 }
 
 export interface AffiliateInvitee {
@@ -174,6 +221,7 @@ export interface AffiliateTransferResponse {
 export interface SendVerifyCodeRequest {
   email: string
   turnstile_token?: string
+  registration_challenge?: RegistrationChallengeSubmission
   tencent_captcha_ticket?: string
   tencent_captcha_randstr?: string
   pending_auth_token?: string
@@ -236,10 +284,14 @@ export interface PublicSettings {
   site_subtitle: string
   api_base_url: string
   contact_info: string
+  community_group_name?: string
+  community_group_icon?: string
+  community_group_url?: string
   doc_url: string
   home_content: string
   compact_home_enabled: boolean
   hide_ccs_import_button: boolean
+  checkin_enabled?: boolean
   payment_enabled: boolean
   risk_control_enabled: boolean
   table_default_page_size: number
@@ -276,12 +328,17 @@ export interface PublicSettings {
   /** When true, user monitor hides the user ranking tab and /users payload. */
   channel_monitor_hide_user_ranking?: boolean
   available_channels_enabled: boolean
+  smart_routing_enabled: boolean
+  user_subscriptions_enabled: boolean
   model_plaza_enabled: boolean
   model_plaza_require_auth: boolean
   plugin_management_enabled: boolean
   service_quota_enabled: boolean
   affiliate_enabled: boolean
   allow_user_view_error_requests?: boolean
+  public_access_guard_enabled?: boolean
+  public_access_publish_key?: string
+  public_access_header_name?: string
 }
 
 export interface AuthResponse {
@@ -751,6 +808,7 @@ export interface ApiKey {
   reset_5h_at: string | null
   reset_1d_at: string | null
   reset_7d_at: string | null
+  routing?: SmartRouteConfig | null
 }
 
 export interface CreateApiKeyRequest {
@@ -764,6 +822,7 @@ export interface CreateApiKeyRequest {
   rate_limit_5h?: number
   rate_limit_1d?: number
   rate_limit_7d?: number
+  routing?: SmartRouteInput
 }
 
 export interface UpdateApiKeyRequest {
@@ -779,6 +838,7 @@ export interface UpdateApiKeyRequest {
   rate_limit_1d?: number
   rate_limit_7d?: number
   reset_rate_limit_usage?: boolean
+  routing?: SmartRouteInput
 }
 
 export interface CreateGroupRequest {
@@ -989,6 +1049,79 @@ export interface ProxyQualityCheckResult {
   challenge_count: number
   checked_at: number
   items: ProxyQualityCheckItem[]
+}
+
+export type ProjectMihomoSubscriptionFetchMode = 'mihomo' | 'backend' | 'static'
+
+export interface ProjectMihomoSettings {
+  subscription_url: string
+  subscription_urls: string[]
+  subscription_keys: string[]
+  subscription_names: string[]
+  subscription_fetch_modes: ProjectMihomoSubscriptionFetchMode[]
+  subscription_contents: string[]
+  subscription_user_agent: string
+  update_interval: number
+  protocol: ProxyProtocol
+  target_host: string
+  start_port: number
+  listener_count: number
+  listener_ports: number[]
+  listener_names: string[]
+  controller_url: string
+  controller_secret: string
+  proxy_name_prefix: string
+  listener_regions: string[]
+  auto_route_enabled: boolean
+  auto_route_tolerance: number
+  auto_route_interval: number
+  node_exclude_enabled: boolean
+  node_exclude_keywords: string[]
+  force_remove_in_use?: boolean
+}
+
+export interface ProjectMihomoProxy {
+  name: string
+  protocol: ProxyProtocol
+  host: string
+  port: number
+}
+
+export interface ProjectMihomoNode {
+  key: string
+  name: string
+  region: string
+  alive: boolean
+  provider?: string
+  provider_label?: string
+  latency_ms?: number
+  latency_status?: 'success' | 'failed' | 'unknown'
+  latency_message?: string
+}
+
+export interface ProjectMihomoStatus {
+  settings: ProjectMihomoSettings
+  config_path: string
+  proxies: ProjectMihomoProxy[]
+  available_nodes: ProjectMihomoNode[]
+  available_regions: string[]
+  current_selections?: string[]
+}
+
+export interface ProjectMihomoNodeTestResult {
+  nodes: ProjectMihomoNode[]
+  available_regions: string[]
+}
+
+export interface ProjectMihomoSingleNodeTestResult extends ProjectMihomoNode {}
+
+export interface ProjectMihomoSyncResult {
+  config_path: string
+  proxies: ProjectMihomoProxy[]
+  created: number
+  reused: number
+  assigned: number
+  reloaded: boolean
 }
 
 // Gemini credentials structure for OAuth and API Key authentication
@@ -1473,6 +1606,7 @@ export interface CreateAccountRequest {
   credentials: Record<string, unknown>
   extra?: Record<string, unknown>
   proxy_id?: number | null
+  proxy_provider?: string
   concurrency?: number
   load_factor?: number | null
   priority?: number
@@ -1491,6 +1625,7 @@ export interface UpdateAccountRequest {
   credentials?: Record<string, unknown>
   extra?: Record<string, unknown>
   proxy_id?: number | null
+  proxy_provider?: string
   concurrency?: number
   load_factor?: number | null
   priority?: number
@@ -1610,6 +1745,7 @@ export interface AdminDataImportResult {
   proxy_failed: number
   account_created: number
   account_failed: number
+  account_ids?: number[]
   errors?: AdminDataImportError[]
 }
 
@@ -1620,6 +1756,7 @@ export interface CodexSessionImportRequest {
   notes?: string | null
   group_ids?: number[]
   proxy_id?: number | null
+  proxy_provider?: string
   concurrency?: number
   priority?: number
   rate_multiplier?: number

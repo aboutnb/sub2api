@@ -2,7 +2,38 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="space-y-4">
+          <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-dark-700 dark:bg-dark-800">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+                  <Icon name="server" size="sm" />
+                  <span>{{ t('admin.proxies.projectMihomo.title') }}</span>
+                </div>
+                <div class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                  {{ t('admin.proxies.projectMihomo.summary') }}
+                </div>
+                <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                  <span>{{ t('admin.proxies.projectMihomo.summaryHint', { count: projectMihomoVisibleNodes.length }) }}</span>
+                  <span>{{ t('admin.proxies.projectMihomo.listenerSummaryHint', { count: projectMihomoForm.listener_count || 0 }) }}</span>
+                  <span>{{ t('admin.proxies.projectMihomo.protocolLabel', { protocol: projectMihomoForm.protocol.toUpperCase() }) }}</span>
+                  <span v-if="projectMihomoConfigPath" class="truncate">{{ t('admin.proxies.projectMihomo.configPath', { path: projectMihomoConfigPath }) }}</span>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button @click="showProjectMihomoModal = true" class="btn btn-secondary">
+                  <Icon name="cog" size="sm" class="mr-2" />
+                  {{ t('admin.proxies.projectMihomo.manage') }}
+                </button>
+                <button @click="syncProjectMihomoConfig" :disabled="projectMihomoSubmitting || !projectMihomoHasSubscriptionSources" class="btn btn-primary">
+                  <Icon name="sync" size="sm" class="mr-2" />
+                  {{ t('admin.proxies.projectMihomo.sync') }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
           <!-- Left: Search + Filters -->
           <div class="relative w-full sm:w-64">
             <Icon
@@ -84,6 +115,7 @@
               {{ t('admin.proxies.createProxy') }}
             </button>
           </div>
+        </div>
         </div>
       </template>
 
@@ -367,6 +399,392 @@
     </TablePageLayout>
 
     <!-- Create Proxy Modal -->
+    <BaseDialog
+      :show="showProjectMihomoModal"
+      :title="t('admin.proxies.projectMihomo.title')"
+      width="wide"
+      @close="showProjectMihomoModal = false"
+    >
+      <div class="project-mihomo-modal space-y-5">
+        <div class="grid gap-5 lg:grid-cols-[minmax(0,1.28fr)_minmax(340px,0.92fr)]">
+          <div class="space-y-4">
+            <div class="project-mihomo-panel">
+              <div class="project-mihomo-panel-header">
+                <div>
+                  <div class="project-mihomo-section-title">
+                    {{ t('admin.proxies.projectMihomo.proxySources') }}
+                    <span class="project-mihomo-count-pill">{{ projectMihomoSubscriptionSources.length }}</span>
+                  </div>
+                  <div class="project-mihomo-section-hint">
+                    {{ t('admin.proxies.projectMihomo.subscriptionUrlsHint') }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="project-mihomo-add-source">
+                <label class="project-mihomo-field">
+                  <span>{{ t('admin.proxies.projectMihomo.proxySourceName') }}</span>
+                  <input
+                    v-model="projectMihomoNewSubscriptionName"
+                    type="text"
+                    class="input text-sm"
+                    :placeholder="t('admin.proxies.projectMihomo.proxySourceNamePlaceholder')"
+                    spellcheck="false"
+                    @keydown.enter.prevent="addProjectMihomoSubscriptionUrl"
+                  />
+                </label>
+                <label class="project-mihomo-field project-mihomo-field-url">
+                  <span>{{ t('admin.proxies.projectMihomo.subscriptionUrls') }}</span>
+                  <input
+                    v-model="projectMihomoNewSubscriptionUrl"
+                    type="text"
+                    class="input font-mono text-sm"
+                    :placeholder="t('admin.proxies.projectMihomo.proxySourcePlaceholder')"
+                    spellcheck="false"
+                    @keydown.enter.prevent="addProjectMihomoSubscriptionUrl"
+                  />
+                </label>
+                <div class="project-mihomo-add-actions">
+                  <button
+                    type="button"
+                    class="btn btn-primary h-9 whitespace-nowrap px-3 text-xs"
+                    :disabled="!projectMihomoNewSubscriptionUrl.trim() && !projectMihomoNewSubscriptionName.trim()"
+                    :title="t('common.create')"
+                    @click="addProjectMihomoSubscriptionUrl"
+                  >
+                    <Icon name="plus" size="xs" class="mr-1" />
+                    {{ t('common.create') }}
+                  </button>
+                  <label class="btn btn-secondary h-9 cursor-pointer whitespace-nowrap px-3 text-xs">
+                    <input
+                      type="file"
+                      class="sr-only"
+                      accept=".yaml,.yml,application/yaml,application/x-yaml,text/yaml,text/plain"
+                      @change="uploadProjectMihomoStaticYaml"
+                    />
+                    {{ t('admin.proxies.projectMihomo.uploadYaml') }}
+                  </label>
+                </div>
+              </div>
+
+              <div class="project-mihomo-source-grid">
+                <div
+                  v-for="source in projectMihomoSubscriptionSources"
+                  :key="source.provider"
+                  :class="[
+                    'project-mihomo-source-card',
+                    projectMihomoSelectedProvider === source.provider
+                      ? 'project-mihomo-source-card-active'
+                      : 'project-mihomo-source-card-idle'
+                  ]"
+                >
+                  <button
+                    type="button"
+                    class="project-mihomo-source-main"
+                    @click="selectProjectMihomoProvider(source.provider)"
+                  >
+                    <span class="flex min-w-0 items-center gap-2 pr-16">
+                      <span class="truncate text-sm font-semibold text-gray-950 dark:text-white">{{ source.label }}</span>
+                      <span class="project-mihomo-mode-pill shrink-0">{{ source.fetchModeLabel }}</span>
+                    </span>
+                    <span class="mt-2 flex min-w-0 items-center gap-2 pr-16 text-[11px] text-gray-500 dark:text-gray-400">
+                      <span class="project-mihomo-node-pill shrink-0">{{ source.nodeCount }}</span>
+                      <span class="truncate font-mono">{{ source.provider }}</span>
+                    </span>
+                    <span class="mt-2 block truncate rounded-lg bg-white/70 px-2.5 py-1.5 font-mono text-[11px] text-gray-500 ring-1 ring-gray-200/70 dark:bg-dark-900/40 dark:text-gray-400 dark:ring-dark-600">{{ source.url }}</span>
+                  </button>
+                  <div class="project-mihomo-source-actions">
+                    <button
+                      type="button"
+                      class="project-mihomo-source-action"
+                      :disabled="projectMihomoSubmitting || !source.url.trim() || isProjectMihomoProviderTesting(source.provider)"
+                      :title="isProjectMihomoProviderTesting(source.provider)
+                        ? t('admin.proxies.projectMihomo.testingNodeLatency')
+                        : t('admin.proxies.projectMihomo.testNodeLatency')"
+                      @click="testProjectMihomoSourceNodes(source)"
+                    >
+                      <Icon
+                        name="bolt"
+                        size="sm"
+                        :class="isProjectMihomoProviderTesting(source.provider) ? 'animate-pulse' : ''"
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      class="project-mihomo-source-action text-red-500 hover:text-red-600 dark:text-red-400"
+                      :disabled="projectMihomoSubmitting"
+                      :title="t('admin.proxies.projectMihomo.deleteSource')"
+                      @click="removeProjectMihomoSubscriptionUrl(source.index)"
+                    >
+                      <Icon name="trash" size="sm" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div
+                v-if="projectMihomoActiveSubscriptionSource"
+                class="project-mihomo-source-editor"
+              >
+                <label class="project-mihomo-field">
+                  <span>{{ t('admin.proxies.projectMihomo.proxySourceName') }}</span>
+                  <input
+                    v-model="projectMihomoForm.subscription_names[projectMihomoActiveSubscriptionSource.index]"
+                    type="text"
+                    class="input text-sm"
+                    :placeholder="t('admin.proxies.projectMihomo.proxySourceName')"
+                    spellcheck="false"
+                    @blur="normalizeProjectMihomoSubscriptionUrls"
+                  />
+                </label>
+                <label class="project-mihomo-field">
+                  <span>{{ t('admin.proxies.projectMihomo.fetchMode') }}</span>
+                  <Select
+                    v-model="projectMihomoForm.subscription_fetch_modes[projectMihomoActiveSubscriptionSource.index]"
+                    :options="projectMihomoSubscriptionFetchModeOptions"
+                    :placeholder="t('admin.proxies.projectMihomo.fetchMode')"
+                    :searchable="false"
+                    @change="normalizeProjectMihomoSubscriptionFetchModes"
+                  />
+                </label>
+                <button
+                  type="button"
+                  class="project-mihomo-icon-btn project-mihomo-editor-delete text-red-600 hover:border-red-200 hover:text-red-600 dark:text-red-400 dark:hover:border-red-800 dark:hover:text-red-400"
+                  :title="t('common.delete')"
+                  @click="removeProjectMihomoSubscriptionUrl(projectMihomoActiveSubscriptionSource.index)"
+                >
+                  <Icon name="trash" size="sm" />
+                </button>
+                <label class="project-mihomo-field project-mihomo-editor-url">
+                  <span>{{ t('admin.proxies.projectMihomo.subscriptionUrls') }}</span>
+                  <input
+                    v-model="projectMihomoForm.subscription_urls[projectMihomoActiveSubscriptionSource.index]"
+                    type="text"
+                    class="input font-mono text-sm"
+                    spellcheck="false"
+                    @blur="normalizeProjectMihomoSubscriptionUrls"
+                  />
+                </label>
+                <div class="project-mihomo-editor-hint">
+                  {{ projectMihomoSubscriptionFetchModeHint(projectMihomoForm.subscription_fetch_modes[projectMihomoActiveSubscriptionSource.index]) }}
+                </div>
+                <div class="project-mihomo-provider-key">
+                  {{ t('admin.proxies.projectMihomo.providerKey') }}: {{ projectMihomoActiveSubscriptionSource.provider }}
+                </div>
+                <div
+                  v-if="normalizeProjectMihomoSubscriptionFetchMode(projectMihomoForm.subscription_fetch_modes[projectMihomoActiveSubscriptionSource.index]) === 'static'"
+                  class="project-mihomo-static-yaml"
+                >
+                  <div class="mb-1 flex items-center justify-between gap-2">
+                    <label class="input-label mb-0">{{ t('admin.proxies.projectMihomo.staticYaml') }}</label>
+                    <label class="btn btn-secondary cursor-pointer whitespace-nowrap px-3 py-1 text-xs">
+                      <input
+                        type="file"
+                        class="sr-only"
+                        accept=".yaml,.yml,application/yaml,application/x-yaml,text/yaml,text/plain"
+                        @change="uploadProjectMihomoStaticYaml($event, projectMihomoActiveSubscriptionSource.index)"
+                      />
+                      {{ t('admin.proxies.projectMihomo.uploadYaml') }}
+                    </label>
+                  </div>
+                  <textarea
+                    v-model="projectMihomoForm.subscription_contents[projectMihomoActiveSubscriptionSource.index]"
+                    class="input min-h-48 font-mono text-xs leading-5"
+                    :placeholder="t('admin.proxies.projectMihomo.staticYamlPlaceholder')"
+                    spellcheck="false"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <div>
+                <label class="input-label">{{ t('admin.proxies.projectMihomo.targetHost') }}</label>
+                <input v-model="projectMihomoForm.target_host" type="text" class="input" />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.proxies.projectMihomo.controllerUrl') }}</label>
+                <input v-model="projectMihomoForm.controller_url" type="text" class="input" />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.proxies.projectMihomo.startPort') }}</label>
+                <input v-model.number="projectMihomoForm.start_port" type="number" min="1" max="65535" class="input" />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.proxies.projectMihomo.listenerCount') }}</label>
+                <input v-model.number="projectMihomoForm.listener_count" type="number" min="0" max="32" class="input" />
+              </div>
+            </div>
+            <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-700">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <div class="text-sm font-medium text-gray-900 dark:text-white">
+                    {{ t('admin.proxies.projectMihomo.autoRoute') }}
+                  </div>
+                  <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.proxies.projectMihomo.autoRouteHint') }}
+                  </div>
+                </div>
+                <Toggle v-model="projectMihomoForm.auto_route_enabled" />
+              </div>
+              <div
+                v-if="projectMihomoForm.auto_route_enabled"
+                class="mt-3 grid gap-4 md:grid-cols-2"
+              >
+                <div>
+                  <label class="input-label">{{ t('admin.proxies.projectMihomo.autoRouteTolerance') }}</label>
+                  <input v-model.number="projectMihomoForm.auto_route_tolerance" type="number" min="1" class="input" />
+                </div>
+                <div>
+                  <label class="input-label">{{ t('admin.proxies.projectMihomo.autoRouteInterval') }}</label>
+                  <input v-model.number="projectMihomoForm.auto_route_interval" type="number" min="1" class="input" />
+                </div>
+              </div>
+            </div>
+            <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-700">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <div class="text-sm font-medium text-gray-900 dark:text-white">
+                    {{ t('admin.proxies.projectMihomo.nodeExclude') }}
+                  </div>
+                  <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.proxies.projectMihomo.nodeExcludeHint') }}
+                  </div>
+                </div>
+                <Toggle v-model="projectMihomoForm.node_exclude_enabled" />
+              </div>
+              <textarea
+                v-if="projectMihomoForm.node_exclude_enabled"
+                v-model="projectMihomoNodeExcludeKeywordsText"
+                class="input mt-3 min-h-[112px] resize-y font-mono text-sm"
+                :placeholder="t('admin.proxies.projectMihomo.nodeExcludePlaceholder')"
+                spellcheck="false"
+                @blur="normalizeProjectMihomoNodeExcludeKeywords"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div class="project-mihomo-panel project-mihomo-listener-panel">
+              <div class="project-mihomo-panel-header mb-4">
+                <div>
+                  <div class="project-mihomo-section-title">
+                    {{ t('admin.proxies.projectMihomo.listenerPorts') }}
+                  </div>
+                  <div class="project-mihomo-section-hint">
+                    {{ projectMihomoActiveSubscriptionSource?.label || projectMihomoSubscriptionSources[0]?.label || '-' }}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="project-mihomo-icon-btn shrink-0"
+                  :disabled="projectMihomoSubmitting || projectMihomoForm.listener_count >= 32"
+                  :title="t('admin.proxies.projectMihomo.addListener')"
+                  @click="appendProjectMihomoListener"
+                >
+                  <Icon name="plus" size="sm" />
+                </button>
+              </div>
+              <div class="project-mihomo-listener-list">
+                <div v-for="listener in projectMihomoListenerRows" :key="listener.name" class="project-mihomo-listener-card">
+                  <div class="project-mihomo-listener-card-head">
+                    <div class="min-w-0">
+                      <div class="project-mihomo-listener-title">
+                        {{
+                          t(
+                            projectMihomoForm.auto_route_enabled
+                              ? 'admin.proxies.projectMihomo.listenerRoute'
+                              : 'admin.proxies.projectMihomo.listenerNode',
+                            { port: listener.port }
+                          )
+                        }}
+                      </div>
+                      <div class="project-mihomo-listener-name">{{ listener.name }}</div>
+                    </div>
+                      <button
+                        type="button"
+                        class="project-mihomo-row-btn text-red-500 hover:text-red-600 dark:text-red-400"
+                        :title="t('admin.proxies.projectMihomo.removeListener')"
+                        @click="removeProjectMihomoListener(listener.index)"
+                      >
+                        <Icon name="trash" size="xs" />
+                      </button>
+                  </div>
+                  <div class="mt-2">
+                    <div class="project-mihomo-listener-picker">
+                      <div class="project-mihomo-listener-select">
+                        <Select
+                          v-model="projectMihomoForm.listener_regions[listener.index]"
+                          :options="projectMihomoNodeOptionsForListener(listener.index)"
+                          :placeholder="projectMihomoForm.auto_route_enabled
+                            ? t('admin.proxies.projectMihomo.routePlaceholder')
+                            : t('admin.proxies.projectMihomo.nodePlaceholder')"
+                          searchable
+                        >
+                          <template #selected="{ option }">
+                            <div v-if="option" class="flex min-w-0 items-center justify-between gap-3">
+                              <div class="min-w-0 flex-1">
+                                <div class="truncate text-sm text-gray-900 dark:text-white">{{ option.label }}</div>
+                                <div v-if="option.meta" class="truncate text-xs text-gray-500 dark:text-gray-400">{{ option.meta }}</div>
+                              </div>
+                              <span v-if="option.latencyLabel" :class="['badge shrink-0', option.latencyClass]">
+                                {{ option.latencyLabel }}
+                              </span>
+                            </div>
+                            <span v-else>{{
+                              projectMihomoForm.auto_route_enabled
+                                ? t('admin.proxies.projectMihomo.routePlaceholder')
+                                : t('admin.proxies.projectMihomo.nodePlaceholder')
+                            }}</span>
+                          </template>
+                          <template #option="{ option }">
+                            <div class="flex min-w-0 flex-1 items-center justify-between gap-3">
+                              <div class="min-w-0">
+                                <div class="truncate text-sm text-gray-900 dark:text-white">{{ option.label }}</div>
+                                <div v-if="option.meta" class="truncate text-xs text-gray-500 dark:text-gray-400">{{ option.meta }}</div>
+                              </div>
+                              <span v-if="option.latencyLabel" :class="['badge shrink-0', option.latencyClass]">
+                                {{ option.latencyLabel }}
+                              </span>
+                            </div>
+                          </template>
+                        </Select>
+                      </div>
+                      <button
+                        type="button"
+                        class="project-mihomo-listener-action"
+                        :title="isProjectMihomoNodeTestingByKey(findProjectMihomoSelectedNode(listener.index)?.key || '')
+                          ? t('admin.proxies.projectMihomo.testingSingleNodeLatency')
+                          : t('admin.proxies.projectMihomo.testSingleNodeLatency')"
+                        :disabled="projectMihomoSubmitting || !canTestProjectMihomoListener(listener.index) || isProjectMihomoNodeTestingByKey(findProjectMihomoSelectedNode(listener.index)?.key || '')"
+                        @click="testProjectMihomoSingleNode(findProjectMihomoSelectedNode(listener.index))"
+                      >
+                        <Icon
+                          name="bolt"
+                          size="sm"
+                          :class="isProjectMihomoNodeTestingByKey(findProjectMihomoSelectedNode(listener.index)?.key || '') ? 'animate-pulse' : ''"
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+      </div>
+      </div>
+    </div>
+      <template #footer>
+        <button @click="showProjectMihomoModal = false" class="btn btn-secondary">
+          {{ t('common.cancel') }}
+        </button>
+        <button @click="saveProjectMihomo" :disabled="projectMihomoSubmitting" class="btn btn-secondary">
+          {{ t('admin.proxies.projectMihomo.save') }}
+        </button>
+        <button @click="saveAndSyncProjectMihomo" :disabled="projectMihomoSubmitting || !projectMihomoHasSubscriptionSources" class="btn btn-primary">
+          {{ t('admin.proxies.projectMihomo.saveAndSync') }}
+        </button>
+      </template>
+    </BaseDialog>
+
     <BaseDialog
       :show="showCreateModal"
       :title="t('admin.proxies.createProxy')"
@@ -964,11 +1382,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { Proxy, ProxyAccountSummary, ProxyProtocol, ProxyQualityCheckResult } from '@/types'
+import type {
+  Proxy,
+  ProxyAccountSummary,
+  ProxyProtocol,
+  ProxyQualityCheckResult,
+  ProjectMihomoNode,
+  ProjectMihomoSubscriptionFetchMode,
+  ProjectMihomoSettings
+} from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -978,8 +1404,9 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ImportDataModal from '@/components/admin/proxy/ImportDataModal.vue'
-import Select from '@/components/common/Select.vue'
+import Select, { type SelectOption } from '@/components/common/Select.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
+import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import { useClipboard } from '@/composables/useClipboard'
@@ -1037,6 +1464,108 @@ const editStatusOptions = computed(() => [
   { value: 'inactive', label: t('admin.accounts.status.inactive') }
 ])
 
+const projectMihomoAvailableNodes = ref<ProjectMihomoNode[]>([])
+
+const formatProjectMihomoNodeLatency = (node: ProjectMihomoNode) => {
+  if (typeof node.latency_ms === 'number') {
+    return `${node.latency_ms}ms`
+  }
+  if (node.latency_status === 'failed') {
+    return t('admin.proxies.projectMihomo.latencyFailed')
+  }
+  return t('admin.proxies.projectMihomo.latencyUnknown')
+}
+
+const projectMihomoLatencyClass = (node: ProjectMihomoNode) => {
+  if (node.latency_status === 'failed') return 'badge-danger'
+  if (typeof node.latency_ms !== 'number') return 'badge-gray'
+  if (node.latency_ms < 300) return 'badge-success'
+  if (node.latency_ms < 800) return 'badge-warning'
+  return 'badge-danger'
+}
+
+const normalizeProjectMihomoFilterText = (value: string) =>
+  value.trim().toLowerCase().replace(/[\s\-_[\]().]/g, '')
+
+const projectMihomoActiveNodeExcludeKeywords = computed(() => {
+  const source = projectMihomoNodeExcludeKeywordsText.value.trim()
+    ? projectMihomoNodeExcludeKeywordsText.value.split(/\r?\n/)
+    : projectMihomoForm.node_exclude_keywords
+  return Array.from(new Set((source || [])
+    .map((item) => normalizeProjectMihomoFilterText(item))
+    .filter(Boolean)))
+})
+
+const isProjectMihomoNodeExcludedByForm = (node: ProjectMihomoNode) => {
+  if (!projectMihomoForm.node_exclude_enabled) return false
+  const name = normalizeProjectMihomoFilterText(node.name)
+  if (!name) return false
+  return projectMihomoActiveNodeExcludeKeywords.value.some((keyword) => name.includes(keyword))
+}
+
+const projectMihomoVisibleNodes = computed(() =>
+  projectMihomoAvailableNodes.value.filter((node) => !isProjectMihomoNodeExcludedByForm(node))
+)
+
+const projectMihomoNodeValueSet = computed(() => new Set(projectMihomoVisibleNodes.value.map((node) => node.key)))
+
+const projectMihomoFilteredNodes = computed(() => {
+  const provider = projectMihomoSelectedProvider.value.trim()
+  if (!provider) return []
+  return projectMihomoVisibleNodes.value.filter((node) => node.provider === provider)
+})
+
+const projectMihomoSubscriptionSources = computed(() => {
+  const urls = projectMihomoForm.subscription_urls || []
+  const keys = projectMihomoForm.subscription_keys || []
+  const names = projectMihomoForm.subscription_names || []
+  const fetchModes = projectMihomoForm.subscription_fetch_modes || []
+  const contents = projectMihomoForm.subscription_contents || []
+  return urls.map((url, index) => {
+    const provider = projectMihomoSubscriptionProviderKey(keys[index], index, urls.length)
+    const sampleNode = projectMihomoVisibleNodes.value.find((node) => node.provider === provider)
+    const customName = names[index]?.trim() || ''
+    const fetchMode = normalizeProjectMihomoSubscriptionFetchMode(fetchModes[index])
+    return {
+      index,
+      url,
+      provider,
+      name: customName,
+      fetchMode,
+      content: contents[index] || '',
+      fetchModeLabel: projectMihomoSubscriptionFetchModeLabel(fetchMode),
+      label: customName || sampleNode?.provider_label || projectMihomoSourceLabel(url, index, urls.length),
+      nodeCount: projectMihomoVisibleNodes.value.filter((node) => node.provider === provider).length
+    }
+  })
+})
+
+const projectMihomoHasSubscriptionSources = computed(() => projectMihomoSubscriptionSources.value.length > 0)
+
+const projectMihomoSourceLabels = computed(() =>
+  new Map(projectMihomoSubscriptionSources.value.map((source) => [source.provider, source.label]))
+)
+
+const projectMihomoActiveSubscriptionSource = computed(() => {
+  const provider = projectMihomoSelectedProvider.value.trim()
+  if (!provider) return null
+  return projectMihomoSubscriptionSources.value.find((source) => source.provider === provider) || null
+})
+
+const ensureProjectMihomoSelectedProvider = () => {
+  const sources = projectMihomoSubscriptionSources.value
+  if (!sources.length) {
+    projectMihomoSelectedProvider.value = ''
+    return
+  }
+
+  if (sources.some((source) => source.provider === projectMihomoSelectedProvider.value)) {
+    return
+  }
+
+  projectMihomoSelectedProvider.value = sources[0].provider
+}
+
 const proxies = ref<Proxy[]>([])
 const visiblePasswordIds = reactive(new Set<number>())
 const copyMenuProxyId = ref<number | null>(null)
@@ -1067,6 +1596,7 @@ const showDeleteDialog = ref(false)
 const showBatchDeleteDialog = ref(false)
 const showExportDataDialog = ref(false)
 const showAccountsModal = ref(false)
+const showProjectMihomoModal = ref(false)
 const submitting = ref(false)
 const exportingData = ref(false)
 const testingProxyIds = ref<Set<number>>(new Set())
@@ -1103,6 +1633,721 @@ const deletingProxy = ref<Proxy | null>(null)
 const showQualityReportDialog = ref(false)
 const qualityReportProxy = ref<Proxy | null>(null)
 const qualityReport = ref<ProxyQualityCheckResult | null>(null)
+const projectMihomoSubmitting = ref(false)
+const projectMihomoProviderTesting = ref<Set<string>>(new Set())
+const projectMihomoSingleNodeTesting = ref<Set<string>>(new Set())
+const projectMihomoConfigPath = ref('')
+const projectMihomoNewSubscriptionName = ref('')
+const projectMihomoNewSubscriptionUrl = ref('')
+const projectMihomoSelectedProvider = ref('')
+const defaultProjectMihomoNodeExcludeKeywords = [
+  '香港',
+  'Hong Kong',
+  'HK',
+  'HKG',
+  '台湾',
+  '台灣',
+  'Taiwan',
+  'Taipei',
+  '台北',
+  'TW'
+]
+const projectMihomoNodeExcludeKeywordsText = ref(defaultProjectMihomoNodeExcludeKeywords.join('\n'))
+const defaultProjectMihomoSubscriptionUserAgent = 'clash.meta'
+const defaultProjectMihomoSubscriptionFetchMode: ProjectMihomoSubscriptionFetchMode = 'backend'
+const projectMihomoProviderMaxSize = 16 * 1024 * 1024
+const projectMihomoProviderName = 'project-subscription'
+
+const normalizeProjectMihomoSubscriptionFetchMode = (mode?: string | null): ProjectMihomoSubscriptionFetchMode => {
+  if (mode === 'static') return 'static'
+  if (mode === 'mihomo') return 'backend'
+  return defaultProjectMihomoSubscriptionFetchMode
+}
+
+const projectMihomoSubscriptionFetchModeLabel = (mode?: string | null) => {
+  switch (normalizeProjectMihomoSubscriptionFetchMode(mode)) {
+    case 'backend':
+      return t('admin.proxies.projectMihomo.fetchModeBackend')
+    case 'static':
+      return t('admin.proxies.projectMihomo.fetchModeStatic')
+    default:
+      return t('admin.proxies.projectMihomo.fetchModeMihomo')
+  }
+}
+
+const projectMihomoSubscriptionFetchModeHint = (mode?: string | null) => {
+  switch (normalizeProjectMihomoSubscriptionFetchMode(mode)) {
+    case 'backend':
+      return t('admin.proxies.projectMihomo.fetchModeBackendHint')
+    case 'static':
+      return t('admin.proxies.projectMihomo.fetchModeStaticHint')
+    default:
+      return t('admin.proxies.projectMihomo.fetchModeMihomoHint')
+  }
+}
+
+const projectMihomoSubscriptionFetchModeOptions = computed<SelectOption[]>(() => [
+  { value: 'backend', label: t('admin.proxies.projectMihomo.fetchModeBackend') },
+  { value: 'static', label: t('admin.proxies.projectMihomo.fetchModeStatic') }
+])
+
+const projectMihomoForm = reactive<ProjectMihomoSettings>({
+  subscription_url: '',
+  subscription_urls: [],
+  subscription_keys: [],
+  subscription_names: [],
+  subscription_fetch_modes: [],
+  subscription_contents: [],
+  subscription_user_agent: defaultProjectMihomoSubscriptionUserAgent,
+  update_interval: 3600,
+  protocol: 'socks5h',
+  target_host: 'mihomo-sub2api',
+  start_port: 61000,
+  listener_count: 4,
+  listener_ports: [61000, 61001, 61002, 61003],
+  listener_names: ['project-mihomo-01', 'project-mihomo-02', 'project-mihomo-03', 'project-mihomo-04'],
+  controller_url: 'http://mihomo-sub2api:9097',
+  controller_secret: '',
+  proxy_name_prefix: 'project-mihomo',
+  listener_regions: ['', '', '', ''],
+  auto_route_enabled: false,
+  auto_route_tolerance: 150,
+  auto_route_interval: 300,
+  node_exclude_enabled: false,
+  node_exclude_keywords: defaultProjectMihomoNodeExcludeKeywords.slice()
+})
+
+const projectMihomoListenerRows = computed(() =>
+  Array.from({ length: Math.max(0, projectMihomoForm.listener_count || 0) }, (_, index) => ({
+    index,
+    port: projectMihomoForm.listener_ports?.[index] || projectMihomoForm.start_port + index,
+    name: projectMihomoForm.listener_names?.[index] || `${projectMihomoForm.proxy_name_prefix || 'project-mihomo'}-${String(index + 1).padStart(2, '0')}`
+  }))
+)
+
+const projectMihomoSourceLabel = (rawUrl: string, index: number, total: number) => {
+  let host = ''
+  try {
+    host = new URL(rawUrl.trim()).hostname
+  } catch {
+    host = ''
+  }
+  const prefix = total > 1 ? `#${index + 1} ` : ''
+  return `${prefix}${host || t('admin.proxies.projectMihomo.proxySourceFallback', { index: index + 1 })}`
+}
+
+const selectProjectMihomoProvider = (provider: string) => {
+  projectMihomoSelectedProvider.value = provider
+}
+
+const projectMihomoNodeMeta = (node: ProjectMihomoNode) =>
+  [
+    node.region || t('admin.proxies.projectMihomo.regionUnknown'),
+    projectMihomoSourceLabels.value.get(node.provider || '') || node.provider_label
+  ].filter(Boolean).join(' · ')
+
+const projectMihomoQueryDecode = (value: string) => {
+  try {
+    return decodeURIComponent(value.replace(/\+/g, '%20'))
+  } catch {
+    return value
+  }
+}
+
+const projectMihomoLegacyValueLabel = (value: string) => {
+  const target = value.trim()
+  if (!target) return target
+  if (target.includes('::')) {
+    const parts = target.split('::', 2)
+    const rawName = parts[1] || target
+    return projectMihomoQueryDecode(rawName).trim() || target
+  }
+  return target
+}
+
+const findProjectMihomoNodeByValue = (value: string, provider?: string) => {
+  const target = value.trim()
+  if (!target) return null
+
+  const preferredProvider = (provider || '').trim()
+  const candidates = projectMihomoVisibleNodes.value.filter((node) => {
+    if (node.key === target || node.name === target || node.region === target) {
+      return preferredProvider ? node.provider === preferredProvider : true
+    }
+    return false
+  })
+  if (candidates.length > 0) {
+    return candidates[0]
+  }
+
+  return projectMihomoVisibleNodes.value.find((node) =>
+    node.key === target || node.name === target || node.region === target
+  ) || null
+}
+
+const projectMihomoNodeOption = (node: ProjectMihomoNode): SelectOption => ({
+  value: node.key,
+  label: node.name,
+  key: node.key,
+  kind: 'node',
+  meta: projectMihomoNodeMeta(node),
+  latencyLabel: formatProjectMihomoNodeLatency(node),
+  latencyClass: projectMihomoLatencyClass(node),
+  providerLabel: node.provider_label
+})
+
+const projectMihomoNodeOptionsForListener = (listenerIndex: number): SelectOption[] => {
+  const options: SelectOption[] = [
+    {
+      value: '',
+      label: t('admin.proxies.projectMihomo.regionAuto'),
+      kind: 'auto',
+      meta: projectMihomoForm.auto_route_enabled
+        ? t('admin.proxies.projectMihomo.autoRouteAnywhere')
+        : ''
+    },
+    ...(projectMihomoForm.listener_regions || [])
+      .map((value, index) => (index === listenerIndex ? value.trim() : ''))
+      .filter((value) => value && !projectMihomoNodeValueSet.value.has(value))
+      .map((value) => ({
+        value,
+        label: projectMihomoLegacyValueLabel(value),
+        kind: 'legacy',
+        meta: t('admin.proxies.projectMihomo.legacyRegion'),
+        latencyLabel: '',
+        latencyClass: 'badge-gray'
+      }))
+  ]
+
+  if (projectMihomoForm.auto_route_enabled) {
+    const selectedValue = projectMihomoForm.listener_regions?.[listenerIndex]?.trim() || ''
+    const regionMap = new Map<string, { value: string; label: string; count: number }>()
+    for (const node of projectMihomoFilteredNodes.value) {
+      const region = (node.region || '').trim()
+      if (!region) continue
+      const key = region.toLowerCase()
+      const current = regionMap.get(key)
+      if (current) {
+        current.count += 1
+        continue
+      }
+      regionMap.set(key, {
+        value: region,
+        label: region,
+        count: 1
+      })
+    }
+    if (selectedValue && !selectedValue.includes('::') && selectedValue !== '' && !regionMap.has(selectedValue.toLowerCase())) {
+      regionMap.set(selectedValue.toLowerCase(), {
+        value: selectedValue,
+        label: projectMihomoLegacyValueLabel(selectedValue),
+        count: 0
+      })
+    }
+    for (const item of regionMap.values()) {
+      options.push({
+        value: item.value,
+        label: item.label,
+        kind: 'region',
+        meta: item.count > 0
+          ? t('admin.proxies.projectMihomo.autoRouteRegionMeta', { count: item.count })
+          : t('admin.proxies.projectMihomo.legacyRegion'),
+        latencyLabel: '',
+        latencyClass: 'badge-gray'
+      })
+    }
+  }
+
+  const filtered = projectMihomoFilteredNodes.value.slice()
+  const selectedNode = findProjectMihomoSelectedNode(listenerIndex)
+  if (selectedNode && !filtered.some((node) => node.key === selectedNode.key)) {
+    filtered.unshift(selectedNode)
+  }
+
+  const seen = new Set<string>()
+  for (const node of filtered) {
+    if (seen.has(node.key)) continue
+    seen.add(node.key)
+    options.push(projectMihomoNodeOption(node))
+  }
+  return options
+}
+
+const nextProjectMihomoListenerPort = (ports: number[]) => {
+  const used = new Set(ports.filter((port) => Number.isInteger(port) && port > 0 && port <= 65535))
+  let port = Number(projectMihomoForm.start_port) || 61000
+  if (port < 1 || port > 65535) port = 61000
+  while (used.has(port) && port < 65535) port++
+  return port
+}
+
+const nextProjectMihomoListenerName = (names: string[]) => {
+  const prefix = projectMihomoForm.proxy_name_prefix?.trim() || 'project-mihomo'
+  const used = new Set(names.map((name) => name.trim()).filter(Boolean))
+  let maxIndex = 0
+  for (const name of used) {
+    if (!name.startsWith(`${prefix}-`)) continue
+    const value = Number.parseInt(name.slice(prefix.length + 1), 10)
+    if (Number.isFinite(value) && value > maxIndex) maxIndex = value
+  }
+  let next = Math.max(1, maxIndex + 1)
+  let name = `${prefix}-${String(next).padStart(2, '0')}`
+  while (used.has(name)) {
+    next++
+    name = `${prefix}-${String(next).padStart(2, '0')}`
+  }
+  return name
+}
+
+const normalizeProjectMihomoListeners = () => {
+  const rawCount = Number(projectMihomoForm.listener_count)
+  const count = Math.max(0, Math.min(32, Number.isFinite(rawCount) ? rawCount : 0))
+  const ports = (projectMihomoForm.listener_ports || [])
+    .map((port) => Number(port))
+    .filter((port) => Number.isInteger(port) && port > 0 && port <= 65535)
+    .slice(0, count)
+  const names = (projectMihomoForm.listener_names || [])
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .slice(0, count)
+  const regions = (projectMihomoForm.listener_regions || [])
+    .map((region) => region.trim())
+    .slice(0, count)
+
+  while (ports.length < count) ports.push(nextProjectMihomoListenerPort(ports))
+  while (names.length < count) names.push(nextProjectMihomoListenerName(names))
+  while (regions.length < count) regions.push('')
+
+  projectMihomoForm.listener_count = count
+  projectMihomoForm.listener_ports = ports
+  projectMihomoForm.listener_names = names
+  projectMihomoForm.listener_regions = regions
+}
+
+const appendProjectMihomoListener = () => {
+  normalizeProjectMihomoListeners()
+  if ((projectMihomoForm.listener_count || 0) >= 32) return
+  const ports = [...(projectMihomoForm.listener_ports || [])]
+  const names = [...(projectMihomoForm.listener_names || [])]
+  const regions = [...(projectMihomoForm.listener_regions || [])]
+  ports.push(nextProjectMihomoListenerPort(ports))
+  names.push(nextProjectMihomoListenerName(names))
+  regions.push('')
+  projectMihomoForm.listener_ports = ports
+  projectMihomoForm.listener_names = names
+  projectMihomoForm.listener_regions = regions
+  projectMihomoForm.listener_count = ports.length
+}
+
+const removeProjectMihomoListener = (index: number) => {
+  if (index < 0 || index >= projectMihomoForm.listener_count) return
+  projectMihomoForm.listener_ports = (projectMihomoForm.listener_ports || []).filter((_, current) => current !== index)
+  projectMihomoForm.listener_names = (projectMihomoForm.listener_names || []).filter((_, current) => current !== index)
+  projectMihomoForm.listener_regions = (projectMihomoForm.listener_regions || []).filter((_, current) => current !== index)
+  projectMihomoForm.listener_count = projectMihomoForm.listener_ports.length
+  normalizeProjectMihomoListeners()
+}
+
+const normalizeProjectMihomoNodeExcludeKeywords = () => {
+  const keywords = projectMihomoNodeExcludeKeywordsText.value
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+  projectMihomoForm.node_exclude_keywords = keywords.length
+    ? Array.from(new Set(keywords))
+    : defaultProjectMihomoNodeExcludeKeywords.slice()
+  projectMihomoNodeExcludeKeywordsText.value = projectMihomoForm.node_exclude_keywords.join('\n')
+}
+
+const normalizeProjectMihomoSubscriptionFetchModes = () => {
+  const count = projectMihomoForm.subscription_urls?.length || 0
+  projectMihomoForm.subscription_fetch_modes = Array.from({ length: count }, (_, index) =>
+    normalizeProjectMihomoSubscriptionFetchMode(projectMihomoForm.subscription_fetch_modes?.[index])
+  )
+  normalizeProjectMihomoSubscriptionKeys()
+  normalizeProjectMihomoSubscriptionContents()
+}
+
+const normalizeProjectMihomoSubscriptionKey = (key?: string | null) => {
+  const normalized = (key || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^[-_]+|[-_]+$/g, '')
+  if (!normalized) return ''
+  if (normalized === projectMihomoProviderName || normalized.startsWith(`${projectMihomoProviderName}-`)) {
+    return normalized
+  }
+  return `${projectMihomoProviderName}-${normalized}`
+}
+
+const projectMihomoProviderNameForIndex = (index: number, total: number) =>
+  total > 1
+    ? `${projectMihomoProviderName}-${String(index + 1).padStart(2, '0')}`
+    : projectMihomoProviderName
+
+const uniqueProjectMihomoSubscriptionKey = (key: string, seen: Set<string>) => {
+  const base = normalizeProjectMihomoSubscriptionKey(key) || projectMihomoProviderName
+  let current = base
+  let suffix = 2
+  while (seen.has(current)) {
+    current = `${base}-${String(suffix).padStart(2, '0')}`
+    suffix += 1
+  }
+  seen.add(current)
+  return current
+}
+
+const projectMihomoSubscriptionProviderKey = (key: string | undefined, index: number, total: number) =>
+  normalizeProjectMihomoSubscriptionKey(key) || projectMihomoProviderNameForIndex(index, total)
+
+const normalizeProjectMihomoSubscriptionKeys = () => {
+  const count = projectMihomoForm.subscription_urls?.length || 0
+  const seen = new Set<string>()
+  projectMihomoForm.subscription_keys = Array.from({ length: count }, (_, index) =>
+    uniqueProjectMihomoSubscriptionKey(
+      projectMihomoForm.subscription_keys?.[index] || projectMihomoProviderNameForIndex(index, count),
+      seen
+    )
+  )
+}
+
+const createProjectMihomoSubscriptionKey = (name: string, url: string) => {
+  const host = (() => {
+    try {
+      return new URL(url.trim()).hostname
+    } catch {
+      return ''
+    }
+  })()
+  const seed = name.trim() || host || 'source'
+  const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+  const seen = new Set((projectMihomoForm.subscription_keys || []).map((item) => normalizeProjectMihomoSubscriptionKey(item)))
+  return uniqueProjectMihomoSubscriptionKey(`${seed}-${suffix}`, seen)
+}
+
+const normalizeProjectMihomoSubscriptionContents = () => {
+  const count = projectMihomoForm.subscription_urls?.length || 0
+  projectMihomoForm.subscription_contents = Array.from({ length: count }, (_, index) =>
+    projectMihomoForm.subscription_contents?.[index] || ''
+  )
+}
+
+const normalizeProjectMihomoSubscriptionUrls = () => {
+  const urls = projectMihomoForm.subscription_urls || []
+  const pairs = urls
+    .map((item, index) => ({
+      url: item.trim(),
+      key: projectMihomoSubscriptionProviderKey(projectMihomoForm.subscription_keys?.[index], index, urls.length),
+      name: projectMihomoForm.subscription_names?.[index]?.trim() || '',
+      fetchMode: normalizeProjectMihomoSubscriptionFetchMode(projectMihomoForm.subscription_fetch_modes?.[index]),
+      content: projectMihomoForm.subscription_contents?.[index] || ''
+    }))
+    .filter((item) => item.url)
+
+  const deduped: Array<{ url: string; key: string; name: string; fetchMode: ProjectMihomoSubscriptionFetchMode; content: string }> = []
+  const seen = new Set<string>()
+  const seenKeys = new Set<string>()
+  for (const item of pairs) {
+    if (seen.has(item.url)) continue
+    seen.add(item.url)
+    deduped.push({
+      ...item,
+      key: uniqueProjectMihomoSubscriptionKey(item.key, seenKeys)
+    })
+  }
+
+  projectMihomoForm.subscription_urls = deduped.map((item) => item.url)
+  projectMihomoForm.subscription_keys = deduped.map((item) => item.key)
+  projectMihomoForm.subscription_names = deduped.map((item) => item.name)
+  projectMihomoForm.subscription_fetch_modes = deduped.map((item) => item.fetchMode)
+  projectMihomoForm.subscription_contents = deduped.map((item) => item.content)
+  projectMihomoForm.subscription_url = projectMihomoForm.subscription_urls[0] || ''
+  ensureProjectMihomoSelectedProvider()
+}
+
+const syncProjectMihomoSubscriptionUrlsFromForm = () => {
+  const sourceUrls = projectMihomoForm.subscription_urls?.length
+    ? projectMihomoForm.subscription_urls
+    : [projectMihomoForm.subscription_url]
+  projectMihomoForm.subscription_urls = sourceUrls
+  normalizeProjectMihomoSubscriptionUrls()
+  ensureProjectMihomoSelectedProvider()
+}
+
+const createProjectMihomoStaticSourceId = (name: string) => {
+  const slug = encodeURIComponent((name || 'manual').trim().replace(/\s+/g, '-'))
+  return `static://project-mihomo/${slug}-${Date.now()}`
+}
+
+const projectMihomoYamlFileName = (file: File) =>
+  file.name.replace(/\.(ya?ml|txt)$/i, '').trim() || 'YAML'
+
+const selectProjectMihomoSourceByIndex = (index: number) => {
+  const source = projectMihomoSubscriptionSources.value[index]
+  if (!source) {
+    projectMihomoSelectedProvider.value = ''
+    return
+  }
+  projectMihomoSelectedProvider.value = source.provider
+}
+
+const applyProjectMihomoStaticYamlContent = (name: string, content: string, targetIndex?: number) => {
+  const urls = projectMihomoForm.subscription_urls || []
+  if (typeof targetIndex === 'number' && targetIndex >= 0 && targetIndex < urls.length) {
+    if (!projectMihomoForm.subscription_keys[targetIndex]) {
+      projectMihomoForm.subscription_keys[targetIndex] = createProjectMihomoSubscriptionKey(name, urls[targetIndex])
+    }
+    projectMihomoForm.subscription_names[targetIndex] = projectMihomoForm.subscription_names[targetIndex]?.trim() || name
+    projectMihomoForm.subscription_urls[targetIndex] = projectMihomoForm.subscription_urls[targetIndex]?.trim() || createProjectMihomoStaticSourceId(name)
+    projectMihomoForm.subscription_fetch_modes[targetIndex] = 'static'
+    normalizeProjectMihomoSubscriptionContents()
+    projectMihomoForm.subscription_contents[targetIndex] = content
+    normalizeProjectMihomoSubscriptionUrls()
+    selectProjectMihomoSourceByIndex(Math.min(targetIndex, projectMihomoForm.subscription_urls.length - 1))
+    return
+  }
+
+  const value = createProjectMihomoStaticSourceId(name)
+  projectMihomoForm.subscription_urls = [...(projectMihomoForm.subscription_urls || []), value]
+  projectMihomoForm.subscription_keys = [...(projectMihomoForm.subscription_keys || []), createProjectMihomoSubscriptionKey(name, value)]
+  projectMihomoForm.subscription_names = [...(projectMihomoForm.subscription_names || []), name]
+  projectMihomoForm.subscription_fetch_modes = [...(projectMihomoForm.subscription_fetch_modes || []), 'static']
+  projectMihomoForm.subscription_contents = [...(projectMihomoForm.subscription_contents || []), content]
+  normalizeProjectMihomoSubscriptionUrls()
+  const addedIndex = Math.max(0, projectMihomoForm.subscription_urls.findIndex((item) => item === value))
+  selectProjectMihomoSourceByIndex(addedIndex)
+}
+
+const uploadProjectMihomoStaticYaml = async (event: Event, targetIndex?: number) => {
+  const input = event.target as HTMLInputElement | null
+  const file = input?.files?.[0]
+  if (!file) return
+
+  try {
+    if (file.size > projectMihomoProviderMaxSize) {
+      appStore.showError(t('admin.proxies.projectMihomo.yamlFileTooLarge'))
+      return
+    }
+    const content = await file.text()
+    if (!content.trim()) {
+      appStore.showError(t('admin.proxies.projectMihomo.yamlFileEmpty'))
+      return
+    }
+    const name = projectMihomoYamlFileName(file)
+    applyProjectMihomoStaticYamlContent(name, content, targetIndex)
+    appStore.showSuccess(t('admin.proxies.projectMihomo.yamlFileLoaded', { name: file.name }))
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.proxies.projectMihomo.yamlFileLoadFailed'))
+  } finally {
+    if (input) {
+      input.value = ''
+    }
+  }
+}
+
+const addProjectMihomoSubscriptionUrl = () => {
+  const inputUrl = projectMihomoNewSubscriptionUrl.value.trim()
+  const name = projectMihomoNewSubscriptionName.value.trim()
+  if (!inputUrl && !name) return
+  const fetchMode: ProjectMihomoSubscriptionFetchMode = inputUrl
+    ? defaultProjectMihomoSubscriptionFetchMode
+    : 'static'
+  const value = inputUrl || createProjectMihomoStaticSourceId(name)
+  projectMihomoForm.subscription_urls = [...(projectMihomoForm.subscription_urls || []), value]
+  projectMihomoForm.subscription_keys = [...(projectMihomoForm.subscription_keys || []), createProjectMihomoSubscriptionKey(name, value)]
+  projectMihomoForm.subscription_names = [...(projectMihomoForm.subscription_names || []), name]
+  projectMihomoForm.subscription_fetch_modes = [
+    ...(projectMihomoForm.subscription_fetch_modes || []),
+    fetchMode
+  ]
+  projectMihomoForm.subscription_contents = [...(projectMihomoForm.subscription_contents || []), '']
+  normalizeProjectMihomoSubscriptionUrls()
+  const addedIndex = Math.max(0, projectMihomoForm.subscription_urls.findIndex((item) => item === value))
+  selectProjectMihomoSourceByIndex(addedIndex)
+  projectMihomoNewSubscriptionName.value = ''
+  projectMihomoNewSubscriptionUrl.value = ''
+}
+
+const removeProjectMihomoSubscriptionUrl = (index: number) => {
+  const remainingSources = projectMihomoSubscriptionSources.value.filter((source) => source.index !== index)
+  projectMihomoSelectedProvider.value = remainingSources[Math.min(index, remainingSources.length - 1)]?.provider || ''
+  projectMihomoForm.subscription_urls = (projectMihomoForm.subscription_urls || []).filter((_, current) => current !== index)
+  projectMihomoForm.subscription_keys = (projectMihomoForm.subscription_keys || []).filter((_, current) => current !== index)
+  projectMihomoForm.subscription_names = (projectMihomoForm.subscription_names || []).filter((_, current) => current !== index)
+  projectMihomoForm.subscription_fetch_modes = (projectMihomoForm.subscription_fetch_modes || []).filter((_, current) => current !== index)
+  projectMihomoForm.subscription_contents = (projectMihomoForm.subscription_contents || []).filter((_, current) => current !== index)
+  normalizeProjectMihomoSubscriptionUrls()
+}
+
+const buildProjectMihomoPayload = (forceRemoveInUse = false): ProjectMihomoSettings => ({
+  ...projectMihomoForm,
+  subscription_urls: [...(projectMihomoForm.subscription_urls || [])],
+  subscription_keys: [...(projectMihomoForm.subscription_keys || [])],
+  subscription_names: [...(projectMihomoForm.subscription_names || [])],
+  subscription_fetch_modes: [...(projectMihomoForm.subscription_fetch_modes || [])],
+  subscription_contents: [...(projectMihomoForm.subscription_contents || [])],
+  listener_ports: [...(projectMihomoForm.listener_ports || [])],
+  listener_names: [...(projectMihomoForm.listener_names || [])],
+  listener_regions: [...(projectMihomoForm.listener_regions || [])],
+  node_exclude_keywords: [...(projectMihomoForm.node_exclude_keywords || [])],
+  force_remove_in_use: forceRemoveInUse
+})
+
+const confirmProjectMihomoProxyInUse = (error: any) => {
+  if (error?.reason !== 'PROJECT_MIHOMO_PROXY_IN_USE') return false
+  const metadata = error.metadata || {}
+  return window.confirm(t('admin.proxies.projectMihomo.proxyInUseConfirm', {
+    count: metadata.account_count || 0,
+    proxies: metadata.proxies || '-',
+    accounts: metadata.accounts || '-'
+  }))
+}
+
+const projectMihomoErrorMessage = (error: any, fallback: string) =>
+  error?.metadata?.detail || error?.message || fallback
+
+const findProjectMihomoSelectedNode = (listenerIndex: number) => {
+  const key = projectMihomoForm.listener_regions?.[listenerIndex]?.trim()
+  if (!key) return null
+  if (projectMihomoForm.auto_route_enabled && !key.includes('::')) return null
+
+  const providerFromKey = key.includes('::')
+    ? projectMihomoQueryDecode(key.split('::', 1)[0])
+    : projectMihomoSelectedProvider.value.trim() || projectMihomoSubscriptionSources.value[0]?.provider || ''
+  return findProjectMihomoNodeByValue(key, providerFromKey)
+}
+
+const canTestProjectMihomoListener = (listenerIndex: number) => {
+  if (!projectMihomoForm.auto_route_enabled) return !!findProjectMihomoSelectedNode(listenerIndex)
+  const value = projectMihomoForm.listener_regions?.[listenerIndex]?.trim() || ''
+  return value.includes('::')
+}
+
+const isProjectMihomoNodeTestingByKey = (nodeKey: string) => projectMihomoSingleNodeTesting.value.has(nodeKey)
+
+const isProjectMihomoProviderTesting = (provider: string) => projectMihomoProviderTesting.value.has(provider)
+
+const projectMihomoSelectedListenerNodes = () => {
+  const selected = new Map<string, ProjectMihomoNode>()
+  for (let index = 0; index < projectMihomoForm.listener_count; index++) {
+    const node = findProjectMihomoSelectedNode(index)
+    if (!node?.key) continue
+    selected.set(node.key, node)
+  }
+  return Array.from(selected.values())
+}
+
+const upsertProjectMihomoNodeResult = (result: ProjectMihomoNode) => {
+  const current = projectMihomoAvailableNodes.value.slice()
+  const index = current.findIndex((node) => node.key === result.key)
+  if (index >= 0) {
+    current[index] = result
+  } else {
+    current.unshift(result)
+  }
+  projectMihomoAvailableNodes.value = current
+}
+
+const applyProjectMihomoCurrentSelections = (currentSelections?: string[]) => {
+  if (projectMihomoForm.auto_route_enabled || !currentSelections?.length) return
+  const regions = [...(projectMihomoForm.listener_regions || [])]
+  let changed = false
+
+  for (let index = 0; index < projectMihomoForm.listener_count; index++) {
+    const value = currentSelections[index]?.trim()
+    if (!value) continue
+    const matched = findProjectMihomoNodeByValue(value)
+    regions[index] = matched?.key || value
+    changed = true
+  }
+
+  if (changed) {
+    projectMihomoForm.listener_regions = regions
+    normalizeProjectMihomoListeners()
+  }
+}
+
+const normalizeProjectMihomoTestNodesForSource = (
+  nodes: ProjectMihomoNode[],
+  source: { provider: string; name?: string }
+) => nodes.map((node) => ({
+  ...node,
+  key: node.provider === source.provider
+    ? node.key
+    : `${encodeURIComponent(source.provider)}::${encodeURIComponent(node.name)}`,
+  provider: source.provider,
+  provider_label: source.name?.trim() || node.provider_label
+}))
+
+const setProjectMihomoSelectedNodesTesting = (nodes: ProjectMihomoNode[], testing: boolean) => {
+  const next = new Set(projectMihomoSingleNodeTesting.value)
+  for (const node of nodes) {
+    if (!node.key) continue
+    if (testing) {
+      next.add(node.key)
+    } else {
+      next.delete(node.key)
+    }
+  }
+  projectMihomoSingleNodeTesting.value = next
+}
+
+const testProjectMihomoSelectedListenerNodes = async () => {
+  const nodes = projectMihomoSelectedListenerNodes()
+  if (!nodes.length) {
+    return { selected: 0, tested: 0, failed: 0, requestFailed: false }
+  }
+
+  setProjectMihomoSelectedNodesTesting(nodes, true)
+  try {
+    const result = await adminAPI.proxies.testProjectMihomoSelectedNodes(buildProjectMihomoPayload(), nodes)
+    const testedNodes = result.nodes || []
+    for (const node of testedNodes) {
+      upsertProjectMihomoNodeResult(node)
+    }
+    return {
+      selected: nodes.length,
+      tested: testedNodes.length,
+      failed: testedNodes.filter((node) => node.latency_status === 'failed').length,
+      requestFailed: false
+    }
+  } catch (error) {
+    console.error('Error testing selected project mihomo nodes:', error)
+    return { selected: nodes.length, tested: 0, failed: nodes.length, requestFailed: true }
+  } finally {
+    setProjectMihomoSelectedNodesTesting(nodes, false)
+  }
+}
+
+const testProjectMihomoSingleNode = async (node: ProjectMihomoNode | null) => {
+  if (!node?.key) return
+  const next = new Set(projectMihomoSingleNodeTesting.value)
+  next.add(node.key)
+  projectMihomoSingleNodeTesting.value = next
+  try {
+    normalizeProjectMihomoListeners()
+    normalizeProjectMihomoSubscriptionUrls()
+    normalizeProjectMihomoNodeExcludeKeywords()
+    const result = await adminAPI.proxies.testProjectMihomoNode(buildProjectMihomoPayload(), node)
+    upsertProjectMihomoNodeResult(result)
+    appStore.showSuccess(t('admin.proxies.projectMihomo.testSingleNodeLatencyDone', { name: result.name }))
+  } catch (error: any) {
+    appStore.showError(projectMihomoErrorMessage(error, t('admin.proxies.projectMihomo.testSingleNodeLatencyFailed')))
+  } finally {
+    const done = new Set(projectMihomoSingleNodeTesting.value)
+    done.delete(node.key)
+    projectMihomoSingleNodeTesting.value = done
+  }
+}
+
+watch(
+  () => projectMihomoForm.listener_count,
+  () => {
+    normalizeProjectMihomoListeners()
+  },
+  { immediate: true }
+)
 
 // Batch import state
 const createMode = ref<'standard' | 'batch'>('standard')
@@ -1273,6 +2518,153 @@ const closeCreateModal = () => {
 const handleDataImported = () => {
   showImportData.value = false
   loadProxies()
+}
+
+const loadProjectMihomo = async () => {
+  try {
+    const result = await adminAPI.proxies.getProjectMihomo()
+    Object.assign(projectMihomoForm, result.settings)
+    normalizeProjectMihomoListeners()
+    projectMihomoNodeExcludeKeywordsText.value = (projectMihomoForm.node_exclude_keywords?.length
+      ? projectMihomoForm.node_exclude_keywords
+      : defaultProjectMihomoNodeExcludeKeywords
+    ).join('\n')
+    syncProjectMihomoSubscriptionUrlsFromForm()
+    projectMihomoConfigPath.value = result.config_path
+    projectMihomoAvailableNodes.value = result.available_nodes || []
+    applyProjectMihomoCurrentSelections(result.current_selections)
+  } catch (error) {
+    console.error('Error loading project mihomo:', error)
+  }
+}
+
+const saveProjectMihomo = async () => {
+  projectMihomoSubmitting.value = true
+  try {
+    normalizeProjectMihomoListeners()
+    normalizeProjectMihomoSubscriptionUrls()
+    normalizeProjectMihomoNodeExcludeKeywords()
+    const result = await adminAPI.proxies.updateProjectMihomo(buildProjectMihomoPayload())
+    Object.assign(projectMihomoForm, result)
+    normalizeProjectMihomoListeners()
+    projectMihomoNodeExcludeKeywordsText.value = projectMihomoForm.node_exclude_keywords.join('\n')
+    syncProjectMihomoSubscriptionUrlsFromForm()
+    appStore.showSuccess(t('admin.proxies.projectMihomo.saved'))
+  } catch (error: any) {
+    if (confirmProjectMihomoProxyInUse(error)) {
+      try {
+        const result = await adminAPI.proxies.updateProjectMihomo(buildProjectMihomoPayload(true))
+        Object.assign(projectMihomoForm, result)
+        normalizeProjectMihomoListeners()
+        projectMihomoNodeExcludeKeywordsText.value = projectMihomoForm.node_exclude_keywords.join('\n')
+        syncProjectMihomoSubscriptionUrlsFromForm()
+        await loadProxies()
+        appStore.showSuccess(t('admin.proxies.projectMihomo.saved'))
+        return
+      } catch (retryError: any) {
+        appStore.showError(projectMihomoErrorMessage(retryError, t('admin.proxies.projectMihomo.saveFailed')))
+        return
+      }
+    }
+    appStore.showError(projectMihomoErrorMessage(error, t('admin.proxies.projectMihomo.saveFailed')))
+  } finally {
+    projectMihomoSubmitting.value = false
+  }
+}
+
+const syncProjectMihomoConfig = async () => {
+  projectMihomoSubmitting.value = true
+  try {
+    normalizeProjectMihomoListeners()
+    normalizeProjectMihomoSubscriptionUrls()
+    normalizeProjectMihomoNodeExcludeKeywords()
+    const result = await adminAPI.proxies.syncProjectMihomo(buildProjectMihomoPayload())
+    projectMihomoConfigPath.value = result.config_path
+    appStore.showSuccess(t('admin.proxies.projectMihomo.syncDone', { created: result.created, reused: result.reused, assigned: result.assigned }))
+    await Promise.all([loadProjectMihomo(), loadProxies()])
+    return true
+  } catch (error: any) {
+    if (confirmProjectMihomoProxyInUse(error)) {
+      try {
+        const result = await adminAPI.proxies.syncProjectMihomo(buildProjectMihomoPayload(true))
+        projectMihomoConfigPath.value = result.config_path
+        appStore.showSuccess(t('admin.proxies.projectMihomo.syncDone', { created: result.created, reused: result.reused, assigned: result.assigned }))
+        await Promise.all([loadProjectMihomo(), loadProxies()])
+        return true
+      } catch (retryError: any) {
+        appStore.showError(projectMihomoErrorMessage(retryError, t('admin.proxies.projectMihomo.syncFailed')))
+        return false
+      }
+    }
+    appStore.showError(projectMihomoErrorMessage(error, t('admin.proxies.projectMihomo.syncFailed')))
+  } finally {
+    projectMihomoSubmitting.value = false
+  }
+  return false
+}
+
+const testProjectMihomoSourceNodes = async (source: {
+  index: number
+  provider: string
+  url: string
+  name?: string
+  fetchMode?: ProjectMihomoSubscriptionFetchMode
+  content?: string
+}) => {
+  const url = source.url.trim()
+  if (!url) return
+
+  const next = new Set(projectMihomoProviderTesting.value)
+  next.add(source.provider)
+  projectMihomoProviderTesting.value = next
+  try {
+    normalizeProjectMihomoListeners()
+    normalizeProjectMihomoSubscriptionUrls()
+    normalizeProjectMihomoNodeExcludeKeywords()
+    const payload: ProjectMihomoSettings = {
+      ...buildProjectMihomoPayload(),
+      subscription_url: url,
+      subscription_urls: [url],
+      subscription_keys: [source.provider],
+      subscription_names: [source.name || ''],
+      subscription_fetch_modes: [normalizeProjectMihomoSubscriptionFetchMode(source.fetchMode)],
+      subscription_contents: [source.content || '']
+    }
+    const result = await adminAPI.proxies.testProjectMihomoNodes(payload)
+    const otherNodes = projectMihomoAvailableNodes.value.filter((node) => node.provider !== source.provider)
+    const sourceNodes = normalizeProjectMihomoTestNodesForSource(result.nodes || [], source)
+    projectMihomoAvailableNodes.value = [...otherNodes, ...sourceNodes]
+    const selectedResult = await testProjectMihomoSelectedListenerNodes()
+    if (selectedResult.requestFailed) {
+      appStore.showWarning(t('admin.proxies.projectMihomo.testLatencyDoneSelectedFailed', { count: (result.nodes || []).length }))
+    } else if (selectedResult.selected > 0 && selectedResult.failed > 0) {
+      appStore.showWarning(t('admin.proxies.projectMihomo.testLatencyDoneWithSelectedPartial', {
+        count: (result.nodes || []).length,
+        selected: selectedResult.tested,
+        failed: selectedResult.failed
+      }))
+    } else if (selectedResult.selected > 0) {
+      appStore.showSuccess(t('admin.proxies.projectMihomo.testLatencyDoneWithSelected', {
+        count: (result.nodes || []).length,
+        selected: selectedResult.tested
+      }))
+    } else {
+      appStore.showSuccess(t('admin.proxies.projectMihomo.testLatencyDone', { count: (result.nodes || []).length }))
+    }
+  } catch (error: any) {
+    appStore.showError(projectMihomoErrorMessage(error, t('admin.proxies.projectMihomo.testLatencyFailed')))
+  } finally {
+    const done = new Set(projectMihomoProviderTesting.value)
+    done.delete(source.provider)
+    projectMihomoProviderTesting.value = done
+  }
+}
+
+const saveAndSyncProjectMihomo = async () => {
+  const ok = await syncProjectMihomoConfig()
+  if (ok) {
+    showProjectMihomoModal.value = false
+  }
 }
 
 // Parse proxy URL: protocol://user:pass@host:port or protocol://host:port
@@ -2072,6 +3464,7 @@ function closeCopyMenu() {
 
 onMounted(() => {
   loadProxies()
+  loadProjectMihomo()
   loadBackupProxyOptions()
   document.addEventListener('click', closeCopyMenu)
 })
@@ -2082,3 +3475,212 @@ onUnmounted(() => {
   document.removeEventListener('click', closeCopyMenu)
 })
 </script>
+
+<style scoped>
+.project-mihomo-panel {
+  @apply rounded-2xl border border-gray-200 bg-white p-4 shadow-sm;
+  @apply dark:border-dark-700 dark:bg-dark-800;
+}
+
+.project-mihomo-panel-header {
+  @apply flex items-start justify-between gap-3;
+}
+
+.project-mihomo-section-title {
+  @apply flex flex-wrap items-center gap-2 text-base font-semibold text-gray-950 dark:text-white;
+}
+
+.project-mihomo-section-hint {
+  @apply mt-1 max-w-3xl text-xs leading-5 text-gray-500 dark:text-gray-400;
+}
+
+.project-mihomo-count-pill {
+  @apply inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-gray-100 px-2 text-xs font-semibold text-gray-600;
+  @apply dark:bg-dark-700 dark:text-dark-200;
+}
+
+.project-mihomo-add-source {
+  @apply mt-4 grid items-end gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50/70 p-3;
+  @apply dark:border-dark-600 dark:bg-dark-900/30;
+  grid-template-columns: minmax(140px, 0.7fr) minmax(240px, 1.4fr);
+}
+
+.project-mihomo-field {
+  @apply min-w-0 space-y-1.5;
+}
+
+.project-mihomo-field > span {
+  @apply block text-[11px] font-semibold tracking-wide text-gray-500 dark:text-gray-400;
+}
+
+.project-mihomo-add-actions {
+  @apply flex flex-wrap items-end justify-end gap-2;
+  grid-column: 1 / -1;
+}
+
+.project-mihomo-icon-btn {
+  @apply inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm;
+  @apply transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700;
+  @apply dark:border-dark-600 dark:bg-dark-800 dark:text-dark-300 dark:hover:border-primary-700 dark:hover:bg-dark-700 dark:hover:text-primary-300;
+}
+
+.project-mihomo-icon-btn:disabled {
+  @apply cursor-not-allowed opacity-60;
+}
+
+.project-mihomo-source-grid {
+  @apply mt-4 grid gap-3;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.project-mihomo-source-card {
+  @apply relative min-w-0 overflow-hidden rounded-2xl border shadow-sm transition-all;
+}
+
+.project-mihomo-source-card-active {
+  @apply border-primary-300 bg-primary-50/70 text-primary-700 shadow-primary-100 ring-1 ring-primary-200/70;
+  @apply dark:border-primary-700 dark:bg-primary-900/20 dark:text-primary-300 dark:shadow-none dark:ring-primary-900/50;
+}
+
+.project-mihomo-source-card-idle {
+  @apply border-gray-200 bg-white text-gray-700 hover:border-primary-200 hover:bg-gray-50;
+  @apply dark:border-dark-700 dark:bg-dark-800 dark:text-dark-200 dark:hover:border-primary-800 dark:hover:bg-dark-700;
+}
+
+.project-mihomo-source-main {
+  @apply block min-w-0 w-full px-3.5 py-3 text-left;
+}
+
+.project-mihomo-source-actions {
+  @apply absolute right-2 top-2 flex items-center gap-1;
+}
+
+.project-mihomo-source-action {
+  @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/80 text-current shadow-sm ring-1 ring-gray-200/80;
+  @apply transition-colors hover:bg-white hover:text-primary-700 dark:bg-dark-900/70 dark:ring-dark-600 dark:hover:bg-dark-700 dark:hover:text-primary-300;
+}
+
+.project-mihomo-source-action:disabled {
+  @apply cursor-not-allowed opacity-60;
+}
+
+.project-mihomo-mode-pill {
+  @apply rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-primary-700 ring-1 ring-primary-200;
+  @apply dark:bg-primary-950/40 dark:text-primary-300 dark:ring-primary-800;
+}
+
+.project-mihomo-node-pill {
+  @apply inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gray-100 px-1.5 text-[11px] font-semibold text-gray-600;
+  @apply dark:bg-dark-700 dark:text-dark-200;
+}
+
+.project-mihomo-source-editor {
+  @apply mt-4 grid items-end gap-3 rounded-2xl border border-gray-200 bg-gray-50/70 p-3;
+  @apply dark:border-dark-600 dark:bg-dark-900/30;
+  grid-template-columns: minmax(150px, 0.75fr) minmax(200px, 1fr) auto;
+}
+
+.project-mihomo-editor-delete {
+  @apply self-end;
+}
+
+.project-mihomo-editor-url,
+.project-mihomo-editor-hint,
+.project-mihomo-provider-key,
+.project-mihomo-static-yaml {
+  grid-column: 1 / -1;
+}
+
+.project-mihomo-editor-hint {
+  @apply rounded-xl border border-primary-100 bg-primary-50/60 px-3 py-2 text-xs leading-5 text-primary-900;
+  @apply dark:border-primary-900/60 dark:bg-primary-950/30 dark:text-primary-200;
+}
+
+.project-mihomo-provider-key {
+  @apply rounded-xl bg-white px-3 py-2 font-mono text-xs text-gray-500 ring-1 ring-gray-200;
+  @apply dark:bg-dark-800 dark:text-gray-400 dark:ring-dark-600;
+}
+
+.project-mihomo-listener-panel {
+  @apply bg-gray-50/80 dark:bg-dark-900/20;
+}
+
+.project-mihomo-listener-list {
+  @apply space-y-2;
+}
+
+.project-mihomo-listener-card {
+  @apply rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-colors;
+  @apply hover:border-primary-200 dark:border-dark-700 dark:bg-dark-800 dark:hover:border-primary-800;
+}
+
+.project-mihomo-listener-card-head {
+  @apply flex items-start justify-between gap-2;
+}
+
+.project-mihomo-listener-title {
+  @apply truncate text-[13px] font-semibold leading-5 text-gray-950 dark:text-white;
+}
+
+.project-mihomo-listener-name {
+  @apply mt-0.5 truncate font-mono text-[11px] leading-4 text-gray-500 dark:text-gray-400;
+}
+
+.project-mihomo-listener-picker {
+  @apply flex items-stretch overflow-hidden rounded-xl border border-gray-200 bg-white transition-colors;
+  @apply dark:border-dark-600 dark:bg-dark-800;
+}
+
+.project-mihomo-listener-picker:focus-within {
+  @apply border-primary-500 ring-2 ring-primary-500/20;
+}
+
+.project-mihomo-listener-select {
+  @apply min-w-0 flex-1;
+}
+
+.project-mihomo-listener-select :deep(.relative) {
+  @apply h-full;
+}
+
+.project-mihomo-listener-select :deep(.select-trigger) {
+  @apply h-full min-h-[50px] rounded-none border-0 bg-transparent px-3 py-2 shadow-none hover:border-0;
+  @apply focus:border-0 focus:ring-0;
+}
+
+.project-mihomo-listener-select :deep(.select-trigger-open) {
+  @apply border-0 ring-0;
+}
+
+.project-mihomo-listener-select :deep(.select-value) {
+  @apply pr-2;
+}
+
+.project-mihomo-listener-action {
+  @apply inline-flex w-10 shrink-0 items-center justify-center border-l border-gray-200 bg-gray-50 text-gray-500 transition-colors;
+  @apply hover:bg-gray-50 hover:text-primary-700 dark:border-dark-600 dark:text-dark-300 dark:hover:bg-dark-700 dark:hover:text-primary-300;
+}
+
+.project-mihomo-listener-action:disabled {
+  @apply cursor-not-allowed opacity-60;
+}
+
+.project-mihomo-row-btn {
+  @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-red-50 dark:hover:bg-red-950/30;
+}
+
+@media (max-width: 768px) {
+  .project-mihomo-add-source,
+  .project-mihomo-source-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .project-mihomo-add-actions {
+    @apply w-full;
+  }
+
+  .project-mihomo-add-actions > * {
+    @apply flex-1 justify-center;
+  }
+}
+</style>

@@ -21,8 +21,12 @@ services:
       - no-new-privileges:true
     ports:
       - "${BIND_HOST:-127.0.0.1}:${SERVER_PORT:-8080}:8080"
+    extra_hosts:
+      # Keep migrated host.docker.internal API bases reachable on Linux hosts.
+      - "host.docker.internal:host-gateway"
     volumes:
-      - ./data:/app/data:Z
+      - ${DATA_DIR:-./data}:/app/data:Z
+      - ${DATA_DIR:-./data}/mihomo:/app/data/mihomo:Z
     environment:
       - AUTO_SETUP=true
       - SERVER_HOST=0.0.0.0
@@ -30,6 +34,11 @@ services:
       - SERVER_MODE=debug
       - ENABLE_SERVER_TIMING=${ENABLE_SERVER_TIMING:-false}
       - RUN_MODE=${RUN_MODE:-standard}
+      - XZNOAUTH_INVOICE_ENABLED=${XZNOAUTH_INVOICE_ENABLED:-false}
+      - XZNOAUTH_BASE_URL=${XZNOAUTH_BASE_URL:-https://oauth.xzncraft.cn}
+      - XZNOAUTH_CLIENT_ID=${XZNOAUTH_CLIENT_ID:-}
+      - XZNOAUTH_CLIENT_SECRET=${XZNOAUTH_CLIENT_SECRET:-}
+      - XZNOAUTH_INVOICE_TIMEOUT_SECONDS=${XZNOAUTH_INVOICE_TIMEOUT_SECONDS:-15}
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
       - DATABASE_USER=${POSTGRES_USER:-sub2api}
@@ -117,6 +126,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  mihomo-sub2api:
+    image: metacubex/mihomo:latest
+    container_name: mihomo-sub2api-dev
+    restart: unless-stopped
+    command: ["-d", "/root/.config/mihomo", "-ext-ctl", "0.0.0.0:9097"]
+    ports:
+      - "127.0.0.1:${MIHOMO_CONTROLLER_PORT:-9097}:9097"
+      - "127.0.0.1:${MIHOMO_PROXY_PORT_RANGE:-61000-61031}:61000-61031"
+    environment:
+      - SAFE_PATHS=/root/.config/mihomo
+    volumes:
+      - ${DATA_DIR:-./data}/mihomo:/root/.config/mihomo
+    networks:
+      - sub2api-network
 
   postgres:
     image: postgres:18-alpine

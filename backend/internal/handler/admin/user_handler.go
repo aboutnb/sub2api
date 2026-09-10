@@ -277,6 +277,10 @@ func (h *UserHandler) Create(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if req.Concurrency < -1 {
+		response.BadRequest(c, "concurrency must be -1 or greater")
+		return
+	}
 
 	// 创建管理员账号属权限敏感操作：需最近完成 step-up 2FA 验证。
 	if req.Role == service.RoleAdmin {
@@ -318,6 +322,10 @@ func (h *UserHandler) Update(c *gin.Context) {
 	var req UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if req.Concurrency != nil && *req.Concurrency < -1 {
+		response.BadRequest(c, "concurrency must be -1 or greater")
 		return
 	}
 
@@ -465,7 +473,7 @@ func (h *UserHandler) GetUserUsage(c *gin.Context) {
 // GetBalanceHistory handles getting user's balance/concurrency change history
 // GET /api/v1/admin/users/:id/balance-history
 // Query params:
-//   - type: filter by record type (balance, affiliate_balance, admin_balance, concurrency, admin_concurrency, subscription)
+//   - type: filter by record type (balance, affiliate_balance, admin_balance, checkin, concurrency, admin_concurrency, subscription)
 func (h *UserHandler) GetBalanceHistory(c *gin.Context) {
 	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -618,7 +626,7 @@ func (h *UserHandler) BatchUpdateConcurrency(c *gin.Context) {
 type BatchUpdateLimitsRequest struct {
 	UserIDs     []int64 `json:"user_ids"`
 	All         bool    `json:"all"`
-	Concurrency *int    `json:"concurrency" binding:"omitempty,min=0"`
+	Concurrency *int    `json:"concurrency"`
 	RPMLimit    *int    `json:"rpm_limit" binding:"omitempty,min=0"`
 }
 
@@ -630,6 +638,10 @@ func (h *UserHandler) BatchUpdateLimits(c *gin.Context) {
 	}
 	if req.Concurrency == nil && req.RPMLimit == nil {
 		response.BadRequest(c, "at least one of concurrency or rpm_limit is required")
+		return
+	}
+	if req.Concurrency != nil && *req.Concurrency < -1 {
+		response.BadRequest(c, "concurrency must be -1 or greater")
 		return
 	}
 	if !req.All && len(req.UserIDs) == 0 {

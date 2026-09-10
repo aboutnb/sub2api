@@ -73,6 +73,37 @@ describe('PaymentStatusPanel', () => {
     vi.useRealTimers()
   })
 
+  it('polls immediately and again when the checkout page becomes visible', async () => {
+    pollOrderStatus.mockResolvedValue(orderFactory('PENDING'))
+
+    const wrapper = mount(PaymentStatusPanel, {
+      props: {
+        orderId: 42,
+        qrCode: 'https://pay.example.com/qr/42',
+        expiresAt: '2099-01-01T12:30:00Z',
+        paymentType: 'custom_method',
+        orderType: 'balance',
+      },
+      global: {
+        stubs: {
+          Icon: true,
+        },
+      },
+    })
+
+    await flushPromises()
+    expect(pollOrderStatus).toHaveBeenCalledTimes(1)
+
+    document.dispatchEvent(new Event('visibilitychange'))
+    await flushPromises()
+    expect(pollOrderStatus).toHaveBeenCalledTimes(2)
+
+    wrapper.unmount()
+    document.dispatchEvent(new Event('visibilitychange'))
+    await flushPromises()
+    expect(pollOrderStatus).toHaveBeenCalledTimes(2)
+  })
+
   it('treats RECHARGING as a successful terminal state', async () => {
     pollOrderStatus.mockResolvedValue(orderFactory('RECHARGING'))
 

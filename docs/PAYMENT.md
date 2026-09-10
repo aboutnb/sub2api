@@ -61,6 +61,9 @@ Configure the following in Admin Dashboard **Settings → Payment Settings**:
 | **Minimum Amount** | Minimum single top-up amount | 1 |
 | **Maximum Amount** | Maximum single top-up amount (empty = unlimited) | - |
 | **Daily Limit** | Per-user daily cumulative limit (empty = unlimited) | - |
+| **Recharge Fee Rate** | Site fee added to balance top-ups; subscription use is controlled by the setting below | 0% |
+| **Charge Fee on Subscriptions** | When enabled, subscription purchases also include the recharge fee rate; when disabled, only the plan amount is charged | On |
+| **Credit Fee to Balance** | Balance top-ups only; when enabled, the credited amount includes the site fee (top up 100 with a 2% fee, pay and receive 102) | Off |
 | **Order Timeout** | Order timeout in minutes (minimum 1) | 30 |
 | **Max Pending Orders** | Maximum concurrent pending orders per user | 3 |
 | **Load Balance Strategy** | Strategy for selecting provider instances | Round Robin |
@@ -119,6 +122,33 @@ Compatible with any payment service that implements the EasyPay protocol.
 | **API Base URL** | EasyPay API base address | Yes |
 | **Alipay Channel ID** | Specify Alipay channel (optional) | No |
 | **WeChat Channel ID** | Specify WeChat channel (optional) | No |
+
+#### GM (Epusdt) integration
+
+GM is connected through the existing **EasyPay** provider; do not add a native GMPay provider
+instance in Sub2API. GM exposes an EPay-compatible `submit.php` entry, so configure:
+
+- **API Base URL**: `https://<gm-domain>/payments/epay/v1/order/create-transaction`
+- **Payment mode**: `popup`. The current GM project does not expose EasyPay-compatible `/mapi.php`
+  or `/api.php` endpoints, so QR/API mode must not be used.
+- **PID**: the numeric PID of the GM API key; **PKey**: the matching API key secret.
+- **Custom method**: map frontend `usdt_trc20` to upstream `usdt.tron`, with a display name such as
+  `USDT-TRC20`, and enable that supported type.
+- **Notify URL**: keep the generated `/api/v1/payment/webhook/easypay`; GM sends a GET + MD5
+  callback after successful payment.
+- **Refunds**: disable refunds for this instance because the current GM EPay entry does not expose
+  the `/api.php` refund endpoint expected by Sub2API EasyPay.
+
+On desktop, Sub2API opens a placeholder window synchronously from the payment-button click and
+navigates it to GM's `submit.php` checkout URL after order creation. This preserves popup behavior
+through the asynchronous API call. The parent Sub2API page immediately fetches the order and polls
+`/api/v1/payment/orders/:id`; a payment is considered successful only after the verified GM callback
+has updated and fulfilled the server-side order. Mobile, non-`popup` methods, and resumed flows do not
+create a window automatically.
+
+Before enabling the method, verify that GM returns non-empty `supported_assets` and that the wallet,
+RPC/listener, and callback path are ready. The callback is the primary payment confirmation path; if
+GM has no EPay query API by `out_trade_no`, Sub2API cannot use its upstream query as a payment fallback.
 
 ### Alipay (Direct)
 

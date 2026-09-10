@@ -298,14 +298,15 @@ func (s *SettingService) GetSiteName(ctx context.Context) string {
 
 // GetDefaultConcurrency 获取默认并发量
 func (s *SettingService) GetDefaultConcurrency(ctx context.Context) int {
+	fallback := s.defaultUserConcurrency()
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyDefaultConcurrency)
 	if err != nil {
-		return s.cfg.Default.UserConcurrency
+		return fallback
 	}
-	if v, err := strconv.Atoi(value); err == nil && v > 0 {
+	if v, err := strconv.Atoi(strings.TrimSpace(value)); err == nil && v >= -1 {
 		return v
 	}
-	return s.cfg.Default.UserConcurrency
+	return fallback
 }
 
 // GetDefaultBalance 获取默认余额

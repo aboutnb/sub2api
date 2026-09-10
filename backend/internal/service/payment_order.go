@@ -58,10 +58,8 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if plan != nil {
 		orderAmount = plan.Price
 		limitAmount = plan.Price
-	} else if req.OrderType == payment.OrderTypeBalance {
-		orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
 	}
-	feeRate := cfg.RechargeFeeRate
+	feeRate := effectiveOrderFeeRate(cfg, req.OrderType)
 	methodCurrency := payment.DefaultPaymentCurrency
 	if s.configService != nil {
 		methodCurrency, err = s.configService.ValidateMethodCurrencyConsistency(ctx, req.PaymentType)
@@ -71,6 +69,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	}
 	payAmountStr, payAmount, err := calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, methodCurrency, req.OrderType, cfg.SubscriptionUSDToCNYRate)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateUSDTMinimumPaymentAmount(req.PaymentType, payAmount, cfg.USDTMinAmount); err != nil {
 		return nil, err
 	}
 	sel, err := s.selectCreateOrderInstance(ctx, req, cfg, payAmount)
@@ -89,6 +90,15 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		if err != nil {
 			return nil, err
 		}
+	}
+	if req.OrderType == payment.OrderTypeBalance {
+		orderAmount = calculateBalanceCreditedAmount(
+			req.Amount,
+			payAmount,
+			cfg.BalanceRechargeMultiplier,
+			cfg.RechargeFeeCredited,
+			cfg.RechargeBonusTiers,
+		)
 	}
 	if err := validateSelectedCreateOrderAmountCurrency(payAmountStr, sel); err != nil {
 		return nil, err
@@ -112,6 +122,37 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		return nil, err
 	}
 	return resp, nil
+}
+
+func validateUSDTMinimumPaymentAmount(paymentType string, payAmount, minimum float64) error {
+	if !isUSDTPaymentType(paymentType) || minimum <= 0 || payAmount >= minimum {
+		return nil
+	}
+	return infraerrors.BadRequest(
+		"PAYMENT_AMOUNT_BELOW_USDT_MINIMUM",
+		"payment amount is below the configured USDT minimum",
+	).WithMetadata(map[string]string{
+		"min": fmt.Sprintf("%.2f", minimum),
+	})
+}
+
+func effectiveOrderFeeRate(cfg *PaymentConfig, orderType string) float64 {
+	if cfg == nil {
+		return 0
+	}
+	if orderType == payment.OrderTypeSubscription && !cfg.SubscriptionFeeEnabled {
+		return 0
+	}
+	return cfg.RechargeFeeRate
+}
+
+func calculateBalanceCreditedAmount(requestAmount, payAmount, multiplier float64, feeCredited bool, bonusTiers []RechargeBonusTier) float64 {
+	creditBase := requestAmount
+	if feeCredited {
+		creditBase = payAmount
+	}
+	bonusPercent := resolveRechargeBonusPercent(requestAmount, bonusTiers)
+	return calculateCreditedBalanceWithBonus(creditBase, requestAmount, multiplier, bonusPercent)
 }
 
 func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig) (*dbent.SubscriptionPlan, error) {

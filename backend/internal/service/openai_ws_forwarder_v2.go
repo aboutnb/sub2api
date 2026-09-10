@@ -656,7 +656,32 @@ readLoop:
 		}
 		imageCounter.AddSSEData(message)
 
-		if eventType == "error" || eventType == "response.failed" {
+		if eventType == "response.failed" {
+			if hit, code, msg := detectOpenAICyberPolicy(message); hit {
+				MarkOpsCyberPolicy(c, CyberPolicyMark{
+					Code:           code,
+					Message:        msg,
+					Body:           truncateString(string(message), 4096),
+					UpstreamStatus: http.StatusOK,
+					UpstreamInTok:  usage.InputTokens,
+					UpstreamOutTok: usage.OutputTokens,
+				})
+			}
+			failedMessage := extractOpenAISSEErrorMessage(message)
+			if (!reqStream || !wroteDownstream) && isOpenAIModelCapacityErrorMessage(failedMessage) {
+				headers := lease.HandshakeHeaders()
+				return nil, s.newOpenAIStreamFailoverError(
+					c,
+					account,
+					false,
+					headers.Get("x-request-id"),
+					message,
+					failedMessage,
+					headers,
+				)
+			}
+		}
+		if eventType == "error" {
 			markOpenAICyberPolicyEvent(c, message, http.StatusOK, usage)
 		}
 

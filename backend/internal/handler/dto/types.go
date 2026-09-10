@@ -86,8 +86,9 @@ type APIKey struct {
 	Reset1dAt     *time.Time `json:"reset_1d_at,omitempty"`
 	Reset7dAt     *time.Time `json:"reset_7d_at,omitempty"`
 
-	User  *User  `json:"user,omitempty"`
-	Group *Group `json:"group,omitempty"`
+	User    *User                     `json:"user,omitempty"`
+	Group   *Group                    `json:"group,omitempty"`
+	Routing *service.SmartRouteConfig `json:"routing,omitempty"`
 }
 
 type Group struct {
@@ -517,6 +518,8 @@ type RedeemCode struct {
 	// Notes is only populated for admin_balance/admin_concurrency types
 	// so users can see why they were charged or credited
 	Notes *string `json:"notes,omitempty"`
+
+	CheckinMode *string `json:"checkin_mode,omitempty"`
 
 	User  *User  `json:"user,omitempty"`
 	Group *Group `json:"group,omitempty"`

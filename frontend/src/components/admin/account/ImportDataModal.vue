@@ -16,6 +16,14 @@
         {{ t('admin.accounts.dataImportWarning') }}
       </div>
 
+      <div
+        v-if="groupsLoading"
+        class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-400"
+      >
+        {{ t('admin.accounts.dataImportGroupsLoading') }}
+      </div>
+      <GroupSelector v-else v-model="groupIds" :groups="groups" searchable />
+
       <div>
         <label class="input-label">{{ t('admin.accounts.dataImportFile') }}</label>
         <div
@@ -50,6 +58,20 @@
           @change="handleFileChange"
         />
       </div>
+
+      <label class="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-200">
+        <input
+          v-model="useProjectMihomoPool"
+          type="checkbox"
+          class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+        />
+        <span>
+          <span class="block font-medium">{{ t('admin.accounts.dataImportUseProjectMihomo') }}</span>
+          <span class="mt-1 block text-xs text-gray-500 dark:text-dark-400">
+            {{ t('admin.accounts.dataImportUseProjectMihomoHint') }}
+          </span>
+        </span>
+      </label>
 
       <div
         v-if="result"
@@ -96,12 +118,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import GroupSelector from '@/components/common/GroupSelector.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
-import type { AdminDataImportResult, AdminDataPayload } from '@/types'
+import type { AdminDataImportResult, AdminDataPayload, AdminGroup } from '@/types'
 
 interface Props {
   show: boolean
@@ -109,7 +132,7 @@ interface Props {
 
 interface Emits {
   (e: 'close'): void
-  (e: 'imported'): void
+  (e: 'imported', accountIds: number[]): void
 }
 
 const props = defineProps<Props>()
@@ -123,7 +146,12 @@ const files = ref<File[]>([])
 const dragDepth = ref(0)
 const dragActive = computed(() => dragDepth.value > 0)
 const hasCreatedData = ref(false)
+const createdAccountIds = ref<number[]>([])
 const result = ref<AdminDataImportResult | null>(null)
+const useProjectMihomoPool = ref(false)
+const groups = ref<AdminGroup[]>([])
+const groupIds = ref<number[]>([])
+const groupsLoading = ref(false)
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const selectedFilesLabel = computed(() => {
@@ -135,6 +163,18 @@ const fileListTitle = computed(() => files.value.map((item) => item.name).join('
 
 const errorItems = computed(() => result.value?.errors || [])
 
+const loadGroups = async () => {
+  groupsLoading.value = true
+  try {
+    groups.value = await adminAPI.groups.getAll()
+  } catch (error) {
+    groups.value = []
+    appStore.showError(t('admin.accounts.dataImportGroupsLoadFailed'))
+  } finally {
+    groupsLoading.value = false
+  }
+}
+
 watch(
   () => props.show,
   (open) => {
@@ -142,13 +182,23 @@ watch(
       files.value = []
       dragDepth.value = 0
       hasCreatedData.value = false
+      createdAccountIds.value = []
       result.value = null
+      useProjectMihomoPool.value = false
+      groupIds.value = []
+      loadGroups()
       if (fileInput.value) {
         fileInput.value.value = ''
       }
     }
   }
 )
+
+onMounted(() => {
+  if (props.show) {
+    loadGroups()
+  }
+})
 
 const openFilePicker = () => {
   fileInput.value?.click()
@@ -164,7 +214,7 @@ const handleClose = () => {
   if (importing.value) return
   if (hasCreatedData.value) {
     hasCreatedData.value = false
-    emit('imported')
+    emit('imported', createdAccountIds.value)
   }
   emit('close')
 }
@@ -295,10 +345,13 @@ const handleImport = async () => {
 
     const res = await adminAPI.accounts.importData({
       data: dataPayload,
-      skip_default_group_bind: true
+      skip_default_group_bind: true,
+      group_ids: groupIds.value,
+      proxy_provider: useProjectMihomoPool.value ? 'project_mihomo' : undefined
     })
 
     result.value = res
+    createdAccountIds.value = Array.from(new Set(res.account_ids || []))
 
     const msgParams: Record<string, unknown> = {
       account_created: res.account_created,
@@ -315,7 +368,7 @@ const handleImport = async () => {
       appStore.showError(t('admin.accounts.dataImportCompletedWithErrors', msgParams))
     } else {
       appStore.showSuccess(t('admin.accounts.dataImportSuccess', msgParams))
-      emit('imported')
+      emit('imported', createdAccountIds.value)
     }
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.accounts.dataImportFailed'))

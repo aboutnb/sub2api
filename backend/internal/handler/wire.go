@@ -28,6 +28,8 @@ func ProvideAdminHandlers(
 	redeemHandler *admin.RedeemHandler,
 	promoHandler *admin.PromoHandler,
 	settingHandler *admin.SettingHandler,
+	checkinHandler *admin.CheckinHandler,
+	emailBroadcastHandler *admin.EmailBroadcastHandler,
 	opsHandler *admin.OpsHandler,
 	systemHandler *admin.SystemHandler,
 	subscriptionHandler *admin.SubscriptionHandler,
@@ -47,6 +49,7 @@ func ProvideAdminHandlers(
 	affiliateHandler *admin.AffiliateHandler,
 	complianceHandler *admin.ComplianceHandler,
 	auditLogHandler *admin.AuditLogHandler,
+	authIPBanHandler *admin.AuthIPBanHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 ) *AdminHandlers {
@@ -89,6 +92,9 @@ func ProvideAdminHandlers(
 		Affiliate:              affiliateHandler,
 		Compliance:             complianceHandler,
 		AuditLog:               auditLogHandler,
+		AuthIPBan:              authIPBanHandler,
+		Checkin:                checkinHandler,
+		EmailBroadcast:         emailBroadcastHandler,
 	}
 }
 
@@ -162,11 +168,18 @@ func ProvideSettingHandler(settingService *service.SettingService, buildInfo Bui
 	return h
 }
 
+func ProvidePaymentHandler(paymentService *service.PaymentService, configService *service.PaymentConfigService, invoiceService *service.InvoiceService) *PaymentHandler {
+	h := NewPaymentHandler(paymentService, configService)
+	h.SetInvoiceService(invoiceService)
+	return h
+}
+
 // ProvideAdminSettingHandler creates admin.SettingHandler with notification template APIs.
-func ProvideAdminSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, aliyunCaptchaService *service.AliyunCaptchaService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, userAttributeService *service.UserAttributeService, notificationEmailService *service.NotificationEmailService, totpService *service.TotpService, userService *service.UserService) *admin.SettingHandler {
+func ProvideAdminSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, aliyunCaptchaService *service.AliyunCaptchaService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, invoiceSettingsService *service.InvoiceSettingsService, userAttributeService *service.UserAttributeService, notificationEmailService *service.NotificationEmailService, totpService *service.TotpService, userService *service.UserService) *admin.SettingHandler {
 	h := admin.NewSettingHandler(settingService, emailService, turnstileService, opsService, paymentConfigService, paymentService, userAttributeService)
 	h.SetNotificationEmailService(notificationEmailService)
 	h.SetAliyunCaptchaService(aliyunCaptchaService)
+	h.SetInvoiceSettingsService(invoiceSettingsService)
 	h.SetStepUpDeps(totpService, userService)
 	return h
 }
@@ -194,6 +207,7 @@ func ProvideHandlers(
 	modelPlazaHandler *ModelPlazaHandler,
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
+	checkinHandler *CheckinHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
@@ -220,7 +234,14 @@ func ProvideHandlers(
 		ModelPlaza:       modelPlazaHandler,
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
+		Checkin:          checkinHandler,
 	}
+}
+
+func ProvideAPIKeyHandler(apiKeyService *service.APIKeyService, smartRouteService *service.SmartRouteService) *APIKeyHandler {
+	h := NewAPIKeyHandler(apiKeyService)
+	h.SetSmartRouteService(smartRouteService)
+	return h
 }
 
 // ProviderSet is the Wire provider set for all handlers
@@ -228,7 +249,7 @@ var ProviderSet = wire.NewSet(
 	// Top-level handlers
 	NewAuthHandler,
 	NewUserHandler,
-	NewAPIKeyHandler,
+	ProvideAPIKeyHandler,
 	NewUsageHandler,
 	NewRedeemHandler,
 	NewSubscriptionHandler,
@@ -240,12 +261,13 @@ var ProviderSet = wire.NewSet(
 	NewTotpHandler,
 	NewPasskeyHandler,
 	ProvideSettingHandler,
-	NewPaymentHandler,
+	ProvidePaymentHandler,
 	NewPaymentWebhookHandler,
 	NewAvailableChannelHandler,
 	NewModelPlazaHandler,
 	NewAsyncImageHandler,
 	ProvideBatchImageHandler,
+	NewCheckinHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -283,6 +305,9 @@ var ProviderSet = wire.NewSet(
 	admin.NewAffiliateHandler,
 	admin.NewComplianceHandler,
 	admin.NewAuditLogHandler,
+	admin.NewAuthIPBanHandler,
+	admin.NewCheckinHandler,
+	admin.NewEmailBroadcastHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

@@ -1122,6 +1122,25 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 // Falls back to default models if no whitelist is configured
 func (h *GatewayHandler) Models(c *gin.Context) {
 	apiKey, _ := middleware2.GetAPIKeyFromContext(c)
+	if routing, ok := middleware2.GetSmartRouteFromContext(c); ok {
+		modelIDs := make([]string, 0)
+		for _, group := range routing.RuntimeGroups {
+			if group == nil {
+				continue
+			}
+			groupID := group.ID
+			available := h.gatewayService.GetAvailableModels(c.Request.Context(), &groupID, group.Platform)
+			fallback := defaultModelIDsForPlatform(group.Platform)
+			if group.ModelAllowlistEnabled() {
+				available = group.ModelAllowlist.FilterForListing(modelListingSource(group.Platform, available, fallback))
+			} else if len(available) == 0 {
+				available = fallback
+			}
+			modelIDs = mergeModelIDs(modelIDs, available)
+		}
+		writeAllowlistedModelsList(c, routing.Platform, modelIDs)
+		return
+	}
 
 	var groupID *int64
 	var platform string
@@ -1211,6 +1230,27 @@ func (h *GatewayHandler) CodexModels(c *gin.Context) {
 	forcedPlatform := ""
 	if value, exists := middleware2.GetForcePlatformFromContext(c); exists {
 		forcedPlatform = strings.TrimSpace(value)
+	}
+	if routing, smart := middleware2.GetSmartRouteFromContext(c); smart && len(routing.RuntimeGroups) > 0 {
+		modelIDs := make([]string, 0)
+		for _, group := range routing.RuntimeGroups {
+			modelIDs = mergeModelIDs(modelIDs, h.codexModelIDsForGroup(c.Request.Context(), group, forcedPlatform))
+		}
+		synthetic := *routing.RuntimeGroups[0]
+		synthetic.ModelAllowlist = service.GroupModelAllowlist{}
+		body, err := h.gatewayService.BuildCodexModelsManifestForGroup(c.Request.Context(), &synthetic, forcedPlatform, modelIDs)
+		if err != nil {
+			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to build Codex models manifest")
+			return
+		}
+		etag := service.CodexModelsManifestETag(body)
+		c.Header("ETag", etag)
+		if service.CodexModelsManifestETagMatches(c.GetHeader("If-None-Match"), etag) {
+			c.Status(http.StatusNotModified)
+			return
+		}
+		c.Data(http.StatusOK, "application/json", body)
+		return
 	}
 	modelIDs := h.codexModelIDsForGroup(c.Request.Context(), apiKey.Group, forcedPlatform)
 	modelIDs = service.FilterCodexModelIDsForGroup(modelIDs, apiKey.Group)
@@ -1750,6 +1790,7 @@ func (h *GatewayHandler) usageQuotaLimited(c *gin.Context, ctx context.Context, 
 		resp["model_stats"] = modelStats
 	}
 
+	attachSmartRouteUsage(c, resp)
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -1790,6 +1831,7 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 		if modelStats != nil {
 			resp["model_stats"] = modelStats
 		}
+		attachSmartRouteUsage(c, resp)
 		c.JSON(http.StatusOK, resp)
 		return
 	}
@@ -1818,7 +1860,28 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 	if modelStats != nil {
 		resp["model_stats"] = modelStats
 	}
+	attachSmartRouteUsage(c, resp)
 	c.JSON(http.StatusOK, resp)
+}
+
+func attachSmartRouteUsage(c *gin.Context, resp gin.H) {
+	routing, ok := middleware2.GetSmartRouteFromContext(c)
+	if !ok {
+		return
+	}
+	groups := make([]gin.H, 0, len(routing.RuntimeGroups))
+	for _, group := range routing.RuntimeGroups {
+		if group == nil {
+			continue
+		}
+		groups = append(groups, gin.H{
+			"group_id": group.ID, "name": group.Name, "platform": group.Platform,
+			"subscription_type": group.SubscriptionType,
+		})
+	}
+	resp["smart_routing"] = gin.H{
+		"strategy": routing.Strategy, "candidate_groups": groups,
+	}
 }
 
 // calculateSubscriptionRemaining 计算订阅剩余可用额度
@@ -1899,6 +1962,7 @@ func (h *GatewayHandler) handleFailoverExhausted(c *gin.Context, failoverErr *se
 			if !rule.PassthroughBody && rule.CustomMessage != nil {
 				msg = *rule.CustomMessage
 			}
+			msg = service.SanitizeUpstreamErrorMessageForClient(c, msg)
 
 			if rule.SkipMonitoring {
 				c.Set(service.OpsSkipPassthroughKey, true)
@@ -1953,6 +2017,7 @@ func (h *GatewayHandler) handleStreamingAwareErrorWithCode(c *gin.Context, statu
 		// 标记本次流内错误，供 ops_error_logger 补记——否则该中间件按 status>=400 采集，
 		// 这类挂在 200 流上的失败（如并发限流回退）不会进错误看板。
 		service.MarkOpsStreamError(c, errType, message, status)
+		message = service.SanitizeUpstreamErrorMessageForClient(c, message)
 
 		// /v1/responses 的严格 SDK（Codex CLI）要求终止事件必须属于
 		// response.completed/failed/incomplete/cancelled 集合。
@@ -2076,6 +2141,7 @@ func (h *GatewayHandler) errorResponse(c *gin.Context, status int, errType, mess
 }
 
 func (h *GatewayHandler) errorResponseWithCode(c *gin.Context, status int, errType, code, message string) {
+	message = service.SanitizeUpstreamErrorMessageForClient(c, message)
 	errorObject := gin.H{"type": errType, "message": message}
 	if code != "" {
 		errorObject["code"] = code

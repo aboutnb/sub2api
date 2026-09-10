@@ -1,6 +1,16 @@
 <template>
   <form class="space-y-3" @submit.prevent="handleSubmit">
     <input
+      data-registration-trap
+      type="text"
+      name="company_website"
+      tabindex="-1"
+      autocomplete="off"
+      aria-hidden="true"
+      class="pointer-events-none absolute -left-[10000px] top-auto h-px w-px opacity-0"
+    />
+
+    <input
       v-model="email"
       :data-testid="`${testIdPrefix}-create-account-email`"
       type="email"

@@ -197,6 +197,7 @@ func (h *GrokOAuthHandler) scheduleGrokImportProbe(account *service.Account) {
 func ProvideAccountHandler(
 	cfg *config.Config,
 	adminService service.AdminService,
+	settingService *service.SettingService,
 	oauthService *service.OAuthService,
 	openaiOAuthService *service.OpenAIOAuthService,
 	geminiOAuthService *service.GeminiOAuthService,
@@ -228,6 +229,7 @@ func ProvideAccountHandler(
 		rpmCache,
 		tokenCacheInvalidator,
 	)
+	handler.settingService = settingService
 	handler.grokImportProber = grokQuotaService
 	handler.cfg = cfg
 	return handler

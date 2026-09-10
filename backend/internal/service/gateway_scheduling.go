@@ -456,7 +456,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 
 			if len(routingAvailable) > 0 {
-				// 排序：优先级 > 负载率 > 最后使用时间
+				// 排序：账号优先级（数值越小越优先）> 负载率 > 最后使用时间
 				sort.SliceStable(routingAvailable, func(i, j int) bool {
 					a, b := routingAvailable[i], routingAvailable[j]
 					if a.account.Priority != b.account.Priority {
@@ -735,9 +735,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 		}
 
-		// 分层过滤选择：优先级 →（可选）最早重置 → 负载率 → LRU
+		// 分层过滤选择：账号优先级（数值越小越优先）→（可选）最早重置 → 负载率 → LRU
 		for len(available) > 0 {
-			// 1. 取优先级最小的集合
+			// 1. 取优先级最小的集合（1 为最高优先级）
 			candidates := filterByMinPriority(available)
 			// 2. （可选）use-it-or-lose-it：优先选用会话窗口最早重置的账号
 			if cfg.PreferSoonestReset {
@@ -1585,7 +1585,7 @@ func (s *GatewayService) newSelectionResult(ctx context.Context, account *Accoun
 	}), nil
 }
 
-// filterByMinPriority 过滤出优先级最小的账号集合
+// filterByMinPriority 过滤出优先级最高的账号集合（1 为最高优先级）
 func filterByMinPriority(accounts []accountWithLoad) []accountWithLoad {
 	if len(accounts) == 0 {
 		return accounts
@@ -1851,7 +1851,7 @@ func (s *GatewayService) sortCandidatesForFallback(accounts []*Account, preferOA
 	}
 }
 
-// sortAccountsByPriorityOnly 仅按优先级排序
+// sortAccountsByPriorityOnly 仅按优先级排序（数值越小越优先）
 func sortAccountsByPriorityOnly(accounts []*Account, preferOAuth bool) {
 	sort.SliceStable(accounts, func(i, j int) bool {
 		a, b := accounts[i], accounts[j]

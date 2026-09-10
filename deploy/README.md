@@ -15,8 +15,10 @@ This directory contains files for deploying Sub2API on Linux servers and Apple-s
 | File | Description |
 |------|-------------|
 | `docker-compose.yml` | Docker Compose configuration (named volumes) |
-| `docker-compose.local.yml` | Docker Compose configuration (local directories, easy migration) |
+| `docker-compose.local.yml` | Stateful restore compose file (local directories) |
+| `docker-compose.preview.yml` | Preview deployment compose file (pulls a prebuilt image) |
 | `docker-deploy.sh` | **One-click Docker deployment script (recommended)** |
+| `deploy-preview-image.sh` | Pull-and-restart script for preview servers |
 | `apple-container.sh` | Native Apple `container` lifecycle script |
 | `APPLE_CONTAINER.md` | Apple `container` deployment and operations guide |
 | `.env.example` | Container environment variables template |
@@ -50,37 +52,55 @@ See [APPLE_CONTAINER.md](./APPLE_CONTAINER.md) for configuration, upgrades, pers
 
 ## Docker Deployment (Recommended)
 
+### Preview Image Deployment
+
+The `sub2api-flowai` branch publishes `ghcr.io/aboutnb/sub2api` from GitHub
+Actions. Complete `docs/FLOWAI_RELEASE_CHECKLIST.md` and the FlowAI contract
+checks before updating the 23 server. Use an immutable commit tag for every
+release; the mutable branch tag is for inspection only:
+
+```bash
+cd /root/flowai-preview/deploy
+SUB2API_IMAGE=ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12> \
+  ./deploy-preview-image.sh
+```
+
+The script runs `docker compose pull sub2api`, recreates only the app service,
+and waits for `/health`. It does not build on the server or remove PostgreSQL,
+Redis, Mihomo, or persistent application data. Record the exact SHA tag and
+image digest in the release record for rollback.
+
 ### Method 1: One-Click Deployment (Recommended)
 
-Use the automated preparation script for the easiest setup:
+Use the automated preparation script for a fresh server deployment:
 
 ```bash
 # Download and run the preparation script
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/docker-deploy.sh | bash
+curl -sSL https://raw.githubusercontent.com/aboutnb/sub2api/sub2api-flowai/deploy/docker-deploy.sh | bash
 
 # Or download first, then run
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/docker-deploy.sh -o docker-deploy.sh
+curl -sSL https://raw.githubusercontent.com/aboutnb/sub2api/sub2api-flowai/deploy/docker-deploy.sh -o docker-deploy.sh
 chmod +x docker-deploy.sh
 ./docker-deploy.sh
 ```
 
 **What the script does:**
-- Downloads `docker-compose.local.yml` and `.env.example`
+- Downloads the `sub2api-flowai` branch `docker-compose.yml` and `.env.example`
 - Automatically generates secure secrets (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
-- Creates `.env` file with generated secrets
-- Creates necessary data directories (data/, postgres_data/, redis_data/)
+- Creates a `.env` file with generated secrets
+- Uses new Docker-managed named volumes for application, PostgreSQL, and Redis state
 - **Displays generated credentials** (POSTGRES_PASSWORD, JWT_SECRET, etc.)
 
 **After running the script:**
 ```bash
 # Start services
-docker compose -f docker-compose.local.yml up -d
+docker compose -f docker-compose.yml up -d
 
 # View logs
-docker compose -f docker-compose.local.yml logs -f sub2api
+docker compose -f docker-compose.yml logs -f sub2api
 
 # If admin password was auto-generated, find it in logs:
-docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
+docker compose -f docker-compose.yml logs sub2api | grep "admin password"
 
 # Access Web UI
 # http://localhost:8080
@@ -92,7 +112,7 @@ If you prefer manual control:
 
 ```bash
 # Clone repository
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone --branch sub2api-flowai https://github.com/aboutnb/sub2api.git
 cd sub2api/deploy
 
 # Configure environment
@@ -106,14 +126,11 @@ TOTP_ENCRYPTION_KEY=$(openssl rand -hex 32)
 echo "JWT_SECRET=${JWT_SECRET}" >> .env
 echo "TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY}" >> .env
 
-# Create data directories
-mkdir -p data postgres_data redis_data
-
-# Start all services using local directory version
-docker compose -f docker-compose.local.yml up -d
+# Start all services with fresh named volumes
+docker compose -f docker-compose.yml up -d
 
 # View logs (check for auto-generated admin password)
-docker compose -f docker-compose.local.yml logs -f sub2api
+docker compose -f docker-compose.yml logs -f sub2api
 
 # Access Web UI
 # http://localhost:8080
@@ -123,10 +140,14 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 | Version | Data Storage | Migration | Best For |
 |---------|-------------|-----------|----------|
-| **docker-compose.local.yml** | Local directories (./data, ./postgres_data, ./redis_data) | ✅ Easy (tar entire directory) | Production, need frequent backups/migration |
-| **docker-compose.yml** | Named volumes (/var/lib/docker/volumes/) | ⚠️ Requires docker commands | Simple setup, don't need migration |
+| **docker-compose.local.yml** | Local directories (./data, ./postgres_data, ./redis_data) | ✅ Explicit state restore | Existing instance recovery and operator-managed backups |
+| **docker-compose.yml** | Named volumes (/var/lib/docker/volumes/) | ✅ Fresh on a new host | New server and normal production deployment |
 
-**Recommendation:** Use `docker-compose.local.yml` (deployed by `docker-deploy.sh`) for easier data management and migration.
+**Recommendation:** Use `docker-compose.yml` for every new server. Keep
+`docker-compose.local.yml` only when deliberately restoring a known database.
+Do not copy `data/`, `postgres_data/`, or `redis_data/` from a local checkout to
+production; those directories contain application state and can reintroduce
+old USDT URLs, encrypted secrets, users, and orders.
 
 ### How Auto-Setup Works
 
@@ -145,6 +166,19 @@ When using Docker Compose with `AUTO_SETUP=true`:
    ```bash
    docker compose logs sub2api | grep "admin password"
    ```
+
+### Preview Deployment Data Root
+
+For preview or domain-bound deployments, set `POSTGRES_DATA_DIR`, `APP_DATA_DIR`,
+`REDIS_DATA_DIR`, `CADDY_DATA_DIR`, and `CADDY_CONFIG_DIR` to one fixed
+absolute host path, for example `/root/flowai-preview-data/...`.
+Do not rely on relative `./preview-data/...` paths across multiple clone
+directories, or you can accidentally start a second diverging database.
+
+The preview compose stack also expects a dedicated `mihomo` sidecar on the same
+Docker network. Keep `/app/data/mihomo` mounted for the app and the `mihomo`
+container together; otherwise Project Mihomo actions such as node testing will
+fail when the app reloads controller config.
 
 ### Startup and Database Recovery
 
@@ -270,9 +304,11 @@ See `.env.example` for all available options.
 
 > **Note:** The `docker-deploy.sh` script automatically generates `JWT_SECRET`, `TOTP_ENCRYPTION_KEY`, and `POSTGRES_PASSWORD` for you.
 
-### Easy Migration (Local Directory Version)
+### Stateful Restore (Local Directory Version)
 
-When using `docker-compose.local.yml`, all data is stored in local directories, making migration simple:
+When deliberately restoring an existing instance with `docker-compose.local.yml`,
+all data is stored in local directories. This is not the procedure for a new
+server and must never receive a copied development database by accident:
 
 ```bash
 # On source server: Stop services and create archive

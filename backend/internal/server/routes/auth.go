@@ -1,8 +1,10 @@
 package routes
 
 import (
+	"net/http"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/middleware"
 	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -20,25 +22,53 @@ func RegisterAuthRoutes(
 	auditLog servermiddleware.AuditLogMiddleware,
 	redisClient *redis.Client,
 	settingService *service.SettingService,
+	cfg *config.Config,
+	publicAccessGuard gin.HandlerFunc,
+	authIPBanService *service.AuthIPBanService,
 	panelRateLimiter *servermiddleware.PanelRateLimiter,
 ) {
 	// 创建速率限制器
 	rateLimiter := middleware.NewRateLimiter(redisClient)
+	if h != nil && h.Auth != nil {
+		h.Auth.SetRegistrationRiskRedis(redisClient)
+	}
+	protectPublicPOST := cfg != nil &&
+		cfg.Security.PublicAccessGuard.Enabled &&
+		cfg.Security.PublicAccessGuard.ProtectSitePublicPOST &&
+		publicAccessGuard != nil
 
 	// 公开接口
 	auth := v1.Group("/auth")
 	auth.Use(servermiddleware.BackendModeAuthGuard(settingService))
+	if h != nil && h.Auth != nil {
+		auth.Use(func(c *gin.Context) {
+			h.Auth.AttachSignupRiskIdentity(c)
+			c.Next()
+		})
+	}
+	if protectPublicPOST {
+		auth.Use(func(c *gin.Context) {
+			if c.Request.Method != http.MethodPost {
+				c.Next()
+				return
+			}
+			publicAccessGuard(c)
+		})
+	}
 	// 认证事件（登录/注册/2FA/token 刷新失败）入审计
 	auth.Use(gin.HandlerFunc(auditLog))
 	{
 		// 注册/登录/2FA/验证码发送均属于高风险入口，增加服务端兜底限流（Redis 故障时 fail-close）
+		auth.GET("/registration-challenge", rateLimiter.LimitWithOptions("auth-registration-challenge", 60, time.Minute, middleware.RateLimitOptions{
+			FailureMode: middleware.RateLimitFailClose,
+		}), h.Auth.GetRegistrationChallenge)
 		auth.POST("/register", rateLimiter.LimitWithOptions("auth-register", 5, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,
 		}), h.Auth.Register)
-		auth.POST("/login", rateLimiter.LimitWithOptions("auth-login", 20, time.Minute, middleware.RateLimitOptions{
+		auth.POST("/login", servermiddleware.AuthIPBan(authIPBanService), rateLimiter.LimitWithOptions("auth-login", 20, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,
 		}), h.Auth.Login)
-		auth.POST("/login/2fa", rateLimiter.LimitWithOptions("auth-login-2fa", 20, time.Minute, middleware.RateLimitOptions{
+		auth.POST("/login/2fa", servermiddleware.AuthIPBan(authIPBanService), rateLimiter.LimitWithOptions("auth-login-2fa", 20, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,
 		}), h.Auth.Login2FA)
 		auth.POST("/passkey/login/begin", rateLimiter.LimitWithOptions("passkey-login-begin", 20, time.Minute, middleware.RateLimitOptions{

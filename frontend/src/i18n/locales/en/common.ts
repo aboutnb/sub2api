@@ -165,10 +165,13 @@ export default {
   nav: {
     dashboard: 'Dashboard',
     announcements: 'Announcements',
+    emailBroadcasts: 'Email Broadcasts',
+    communityGroup: 'Community',
     apiKeys: 'API Keys',
     batchImage: 'Batch Images',
     usage: 'Usage',
     redeem: 'Redeem',
+    checkin: 'Check-in Center',
     affiliate: 'Affiliate Rebates',
     affiliateManagement: 'Affiliate Rebates',
     affiliateInviteRecords: 'Invite Records',
@@ -197,6 +200,7 @@ export default {
     github: 'GitHub',
     mySubscriptions: 'My Subscriptions',
     buySubscription: 'Recharge / Subscription',
+    usdtRecharge: 'USDT Recharge',
     docs: 'Docs',
     myOrders: 'My Orders',
     orderManagement: 'Orders',
@@ -211,6 +215,7 @@ export default {
     securityAudit: 'Security Audit',
     contentModeration: 'Content Moderation',
     promptAudit: 'Prompt Audit',
+    loginProtection: 'Login Protection',
     auditLogs: 'Audit Logs',
   },
 
@@ -246,6 +251,11 @@ export default {
     loginFailed: 'Login failed. Please check your credentials and try again.',
     errors: {
       USER_NOT_ACTIVE: 'Account has been disabled.',
+      REGISTRATION_CHALLENGE_REQUIRED: 'Registration verification is missing. Please try again.',
+      REGISTRATION_CHALLENGE_INVALID: 'Registration verification expired. Refresh the page and try again.',
+      REGISTRATION_CHALLENGE_INIT_FAILED: 'Failed to initialize registration verification. Check your connection and try again.',
+      REGISTRATION_TOO_MANY_ATTEMPTS: 'Too many registration attempts. Please try again later.',
+      REGISTRATION_RISK_CONTROL_UNAVAILABLE: 'Registration verification is temporarily unavailable. Please try again later.',
     },
     registrationFailed: 'Registration failed. Please try again.',
     emailDomainRegistrationLimit:

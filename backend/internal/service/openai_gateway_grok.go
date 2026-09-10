@@ -117,6 +117,7 @@ func (s *OpenAIGatewayService) forwardGrokResponses(
 
 		resp, err = s.doOpenAIUpstream(upstreamReq, proxyURL, account)
 		SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
+		SetOpsHTTPUpstreamTrace(c, upstreamReq)
 		if err != nil {
 			return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, err, false)
 		}

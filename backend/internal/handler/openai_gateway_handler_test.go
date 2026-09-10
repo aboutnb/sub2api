@@ -2446,6 +2446,25 @@ func TestOpenAIResponses_APIKeyPassthroughSSERateLimitUsesConfiguredPoolRetry(t 
 }
 
 func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T) {
+	runOpenAIResponsesWebSocketFailoverOnEvent(
+		t,
+		service.OpenAIWSIngressModePassthrough,
+		`{"type":"error","error":{"code":"rate_limit_exceeded","type":"usage_limit_reached","message":"The usage limit has been reached"}}`,
+		[]int64{9902},
+	)
+}
+
+func TestOpenAIResponsesWebSocket_FailoverOnModelCapacityResponseFailed(t *testing.T) {
+	capacityEvent := `{"type":"response.failed","response":{"id":"resp_ws_capacity","status":"failed","error":{"type":"invalid_request_error","message":"Selected model is at capacity. Please try a different model."}}}`
+	for _, mode := range []string{service.OpenAIWSIngressModeCtxPool, service.OpenAIWSIngressModePassthrough} {
+		t.Run(mode, func(t *testing.T) {
+			runOpenAIResponsesWebSocketFailoverOnEvent(t, mode, capacityEvent, nil)
+		})
+	}
+}
+
+func runOpenAIResponsesWebSocketFailoverOnEvent(t *testing.T, ingressMode string, firstEvent string, expectedRateLimitedIDs []int64) {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 
 	firstHitCh := make(chan []byte, 1)
@@ -2466,7 +2485,7 @@ func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T
 		}
 
 		writeCtx, cancelWrite := context.WithTimeout(r.Context(), 3*time.Second)
-		_ = conn.Write(writeCtx, coderws.MessageText, []byte(`{"type":"error","error":{"code":"rate_limit_exceeded","type":"usage_limit_reached","message":"The usage limit has been reached"}}`))
+		_ = conn.Write(writeCtx, coderws.MessageText, []byte(firstEvent))
 		cancelWrite()
 	}))
 	defer firstUpstream.Close()
@@ -2509,7 +2528,7 @@ func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T
 			},
 			Extra: map[string]any{
 				"openai_apikey_responses_websockets_v2_enabled": true,
-				"openai_apikey_responses_websockets_v2_mode":    service.OpenAIWSIngressModePassthrough,
+				"openai_apikey_responses_websockets_v2_mode":    ingressMode,
 			},
 		},
 		{
@@ -2527,7 +2546,7 @@ func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T
 			},
 			Extra: map[string]any{
 				"openai_apikey_responses_websockets_v2_enabled": true,
-				"openai_apikey_responses_websockets_v2_mode":    service.OpenAIWSIngressModePassthrough,
+				"openai_apikey_responses_websockets_v2_mode":    ingressMode,
 			},
 		},
 	}
@@ -2628,17 +2647,21 @@ func TestOpenAIResponsesWebSocket_FailoverOnUpstreamUsageLimitEvent(t *testing.T
 	require.Equal(t, "response.completed", gjson.GetBytes(event, "type").String())
 	require.Equal(t, "resp_ws_failover_ok", gjson.GetBytes(event, "response.id").String())
 
+	var firstUpstreamPayload []byte
 	select {
-	case <-firstHitCh:
+	case firstUpstreamPayload = <-firstHitCh:
 	case <-time.After(3 * time.Second):
 		t.Fatal("等待第一个上游收到首帧超时")
 	}
+	var secondUpstreamPayload []byte
 	select {
-	case <-secondHitCh:
+	case secondUpstreamPayload = <-secondHitCh:
 	case <-time.After(3 * time.Second):
 		t.Fatal("等待第二个上游收到重放首帧超时")
 	}
-	require.Equal(t, []int64{int64(9902)}, accountRepo.rateLimitedIDs)
+	require.JSONEq(t, string(firstUpstreamPayload), string(secondUpstreamPayload), "failover 应原样重放首轮请求")
+	require.Equal(t, "gpt-5.1", gjson.GetBytes(secondUpstreamPayload, "model").String(), "failover 不应自动切换模型")
+	require.Equal(t, expectedRateLimitedIDs, accountRepo.rateLimitedIDs)
 }
 
 func TestOpenAIResponsesWebSocket_FirstOutputTimeoutWithoutDownstreamReusesClientForOneFailover(t *testing.T) {

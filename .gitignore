@@ -61,6 +61,7 @@ docker-compose.override.yml
 # ===================
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 *~
@@ -137,10 +138,17 @@ docs/*
 !docs/PAYMENT_CN.md
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
 !docs/ASYNC_IMAGE_TASKS.md
+!docs/FLOWAI_BRANCH_CONTRACT.md
+!docs/FLOWAI_RELEASE_CHECKLIST.md
+!docs/FLOWAI_CHANGELOG.md
+!docs/DAILY_CHECK_IN_PRD.md
+!docs/checkin-design/
+!docs/checkin-design/**
 !docs/BATCH_IMAGE_MVP.md
 !docs/COMPOSITE_GROUPS.md
 !docs/PLUGIN_DEVELOPMENT.md
 !docs/channel-monitor-v2-safe-defaults.md
+!docs/CHANNEL_MONITOR_V2_FLOWAI_PRD.md
 !docs/legal/
 !docs/legal/*.md
 !docs/screenshots/

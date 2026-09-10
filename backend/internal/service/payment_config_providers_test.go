@@ -129,6 +129,11 @@ func TestValidateEasyPayCustomMethods(t *testing.T) {
 			supportedTypes: "alipay,wxpay,ldc",
 		},
 		{
+			name:           "valid GM token network selector",
+			config:         map[string]string{"customMethods": `[{"type":"usdt_trc20","upstreamType":"usdt.tron","displayName":"USDT-TRC20"}]`},
+			supportedTypes: "usdt_trc20",
+		},
+		{
 			name:           "malformed custom methods json",
 			config:         map[string]string{"customMethods": `not-json`},
 			supportedTypes: "alipay,wxpay,ldc",
@@ -156,6 +161,12 @@ func TestValidateEasyPayCustomMethods(t *testing.T) {
 			name:           "upstream type must already be lowercase",
 			config:         map[string]string{"customMethods": `[{"type":"ldc","upstreamType":"ALIPAY"}]`},
 			supportedTypes: "alipay,wxpay,ldc",
+			wantErr:        "customMethods upstreamType may only contain lowercase letters",
+		},
+		{
+			name:           "upstream selector allows only one period",
+			config:         map[string]string{"customMethods": `[{"type":"usdt_trc20","upstreamType":"usdt..tron"}]`},
+			supportedTypes: "usdt_trc20",
 			wantErr:        "customMethods upstreamType may only contain lowercase letters",
 		},
 		{

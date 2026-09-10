@@ -149,6 +149,53 @@ func TestPcAggregateMethodLimits(t *testing.T) {
 	})
 }
 
+func TestPcAggregateMethodPaymentMode(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		instances []*dbent.PaymentProviderInstance
+		want      string
+	}{
+		{
+			name: "same mode is exposed",
+			instances: func() []*dbent.PaymentProviderInstance {
+				first := makeInstance(1, payment.TypeEasyPay, "usdt_trc20", "")
+				first.PaymentMode = " popup "
+				second := makeInstance(2, payment.TypeEasyPay, "usdt_trc20", "")
+				second.PaymentMode = "POPUP"
+				return []*dbent.PaymentProviderInstance{first, second}
+			}(),
+			want: "popup",
+		},
+		{
+			name: "mixed modes require order-time resolution",
+			instances: func() []*dbent.PaymentProviderInstance {
+				first := makeInstance(1, payment.TypeEasyPay, "usdt_trc20", "")
+				first.PaymentMode = "popup"
+				second := makeInstance(2, payment.TypeEasyPay, "usdt_trc20", "")
+				second.PaymentMode = "qrcode"
+				return []*dbent.PaymentProviderInstance{first, second}
+			}(),
+		},
+		{
+			name:      "missing mode is not preopened",
+			instances: []*dbent.PaymentProviderInstance{makeInstance(1, payment.TypeEasyPay, "usdt_trc20", "")},
+		},
+		{
+			name:      "nil instance is safe",
+			instances: []*dbent.PaymentProviderInstance{nil},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tt.want, pcAggregateMethodPaymentMode(tt.instances))
+		})
+	}
+}
+
 func TestPcGroupByPaymentType(t *testing.T) {
 	t.Parallel()
 
@@ -264,6 +311,7 @@ func TestGetAvailableMethodLimitsIncludesEasyPayCustomMethodDisplayName(t *testi
 		SetName("EasyPay Custom").
 		SetConfig(`{"customMethods":"[{\"type\":\"ldc\",\"upstreamType\":\"ldc\",\"displayName\":\"LDC Pay\"}]"}`).
 		SetSupportedTypes("alipay,wxpay,ldc").
+		SetPaymentMode("popup").
 		SetEnabled(true).
 		Save(ctx)
 	require.NoError(t, err)
@@ -275,6 +323,35 @@ func TestGetAvailableMethodLimitsIncludesEasyPayCustomMethodDisplayName(t *testi
 	limits, ok := resp.Methods["ldc"]
 	require.True(t, ok, "expected custom EasyPay method limits to be visible")
 	require.Equal(t, "LDC Pay", limits.DisplayName)
+	require.Equal(t, "popup", limits.PaymentMode)
+}
+
+func TestGetAvailableMethodLimitsAppliesUSDTMinimum(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	_, err := client.PaymentProviderInstance.Create().
+		SetProviderKey(payment.TypeEasyPay).
+		SetName("GM USDT").
+		SetConfig(`{"customMethods":"[{\"type\":\"usdt_trc20\",\"upstreamType\":\"usdt.tron\",\"displayName\":\"USDT-TRC20\"}]"}`).
+		SetSupportedTypes("usdt_trc20").
+		SetLimits(`{"usdt_trc20":{"singleMin":20,"singleMax":500}}`).
+		SetPaymentMode("popup").
+		SetEnabled(true).
+		Save(ctx)
+	require.NoError(t, err)
+
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{SettingUSDTMinRechargeAmount: "50"}}
+	svc := &PaymentConfigService{entClient: client, settingRepo: repo}
+	resp, err := svc.GetAvailableMethodLimits(ctx)
+	require.NoError(t, err)
+	require.Equal(t, float64(50), resp.Methods["usdt_trc20"].SingleMin)
+	require.Equal(t, float64(500), resp.Methods["usdt_trc20"].SingleMax)
+
+	repo.values[SettingUSDTMinRechargeAmount] = "0"
+	resp, err = svc.GetAvailableMethodLimits(ctx)
+	require.NoError(t, err)
+	require.Equal(t, float64(20), resp.Methods["usdt_trc20"].SingleMin)
 }
 
 func TestPcComputeGlobalRange(t *testing.T) {

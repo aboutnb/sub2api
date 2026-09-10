@@ -33,6 +33,9 @@ const (
 	NotificationEmailEventCyberPolicyNotice           = "content_moderation.cyber_policy_notice"
 	NotificationEmailEventOpsAlert                    = "ops.alert"
 	NotificationEmailEventOpsScheduledReport          = "ops.scheduled_report"
+	NotificationEmailEventMaintenance                 = "system.maintenance"
+	NotificationEmailEventBroadcast                   = "system.broadcast"
+	NotificationEmailEventReactivation                = "system.reactivation"
 
 	notificationEmailTemplateKeyPrefix    = "notification_email_template:"
 	notificationEmailPreferenceKeyPrefix  = "notification_email_preference:"
@@ -898,97 +901,125 @@ func isSafeNotificationEmailURL(raw string) bool {
 func notificationEmailSampleVariables(locale string) map[string]string {
 	if normalizeNotificationLocale(locale) == notificationEmailLocaleChinese {
 		variables := map[string]string{
-			"site_name":           defaultSiteName,
-			"recipient_name":      "张三",
-			"recipient_email":     "user@example.com",
-			"verification_code":   "123456",
-			"expires_in_minutes":  "15",
-			"reset_url":           "https://example.com/reset-password?token=preview",
-			"subscription_group":  "Claude Pro",
-			"subscription_days":   "30",
-			"expiry_time":         "2026-06-18 12:00",
-			"days_remaining":      "3",
-			"current_balance":     "12.34",
-			"threshold":           "20.00",
-			"recharge_url":        "https://example.com/recharge",
-			"recharge_amount":     "50.00",
-			"order_id":            "1024",
-			"unsubscribe_url":     "https://example.com/unsubscribe",
-			"account_id":          "1001",
-			"account_name":        "openai-main",
-			"platform":            "openai",
-			"quota_dimension":     "每日额度",
-			"quota_used":          "80.00",
-			"quota_limit":         "100.00",
-			"quota_remaining":     "20.00",
-			"quota_threshold":     "20%",
-			"triggered_at":        "2026-05-20 12:00:00",
-			"group_name":          "默认分组",
-			"moderation_category": "violence",
-			"moderation_score":    "0.982",
-			"violation_count":     "2",
-			"ban_threshold":       "3",
-			"rule_name":           "错误率过高",
-			"severity":            "critical",
-			"alert_status":        "firing",
-			"metric_type":         "error_rate",
-			"operator":            ">=",
-			"metric_value":        "12.50",
-			"threshold_value":     "10.00",
-			"alert_description":   "最近 10 分钟错误率超过阈值",
-			"report_name":         "日报",
-			"report_type":         "daily_summary",
-			"report_start_time":   "2026-07-18T01:00:26Z",
-			"report_end_time":     "2026-07-19T01:00:26Z",
-			"report_html":         "<h2>日报</h2><p>请求量：2,374</p>",
+			"site_name":            defaultSiteName,
+			"recipient_name":       "张三",
+			"recipient_email":      "user@example.com",
+			"verification_code":    "123456",
+			"expires_in_minutes":   "15",
+			"reset_url":            "https://example.com/reset-password?token=preview",
+			"subscription_group":   "Claude Pro",
+			"subscription_days":    "30",
+			"expiry_time":          "2026-06-18 12:00",
+			"days_remaining":       "3",
+			"current_balance":      "12.34",
+			"threshold":            "20.00",
+			"recharge_url":         "https://example.com/recharge",
+			"recharge_amount":      "50.00",
+			"order_id":             "1024",
+			"unsubscribe_url":      "https://example.com/unsubscribe",
+			"account_id":           "1001",
+			"account_name":         "openai-main",
+			"platform":             "openai",
+			"quota_dimension":      "每日额度",
+			"quota_used":           "80.00",
+			"quota_limit":          "100.00",
+			"quota_remaining":      "20.00",
+			"quota_threshold":      "20%",
+			"triggered_at":         "2026-05-20 12:00:00",
+			"group_name":           "默认分组",
+			"moderation_category":  "violence",
+			"moderation_score":     "0.982",
+			"violation_count":      "2",
+			"ban_threshold":        "3",
+			"rule_name":            "错误率过高",
+			"severity":             "critical",
+			"alert_status":         "firing",
+			"metric_type":          "error_rate",
+			"operator":             ">=",
+			"metric_value":         "12.50",
+			"threshold_value":      "10.00",
+			"alert_description":    "最近 10 分钟错误率超过阈值",
+			"report_name":          "日报",
+			"report_type":          "daily_summary",
+			"report_start_time":    "2026-07-18T01:00:26Z",
+			"report_end_time":      "2026-07-19T01:00:26Z",
+			"report_html":          "<h2>日报</h2><p>请求量：2,374</p>",
+			"maintenance_title":    "数据库与网关升级",
+			"maintenance_start":    "2026-08-03 23:00",
+			"maintenance_end":      "2026-08-04 00:30",
+			"maintenance_timezone": "Asia/Shanghai",
+			"maintenance_impact":   "维护期间 API 和管理后台可能短暂不可用。",
+			"maintenance_action":   "请提前保存正在进行的工作，维护完成后无需额外操作。",
+			"broadcast_subject_zh": "服务器升级及域名迁移通知",
+			"broadcast_heading_zh": "服务器升级与服务迁移",
+			"broadcast_body_zh":    "平台将进行服务器升级与服务迁移。迁移完成后请优先使用 https://aivoza.com，原域名 https://flowai.cyou 将继续保留。",
+			"broadcast_action_zh":  "升级期间如遇短暂不可用，请稍后重试。",
+			"broadcast_subject_en": "Server upgrade and domain migration notice",
+			"broadcast_heading_en": "Server upgrade and service migration",
+			"broadcast_body_en":    "We are upgrading and migrating the service. Please use https://aivoza.com after the migration. The existing https://flowai.cyou domain will remain available.",
+			"broadcast_action_en":  "If the service is briefly unavailable during the upgrade, please try again later.",
 		}
 		addNotificationEmailOpsSummarySampleVariables(variables)
 		return variables
 	}
 	variables := map[string]string{
-		"site_name":           defaultSiteName,
-		"recipient_name":      "Alex",
-		"recipient_email":     "user@example.com",
-		"verification_code":   "123456",
-		"expires_in_minutes":  "15",
-		"reset_url":           "https://example.com/reset-password?token=preview",
-		"subscription_group":  "Claude Pro",
-		"subscription_days":   "30",
-		"expiry_time":         "2026-06-18 12:00",
-		"days_remaining":      "3",
-		"current_balance":     "12.34",
-		"threshold":           "20.00",
-		"recharge_url":        "https://example.com/recharge",
-		"recharge_amount":     "50.00",
-		"order_id":            "1024",
-		"unsubscribe_url":     "https://example.com/unsubscribe",
-		"account_id":          "1001",
-		"account_name":        "openai-main",
-		"platform":            "openai",
-		"quota_dimension":     "Daily quota",
-		"quota_used":          "80.00",
-		"quota_limit":         "100.00",
-		"quota_remaining":     "20.00",
-		"quota_threshold":     "20%",
-		"triggered_at":        "2026-05-20 12:00:00",
-		"group_name":          "Default group",
-		"moderation_category": "violence",
-		"moderation_score":    "0.982",
-		"violation_count":     "2",
-		"ban_threshold":       "3",
-		"rule_name":           "High error rate",
-		"severity":            "critical",
-		"alert_status":        "firing",
-		"metric_type":         "error_rate",
-		"operator":            ">=",
-		"metric_value":        "12.50",
-		"threshold_value":     "10.00",
-		"alert_description":   "Error rate exceeded threshold in the last 10 minutes.",
-		"report_name":         "Daily summary",
-		"report_type":         "daily_summary",
-		"report_start_time":   "2026-07-18T01:00:26Z",
-		"report_end_time":     "2026-07-19T01:00:26Z",
-		"report_html":         "<h2>Daily summary</h2><p>Requests: 2,374</p>",
+		"site_name":            defaultSiteName,
+		"recipient_name":       "Alex",
+		"recipient_email":      "user@example.com",
+		"verification_code":    "123456",
+		"expires_in_minutes":   "15",
+		"reset_url":            "https://example.com/reset-password?token=preview",
+		"subscription_group":   "Claude Pro",
+		"subscription_days":    "30",
+		"expiry_time":          "2026-06-18 12:00",
+		"days_remaining":       "3",
+		"current_balance":      "12.34",
+		"threshold":            "20.00",
+		"recharge_url":         "https://example.com/recharge",
+		"recharge_amount":      "50.00",
+		"order_id":             "1024",
+		"unsubscribe_url":      "https://example.com/unsubscribe",
+		"account_id":           "1001",
+		"account_name":         "openai-main",
+		"platform":             "openai",
+		"quota_dimension":      "Daily quota",
+		"quota_used":           "80.00",
+		"quota_limit":          "100.00",
+		"quota_remaining":      "20.00",
+		"quota_threshold":      "20%",
+		"triggered_at":         "2026-05-20 12:00:00",
+		"group_name":           "Default group",
+		"moderation_category":  "violence",
+		"moderation_score":     "0.982",
+		"violation_count":      "2",
+		"ban_threshold":        "3",
+		"rule_name":            "High error rate",
+		"severity":             "critical",
+		"alert_status":         "firing",
+		"metric_type":          "error_rate",
+		"operator":             ">=",
+		"metric_value":         "12.50",
+		"threshold_value":      "10.00",
+		"alert_description":    "Error rate exceeded threshold in the last 10 minutes.",
+		"report_name":          "Daily summary",
+		"report_type":          "daily_summary",
+		"report_start_time":    "2026-07-18T01:00:26Z",
+		"report_end_time":      "2026-07-19T01:00:26Z",
+		"report_html":          "<h2>Daily summary</h2><p>Requests: 2,374</p>",
+		"maintenance_title":    "Database and gateway upgrade",
+		"maintenance_start":    "2026-08-03 23:00",
+		"maintenance_end":      "2026-08-04 00:30",
+		"maintenance_timezone": "Asia/Shanghai",
+		"maintenance_impact":   "The API and admin console may be briefly unavailable during maintenance.",
+		"maintenance_action":   "Please save ongoing work in advance. No action is needed after maintenance.",
+		"broadcast_subject_zh": "服务器升级及域名迁移通知",
+		"broadcast_heading_zh": "服务器升级与服务迁移",
+		"broadcast_body_zh":    "平台将进行服务器升级与服务迁移。迁移完成后请优先使用 https://aivoza.com，原域名 https://flowai.cyou 将继续保留。",
+		"broadcast_action_zh":  "升级期间如遇短暂不可用，请稍后重试。",
+		"broadcast_subject_en": "Server upgrade and domain migration notice",
+		"broadcast_heading_en": "Server upgrade and service migration",
+		"broadcast_body_en":    "We are upgrading and migrating the service. Please use https://aivoza.com after the migration. The existing https://flowai.cyou domain will remain available.",
+		"broadcast_action_en":  "If the service is briefly unavailable during the upgrade, please try again later.",
 	}
 	addNotificationEmailOpsSummarySampleVariables(variables)
 	return variables
@@ -1034,6 +1065,9 @@ var notificationEmailEventOrder = []string{
 	NotificationEmailEventCyberPolicyNotice,
 	NotificationEmailEventOpsAlert,
 	NotificationEmailEventOpsScheduledReport,
+	NotificationEmailEventMaintenance,
+	NotificationEmailEventBroadcast,
+	NotificationEmailEventReactivation,
 }
 
 var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
@@ -1152,76 +1186,157 @@ var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
 			append(append([]string{}, notificationEmailOpsSummaryPlaceholders...), "report_detail_display", "report_html")...,
 		),
 	},
+	NotificationEmailEventMaintenance: {
+		Event:       NotificationEmailEventMaintenance,
+		Label:       "System maintenance notice",
+		Description: "Sent to active users when planned server maintenance may affect service availability.",
+		Category:    "system",
+		Optional:    false,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...),
+			"maintenance_title", "maintenance_start", "maintenance_end", "maintenance_timezone", "maintenance_impact", "maintenance_action"),
+	},
+	NotificationEmailEventBroadcast: {
+		Event:       NotificationEmailEventBroadcast,
+		Label:       "General email broadcast",
+		Description: "A flexible administrator-authored email broadcast sent to an immutable recipient snapshot.",
+		Category:    "system",
+		Optional:    false,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...),
+			"broadcast_subject_zh", "broadcast_heading_zh", "broadcast_body_zh", "broadcast_action_zh",
+			"broadcast_subject_en", "broadcast_heading_en", "broadcast_body_en", "broadcast_action_en"),
+	},
+	NotificationEmailEventReactivation: {
+		Event:       NotificationEmailEventReactivation,
+		Label:       "User reactivation email",
+		Description: "A flexible administrator-authored reactivation email for users who have not been active recently.",
+		Category:    "system",
+		Optional:    false,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...),
+			"broadcast_subject_zh", "broadcast_heading_zh", "broadcast_body_zh", "broadcast_action_zh",
+			"broadcast_subject_en", "broadcast_heading_en", "broadcast_body_en", "broadcast_action_en"),
+	},
 }
 
 var notificationEmailOfficialTemplates = map[string]map[string]notificationEmailOfficialTemplate{
+	NotificationEmailEventBroadcast: {
+		notificationEmailDefaultLocale: {
+			Subject: "{{broadcast_subject_en}}",
+			HTML: notificationEmailCard("Service notice", `
+	<p>Hello {{recipient_name}},</p>
+	<h2 style="margin:0 0 14px 0;font-size:22px;line-height:1.35;">{{broadcast_heading_en}}</h2>
+	<div style="white-space:pre-line;">{{broadcast_body_en}}</div>
+	<p style="margin-top:18px;">{{broadcast_action_en}}</p>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "{{broadcast_subject_zh}}",
+			HTML: notificationEmailCardZH("服务通知", `
+	<p>{{recipient_name}}，您好：</p>
+	<h2 style="margin:0 0 14px 0;font-size:22px;line-height:1.35;">{{broadcast_heading_zh}}</h2>
+	<div style="white-space:pre-line;">{{broadcast_body_zh}}</div>
+	<p style="margin-top:18px;">{{broadcast_action_zh}}</p>`),
+		},
+	},
+	NotificationEmailEventReactivation: {
+		notificationEmailDefaultLocale: {
+			Subject: "{{broadcast_subject_en}}",
+			HTML: notificationEmailCard("Welcome back", `
+	<p>Hello {{recipient_name}},</p>
+	<h2 style="margin:0 0 14px 0;font-size:22px;line-height:1.35;">{{broadcast_heading_en}}</h2>
+	<div style="white-space:pre-line;">{{broadcast_body_en}}</div>
+	<p style="margin-top:18px;">{{broadcast_action_en}}</p>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "{{broadcast_subject_zh}}",
+			HTML: notificationEmailCardZH("欢迎回来", `
+	<p>{{recipient_name}}，您好：</p>
+	<h2 style="margin:0 0 14px 0;font-size:22px;line-height:1.35;">{{broadcast_heading_zh}}</h2>
+	<div style="white-space:pre-line;">{{broadcast_body_zh}}</div>
+	<p style="margin-top:18px;">{{broadcast_action_zh}}</p>`),
+		},
+	},
+	NotificationEmailEventMaintenance: {
+		notificationEmailDefaultLocale: {
+			Subject: "[{{site_name}}] Planned maintenance: {{maintenance_title}}",
+			HTML: notificationEmailCard("Planned maintenance", `
+	<p>Hello {{recipient_name}},</p>
+	<p>We will perform planned maintenance: <strong>{{maintenance_title}}</strong>.</p>
+	<p><strong>Window:</strong> {{maintenance_start}} - {{maintenance_end}} ({{maintenance_timezone}})</p>
+	<p><strong>Expected impact:</strong> {{maintenance_impact}}</p>
+	<p>{{maintenance_action}}</p>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "[{{site_name}}] 计划维护通知：{{maintenance_title}}",
+			HTML: notificationEmailCardZH("计划维护通知", `
+	<p>{{recipient_name}}，您好：</p>
+	<p>我们计划进行以下服务器维护：<strong>{{maintenance_title}}</strong>。</p>
+	<p><strong>维护时间：</strong>{{maintenance_start}} - {{maintenance_end}}（{{maintenance_timezone}}）</p>
+	<p><strong>预计影响：</strong>{{maintenance_impact}}</p>
+	<p>{{maintenance_action}}</p>`),
+		},
+	},
 	NotificationEmailEventAuthVerifyCode: {
 		notificationEmailDefaultLocale: {
 			Subject: "[{{site_name}}] Email verification code",
-			HTML: notificationEmailCard("#4f46e5", "Email verification code", `
-<p>Hello {{recipient_name}},</p>
-<p>Your verification code is:</p>
-<p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; text-align: center;">{{verification_code}}</p>
-<p>This code expires in <strong>{{expires_in_minutes}}</strong> minutes.</p>
-<p>If you did not request this code, please ignore this email.</p>`),
+			HTML: notificationEmailCard("Email verification code", `
+	<p>Hello {{recipient_name}},</p>
+	<p>Your verification code is:</p>`+notificationEmailCodeBlock()+`
+	<p>This code expires in <strong>{{expires_in_minutes}}</strong> minutes.</p>
+	<p>If you did not request this code, please ignore this email.</p>`),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 邮箱验证码",
-			HTML: notificationEmailCard("#4f46e5", "邮箱验证码", `
-<p>{{recipient_name}}，您好：</p>
-<p>您的验证码是：</p>
-<p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; text-align: center;">{{verification_code}}</p>
-<p>验证码将在 <strong>{{expires_in_minutes}}</strong> 分钟后失效。</p>
-<p>如果不是您本人操作，请忽略此邮件。</p>`),
+			HTML: notificationEmailCardZH("邮箱验证码", `
+	<p>{{recipient_name}}，您好：</p>
+	<p>您的验证码是：</p>`+notificationEmailCodeBlock()+`
+	<p>验证码将在 <strong>{{expires_in_minutes}}</strong> 分钟后失效。</p>
+	<p>如果不是您本人操作，请忽略此邮件。</p>`),
 		},
 	},
 	NotificationEmailEventAuthPasswordReset: {
 		notificationEmailDefaultLocale: {
 			Subject: "[{{site_name}}] Password reset request",
-			HTML: notificationEmailCard("#7c3aed", "Password reset", `
-<p>Hello {{recipient_name}},</p>
-<p>We received a request to reset your password. Click the button below to set a new password.</p>
-<p><a class="button" href="{{reset_url}}">Reset password</a></p>
-<p>This link expires in <strong>{{expires_in_minutes}}</strong> minutes.</p>
-<p class="muted">If the button does not work, copy this link into your browser:<br>{{reset_url}}</p>
-<p>If you did not request this, you can safely ignore this email.</p>`),
+			HTML: notificationEmailCard("Password reset", `
+	<p>Hello {{recipient_name}},</p>
+	<p>We received a request to reset your password. Click the button below to set a new password.</p>
+	<p style="margin:20px 0;">`+notificationEmailButton("{{reset_url}}", "Reset password")+`</p>
+	<p>This link expires in <strong>{{expires_in_minutes}}</strong> minutes.</p>
+	<p style="margin:16px 0 0 0;color:#6f6a60;font-size:13px;line-height:20px;">If the button does not work, copy this link into your browser:<br>{{reset_url}}</p>
+	<p>If you did not request this, you can safely ignore this email.</p>`),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 密码重置请求",
-			HTML: notificationEmailCard("#7c3aed", "密码重置", `
-<p>{{recipient_name}}，您好：</p>
-<p>我们收到了您的密码重置请求，请点击下方按钮设置新密码。</p>
-<p><a class="button" href="{{reset_url}}">重置密码</a></p>
-<p>此链接将在 <strong>{{expires_in_minutes}}</strong> 分钟后失效。</p>
-<p class="muted">如果按钮无法点击，请复制以下链接到浏览器中打开：<br>{{reset_url}}</p>
-<p>如果不是您本人操作，请忽略此邮件。</p>`),
+			HTML: notificationEmailCardZH("密码重置", `
+	<p>{{recipient_name}}，您好：</p>
+	<p>我们收到了您的密码重置请求，请点击下方按钮设置新密码。</p>
+	<p style="margin:20px 0;">`+notificationEmailButton("{{reset_url}}", "重置密码")+`</p>
+	<p>此链接将在 <strong>{{expires_in_minutes}}</strong> 分钟后失效。</p>
+	<p style="margin:16px 0 0 0;color:#6f6a60;font-size:13px;line-height:20px;">如果按钮无法点击，请复制以下链接到浏览器中打开：<br>{{reset_url}}</p>
+	<p>如果不是您本人操作，请忽略此邮件。</p>`),
 		},
 	},
 	NotificationEmailEventNotificationEmailVerifyCode: {
 		notificationEmailDefaultLocale: {
 			Subject: "[{{site_name}}] Notification email verification code",
-			HTML: notificationEmailCard("#0ea5e9", "Notification email verification", `
-<p>Hello {{recipient_name}},</p>
-<p>You are adding this address as an extra notification email.</p>
-<p>Your verification code is:</p>
-<p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; text-align: center;">{{verification_code}}</p>
-<p>This code expires in <strong>{{expires_in_minutes}}</strong> minutes.</p>
-<p>If you did not request this code, please ignore this email.</p>`),
+			HTML: notificationEmailCard("Notification email verification", `
+	<p>Hello {{recipient_name}},</p>
+	<p>You are adding this address as an extra notification email.</p>
+	<p>Your verification code is:</p>`+notificationEmailCodeBlock()+`
+	<p>This code expires in <strong>{{expires_in_minutes}}</strong> minutes.</p>
+	<p>If you did not request this code, please ignore this email.</p>`),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 通知邮箱验证码",
-			HTML: notificationEmailCard("#0ea5e9", "通知邮箱验证", `
-<p>{{recipient_name}}，您好：</p>
-<p>您正在添加额外的通知邮箱，请输入以下验证码完成验证。</p>
-<p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; text-align: center;">{{verification_code}}</p>
-<p>验证码将在 <strong>{{expires_in_minutes}}</strong> 分钟后失效。</p>
-<p>如果不是您本人操作，请忽略此邮件。</p>`),
+			HTML: notificationEmailCardZH("通知邮箱验证", `
+	<p>{{recipient_name}}，您好：</p>
+	<p>您正在添加额外的通知邮箱，请输入以下验证码完成验证。</p>`+notificationEmailCodeBlock()+`
+	<p>验证码将在 <strong>{{expires_in_minutes}}</strong> 分钟后失效。</p>
+	<p>如果不是您本人操作，请忽略此邮件。</p>`),
 		},
 	},
 	NotificationEmailEventSubscriptionPurchaseSuccess: {
 		notificationEmailDefaultLocale: {
 			Subject: "[{{site_name}}] Subscription purchase successful",
-			HTML: notificationEmailCard("#2563eb", "Subscription activated", `
+			HTML: notificationEmailCard("Subscription activated", `
 <p>Hello {{recipient_name}},</p>
 <p>Your subscription for <strong>{{subscription_group}}</strong> has been activated for <strong>{{subscription_days}}</strong> days.</p>
 <p>Expiry time: <strong>{{expiry_time}}</strong></p>
@@ -1229,55 +1344,55 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 订阅购买成功",
-			HTML: notificationEmailCard("#2563eb", "订阅已开通", `
-<p>{{recipient_name}}，您好：</p>
-<p>您的 <strong>{{subscription_group}}</strong> 订阅已成功开通，有效期 <strong>{{subscription_days}}</strong> 天。</p>
-<p>到期时间：<strong>{{expiry_time}}</strong></p>
+			HTML: notificationEmailCardZH("订阅已开通", `
+	<p>{{recipient_name}}，您好：</p>
+	<p>您的 <strong>{{subscription_group}}</strong> 订阅已成功开通，有效期 <strong>{{subscription_days}}</strong> 天。</p>
+	<p>到期时间：<strong>{{expiry_time}}</strong></p>
 <p>订单号：{{order_id}}</p>`),
 		},
 	},
 	NotificationEmailEventSubscriptionExpiryReminder: {
 		notificationEmailDefaultLocale: {
 			Subject: "[{{site_name}}] Subscription expires in {{days_remaining}} day(s)",
-			HTML: notificationEmailCard("#f97316", "Subscription expiry reminder", `
-<p>Hello {{recipient_name}},</p>
-<p>Your <strong>{{subscription_group}}</strong> subscription will expire in <strong>{{days_remaining}}</strong> day(s).</p>
-<p>Expiry time: <strong>{{expiry_time}}</strong></p>
-<p class="muted"><a href="{{unsubscribe_url}}">Unsubscribe from optional subscription reminders</a></p>`),
+			HTML: notificationEmailCard("Subscription expiry reminder", `
+	<p>Hello {{recipient_name}},</p>
+	<p>Your <strong>{{subscription_group}}</strong> subscription will expire in <strong>{{days_remaining}}</strong> day(s).</p>
+	<p>Expiry time: <strong>{{expiry_time}}</strong></p>
+		<p style="margin:18px 0 0 0;color:#6f6a60;font-size:13px;line-height:20px;"><a href="{{unsubscribe_url}}" style="color:#24211d;text-decoration:underline;">Unsubscribe from optional subscription reminders</a></p>`),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 订阅将在 {{days_remaining}} 天后到期",
-			HTML: notificationEmailCard("#f97316", "订阅到期提醒", `
-<p>{{recipient_name}}，您好：</p>
-<p>您的 <strong>{{subscription_group}}</strong> 订阅将在 <strong>{{days_remaining}}</strong> 天后到期。</p>
-<p>到期时间：<strong>{{expiry_time}}</strong></p>
-<p class="muted"><a href="{{unsubscribe_url}}">退订此类订阅提醒</a></p>`),
+			HTML: notificationEmailCardZH("订阅到期提醒", `
+	<p>{{recipient_name}}，您好：</p>
+	<p>您的 <strong>{{subscription_group}}</strong> 订阅将在 <strong>{{days_remaining}}</strong> 天后到期。</p>
+	<p>到期时间：<strong>{{expiry_time}}</strong></p>
+		<p style="margin:18px 0 0 0;color:#6f6a60;font-size:13px;line-height:20px;"><a href="{{unsubscribe_url}}" style="color:#24211d;text-decoration:underline;">退订此类订阅提醒</a></p>`),
 		},
 	},
 	NotificationEmailEventBalanceLow: {
 		notificationEmailDefaultLocale: {
 			Subject: "[{{site_name}}] Low balance alert",
-			HTML: notificationEmailCard("#d97706", "Low balance alert", `
-<p>Hello {{recipient_name}},</p>
-<p>Your current balance is <strong>${{current_balance}}</strong>, below the configured alert threshold of <strong>${{threshold}}</strong>.</p>
-<p>Please recharge in time to avoid service interruption.</p>
-<p><a class="button" href="{{recharge_url}}">Recharge now</a></p>
-<p class="muted"><a href="{{unsubscribe_url}}">Unsubscribe from optional balance alerts</a></p>`),
+			HTML: notificationEmailCard("Low balance alert", `
+	<p>Hello {{recipient_name}},</p>
+	<p>Your current balance is <strong>${{current_balance}}</strong>, below the configured alert threshold of <strong>${{threshold}}</strong>.</p>
+	<p>Please recharge in time to avoid service interruption.</p>
+	<p style="margin:20px 0;">`+notificationEmailButton("{{recharge_url}}", "Recharge now")+`</p>
+		<p style="margin:16px 0 0 0;color:#6f6a60;font-size:13px;line-height:20px;"><a href="{{unsubscribe_url}}" style="color:#24211d;text-decoration:underline;">Unsubscribe from optional balance alerts</a></p>`),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 余额不足提醒",
-			HTML: notificationEmailCard("#d97706", "余额不足提醒", `
-<p>{{recipient_name}}，您好：</p>
-<p>您当前余额为 <strong>${{current_balance}}</strong>，已低于提醒阈值 <strong>${{threshold}}</strong>。</p>
-<p>请及时充值以免服务中断。</p>
-<p><a class="button" href="{{recharge_url}}">立即充值</a></p>
-<p class="muted"><a href="{{unsubscribe_url}}">退订此类余额提醒</a></p>`),
+			HTML: notificationEmailCardZH("余额不足提醒", `
+	<p>{{recipient_name}}，您好：</p>
+	<p>您当前余额为 <strong>${{current_balance}}</strong>，已低于提醒阈值 <strong>${{threshold}}</strong>。</p>
+	<p>请及时充值以免服务中断。</p>
+	<p style="margin:20px 0;">`+notificationEmailButton("{{recharge_url}}", "立即充值")+`</p>
+		<p style="margin:16px 0 0 0;color:#6f6a60;font-size:13px;line-height:20px;"><a href="{{unsubscribe_url}}" style="color:#24211d;text-decoration:underline;">退订此类余额提醒</a></p>`),
 		},
 	},
 	NotificationEmailEventBalanceRechargeSuccess: {
 		notificationEmailDefaultLocale: {
 			Subject: "[{{site_name}}] Balance recharge successful",
-			HTML: notificationEmailCard("#16a34a", "Recharge successful", `
+			HTML: notificationEmailCard("Recharge successful", `
 <p>Hello {{recipient_name}},</p>
 <p>Your balance recharge of <strong>${{recharge_amount}}</strong> has been completed.</p>
 <p>Current balance: <strong>${{current_balance}}</strong></p>
@@ -1285,374 +1400,298 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 余额充值成功",
-			HTML: notificationEmailCard("#16a34a", "余额充值成功", `
-<p>{{recipient_name}}，您好：</p>
-<p>您的余额充值 <strong>${{recharge_amount}}</strong> 已完成。</p>
-<p>当前余额：<strong>${{current_balance}}</strong></p>
+			HTML: notificationEmailCardZH("余额充值成功", `
+	<p>{{recipient_name}}，您好：</p>
+	<p>您的余额充值 <strong>${{recharge_amount}}</strong> 已完成。</p>
+	<p>当前余额：<strong>${{current_balance}}</strong></p>
 			<p>订单号：{{order_id}}</p>`),
 		},
 	},
 	NotificationEmailEventAccountQuotaAlert: {
 		notificationEmailDefaultLocale: {
 			Subject: "[{{site_name}}] Account quota alert - {{account_name}}",
-			HTML: notificationEmailCard("#dc2626", "Account quota alert", `
-<p>The upstream account <strong>{{account_name}}</strong> has crossed its configured quota alert threshold.</p>
-<table style="width:100%;border-collapse:collapse;">
-  <tr><td>Account ID</td><td>{{account_id}}</td></tr>
-  <tr><td>Platform</td><td>{{platform}}</td></tr>
-  <tr><td>Dimension</td><td>{{quota_dimension}}</td></tr>
-  <tr><td>Used / Limit</td><td>{{quota_used}} / {{quota_limit}}</td></tr>
-  <tr><td>Remaining</td><td>{{quota_remaining}}</td></tr>
-  <tr><td>Threshold</td><td>{{quota_threshold}}</td></tr>
-</table>`),
+			HTML: notificationEmailCard("Account quota alert", `
+	<p>The upstream account <strong>{{account_name}}</strong> has crossed its configured quota alert threshold.</p>`+notificationEmailDataTable(
+				[2]string{"Account ID", "{{account_id}}"},
+				[2]string{"Platform", "{{platform}}"},
+				[2]string{"Dimension", "{{quota_dimension}}"},
+				[2]string{"Used / Limit", "{{quota_used}} / {{quota_limit}}"},
+				[2]string{"Remaining", "{{quota_remaining}}"},
+				[2]string{"Threshold", "{{quota_threshold}}"},
+			)),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 账号限额告警 - {{account_name}}",
-			HTML: notificationEmailCard("#dc2626", "账号限额告警", `
-<p>上游账号 <strong>{{account_name}}</strong> 已触发配置的额度告警阈值。</p>
-<table style="width:100%;border-collapse:collapse;">
-  <tr><td>账号 ID</td><td>{{account_id}}</td></tr>
-  <tr><td>平台</td><td>{{platform}}</td></tr>
-  <tr><td>维度</td><td>{{quota_dimension}}</td></tr>
-  <tr><td>已用 / 限额</td><td>{{quota_used}} / {{quota_limit}}</td></tr>
-  <tr><td>剩余额度</td><td>{{quota_remaining}}</td></tr>
-  <tr><td>告警阈值</td><td>{{quota_threshold}}</td></tr>
-</table>`),
+			HTML: notificationEmailCardZH("账号限额告警", `
+	<p>上游账号 <strong>{{account_name}}</strong> 已触发配置的额度告警阈值。</p>`+notificationEmailDataTable(
+				[2]string{"账号 ID", "{{account_id}}"},
+				[2]string{"平台", "{{platform}}"},
+				[2]string{"维度", "{{quota_dimension}}"},
+				[2]string{"已用 / 限额", "{{quota_used}} / {{quota_limit}}"},
+				[2]string{"剩余额度", "{{quota_remaining}}"},
+				[2]string{"告警阈值", "{{quota_threshold}}"},
+			)),
 		},
 	},
 	NotificationEmailEventContentModerationViolation: {
 		notificationEmailDefaultLocale: {
 			Subject: "[{{site_name}}] Risk control notice",
-			HTML: notificationEmailCard("#ef4444", "Risk control notice", `
-<p>Hello {{recipient_name}},</p>
-<p>Your API request triggered the platform content moderation/risk-control policy.</p>
-<table style="width:100%;border-collapse:collapse;">
-  <tr><td>Triggered at</td><td>{{triggered_at}}</td></tr>
-  <tr><td>Group</td><td>{{group_name}}</td></tr>
-  <tr><td>Category / Score</td><td>{{moderation_category}} / {{moderation_score}}</td></tr>
-  <tr><td>Violation count</td><td>{{violation_count}} / {{ban_threshold}}</td></tr>
-</table>
-<p>Please review your request content to avoid future service interruptions.</p>`),
+			HTML: notificationEmailCard("Risk control notice", `
+	<p>Hello {{recipient_name}},</p>
+	<p>Your API request triggered the platform content moderation/risk-control policy.</p>`+notificationEmailDataTable(
+				[2]string{"Triggered at", "{{triggered_at}}"},
+				[2]string{"Group", "{{group_name}}"},
+				[2]string{"Category / Score", "{{moderation_category}} / {{moderation_score}}"},
+				[2]string{"Violation count", "{{violation_count}} / {{ban_threshold}}"},
+			)+`
+	<p>Please review your request content to avoid future service interruptions.</p>`),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 账户风控提醒",
-			HTML: notificationEmailCard("#ef4444", "账户风控提醒", `
-<p>{{recipient_name}}，您好：</p>
-<p>您的 API 请求触发了平台内容审核/风控策略。</p>
-<table style="width:100%;border-collapse:collapse;">
-  <tr><td>触发时间</td><td>{{triggered_at}}</td></tr>
-  <tr><td>所属分组</td><td>{{group_name}}</td></tr>
-  <tr><td>命中类别 / 分数</td><td>{{moderation_category}} / {{moderation_score}}</td></tr>
-  <tr><td>累计触发次数</td><td>{{violation_count}} / {{ban_threshold}}</td></tr>
-</table>
-<p>请检查请求内容，避免后续服务受到影响。</p>`),
+			HTML: notificationEmailCardZH("账户风控提醒", `
+	<p>{{recipient_name}}，您好：</p>
+	<p>您的 API 请求触发了平台内容审核/风控策略。</p>`+notificationEmailDataTable(
+				[2]string{"触发时间", "{{triggered_at}}"},
+				[2]string{"所属分组", "{{group_name}}"},
+				[2]string{"命中类别 / 分数", "{{moderation_category}} / {{moderation_score}}"},
+				[2]string{"累计触发次数", "{{violation_count}} / {{ban_threshold}}"},
+			)+`
+	<p>请检查请求内容，避免后续服务受到影响。</p>`),
 		},
 	},
 	NotificationEmailEventContentModerationDisabled: {
 		notificationEmailDefaultLocale: {
 			Subject: "[{{site_name}}] Account disabled by risk control",
-			HTML: notificationEmailCard("#b91c1c", "Account disabled", `
-<p>Hello {{recipient_name}},</p>
-<p>Your account has repeatedly triggered platform content moderation/risk-control rules and has been automatically disabled.</p>
-<table style="width:100%;border-collapse:collapse;">
-  <tr><td>Disabled at</td><td>{{triggered_at}}</td></tr>
-  <tr><td>Group</td><td>{{group_name}}</td></tr>
-  <tr><td>Category / Score</td><td>{{moderation_category}} / {{moderation_score}}</td></tr>
-  <tr><td>Violation count</td><td>{{violation_count}} / {{ban_threshold}}</td></tr>
-</table>
-<p>Please contact the administrator if you need to appeal or restore access.</p>`),
+			HTML: notificationEmailCard("Account disabled", `
+	<p>Hello {{recipient_name}},</p>
+	<p>Your account has repeatedly triggered platform content moderation/risk-control rules and has been automatically disabled.</p>`+notificationEmailDataTable(
+				[2]string{"Disabled at", "{{triggered_at}}"},
+				[2]string{"Group", "{{group_name}}"},
+				[2]string{"Category / Score", "{{moderation_category}} / {{moderation_score}}"},
+				[2]string{"Violation count", "{{violation_count}} / {{ban_threshold}}"},
+			)+`
+	<p>Please contact the administrator if you need to appeal or restore access.</p>`),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 账户已被禁用",
-			HTML: notificationEmailCard("#b91c1c", "账户已被禁用", `
-<p>{{recipient_name}}，您好：</p>
-<p>您的账户在统计周期内多次触发平台内容审核/风控规则，系统已自动禁用该账户。</p>
-<table style="width:100%;border-collapse:collapse;">
-  <tr><td>禁用时间</td><td>{{triggered_at}}</td></tr>
-  <tr><td>所属分组</td><td>{{group_name}}</td></tr>
-  <tr><td>命中类别 / 分数</td><td>{{moderation_category}} / {{moderation_score}}</td></tr>
-  <tr><td>累计触发次数</td><td>{{violation_count}} / {{ban_threshold}}</td></tr>
-</table>
-<p>如需申诉或恢复账号，请联系平台管理员处理。</p>`),
+			HTML: notificationEmailCardZH("账户已被禁用", `
+	<p>{{recipient_name}}，您好：</p>
+	<p>您的账户在统计周期内多次触发平台内容审核/风控规则，系统已自动禁用该账户。</p>`+notificationEmailDataTable(
+				[2]string{"禁用时间", "{{triggered_at}}"},
+				[2]string{"所属分组", "{{group_name}}"},
+				[2]string{"命中类别 / 分数", "{{moderation_category}} / {{moderation_score}}"},
+				[2]string{"累计触发次数", "{{violation_count}} / {{ban_threshold}}"},
+			)+`
+	<p>如需申诉或恢复账号，请联系平台管理员处理。</p>`),
 		},
 	},
 	NotificationEmailEventCyberPolicyNotice: {
 		notificationEmailDefaultLocale: {
 			Subject: "[{{site_name}}] Cyber-security policy notice",
-			HTML: notificationEmailCard("#ef4444", "Cyber-security policy notice", `
-<p>Hello {{recipient_name}},</p>
-<p>Your request was blocked by the upstream provider's cyber-security policy.</p>
-<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
-  <tr><td style="width:128px;vertical-align:top;">Triggered at</td><td style="overflow-wrap:anywhere;word-break:break-word;">{{triggered_at}}</td></tr>
-  <tr><td style="width:128px;vertical-align:top;">Model</td><td style="overflow-wrap:anywhere;word-break:break-word;">{{model}}</td></tr>
-  <tr><td style="width:128px;vertical-align:top;">Group</td><td style="overflow-wrap:anywhere;word-break:break-word;">{{group_name}}</td></tr>
-  <tr><td style="width:128px;vertical-align:top;">Upstream message</td><td style="overflow-wrap:anywhere;word-break:break-all;white-space:pre-wrap;">{{upstream_message}}</td></tr>
-</table>
-<p>If you believe this is a mistake, try rephrasing your request, or apply for authorized security access.</p>`),
+			HTML: notificationEmailCard("Cyber-security policy notice", `
+	<p>Hello {{recipient_name}},</p>
+	<p>Your request was blocked by the upstream provider's cyber-security policy.</p>`+notificationEmailDataTable(
+				[2]string{"Triggered at", "{{triggered_at}}"},
+				[2]string{"Model", "{{model}}"},
+				[2]string{"Group", "{{group_name}}"},
+				[2]string{"Upstream message", "{{upstream_message}}"},
+			)+`
+	<p>If you believe this is a mistake, try rephrasing your request, or apply for authorized security access.</p>`),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 网络安全策略拦截提醒",
-			HTML: notificationEmailCard("#ef4444", "网络安全策略拦截提醒", `
-<p>{{recipient_name}}，您好：</p>
-<p>您的请求被上游服务商的网络安全策略（cyber policy）拦截。</p>
-<table style="width:100%;border-collapse:collapse;table-layout:fixed;">
-  <tr><td style="width:128px;vertical-align:top;">触发时间</td><td style="overflow-wrap:anywhere;word-break:break-word;">{{triggered_at}}</td></tr>
-  <tr><td style="width:128px;vertical-align:top;">模型</td><td style="overflow-wrap:anywhere;word-break:break-word;">{{model}}</td></tr>
-  <tr><td style="width:128px;vertical-align:top;">所属分组</td><td style="overflow-wrap:anywhere;word-break:break-word;">{{group_name}}</td></tr>
-  <tr><td style="width:128px;vertical-align:top;">上游说明</td><td style="overflow-wrap:anywhere;word-break:break-all;white-space:pre-wrap;">{{upstream_message}}</td></tr>
-</table>
-<p>如认为系误判，可调整请求措辞后重试，或申请获得授权的安全访问权限。</p>`),
+			HTML: notificationEmailCardZH("网络安全策略拦截提醒", `
+	<p>{{recipient_name}}，您好：</p>
+	<p>您的请求被上游服务商的网络安全策略（cyber policy）拦截。</p>`+notificationEmailDataTable(
+				[2]string{"触发时间", "{{triggered_at}}"},
+				[2]string{"模型", "{{model}}"},
+				[2]string{"所属分组", "{{group_name}}"},
+				[2]string{"上游说明", "{{upstream_message}}"},
+			)+`
+	<p>如认为系误判，可调整请求措辞后重试，或申请获得授权的安全访问权限。</p>`),
 		},
 	},
 	NotificationEmailEventOpsAlert: {
 		notificationEmailDefaultLocale: {
 			Subject: "[Ops Alert][{{severity}}] {{rule_name}}",
-			HTML: notificationEmailCard("#ea580c", "Ops alert", `
-<p><strong>Rule</strong>: {{rule_name}}</p>
-<p><strong>Severity</strong>: {{severity}}</p>
-<p><strong>Status</strong>: {{alert_status}}</p>
-<p><strong>Metric</strong>: {{metric_type}} {{operator}} {{metric_value}} (threshold {{threshold_value}})</p>
-<p><strong>Fired at</strong>: {{triggered_at}}</p>
-<p><strong>Description</strong>: {{alert_description}}</p>`),
+			HTML: notificationEmailCard("Ops alert", notificationEmailDataTable(
+				[2]string{"Rule", "{{rule_name}}"},
+				[2]string{"Severity", "{{severity}}"},
+				[2]string{"Status", "{{alert_status}}"},
+				[2]string{"Metric", "{{metric_type}} {{operator}} {{metric_value}}"},
+				[2]string{"Threshold", "{{threshold_value}}"},
+				[2]string{"Fired at", "{{triggered_at}}"},
+				[2]string{"Description", "{{alert_description}}"},
+			)),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[运维告警][{{severity}}] {{rule_name}}",
-			HTML: notificationEmailCard("#ea580c", "运维告警", `
-<p><strong>规则</strong>：{{rule_name}}</p>
-<p><strong>严重级别</strong>：{{severity}}</p>
-<p><strong>状态</strong>：{{alert_status}}</p>
-<p><strong>指标</strong>：{{metric_type}} {{operator}} {{metric_value}}（阈值 {{threshold_value}}）</p>
-<p><strong>触发时间</strong>：{{triggered_at}}</p>
-<p><strong>说明</strong>：{{alert_description}}</p>`),
+			HTML: notificationEmailCardZH("运维告警", notificationEmailDataTable(
+				[2]string{"规则", "{{rule_name}}"},
+				[2]string{"严重级别", "{{severity}}"},
+				[2]string{"状态", "{{alert_status}}"},
+				[2]string{"指标", "{{metric_type}} {{operator}} {{metric_value}}"},
+				[2]string{"阈值", "{{threshold_value}}"},
+				[2]string{"触发时间", "{{triggered_at}}"},
+				[2]string{"说明", "{{alert_description}}"},
+			)),
 		},
 	},
 	NotificationEmailEventOpsScheduledReport: {
 		notificationEmailDefaultLocale: {
 			Subject: "[Ops Report] {{report_name}}",
-			HTML:    notificationEmailOpsScheduledReportTemplate(notificationEmailDefaultLocale),
+			HTML: notificationEmailCard("Ops report", `
+	<p><strong>Report</strong>: {{report_name}}</p>
+	<p><strong>Type</strong>: {{report_type}}</p>
+	<p><strong>Range</strong>: {{report_start_time}} - {{report_end_time}}</p>
+	<div style="display: {{report_summary_display}};">
+	<p><strong>Request summary</strong>: {{report_total_requests}} total / {{report_success_count}} successful / {{report_sla_error_count}} SLA errors / {{report_business_limited_count}} business limited</p>
+	<p><strong>Reliability</strong>: SLA {{report_sla}}, error rate {{report_error_rate}}, upstream error rate {{report_upstream_error_rate}}</p>
+	<p><strong>Upstream errors</strong>: {{report_upstream_error_count_excl_429_529}} excluding 429/529, 429 {{report_upstream_429_count}}, 529 {{report_upstream_529_count}}</p>
+	<p><strong>Latency</strong>: p50 {{report_latency_p50}}, p99 {{report_latency_p99}}; TTFT p50 {{report_ttft_p50}}, p99 {{report_ttft_p99}}</p>
+	<p><strong>Tokens</strong>: {{report_tokens}}; QPS current/peak/avg {{report_qps_current}} / {{report_qps_peak}} / {{report_qps_avg}}; TPS current/peak/avg {{report_tps_current}} / {{report_tps_peak}} / {{report_tps_avg}}</p>
+	</div>
+	<div style="display: {{report_detail_display}};">{{report_html}}</div>`),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[运维报表] {{report_name}}",
-			HTML:    notificationEmailOpsScheduledReportTemplate(notificationEmailLocaleChinese),
+			HTML: notificationEmailCardZH("运维报表", `
+		<p><strong>报表</strong>：{{report_name}}</p>
+		<p><strong>类型</strong>：{{report_type}}</p>
+		<p><strong>时间范围</strong>：{{report_start_time}} - {{report_end_time}}</p>
+	<div style="display: {{report_summary_display}};">
+	<p><strong>请求概览</strong>：{{report_total_requests}} 总请求 / {{report_success_count}} 成功 / {{report_sla_error_count}} SLA 错误 / {{report_business_limited_count}} 业务限流</p>
+	<p><strong>可靠性</strong>：SLA {{report_sla}}，错误率 {{report_error_rate}}，上游错误率 {{report_upstream_error_rate}}</p>
+	<p><strong>上游错误</strong>：{{report_upstream_error_count_excl_429_529}}（不含 429/529），429 {{report_upstream_429_count}}，529 {{report_upstream_529_count}}</p>
+	<p><strong>延迟</strong>：p50 {{report_latency_p50}}，p99 {{report_latency_p99}}；TTFT p50 {{report_ttft_p50}}，p99 {{report_ttft_p99}}</p>
+	<p><strong>Token</strong>：{{report_tokens}}；QPS 当前/峰值/平均 {{report_qps_current}} / {{report_qps_peak}} / {{report_qps_avg}}；TPS 当前/峰值/平均 {{report_tps_current}} / {{report_tps_peak}} / {{report_tps_avg}}</p>
+	</div>
+	<div style="display: {{report_detail_display}};">{{report_html}}</div>`),
 		},
 	},
 }
 
-func notificationEmailOpsScheduledReportTemplate(locale string) string {
-	if normalizeNotificationLocale(locale) == notificationEmailLocaleChinese {
-		return `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { margin: 0; padding: 24px 12px; background: #f4f6f8; color: #1f2937; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
-    .container { width: 100%; max-width: 680px; margin: 0 auto; background: #ffffff; border: 1px solid #dfe7ea; border-radius: 8px; overflow: hidden; }
-    .header { padding: 28px 32px 24px; background: #0f766e; color: #ffffff; }
-    .eyebrow { margin: 0 0 8px; color: #ccfbf1; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
-    h1 { margin: 0; font-size: 26px; line-height: 1.3; }
-    .header p { margin: 8px 0 0; color: #e6fffb; font-size: 14px; }
-    .content { padding: 28px 32px 32px; }
-    .meta { width: 100%; margin: 0 0 20px; border-collapse: collapse; background: #f8fafc; border: 1px solid #e2e8f0; }
-    .meta td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; vertical-align: top; }
-    .meta tr:last-child td { border-bottom: 0; }
-    .meta-label { width: 112px; color: #64748b; font-weight: 600; }
-    .section-title { margin: 28px 0 12px; color: #0f172a; font-size: 16px; line-height: 1.4; }
-    .metric-grid { width: 100%; border-collapse: separate; border-spacing: 8px; margin: -8px; }
-    .metric-cell { width: 50%; padding: 14px 16px; border: 1px solid #e2e8f0; background: #ffffff; vertical-align: top; }
-    .metric-label { display: block; color: #64748b; font-size: 12px; line-height: 1.4; }
-    .metric-value { display: block; margin-top: 6px; color: #0f172a; font-size: 20px; font-weight: 700; line-height: 1.2; }
-    .metric-value.good { color: #15803d; }
-    .metric-value.alert { color: #b91c1c; }
-    .detail { width: 100%; border-collapse: collapse; }
-    .detail td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
-    .detail td:first-child { width: 56%; color: #475569; }
-    .detail td:last-child { color: #0f172a; font-weight: 600; text-align: right; }
-    .report-detail { margin-top: 28px; }
-    .report-detail:empty { display: none; }
-    .footer { padding: 18px 32px; background: #f8fafc; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 12px; line-height: 1.6; }
-    @media only screen and (max-width: 620px) {
-      body { padding: 0; }
-      .container { border: 0; border-radius: 0; }
-      .header, .content, .footer { padding-left: 20px; padding-right: 20px; }
-      .metric-grid, .metric-grid tbody, .metric-grid tr, .metric-cell { display: block; width: 100% !important; box-sizing: border-box; }
-      .metric-cell { margin: 8px 0; }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <p class="eyebrow">运维报表</p>
-      <h1>{{report_name}}</h1>
-      <p>{{site_name}} 的运行概览</p>
-    </div>
-    <div class="content">
-      <table class="meta" role="presentation">
-        <tr><td class="meta-label">报表</td><td>{{report_name}}</td></tr>
-        <tr><td class="meta-label">类型</td><td>{{report_type}}</td></tr>
-        <tr><td class="meta-label">统计周期</td><td>{{report_start_time}} 至 {{report_end_time}} (UTC)</td></tr>
-      </table>
+func notificationEmailCard(title, content string) string {
+	return notificationEmailCardLocalized(title, content, notificationEmailDefaultLocale)
+}
 
-      <div style="display: {{report_summary_display}};">
-      <h2 class="section-title">请求概览</h2>
-      <table class="metric-grid" role="presentation"><tr>
-        <td class="metric-cell"><span class="metric-label">总请求数</span><span class="metric-value">{{report_total_requests}}</span></td>
-        <td class="metric-cell"><span class="metric-label">成功请求</span><span class="metric-value good">{{report_success_count}}</span></td>
-      </tr><tr>
-        <td class="metric-cell"><span class="metric-label">SLA 错误</span><span class="metric-value alert">{{report_sla_error_count}}</span></td>
-        <td class="metric-cell"><span class="metric-label">业务限流</span><span class="metric-value">{{report_business_limited_count}}</span></td>
-      </tr></table>
+func notificationEmailCardZH(title, content string) string {
+	return notificationEmailCardLocalized(title, content, notificationEmailLocaleChinese)
+}
 
-      <h2 class="section-title">可靠性</h2>
-      <table class="detail" role="presentation">
-        <tr><td>SLA</td><td>{{report_sla}}</td></tr>
-        <tr><td>错误率</td><td>{{report_error_rate}}</td></tr>
-        <tr><td>上游错误率（不含 429 / 529）</td><td>{{report_upstream_error_rate}}</td></tr>
-        <tr><td>上游错误（不含 429 / 529）</td><td>{{report_upstream_error_count_excl_429_529}}</td></tr>
-        <tr><td>上游 429 / 529</td><td>{{report_upstream_429_count}} / {{report_upstream_529_count}}</td></tr>
-      </table>
-
-      <h2 class="section-title">延迟表现</h2>
-      <table class="detail" role="presentation">
-        <tr><td>请求延迟 p50 / p99</td><td>{{report_latency_p50}} / {{report_latency_p99}}</td></tr>
-        <tr><td>首 Token 时间 p50 / p99</td><td>{{report_ttft_p50}} / {{report_ttft_p99}}</td></tr>
-      </table>
-
-      <h2 class="section-title">吞吐量</h2>
-      <table class="detail" role="presentation">
-        <tr><td>Token 消耗</td><td>{{report_tokens}}</td></tr>
-        <tr><td>QPS（当前 / 峰值 / 平均）</td><td>{{report_qps_current}} / {{report_qps_peak}} / {{report_qps_avg}}</td></tr>
-        <tr><td>TPS（当前 / 峰值 / 平均）</td><td>{{report_tps_current}} / {{report_tps_peak}} / {{report_tps_avg}}</td></tr>
-      </table>
-
-      </div>
-      <div class="report-detail" style="display: {{report_detail_display}};">{{report_html}}</div>
-    </div>
-    <div class="footer">此邮件由 {{site_name}} 自动发送，请勿直接回复。</div>
-  </div>
-</body>
-</html>`
+func notificationEmailCardLocalized(title, content, locale string) string {
+	isChinese := normalizeNotificationLocale(locale) == notificationEmailLocaleChinese
+	lang := "en"
+	preheader := "Notification from {{site_name}}"
+	footer := "This email was sent by {{site_name}}. Please do not reply directly."
+	kicker := "{{site_name}} / Dispatch"
+	stamp := "NOTICE"
+	if isChinese {
+		lang = "zh-CN"
+		preheader = "{{site_name}} 的通知邮件"
+		footer = "此邮件由 {{site_name}} 自动发送，请勿直接回复。"
+		kicker = "{{site_name}} / 系统通知"
+		stamp = "通知"
 	}
-
 	return `<!DOCTYPE html>
-<html lang="en">
+<html lang="` + lang + `">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>` + title + `</title>
   <style>
-    body { margin: 0; padding: 24px 12px; background: #f4f6f8; color: #1f2937; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .container { width: 100%; max-width: 680px; margin: 0 auto; background: #ffffff; border: 1px solid #dfe7ea; border-radius: 8px; overflow: hidden; }
-    .header { padding: 28px 32px 24px; background: #0f766e; color: #ffffff; }
-    .eyebrow { margin: 0 0 8px; color: #ccfbf1; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
-    h1 { margin: 0; font-size: 26px; line-height: 1.3; }
-    .header p { margin: 8px 0 0; color: #e6fffb; font-size: 14px; }
-    .content { padding: 28px 32px 32px; }
-    .meta { width: 100%; margin: 0 0 20px; border-collapse: collapse; background: #f8fafc; border: 1px solid #e2e8f0; }
-    .meta td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; vertical-align: top; }
-    .meta tr:last-child td { border-bottom: 0; }
-    .meta-label { width: 112px; color: #64748b; font-weight: 600; }
-    .section-title { margin: 28px 0 12px; color: #0f172a; font-size: 16px; line-height: 1.4; }
-    .metric-grid { width: 100%; border-collapse: separate; border-spacing: 8px; margin: -8px; }
-    .metric-cell { width: 50%; padding: 14px 16px; border: 1px solid #e2e8f0; background: #ffffff; vertical-align: top; }
-    .metric-label { display: block; color: #64748b; font-size: 12px; line-height: 1.4; }
-    .metric-value { display: block; margin-top: 6px; color: #0f172a; font-size: 20px; font-weight: 700; line-height: 1.2; }
-    .metric-value.good { color: #15803d; }
-    .metric-value.alert { color: #b91c1c; }
-    .detail { width: 100%; border-collapse: collapse; }
-    .detail td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
-    .detail td:first-child { width: 56%; color: #475569; }
-    .detail td:last-child { color: #0f172a; font-weight: 600; text-align: right; }
-    .report-detail { margin-top: 28px; }
-    .report-detail:empty { display: none; }
-    .footer { padding: 18px 32px; background: #f8fafc; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 12px; line-height: 1.6; }
-    @media only screen and (max-width: 620px) {
-      body { padding: 0; }
-      .container { border: 0; border-radius: 0; }
-      .header, .content, .footer { padding-left: 20px; padding-right: 20px; }
-      .metric-grid, .metric-grid tbody, .metric-grid tr, .metric-cell { display: block; width: 100% !important; box-sizing: border-box; }
-      .metric-cell { margin: 8px 0; }
+    .email-content p { margin: 0 0 14px 0; }
+    .email-content strong { color: #17130f; }
+    .email-content a { color: #17130f; }
+    @media only screen and (max-width: 640px) {
+      .email-shell { width: 100% !important; }
+      .email-padding { padding: 24px 16px !important; }
+      .email-header { padding: 28px 24px 24px 24px !important; }
+      .email-content { padding: 28px 24px !important; }
+      .email-stamp-cell { display: block !important; width: 100% !important; padding-top: 18px !important; text-align: left !important; }
     }
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <p class="eyebrow">Operations report</p>
-      <h1>{{report_name}}</h1>
-      <p>{{site_name}} runtime overview</p>
-    </div>
-    <div class="content">
-      <table class="meta" role="presentation">
-        <tr><td class="meta-label">Report</td><td>{{report_name}}</td></tr>
-        <tr><td class="meta-label">Type</td><td>{{report_type}}</td></tr>
-        <tr><td class="meta-label">Reporting period</td><td>{{report_start_time}} to {{report_end_time}} (UTC)</td></tr>
-      </table>
-
-      <div style="display: {{report_summary_display}};">
-      <h2 class="section-title">Request Overview</h2>
-      <table class="metric-grid" role="presentation"><tr>
-        <td class="metric-cell"><span class="metric-label">Total Requests</span><span class="metric-value">{{report_total_requests}}</span></td>
-        <td class="metric-cell"><span class="metric-label">Successful Requests</span><span class="metric-value good">{{report_success_count}}</span></td>
-      </tr><tr>
-        <td class="metric-cell"><span class="metric-label">SLA Errors</span><span class="metric-value alert">{{report_sla_error_count}}</span></td>
-        <td class="metric-cell"><span class="metric-label">Business Limited</span><span class="metric-value">{{report_business_limited_count}}</span></td>
-      </tr></table>
-
-      <h2 class="section-title">Reliability</h2>
-      <table class="detail" role="presentation">
-        <tr><td>SLA</td><td>{{report_sla}}</td></tr>
-        <tr><td>Error Rate</td><td>{{report_error_rate}}</td></tr>
-        <tr><td>Upstream Error Rate (excluding 429 / 529)</td><td>{{report_upstream_error_rate}}</td></tr>
-        <tr><td>Upstream Errors (excluding 429 / 529)</td><td>{{report_upstream_error_count_excl_429_529}}</td></tr>
-        <tr><td>Upstream 429 / 529</td><td>{{report_upstream_429_count}} / {{report_upstream_529_count}}</td></tr>
-      </table>
-
-      <h2 class="section-title">Latency</h2>
-      <table class="detail" role="presentation">
-        <tr><td>Request Latency p50 / p99</td><td>{{report_latency_p50}} / {{report_latency_p99}}</td></tr>
-        <tr><td>Time to First Token p50 / p99</td><td>{{report_ttft_p50}} / {{report_ttft_p99}}</td></tr>
-      </table>
-
-      <h2 class="section-title">Throughput</h2>
-      <table class="detail" role="presentation">
-        <tr><td>Tokens Consumed</td><td>{{report_tokens}}</td></tr>
-        <tr><td>QPS (current / peak / average)</td><td>{{report_qps_current}} / {{report_qps_peak}} / {{report_qps_avg}}</td></tr>
-        <tr><td>TPS (current / peak / average)</td><td>{{report_tps_current}} / {{report_tps_peak}} / {{report_tps_avg}}</td></tr>
-      </table>
-
-      </div>
-      <div class="report-detail" style="display: {{report_detail_display}};">{{report_html}}</div>
-    </div>
-    <div class="footer">This email was sent automatically by {{site_name}}. Please do not reply directly.</div>
-  </div>
+<body style="margin:0;padding:0;background-color:#e7decd;color:#17130f;font-family:Georgia,'Times New Roman',serif;-webkit-font-smoothing:antialiased;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;line-height:1px;font-size:1px;">` + preheader + `</div>
+  <center style="width:100%;background-color:#e7decd;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background-color:#e7decd;border-collapse:collapse;">
+      <tr>
+        <td align="center" class="email-padding" style="padding:42px 18px;">
+          <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" class="email-shell" style="width:640px;max-width:640px;border-collapse:separate;background-color:#fffaf0;border:2px solid #17130f;border-radius:0;box-shadow:8px 8px 0 #17130f;">
+            <tr>
+              <td class="email-header" style="padding:34px 36px 30px 36px;color:#17130f;border-bottom:2px solid #17130f;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">
+                  <tr>
+                    <td style="vertical-align:top;padding:0;">
+                      <div style="display:inline-block;padding:5px 8px;border:1px solid #17130f;background-color:#f1e7d4;font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;font-size:11px;line-height:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#17130f;">` + kicker + `</div>
+                      <h1 style="margin:18px 0 0 0;color:#17130f;font-family:Georgia,'Times New Roman',serif;font-size:32px;line-height:38px;font-weight:700;letter-spacing:-0.03em;">` + title + `</h1>
+                    </td>
+                    <td class="email-stamp-cell" align="right" style="vertical-align:top;padding:0 0 0 18px;width:126px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:2px solid #17130f;background-color:#fffaf0;">
+                        <tr>
+                          <td style="padding:10px 12px;text-align:center;font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;font-size:13px;line-height:15px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#17130f;">` + stamp + `</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td class="email-content" style="padding:34px 36px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:1.72;color:#28231d;background-color:#fffaf0;">
+                ` + content + `
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 36px 34px 36px;background-color:#fffaf0;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;border-top:1px dashed #17130f;">
+                  <tr>
+                    <td style="padding-top:18px;color:#6f6759;font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;font-size:11px;line-height:17px;letter-spacing:0.02em;">` + footer + `</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </center>
 </body>
 </html>`
 }
 
-func notificationEmailCard(accent, title, content string) string {
-	return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { margin: 0; padding: 24px; background: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #18181b; }
-    .container { max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 30px rgba(15, 23, 42, 0.10); }
-    .header { background: ` + accent + `; color: #ffffff; padding: 28px 32px; }
-    .header h1 { margin: 0; font-size: 24px; line-height: 1.25; }
-    .content { padding: 32px; font-size: 15px; line-height: 1.7; }
-    .button { display: inline-block; margin-top: 12px; padding: 11px 18px; border-radius: 8px; background: ` + accent + `; color: #ffffff; text-decoration: none; font-weight: 600; }
-    .muted { color: #71717a; font-size: 13px; }
-    .footer { padding: 18px 32px; background: #fafafa; color: #a1a1aa; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header"><h1>` + title + `</h1></div>
-    <div class="content">` + content + `</div>
-    <div class="footer">This email was sent by {{site_name}}. Please do not reply directly.</div>
-  </div>
-</body>
-</html>`
+func notificationEmailButton(href, label string) string {
+	return `<a href="` + href + `" style="display:inline-block;padding:12px 18px;border:2px solid #17130f;background-color:#17130f;color:#fffaf0;text-decoration:none;font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;font-weight:800;font-size:13px;line-height:18px;letter-spacing:0.04em;text-transform:uppercase;box-shadow:4px 4px 0 #d2c5ad;">` + label + `</a>`
+}
+
+func notificationEmailCodeBlock() string {
+	return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0 22px 0;border-collapse:separate;background-color:#f1e7d4;border:2px dashed #17130f;">
+  <tr>
+    <td align="center" style="padding:10px 18px 0 18px;font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;font-size:10px;line-height:14px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#6f6759;">Security Code</td>
+  </tr>
+  <tr>
+    <td align="center" style="padding:6px 18px 20px 18px;">
+      <span style="display:inline-block;color:#17130f;font-size:38px;line-height:44px;font-weight:900;letter-spacing:0.24em;font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;">{{verification_code}}</span>
+    </td>
+  </tr>
+</table>`
+}
+
+func notificationEmailDataTable(rows ...[2]string) string {
+	var builder strings.Builder
+	_, _ = builder.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:18px 0 22px 0;border-collapse:collapse;table-layout:fixed;border:2px solid #17130f;background-color:#fffaf0;">`)
+	for i, row := range rows {
+		border := "border-top:1px solid #17130f;"
+		if i == 0 {
+			border = ""
+		}
+		_, _ = builder.WriteString(`<tr>`)
+		_, _ = builder.WriteString(`<td style="width:38%;padding:11px 13px;` + border + `border-right:1px solid #17130f;background-color:#f1e7d4;color:#5f574b;font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;font-size:11px;line-height:17px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;">` + row[0] + `</td>`)
+		_, _ = builder.WriteString(`<td style="padding:11px 13px;` + border + `color:#17130f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;line-height:20px;font-weight:700;overflow-wrap:anywhere;word-break:break-all;">` + row[1] + `</td>`)
+		_, _ = builder.WriteString(`</tr>`)
+	}
+	_, _ = builder.WriteString(`</table>`)
+	return builder.String()
 }

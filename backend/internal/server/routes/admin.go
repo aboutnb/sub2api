@@ -76,6 +76,9 @@ func RegisterAdminRoutes(
 		// 系统设置
 		registerSettingsRoutes(admin, h)
 
+		// 每日签到
+		registerAdminCheckinRoutes(admin, h, stepUpAuth)
+
 		// 数据管理
 		registerDataManagementRoutes(admin, h, stepUpAuth)
 
@@ -93,6 +96,9 @@ func RegisterAdminRoutes(
 
 		// 使用记录管理
 		registerUsageRoutes(admin, h)
+
+		// 邮件群发任务
+		registerEmailBroadcastRoutes(admin, h)
 
 		// 用户属性管理
 		registerUserAttributeRoutes(admin, h)
@@ -130,6 +136,43 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+
+		// 登录来源自动封禁
+		registerAuthIPBanRoutes(admin, h)
+	}
+}
+
+func registerEmailBroadcastRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	broadcasts := admin.Group("/email-broadcasts")
+	{
+		broadcasts.GET("", h.Admin.EmailBroadcast.List)
+		broadcasts.GET("/estimate", h.Admin.EmailBroadcast.Estimate)
+		broadcasts.POST("/estimate", h.Admin.EmailBroadcast.EstimateFiltered)
+		broadcasts.POST("", h.Admin.EmailBroadcast.Create)
+		broadcasts.POST("/test", h.Admin.EmailBroadcast.Test)
+		broadcasts.GET("/:id", h.Admin.EmailBroadcast.Get)
+		broadcasts.GET("/:id/recipients", h.Admin.EmailBroadcast.ListRecipients)
+		broadcasts.POST("/:id/cancel", h.Admin.EmailBroadcast.Cancel)
+		broadcasts.POST("/:id/retry-failed", h.Admin.EmailBroadcast.RetryFailed)
+	}
+}
+
+func registerAdminCheckinRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
+	checkin := admin.Group("/checkin")
+	{
+		checkin.GET("/config", h.Admin.Checkin.GetConfig)
+		checkin.PUT("/config", gin.HandlerFunc(stepUpAuth), h.Admin.Checkin.UpdateConfig)
+		checkin.GET("/overview", h.Admin.Checkin.GetOverview)
+		checkin.GET("/records", h.Admin.Checkin.GetRecords)
+	}
+}
+
+func registerAuthIPBanRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	bans := admin.Group("/auth-ip-bans")
+	{
+		bans.GET("", h.Admin.AuthIPBan.List)
+		bans.GET("/policy", h.Admin.AuthIPBan.Policy)
+		bans.POST("/:id/release", h.Admin.AuthIPBan.Release)
 	}
 }
 
@@ -513,6 +556,12 @@ func registerProxyRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth
 		// 代理导出泄露账号密码原文——要求 step-up 2FA
 		proxies.GET("/data", gin.HandlerFunc(stepUpAuth), h.Admin.Proxy.ExportData)
 		proxies.POST("/data", h.Admin.Proxy.ImportData)
+		proxies.GET("/project-mihomo", h.Admin.Proxy.GetProjectMihomo)
+		proxies.PUT("/project-mihomo", h.Admin.Proxy.UpdateProjectMihomo)
+		proxies.POST("/project-mihomo/sync", h.Admin.Proxy.SyncProjectMihomo)
+		proxies.POST("/project-mihomo/test-nodes", h.Admin.Proxy.TestProjectMihomoNodes)
+		proxies.POST("/project-mihomo/test-selected-nodes", h.Admin.Proxy.TestProjectMihomoSelectedNodes)
+		proxies.POST("/project-mihomo/test-node", h.Admin.Proxy.TestProjectMihomoNode)
 		proxies.GET("/:id", h.Admin.Proxy.GetByID)
 		proxies.POST("", h.Admin.Proxy.Create)
 		proxies.PUT("/:id", h.Admin.Proxy.Update)

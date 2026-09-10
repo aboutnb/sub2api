@@ -165,10 +165,13 @@ export default {
   nav: {
     dashboard: '仪表盘',
     announcements: '公告',
+    emailBroadcasts: '邮件群发',
+    communityGroup: '交流群',
     apiKeys: 'API 密钥',
     batchImage: '批量生图',
     usage: '使用记录',
     redeem: '兑换',
+    checkin: '签到中心',
     affiliate: '邀请返利',
     affiliateManagement: '邀请返利',
     affiliateInviteRecords: '邀请记录',
@@ -197,6 +200,7 @@ export default {
     github: 'GitHub',
     mySubscriptions: '我的订阅',
     buySubscription: '充值/订阅',
+    usdtRecharge: 'USDT 充值',
     docs: '文档',
     myOrders: '我的订单',
     orderManagement: '订单管理',
@@ -211,6 +215,7 @@ export default {
     securityAudit: '安全审计',
     contentModeration: '内容审核',
     promptAudit: '提示词审计',
+    loginProtection: '登录防护',
     auditLogs: '操作日志',
   },
 
@@ -246,6 +251,11 @@ export default {
     loginFailed: '登录失败，请检查您的凭据后重试。',
     errors: {
       USER_NOT_ACTIVE: '账号已被禁用',
+      REGISTRATION_CHALLENGE_REQUIRED: '注册验证缺失，请重试。',
+      REGISTRATION_CHALLENGE_INVALID: '注册验证已失效，请刷新页面后重试。',
+      REGISTRATION_CHALLENGE_INIT_FAILED: '注册验证初始化失败，请检查网络后重试。',
+      REGISTRATION_TOO_MANY_ATTEMPTS: '注册尝试过于频繁，请稍后再试。',
+      REGISTRATION_RISK_CONTROL_UNAVAILABLE: '注册验证服务暂时不可用，请稍后再试。',
     },
     registrationFailed: '注册失败，请重试。',
     emailDomainRegistrationLimit:

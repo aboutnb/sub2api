@@ -80,6 +80,16 @@ describe("admin settings auth source defaults helpers", () => {
     expect(state.wechat.grant_on_signup).toBe(false);
   });
 
+  it("preserves 0 unlimited and -1 deny-all concurrency values", () => {
+    const state = buildAuthSourceDefaultsState({
+      auth_source_default_email_concurrency: 0,
+      auth_source_default_linuxdo_concurrency: -1,
+    });
+
+    expect(state.email.concurrency).toBe(0);
+    expect(state.linuxdo.concurrency).toBe(-1);
+  });
+
   it("reads nested platform_quotas from settings into auth source state", () => {
     const state = buildAuthSourceDefaultsState({
       auth_source_default_email_platform_quotas: {
@@ -196,6 +206,29 @@ describe("admin settings auth source defaults helpers", () => {
       auth_source_default_google_platform_quotas: allNullQuotas,
       auth_source_default_dingtalk_platform_quotas: allNullQuotas,
     });
+  });
+
+  it("submits 0 and -1 concurrency values without rewriting them", () => {
+    const payload: UpdateSettingsRequest = {};
+    const base = {
+      balance: 0,
+      subscriptions: [],
+      grant_on_signup: false,
+      grant_on_first_bind: false,
+      platform_quotas: {},
+    };
+    appendAuthSourceDefaultsToUpdateRequest(payload, {
+      email: { ...base, concurrency: 0 },
+      linuxdo: { ...base, concurrency: -1 },
+      oidc: { ...base, concurrency: 5 },
+      wechat: { ...base, concurrency: 5 },
+      github: { ...base, concurrency: 5 },
+      google: { ...base, concurrency: 5 },
+      dingtalk: { ...base, concurrency: 5 },
+    });
+
+    expect(payload.auth_source_default_email_concurrency).toBe(0);
+    expect(payload.auth_source_default_linuxdo_concurrency).toBe(-1);
   });
 
   it("appends sanitized nested platform_quotas with non-null values in update payload", () => {

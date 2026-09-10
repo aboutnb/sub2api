@@ -1097,6 +1097,54 @@ var (
 			},
 		},
 	}
+	// InvoiceApplicationsColumns holds the columns for the "invoice_applications" table.
+	InvoiceApplicationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "order_ids", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "order_nos", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "need_pay_tax", Type: field.TypeBool, Default: false},
+		{Name: "tax_order_nos", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "validation_snapshot", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "external_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "status", Type: field.TypeString, Size: 32, Default: "draft"},
+		{Name: "title", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "recipient_email", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "total_amount", Type: field.TypeString, Size: 32, Default: ""},
+		{Name: "currency", Type: field.TypeString, Size: 8, Default: "CNY"},
+		{Name: "external_snapshot", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "request_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "error_code", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "error_message", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// InvoiceApplicationsTable holds the schema information for the "invoice_applications" table.
+	InvoiceApplicationsTable = &schema.Table{
+		Name:       "invoice_applications",
+		Columns:    InvoiceApplicationsColumns,
+		PrimaryKey: []*schema.Column{InvoiceApplicationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "invoiceapplication_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{InvoiceApplicationsColumns[1], InvoiceApplicationsColumns[17]},
+			},
+			{
+				Name:    "invoiceapplication_user_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{InvoiceApplicationsColumns[1], InvoiceApplicationsColumns[8]},
+			},
+			{
+				Name:    "invoiceapplication_external_id",
+				Unique:  true,
+				Columns: []*schema.Column{InvoiceApplicationsColumns[7]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "external_id IS NOT NULL AND external_id <> ''",
+				},
+			},
+		},
+	}
 	// PaymentAuditLogsColumns holds the columns for the "payment_audit_logs" table.
 	PaymentAuditLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -2107,6 +2155,7 @@ var (
 		GroupsTable,
 		IdempotencyRecordsTable,
 		IdentityAdoptionDecisionsTable,
+		InvoiceApplicationsTable,
 		PaymentAuditLogsTable,
 		PaymentOrdersTable,
 		PaymentProviderInstancesTable,
@@ -2203,6 +2252,9 @@ func init() {
 	IdentityAdoptionDecisionsTable.ForeignKeys[1].RefTable = PendingAuthSessionsTable
 	IdentityAdoptionDecisionsTable.Annotation = &entsql.Annotation{
 		Table: "identity_adoption_decisions",
+	}
+	InvoiceApplicationsTable.Annotation = &entsql.Annotation{
+		Table: "invoice_applications",
 	}
 	PaymentAuditLogsTable.Annotation = &entsql.Annotation{
 		Table: "payment_audit_logs",

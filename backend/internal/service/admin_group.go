@@ -1330,6 +1330,7 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 	}
 
 	result := &AdminUpdateAPIKeyGroupIDResult{}
+	mayHaveSmartRoute := apiKey.GroupID == nil && s.smartRouteRepo != nil
 
 	if *groupID == 0 {
 		// 0 表示解绑分组（不修改 user_allowed_groups，避免影响用户其他 Key）
@@ -1383,6 +1384,11 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 			if err := s.apiKeyRepo.Update(opCtx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {
 				return nil, fmt.Errorf("update api key: %w", err)
 			}
+			if mayHaveSmartRoute {
+				if err := s.smartRouteRepo.Delete(opCtx, keyID); err != nil {
+					return nil, fmt.Errorf("delete smart route config: %w", err)
+				}
+			}
 			if tx != nil {
 				if err := tx.Commit(); err != nil {
 					return nil, fmt.Errorf("commit transaction: %w", err)
@@ -1397,20 +1403,41 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 			if s.authCacheInvalidator != nil {
 				s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
 			}
+			if mayHaveSmartRoute {
+				s.smartRouteRepo.Invalidate(ctx, keyID)
+			}
 
 			result.APIKey = apiKey
 			return result, nil
 		}
 	}
 
-	// 非专属分组 / 解绑：无需事务，单步更新即可
-	if err := s.apiKeyRepo.Update(ctx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {
-		return nil, fmt.Errorf("update api key: %w", err)
+	// A direct group assignment always converts the key back to legacy mode.
+	update := func(opCtx context.Context) error {
+		if err := s.apiKeyRepo.Update(opCtx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {
+			return fmt.Errorf("update api key: %w", err)
+		}
+		if mayHaveSmartRoute {
+			if err := s.smartRouteRepo.Delete(opCtx, keyID); err != nil {
+				return fmt.Errorf("delete smart route config: %w", err)
+			}
+		}
+		return nil
+	}
+	if mayHaveSmartRoute {
+		if err := s.smartRouteRepo.WithinTransaction(ctx, update); err != nil {
+			return nil, err
+		}
+	} else if err := update(ctx); err != nil {
+		return nil, err
 	}
 
 	// 失效认证缓存
 	if s.authCacheInvalidator != nil {
 		s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
+	}
+	if mayHaveSmartRoute {
+		s.smartRouteRepo.Invalidate(ctx, keyID)
 	}
 
 	result.APIKey = apiKey

@@ -1,0 +1,19 @@
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    container_name: ${COMPOSE_NAME:-flowai-preview}-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.flowai:/etc/caddy/Caddyfile:ro
+      - ${CADDY_DATA_DIR:-/root/flowai-preview-data/caddy/data}:/data
+      - ${CADDY_CONFIG_DIR:-/root/flowai-preview-data/caddy/config}:/config
+    networks:
+      - preview-network
+
+networks:
+  preview-network:
+    external: true
+    name: ${COMPOSE_NAME:-flowai-preview}-network

@@ -17,11 +17,12 @@ const (
 
 // EmailTask 邮件发送任务
 type EmailTask struct {
-	Email    string
-	SiteName string
-	TaskType string // "verify_code" or "password_reset"
-	ResetURL string // Only used for password_reset task type
-	Locale   string // Optional Accept-Language locale hint
+	Email                       string
+	SiteName                    string
+	TaskType                    string // "verify_code" or "password_reset"
+	ResetURL                    string // Only used for password_reset task type
+	Locale                      string // Optional Accept-Language locale hint
+	RegistrationVerificationCtx *RegistrationVerificationContext
 }
 
 // EmailQueueService 异步邮件队列服务
@@ -80,6 +81,9 @@ func (s *EmailQueueService) worker(id int) {
 func (s *EmailQueueService) processTask(workerID int, task EmailTask) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	if task.RegistrationVerificationCtx != nil {
+		ctx = WithRegistrationVerificationContext(ctx, *task.RegistrationVerificationCtx)
+	}
 
 	switch task.TaskType {
 	case TaskTypeVerifyCode:
@@ -101,11 +105,18 @@ func (s *EmailQueueService) processTask(workerID int, task EmailTask) {
 
 // EnqueueVerifyCode 将验证码发送任务加入队列
 func (s *EmailQueueService) EnqueueVerifyCode(email, siteName string, locale ...string) error {
+	return s.EnqueueVerifyCodeWithContext(context.Background(), email, siteName, locale...)
+}
+
+func (s *EmailQueueService) EnqueueVerifyCodeWithContext(ctx context.Context, email, siteName string, locale ...string) error {
 	task := EmailTask{
 		Email:    email,
 		SiteName: siteName,
 		TaskType: TaskTypeVerifyCode,
 		Locale:   firstEmailLocale(locale),
+	}
+	if registrationCtx, ok := registrationVerificationContextFrom(ctx); ok {
+		task.RegistrationVerificationCtx = &registrationCtx
 	}
 
 	select {

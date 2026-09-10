@@ -35,6 +35,8 @@ type ImageTaskRecord struct {
 	ID          string          `json:"id"`
 	UserID      int64           `json:"user_id"`
 	APIKeyID    int64           `json:"api_key_id"`
+	GroupID     int64           `json:"group_id,omitempty"`
+	Platform    string          `json:"platform,omitempty"`
 	Status      string          `json:"status"`
 	HTTPStatus  int             `json:"http_status,omitempty"`
 	Result      json.RawMessage `json:"result,omitempty"`
@@ -62,6 +64,8 @@ type ImageTask struct {
 type ImageTaskOwner struct {
 	UserID   int64
 	APIKeyID int64
+	GroupID  int64
+	Platform string
 }
 
 type ImageTaskStore interface {
@@ -159,6 +163,8 @@ func (s *ImageTaskService) Create(ctx context.Context, owner ImageTaskOwner) (*I
 		ID:        "imgtask_" + strings.ReplaceAll(uuid.NewString(), "-", ""),
 		UserID:    owner.UserID,
 		APIKeyID:  owner.APIKeyID,
+		GroupID:   owner.GroupID,
+		Platform:  owner.Platform,
 		Status:    ImageTaskStatusProcessing,
 		CreatedAt: now.Unix(),
 		ExpiresAt: now.Add(s.ttl).Unix(),
@@ -185,6 +191,22 @@ func (s *ImageTaskService) Get(ctx context.Context, owner ImageTaskOwner, id str
 		return nil, ErrImageTaskNotFound
 	}
 	return imageTaskToPublic(task), nil
+}
+
+// RoutingGroup returns the group captured when a task was submitted. It uses
+// the same ownership check as Get and never exposes another key's task.
+func (s *ImageTaskService) RoutingGroup(ctx context.Context, owner ImageTaskOwner, id string) (int64, error) {
+	if s == nil || s.store == nil {
+		return 0, ErrImageTaskUnavailable
+	}
+	task, err := s.store.Get(ctx, strings.TrimSpace(id))
+	if err != nil {
+		return 0, err
+	}
+	if task.UserID != owner.UserID || task.APIKeyID != owner.APIKeyID {
+		return 0, ErrImageTaskNotFound
+	}
+	return task.GroupID, nil
 }
 
 func (s *ImageTaskService) Complete(ctx context.Context, id string, statusCode int, result json.RawMessage) error {

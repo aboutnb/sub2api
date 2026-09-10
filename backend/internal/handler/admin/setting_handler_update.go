@@ -158,6 +158,9 @@ type UpdateSettingsRequest struct {
 	SiteSubtitle                string                `json:"site_subtitle"`
 	APIBaseURL                  string                `json:"api_base_url"`
 	ContactInfo                 string                `json:"contact_info"`
+	CommunityGroupName          string                `json:"community_group_name"`
+	CommunityGroupIcon          string                `json:"community_group_icon"`
+	CommunityGroupURL           string                `json:"community_group_url"`
 	DocURL                      string                `json:"doc_url"`
 	HomeContent                 string                `json:"home_content"`
 	CompactHomeEnabled          bool                  `json:"compact_home_enabled"`
@@ -299,22 +302,26 @@ type UpdateSettingsRequest struct {
 	AccountQuotaNotifyEmails        *[]dto.NotifyEmailEntry `json:"account_quota_notify_emails"`
 
 	// Payment configuration (integrated into settings, full replace)
-	PaymentEnabled                   *bool    `json:"payment_enabled"`
-	PaymentMinAmount                 *float64 `json:"payment_min_amount"`
-	PaymentMaxAmount                 *float64 `json:"payment_max_amount"`
-	PaymentDailyLimit                *float64 `json:"payment_daily_limit"`
-	PaymentOrderTimeoutMin           *int     `json:"payment_order_timeout_minutes"`
-	PaymentMaxPendingOrders          *int     `json:"payment_max_pending_orders"`
-	PaymentEnabledTypes              []string `json:"payment_enabled_types"`
-	PaymentBalanceDisabled           *bool    `json:"payment_balance_disabled"`
-	PaymentBalanceRechargeMultiplier *float64 `json:"payment_balance_recharge_multiplier"`
-	PaymentSubscriptionUSDToCNYRate  *float64 `json:"payment_subscription_usd_to_cny_rate"`
-	PaymentRechargeFeeRate           *float64 `json:"payment_recharge_fee_rate"`
-	PaymentLoadBalanceStrat          *string  `json:"payment_load_balance_strategy"`
-	PaymentProductNamePrefix         *string  `json:"payment_product_name_prefix"`
-	PaymentProductNameSuffix         *string  `json:"payment_product_name_suffix"`
-	PaymentHelpImageURL              *string  `json:"payment_help_image_url"`
-	PaymentHelpText                  *string  `json:"payment_help_text"`
+	PaymentEnabled                   *bool                       `json:"payment_enabled"`
+	PaymentMinAmount                 *float64                    `json:"payment_min_amount"`
+	PaymentUSDTMinAmount             *float64                    `json:"payment_usdt_min_amount"`
+	PaymentMaxAmount                 *float64                    `json:"payment_max_amount"`
+	PaymentDailyLimit                *float64                    `json:"payment_daily_limit"`
+	PaymentOrderTimeoutMin           *int                        `json:"payment_order_timeout_minutes"`
+	PaymentMaxPendingOrders          *int                        `json:"payment_max_pending_orders"`
+	PaymentEnabledTypes              []string                    `json:"payment_enabled_types"`
+	PaymentBalanceDisabled           *bool                       `json:"payment_balance_disabled"`
+	PaymentBalanceRechargeMultiplier *float64                    `json:"payment_balance_recharge_multiplier"`
+	PaymentRechargeBonusTiers        []service.RechargeBonusTier `json:"payment_recharge_bonus_tiers"`
+	PaymentSubscriptionUSDToCNYRate  *float64                    `json:"payment_subscription_usd_to_cny_rate"`
+	PaymentSubscriptionFeeEnabled    *bool                       `json:"payment_subscription_fee_enabled"`
+	PaymentRechargeFeeRate           *float64                    `json:"payment_recharge_fee_rate"`
+	PaymentRechargeFeeCredited       *bool                       `json:"payment_recharge_fee_credited"`
+	PaymentLoadBalanceStrat          *string                     `json:"payment_load_balance_strategy"`
+	PaymentProductNamePrefix         *string                     `json:"payment_product_name_prefix"`
+	PaymentProductNameSuffix         *string                     `json:"payment_product_name_suffix"`
+	PaymentHelpImageURL              *string                     `json:"payment_help_image_url"`
+	PaymentHelpText                  *string                     `json:"payment_help_text"`
 
 	// Cancel rate limit
 	PaymentCancelRateLimitEnabled *bool   `json:"payment_cancel_rate_limit_enabled"`
@@ -327,6 +334,14 @@ type UpdateSettingsRequest struct {
 	PaymentAlipayForceQRCode *bool `json:"payment_alipay_force_qrcode"`
 	// Use Alipay face-to-face precreate and an app deep link on mobile clients.
 	PaymentAlipayMobilePrecreateDeepLink *bool `json:"payment_alipay_mobile_precreate_deep_link"`
+
+	// XZNOAuth self-service invoice integration.
+	InvoiceEnabled        *bool   `json:"invoice_enabled"`
+	InvoiceBaseURL        *string `json:"invoice_base_url"`
+	InvoiceClientID       *string `json:"invoice_client_id"`
+	InvoiceClientSecret   *string `json:"invoice_client_secret"`
+	InvoiceTimeoutSeconds *int    `json:"invoice_timeout_seconds"`
+	InvoiceFeePayer       *string `json:"invoice_fee_payer"`
 
 	// Channel Monitor feature switch
 	ChannelMonitorEnabled                *bool   `json:"channel_monitor_enabled"`
@@ -343,6 +358,12 @@ type UpdateSettingsRequest struct {
 
 	// Available Channels feature switch (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
+
+	// Smart routing feature switch (opt-in)
+	SmartRoutingEnabled *bool `json:"smart_routing_enabled"`
+
+	// User-facing subscription page and sidebar entry
+	UserSubscriptionsEnabled *bool `json:"user_subscriptions_enabled"`
 
 	// Model Plaza feature switches + description
 	ModelPlazaEnabled     *bool   `json:"model_plaza_enabled"`
@@ -553,8 +574,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 
 	// 验证参数
-	if req.DefaultConcurrency < 1 {
-		req.DefaultConcurrency = 1
+	if req.DefaultConcurrency < -1 {
+		// -1 is the explicit deny-all value; normalize smaller invalid values to
+		// it so malformed admin payloads fail closed instead of becoming unlimited.
+		req.DefaultConcurrency = -1
 	}
 	if req.DefaultBalance < 0 {
 		req.DefaultBalance = 0
@@ -1227,7 +1250,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if req.PurchaseSubscriptionURL != nil {
 		purchaseURL = strings.TrimSpace(*req.PurchaseSubscriptionURL)
 	}
-
 	// - 启用时要求 URL 合法且非空
 	// - 禁用时允许为空；若提供了 URL 也做基本校验，避免误配置
 	if purchaseEnabled {
@@ -1619,6 +1641,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SiteSubtitle:                           req.SiteSubtitle,
 		APIBaseURL:                             req.APIBaseURL,
 		ContactInfo:                            req.ContactInfo,
+		CommunityGroupName:                     req.CommunityGroupName,
+		CommunityGroupIcon:                     req.CommunityGroupIcon,
+		CommunityGroupURL:                      req.CommunityGroupURL,
 		DocURL:                                 req.DocURL,
 		HomeContent:                            req.HomeContent,
 		CompactHomeEnabled:                     req.CompactHomeEnabled,
@@ -1937,6 +1962,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AvailableChannelsEnabled
 		}(),
+		SmartRoutingEnabled: func() bool {
+			if req.SmartRoutingEnabled != nil {
+				return *req.SmartRoutingEnabled
+			}
+			return previousSettings.SmartRoutingEnabled
+		}(),
+		UserSubscriptionsEnabled: func() bool {
+			if req.UserSubscriptionsEnabled != nil {
+				return *req.UserSubscriptionsEnabled
+			}
+			return previousSettings.UserSubscriptionsEnabled
+		}(),
 		ModelPlazaEnabled: func() bool {
 			if req.ModelPlazaEnabled != nil {
 				return *req.ModelPlazaEnabled
@@ -2070,6 +2107,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		paymentReq := service.UpdatePaymentConfigRequest{
 			Enabled:                       req.PaymentEnabled,
 			MinAmount:                     req.PaymentMinAmount,
+			USDTMinAmount:                 req.PaymentUSDTMinAmount,
 			MaxAmount:                     req.PaymentMaxAmount,
 			DailyLimit:                    req.PaymentDailyLimit,
 			OrderTimeoutMin:               req.PaymentOrderTimeoutMin,
@@ -2077,8 +2115,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			EnabledTypes:                  req.PaymentEnabledTypes,
 			BalanceDisabled:               req.PaymentBalanceDisabled,
 			BalanceRechargeMultiplier:     req.PaymentBalanceRechargeMultiplier,
+			RechargeBonusTiers:            req.PaymentRechargeBonusTiers,
 			SubscriptionUSDToCNYRate:      req.PaymentSubscriptionUSDToCNYRate,
+			SubscriptionFeeEnabled:        req.PaymentSubscriptionFeeEnabled,
 			RechargeFeeRate:               req.PaymentRechargeFeeRate,
+			RechargeFeeCredited:           req.PaymentRechargeFeeCredited,
 			LoadBalanceStrategy:           req.PaymentLoadBalanceStrat,
 			ProductNamePrefix:             req.PaymentProductNamePrefix,
 			ProductNameSuffix:             req.PaymentProductNameSuffix,
@@ -2099,6 +2140,36 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		// Refresh in-memory provider registry so config changes take effect immediately
 		if h.paymentService != nil {
 			h.paymentService.RefreshProviders(c.Request.Context())
+		}
+	}
+
+	if h.invoiceSettingsService != nil && hasInvoiceFields(req) {
+		invoiceSettings, err := h.invoiceSettingsService.GetAdminSettings(c.Request.Context())
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		if req.InvoiceEnabled != nil {
+			invoiceSettings.Enabled = *req.InvoiceEnabled
+		}
+		if req.InvoiceBaseURL != nil {
+			invoiceSettings.BaseURL = *req.InvoiceBaseURL
+		}
+		if req.InvoiceClientID != nil {
+			invoiceSettings.ClientID = *req.InvoiceClientID
+		}
+		if req.InvoiceClientSecret != nil {
+			invoiceSettings.ClientSecret = *req.InvoiceClientSecret
+		}
+		if req.InvoiceTimeoutSeconds != nil {
+			invoiceSettings.TimeoutSeconds = *req.InvoiceTimeoutSeconds
+		}
+		if req.InvoiceFeePayer != nil {
+			invoiceSettings.FeePayer = *req.InvoiceFeePayer
+		}
+		if _, err := h.invoiceSettingsService.Update(c.Request.Context(), *invoiceSettings); err != nil {
+			response.ErrorFrom(c, err)
+			return
 		}
 	}
 
@@ -2130,7 +2201,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		updatedPaymentCfg, _ = h.paymentConfigService.GetPaymentConfig(c.Request.Context())
 	}
 	if updatedPaymentCfg == nil {
-		updatedPaymentCfg = &service.PaymentConfig{}
+		updatedPaymentCfg = &service.PaymentConfig{SubscriptionFeeEnabled: true}
+	}
+	updatedInvoiceSettings := &service.InvoiceAdminSettings{
+		TimeoutSeconds: 15,
+		FeePayer:       service.InvoiceFeePayerCustomer,
+	}
+	if h.invoiceSettingsService != nil {
+		updatedInvoiceSettings, err = h.invoiceSettingsService.GetAdminSettings(c.Request.Context())
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
 	}
 	passkeyConfigured, passkeyRPID, passkeyRPOrigins := h.settingService.PasskeyConfiguration()
 
@@ -2253,6 +2335,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SiteSubtitle:                                           updatedSettings.SiteSubtitle,
 		APIBaseURL:                                             updatedSettings.APIBaseURL,
 		ContactInfo:                                            updatedSettings.ContactInfo,
+		CommunityGroupName:                                     updatedSettings.CommunityGroupName,
+		CommunityGroupIcon:                                     updatedSettings.CommunityGroupIcon,
+		CommunityGroupURL:                                      updatedSettings.CommunityGroupURL,
 		DocURL:                                                 updatedSettings.DocURL,
 		HomeContent:                                            updatedSettings.HomeContent,
 		CompactHomeEnabled:                                     updatedSettings.CompactHomeEnabled,
@@ -2346,6 +2431,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AccountQuotaNotifyEmails:                               dto.NotifyEmailEntriesFromService(updatedSettings.AccountQuotaNotifyEmails),
 		PaymentEnabled:                                         updatedPaymentCfg.Enabled,
 		PaymentMinAmount:                                       updatedPaymentCfg.MinAmount,
+		PaymentUSDTMinAmount:                                   updatedPaymentCfg.USDTMinAmount,
 		PaymentMaxAmount:                                       updatedPaymentCfg.MaxAmount,
 		PaymentDailyLimit:                                      updatedPaymentCfg.DailyLimit,
 		PaymentOrderTimeoutMin:                                 updatedPaymentCfg.OrderTimeoutMin,
@@ -2353,8 +2439,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PaymentEnabledTypes:                                    updatedPaymentCfg.EnabledTypes,
 		PaymentBalanceDisabled:                                 updatedPaymentCfg.BalanceDisabled,
 		PaymentBalanceRechargeMultiplier:                       updatedPaymentCfg.BalanceRechargeMultiplier,
+		PaymentRechargeBonusTiers:                              updatedPaymentCfg.RechargeBonusTiers,
 		PaymentSubscriptionUSDToCNYRate:                        updatedPaymentCfg.SubscriptionUSDToCNYRate,
+		PaymentSubscriptionFeeEnabled:                          updatedPaymentCfg.SubscriptionFeeEnabled,
 		PaymentRechargeFeeRate:                                 updatedPaymentCfg.RechargeFeeRate,
+		PaymentRechargeFeeCredited:                             updatedPaymentCfg.RechargeFeeCredited,
 		PaymentLoadBalanceStrat:                                updatedPaymentCfg.LoadBalanceStrategy,
 		PaymentProductNamePrefix:                               updatedPaymentCfg.ProductNamePrefix,
 		PaymentProductNameSuffix:                               updatedPaymentCfg.ProductNameSuffix,
@@ -2367,6 +2456,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PaymentCancelRateLimitMode:                             updatedPaymentCfg.CancelRateLimitMode,
 		PaymentAlipayForceQRCode:                               updatedPaymentCfg.AlipayForceQRCode,
 		PaymentAlipayMobilePrecreateDeepLink:                   updatedPaymentCfg.AlipayMobilePrecreateDeepLink,
+		InvoiceEnabled:                                         updatedInvoiceSettings.Enabled,
+		InvoiceBaseURL:                                         updatedInvoiceSettings.BaseURL,
+		InvoiceClientID:                                        updatedInvoiceSettings.ClientID,
+		InvoiceClientSecretConfigured:                          updatedInvoiceSettings.ClientSecretConfigured,
 
 		ChannelMonitorEnabled:                updatedSettings.ChannelMonitorEnabled,
 		ChannelMonitorMode:                   updatedSettings.ChannelMonitorMode,
@@ -2380,6 +2473,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		GrokDefaultBaseURLMode:         updatedSettings.GrokDefaultBaseURLMode,
 
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
+		SmartRoutingEnabled:      updatedSettings.SmartRoutingEnabled,
+		UserSubscriptionsEnabled: updatedSettings.UserSubscriptionsEnabled,
 
 		ModelPlazaEnabled:       updatedSettings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:   updatedSettings.ModelPlazaRequireAuth,
@@ -2423,18 +2518,24 @@ func mapDingTalkValidateError(err error) string {
 }
 
 func hasPaymentFields(req UpdateSettingsRequest) bool {
-	return req.PaymentEnabled != nil || req.PaymentMinAmount != nil ||
+	return req.PaymentEnabled != nil || req.PaymentMinAmount != nil || req.PaymentUSDTMinAmount != nil ||
 		req.PaymentMaxAmount != nil || req.PaymentDailyLimit != nil ||
 		req.PaymentOrderTimeoutMin != nil || req.PaymentMaxPendingOrders != nil ||
 		req.PaymentEnabledTypes != nil || req.PaymentBalanceDisabled != nil ||
-		req.PaymentBalanceRechargeMultiplier != nil || req.PaymentSubscriptionUSDToCNYRate != nil ||
-		req.PaymentRechargeFeeRate != nil ||
+		req.PaymentBalanceRechargeMultiplier != nil || req.PaymentRechargeBonusTiers != nil || req.PaymentSubscriptionUSDToCNYRate != nil || req.PaymentSubscriptionFeeEnabled != nil ||
+		req.PaymentRechargeFeeRate != nil || req.PaymentRechargeFeeCredited != nil ||
 		req.PaymentLoadBalanceStrat != nil || req.PaymentProductNamePrefix != nil ||
 		req.PaymentProductNameSuffix != nil || req.PaymentHelpImageURL != nil ||
 		req.PaymentHelpText != nil || req.PaymentCancelRateLimitEnabled != nil ||
 		req.PaymentCancelRateLimitMax != nil || req.PaymentCancelRateLimitWindow != nil ||
 		req.PaymentCancelRateLimitUnit != nil || req.PaymentCancelRateLimitMode != nil ||
 		req.PaymentAlipayForceQRCode != nil || req.PaymentAlipayMobilePrecreateDeepLink != nil
+}
+
+func hasInvoiceFields(req UpdateSettingsRequest) bool {
+	return req.InvoiceEnabled != nil || req.InvoiceBaseURL != nil ||
+		req.InvoiceClientID != nil || req.InvoiceClientSecret != nil ||
+		req.InvoiceTimeoutSeconds != nil || req.InvoiceFeePayer != nil
 }
 
 // ensureDingTalkSyncAttributes 在保存 settings 后，按 admin 配置的 (attr key, attr name)

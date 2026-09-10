@@ -106,6 +106,13 @@ type SettingRepository interface {
 	Delete(ctx context.Context, key string) error
 }
 
+func (s *SettingService) GetRawValue(ctx context.Context, key string) (string, error) {
+	if s == nil || s.settingRepo == nil {
+		return "", ErrSettingNotFound
+	}
+	return s.settingRepo.GetValue(ctx, key)
+}
+
 // DefaultSubscriptionGroupReader validates group references used by default subscriptions.
 type DefaultSubscriptionGroupReader interface {
 	GetByID(ctx context.Context, id int64) (*Group, error)

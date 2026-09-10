@@ -151,6 +151,59 @@ func (s *RedeemCodeRepoSuite) TestList() {
 	s.Require().Equal(int64(2), page.Total)
 }
 
+func (s *RedeemCodeRepoSuite) TestCheckinEntriesAppearOnlyInUserBalanceHistory() {
+	user := s.createUser("checkin-history@example.com")
+	usedAt := time.Now().UTC()
+	userID := user.ID
+	s.Require().NoError(s.repo.Create(s.ctx, &service.RedeemCode{
+		Code:   "SYS-CHECKIN-1001",
+		Type:   service.RedeemTypeCheckin,
+		Value:  -0.08,
+		Status: service.StatusUsed,
+		UsedBy: &userID,
+		UsedAt: &usedAt,
+		Notes:  service.CheckinHistoryModeNote("lucky"),
+	}))
+
+	inventory, page, err := s.repo.List(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10})
+	s.Require().NoError(err)
+	s.Require().Empty(inventory)
+	s.Require().Zero(page.Total)
+	explicitInventory, explicitPage, err := s.repo.ListWithFilters(
+		s.ctx,
+		pagination.PaginationParams{Page: 1, PageSize: 10},
+		service.RedeemTypeCheckin,
+		"",
+		"",
+	)
+	s.Require().NoError(err)
+	s.Require().Empty(explicitInventory)
+	s.Require().Zero(explicitPage.Total)
+
+	history, err := s.repo.ListByUser(s.ctx, userID, 10)
+	s.Require().NoError(err)
+	s.Require().Len(history, 1)
+	s.Require().Equal(service.RedeemTypeCheckin, history[0].Type)
+	s.Require().Equal(-0.08, history[0].Value)
+	s.Require().Equal("lucky", history[0].CheckinMode())
+
+	filtered, filteredPage, err := s.repo.ListByUserPaginated(s.ctx, userID, pagination.PaginationParams{Page: 1, PageSize: 10}, service.RedeemTypeCheckin)
+	s.Require().NoError(err)
+	s.Require().Len(filtered, 1)
+	s.Require().Equal(int64(1), filteredPage.Total)
+
+	historyEntry := history[0]
+	historyEntry.Notes = "must not change"
+	s.Require().ErrorIs(s.repo.Update(s.ctx, &historyEntry), service.ErrRedeemCodeNotFound)
+	notes := "must not change"
+	_, err = s.repo.BatchUpdate(s.ctx, []int64{historyEntry.ID}, service.RedeemCodeBatchUpdateFields{Notes: &notes})
+	s.Require().ErrorIs(err, service.ErrRedeemCodeNotFound)
+	s.Require().NoError(s.repo.Delete(s.ctx, historyEntry.ID))
+	persisted, err := s.repo.GetByID(s.ctx, historyEntry.ID)
+	s.Require().NoError(err)
+	s.Require().Equal(service.CheckinHistoryModeNote("lucky"), persisted.Notes)
+}
+
 func (s *RedeemCodeRepoSuite) TestListWithFilters_Type() {
 	s.Require().NoError(s.repo.Create(s.ctx, &service.RedeemCode{Code: "TYPE-BAL", Type: service.RedeemTypeBalance, Value: 0, Status: service.StatusUnused}))
 	s.Require().NoError(s.repo.Create(s.ctx, &service.RedeemCode{Code: "TYPE-SUB", Type: service.RedeemTypeSubscription, Value: 0, Status: service.StatusUnused}))

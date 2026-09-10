@@ -41,7 +41,7 @@ func TestSortAccountsByPriorityAndLastUsed_ByPriority(t *testing.T) {
 		{ID: 3, Priority: 3, LastUsedAt: testTimePtr(now)},
 	}
 	sortAccountsByPriorityAndLastUsed(accounts, false)
-	require.Equal(t, int64(2), accounts[0].ID, "优先级最低的排第一")
+	require.Equal(t, int64(2), accounts[0].ID, "优先级最高的排第一")
 	require.Equal(t, int64(3), accounts[1].ID)
 	require.Equal(t, int64(1), accounts[2].ID)
 }
@@ -103,12 +103,12 @@ func TestSortAccountsByPriorityAndLastUsed_MixedPriorityAndTime(t *testing.T) {
 		{ID: 4, Priority: 2, LastUsedAt: testTimePtr(now.Add(-2 * time.Hour))},
 	}
 	sortAccountsByPriorityAndLastUsed(accounts, false)
-	// 优先级1排前：nil < earlier
+	// 优先级1排前：earlier < now
 	require.Equal(t, int64(3), accounts[0].ID, "优先级1 + 更早")
 	require.Equal(t, int64(2), accounts[1].ID, "优先级1 + 现在")
-	// 优先级2排后：nil < time
+	// 优先级2排后：nil < earlier
 	require.Equal(t, int64(1), accounts[2].ID, "优先级2 + nil")
-	require.Equal(t, int64(4), accounts[3].ID, "优先级2 + 有时间")
+	require.Equal(t, int64(4), accounts[3].ID, "优先级2 + 更早")
 }
 
 // --- filterByMinPriority ---

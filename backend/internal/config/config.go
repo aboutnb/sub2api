@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"net"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -103,6 +104,7 @@ type Config struct {
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
 	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
+	Invoice                 InvoiceIntegrationConfig      `mapstructure:"invoice"`
 	Plugins                 PluginConfig                  `mapstructure:"plugins"`
 }
 
@@ -195,6 +197,16 @@ type IdempotencyConfig struct {
 	CleanupIntervalSeconds int `mapstructure:"cleanup_interval_seconds"`
 	// CleanupBatchSize 每次清理的最大记录数。
 	CleanupBatchSize int `mapstructure:"cleanup_batch_size"`
+}
+
+// InvoiceIntegrationConfig configures the server-side XZNOAuth invoice client.
+// Client credentials must never be exposed to the frontend or stored in browser state.
+type InvoiceIntegrationConfig struct {
+	Enabled        bool   `mapstructure:"enabled"`
+	BaseURL        string `mapstructure:"base_url"`
+	ClientID       string `mapstructure:"client_id"`
+	ClientSecret   string `mapstructure:"client_secret"`
+	TimeoutSeconds int    `mapstructure:"timeout_seconds"`
 }
 
 type BatchImageConfig struct {
@@ -723,11 +735,13 @@ type ForwardedClientIPSettings struct {
 }
 
 type SecurityConfig struct {
-	URLAllowlist    URLAllowlistConfig   `mapstructure:"url_allowlist"`
-	ResponseHeaders ResponseHeaderConfig `mapstructure:"response_headers"`
-	CSP             CSPConfig            `mapstructure:"csp"`
-	ProxyFallback   ProxyFallbackConfig  `mapstructure:"proxy_fallback"`
-	ProxyProbe      ProxyProbeConfig     `mapstructure:"proxy_probe"`
+	URLAllowlist             URLAllowlistConfig             `mapstructure:"url_allowlist"`
+	ResponseHeaders          ResponseHeaderConfig           `mapstructure:"response_headers"`
+	CSP                      CSPConfig                      `mapstructure:"csp"`
+	ProxyFallback            ProxyFallbackConfig            `mapstructure:"proxy_fallback"`
+	ProxyProbe               ProxyProbeConfig               `mapstructure:"proxy_probe"`
+	PublicAccessGuard        PublicAccessGuardConfig        `mapstructure:"public_access_guard"`
+	CloudflareSiteProtection CloudflareSiteProtectionConfig `mapstructure:"cloudflare_site_protection"`
 	// TrustForwardedIPForAPIKeyACL enables legacy raw forwarded-header takeover.
 	// When disabled, server.trusted_proxies is authoritative for all client-IP consumers.
 	TrustForwardedIPForAPIKeyACL  bool                                       `mapstructure:"trust_forwarded_ip_for_api_key_acl"`
@@ -895,6 +909,31 @@ func normalizeProxyProbeURLs(targets []ProbeURLConfig) ([]ProbeURLConfig, error)
 		})
 	}
 	return normalized, nil
+}
+
+// PublicAccessGuardConfig is a lightweight deployment-side noise filter.
+// The publish key is intentionally public and must not be treated as a security boundary.
+type PublicAccessGuardConfig struct {
+	Enabled                    bool     `mapstructure:"enabled"`
+	PublishKey                 string   `mapstructure:"publish_key"`
+	HeaderName                 string   `mapstructure:"header_name"`
+	ProtectSitePublicPOST      bool     `mapstructure:"protect_site_public_post"`
+	RejectMalformedGatewayKeys bool     `mapstructure:"reject_malformed_gateway_keys"`
+	GatewayKeyAllowedPrefixes  []string `mapstructure:"gateway_key_allowed_prefixes"`
+}
+
+// CloudflareSiteProtectionConfig rejects direct-to-origin site requests that do
+// not carry the expected Cloudflare/reverse-proxy markers. It is an origin guard,
+// not a replacement for Cloudflare WAF/rate limiting or origin firewall rules.
+type CloudflareSiteProtectionConfig struct {
+	Enabled              bool     `mapstructure:"enabled"`
+	RequiredHeaders      []string `mapstructure:"required_headers"`
+	RequiredSecretHeader string   `mapstructure:"required_secret_header"`
+	RequiredSecretValue  string   `mapstructure:"required_secret_value"`
+	TrustedProxyCIDRs    []string `mapstructure:"trusted_proxy_cidrs"`
+	ProtectedPrefixes    []string `mapstructure:"protected_prefixes"`
+	BypassPaths          []string `mapstructure:"bypass_paths"`
+	BypassPrefixes       []string `mapstructure:"bypass_prefixes"`
 }
 
 type BillingConfig struct {
@@ -1796,7 +1835,18 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	if err := viper.BindEnv("server.enable_server_timing", "ENABLE_SERVER_TIMING"); err != nil {
 		return nil, fmt.Errorf("bind ENABLE_SERVER_TIMING: %w", err)
 	}
-
+	invoiceEnvBindings := map[string]string{
+		"invoice.enabled":         "XZNOAUTH_INVOICE_ENABLED",
+		"invoice.base_url":        "XZNOAUTH_BASE_URL",
+		"invoice.client_id":       "XZNOAUTH_CLIENT_ID",
+		"invoice.client_secret":   "XZNOAUTH_CLIENT_SECRET",
+		"invoice.timeout_seconds": "XZNOAUTH_INVOICE_TIMEOUT_SECONDS",
+	}
+	for key, envName := range invoiceEnvBindings {
+		if err := viper.BindEnv(key, envName); err != nil {
+			return nil, fmt.Errorf("bind %s: %w", envName, err)
+		}
+	}
 	// 默认值
 	setDefaults()
 
@@ -1842,6 +1892,9 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	}
 	cfg.Server.FrontendURL = strings.TrimSpace(cfg.Server.FrontendURL)
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
+	cfg.Invoice.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.Invoice.BaseURL), "/")
+	cfg.Invoice.ClientID = strings.TrimSpace(cfg.Invoice.ClientID)
+	cfg.Invoice.ClientSecret = strings.TrimSpace(cfg.Invoice.ClientSecret)
 	cfg.LinuxDo.ClientID = strings.TrimSpace(cfg.LinuxDo.ClientID)
 	cfg.LinuxDo.ClientSecret = strings.TrimSpace(cfg.LinuxDo.ClientSecret)
 	cfg.LinuxDo.AuthorizeURL = strings.TrimSpace(cfg.LinuxDo.AuthorizeURL)
@@ -1880,6 +1933,16 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	cfg.Security.ResponseHeaders.AdditionalAllowed = normalizeStringSlice(cfg.Security.ResponseHeaders.AdditionalAllowed)
 	cfg.Security.ResponseHeaders.ForceRemove = normalizeStringSlice(cfg.Security.ResponseHeaders.ForceRemove)
 	cfg.Security.CSP.Policy = strings.TrimSpace(cfg.Security.CSP.Policy)
+	cfg.Security.PublicAccessGuard.PublishKey = strings.TrimSpace(cfg.Security.PublicAccessGuard.PublishKey)
+	cfg.Security.PublicAccessGuard.HeaderName = strings.TrimSpace(cfg.Security.PublicAccessGuard.HeaderName)
+	cfg.Security.PublicAccessGuard.GatewayKeyAllowedPrefixes = normalizeStringSlice(cfg.Security.PublicAccessGuard.GatewayKeyAllowedPrefixes)
+	cfg.Security.CloudflareSiteProtection.RequiredHeaders = normalizeStringSlice(cfg.Security.CloudflareSiteProtection.RequiredHeaders)
+	cfg.Security.CloudflareSiteProtection.RequiredSecretHeader = strings.TrimSpace(cfg.Security.CloudflareSiteProtection.RequiredSecretHeader)
+	cfg.Security.CloudflareSiteProtection.RequiredSecretValue = strings.TrimSpace(cfg.Security.CloudflareSiteProtection.RequiredSecretValue)
+	cfg.Security.CloudflareSiteProtection.TrustedProxyCIDRs = normalizeStringSlice(cfg.Security.CloudflareSiteProtection.TrustedProxyCIDRs)
+	cfg.Security.CloudflareSiteProtection.ProtectedPrefixes = normalizeStringSlice(cfg.Security.CloudflareSiteProtection.ProtectedPrefixes)
+	cfg.Security.CloudflareSiteProtection.BypassPaths = normalizeStringSlice(cfg.Security.CloudflareSiteProtection.BypassPaths)
+	cfg.Security.CloudflareSiteProtection.BypassPrefixes = normalizeStringSlice(cfg.Security.CloudflareSiteProtection.BypassPrefixes)
 	forwardedClientIPHeaders, err := NormalizeForwardedClientIPHeaders(cfg.Security.ForwardedClientIPHeaders)
 	if err != nil {
 		return nil, fmt.Errorf("security.forwarded_client_ip_headers: %w", err)
@@ -2064,7 +2127,43 @@ func setDefaults() {
 	viper.SetDefault("security.csp.enabled", true)
 	viper.SetDefault("security.csp.policy", DefaultCSPPolicy)
 	viper.SetDefault("security.proxy_probe.insecure_skip_verify", false)
-	viper.SetDefault("security.trust_forwarded_ip_for_api_key_acl", true)
+	viper.SetDefault("security.trust_forwarded_ip_for_api_key_acl", false)
+	viper.SetDefault("security.public_access_guard.enabled", false)
+	viper.SetDefault("security.public_access_guard.publish_key", "")
+	viper.SetDefault("security.public_access_guard.header_name", "x-sub2api-publish-key")
+	viper.SetDefault("security.public_access_guard.protect_site_public_post", true)
+	viper.SetDefault("security.public_access_guard.reject_malformed_gateway_keys", true)
+	viper.SetDefault("security.public_access_guard.gateway_key_allowed_prefixes", []string{
+		"sk-",
+		"sk_",
+		"sk-ant-",
+		"sk-ant_",
+		"sk-proj-",
+		"sk-proj_",
+	})
+	viper.SetDefault("security.cloudflare_site_protection.enabled", false)
+	viper.SetDefault("security.cloudflare_site_protection.required_headers", []string{
+		"CF-Connecting-IP",
+		"CF-Ray",
+	})
+	viper.SetDefault("security.cloudflare_site_protection.required_secret_header", "")
+	viper.SetDefault("security.cloudflare_site_protection.required_secret_value", "")
+	viper.SetDefault("security.cloudflare_site_protection.trusted_proxy_cidrs", []string{})
+	viper.SetDefault("security.cloudflare_site_protection.protected_prefixes", []string{"/"})
+	viper.SetDefault("security.cloudflare_site_protection.bypass_paths", []string{"/health"})
+	viper.SetDefault("security.cloudflare_site_protection.bypass_prefixes", []string{
+		"/api",
+		"/setup",
+		"/v1",
+		"/v1beta",
+		"/responses",
+		"/chat/completions",
+		"/embeddings",
+		"/images",
+		"/videos",
+		"/backend-api/codex",
+		"/antigravity",
+	})
 
 	// Security - disable direct fallback on proxy error
 	viper.SetDefault("security.proxy_fallback.allow_direct_on_error", false)
@@ -2243,6 +2342,13 @@ func setDefaults() {
 	viper.SetDefault("image_storage.access_key_id", "")
 	viper.SetDefault("image_storage.secret_access_key", "")
 	viper.SetDefault("image_storage.public_base_url", "")
+
+	// XZNOAuth self-service invoice integration.
+	viper.SetDefault("invoice.enabled", false)
+	viper.SetDefault("invoice.base_url", "https://oauth.xzncraft.cn")
+	viper.SetDefault("invoice.client_id", "")
+	viper.SetDefault("invoice.client_secret", "")
+	viper.SetDefault("invoice.timeout_seconds", 15)
 
 	// Ops (vNext)
 	viper.SetDefault("ops.enabled", true)
@@ -2678,6 +2784,20 @@ func (c *Config) Validate() error {
 	if c.Server.MaxRequestBodySize < 0 {
 		return fmt.Errorf("server.max_request_body_size must be non-negative")
 	}
+	if c.Invoice.TimeoutSeconds < 1 || c.Invoice.TimeoutSeconds > 120 {
+		return fmt.Errorf("invoice.timeout_seconds must be between 1 and 120")
+	}
+	if c.Invoice.Enabled {
+		if c.Invoice.ClientID == "" {
+			return fmt.Errorf("invoice.client_id is required when invoice.enabled=true")
+		}
+		if c.Invoice.ClientSecret == "" {
+			return fmt.Errorf("invoice.client_secret is required when invoice.enabled=true")
+		}
+		if err := ValidateAbsoluteHTTPURL(c.Invoice.BaseURL); err != nil {
+			return fmt.Errorf("invoice.base_url invalid: %w", err)
+		}
+	}
 	if c.Server.H2C.Enabled {
 		if c.Server.H2C.MaxConcurrentStreams == 0 {
 			return fmt.Errorf("server.h2c.max_concurrent_streams must be positive")
@@ -2862,6 +2982,17 @@ func (c *Config) Validate() error {
 	}
 	if c.Security.CSP.Enabled && strings.TrimSpace(c.Security.CSP.Policy) == "" {
 		return fmt.Errorf("security.csp.policy is required when CSP is enabled")
+	}
+	if c.Security.PublicAccessGuard.Enabled {
+		if strings.TrimSpace(c.Security.PublicAccessGuard.PublishKey) == "" {
+			return fmt.Errorf("security.public_access_guard.publish_key is required when public access guard is enabled")
+		}
+		if strings.TrimSpace(c.Security.PublicAccessGuard.HeaderName) == "" {
+			return fmt.Errorf("security.public_access_guard.header_name is required when public access guard is enabled")
+		}
+	}
+	if err := validateCloudflareSiteProtection(c.Security.CloudflareSiteProtection); err != nil {
+		return err
 	}
 	if c.LinuxDo.Enabled {
 		if strings.TrimSpace(c.LinuxDo.ClientID) == "" {
@@ -3723,6 +3854,90 @@ func normalizeStringSlice(values []string) []string {
 		normalized = append(normalized, trimmed)
 	}
 	return normalized
+}
+
+func validateCloudflareSiteProtection(cfg CloudflareSiteProtectionConfig) error {
+	if !cfg.Enabled {
+		return nil
+	}
+	hasSecret := strings.TrimSpace(cfg.RequiredSecretHeader) != "" || strings.TrimSpace(cfg.RequiredSecretValue) != ""
+	if len(cfg.RequiredHeaders) == 0 && !hasSecret && len(cfg.TrustedProxyCIDRs) == 0 {
+		return fmt.Errorf("security.cloudflare_site_protection requires at least one of required_headers, required_secret_header/value, or trusted_proxy_cidrs when enabled")
+	}
+	if strings.TrimSpace(cfg.RequiredSecretHeader) != "" && strings.TrimSpace(cfg.RequiredSecretValue) == "" {
+		return fmt.Errorf("security.cloudflare_site_protection.required_secret_value is required when required_secret_header is set")
+	}
+	if strings.TrimSpace(cfg.RequiredSecretHeader) == "" && strings.TrimSpace(cfg.RequiredSecretValue) != "" {
+		return fmt.Errorf("security.cloudflare_site_protection.required_secret_header is required when required_secret_value is set")
+	}
+	if strings.TrimSpace(cfg.RequiredSecretHeader) != "" && !isValidHTTPHeaderName(cfg.RequiredSecretHeader) {
+		return fmt.Errorf("security.cloudflare_site_protection.required_secret_header is invalid")
+	}
+	for _, header := range cfg.RequiredHeaders {
+		if !isValidHTTPHeaderName(header) {
+			return fmt.Errorf("security.cloudflare_site_protection.required_headers contains invalid header name %q", header)
+		}
+	}
+	for _, pattern := range cfg.TrustedProxyCIDRs {
+		if !isValidIPOrCIDR(pattern) {
+			return fmt.Errorf("security.cloudflare_site_protection.trusted_proxy_cidrs contains invalid IP/CIDR %q", pattern)
+		}
+	}
+	if len(cfg.ProtectedPrefixes) == 0 {
+		return fmt.Errorf("security.cloudflare_site_protection.protected_prefixes must not be empty when enabled")
+	}
+	if err := validatePathValues("security.cloudflare_site_protection.protected_prefixes", cfg.ProtectedPrefixes, true); err != nil {
+		return err
+	}
+	if err := validatePathValues("security.cloudflare_site_protection.bypass_paths", cfg.BypassPaths, true); err != nil {
+		return err
+	}
+	if err := validatePathValues("security.cloudflare_site_protection.bypass_prefixes", cfg.BypassPrefixes, false); err != nil {
+		return err
+	}
+	return nil
+}
+
+func isValidHTTPHeaderName(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	const separators = "()<>@,;:\\\"/[]?={}"
+	for _, r := range value {
+		if r <= 32 || r >= 127 || strings.ContainsRune(separators, r) {
+			return false
+		}
+	}
+	return true
+}
+
+func isValidIPOrCIDR(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	if strings.Contains(value, "/") {
+		_, _, err := net.ParseCIDR(value)
+		return err == nil
+	}
+	return net.ParseIP(value) != nil
+}
+
+func validatePathValues(name string, values []string, allowRoot bool) error {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if !strings.HasPrefix(value, "/") {
+			return fmt.Errorf("%s values must start with /", name)
+		}
+		if !allowRoot && value == "/" {
+			return fmt.Errorf("%s must not contain /", name)
+		}
+	}
+	return nil
 }
 
 func isWeakJWTSecret(secret string) bool {

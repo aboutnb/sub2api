@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import ImportDataModal from '@/components/admin/account/ImportDataModal.vue'
+import { adminAPI } from '@/api/admin'
 
-const showError = vi.fn()
-const showSuccess = vi.fn()
-const showWarning = vi.fn()
+const { showError, showSuccess, showWarning, importData, getAllGroups } = vi.hoisted(() => ({
+  showError: vi.fn(),
+  showSuccess: vi.fn(),
+  showWarning: vi.fn(),
+  importData: vi.fn(),
+  getAllGroups: vi.fn()
+}))
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
@@ -17,21 +23,29 @@ vi.mock('@/stores/app', () => ({
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
-      importData: vi.fn()
+      importData
+    },
+    groups: {
+      getAll: getAllGroups
     }
   }
 }))
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    t: (key: string) => key
-  })
-}))
+vi.mock('vue-i18n', async () => {
+  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+  return {
+    ...actual,
+    useI18n: () => ({
+      t: (key: string) => key
+    })
+  }
+})
 
 const mountModal = () =>
   mount(ImportDataModal, {
     props: { show: true },
     global: {
+      plugins: [createPinia()],
       stubs: {
         BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' }
       }
@@ -54,12 +68,13 @@ const setInputFiles = (element: Element, files: File[]) => {
 }
 
 describe('ImportDataModal', () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     showError.mockReset()
     showSuccess.mockReset()
     showWarning.mockReset()
-    const { adminAPI } = await import('@/api/admin')
-    vi.mocked(adminAPI.accounts.importData).mockReset()
+    importData.mockReset()
+    getAllGroups.mockReset()
+    getAllGroups.mockResolvedValue([])
   })
 
   it('未选择文件时提示错误', async () => {
@@ -126,12 +141,12 @@ describe('ImportDataModal', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(adminAPI.accounts.importData).toHaveBeenCalledWith({
+    expect(adminAPI.accounts.importData).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         accounts: [{ name: 'a' }]
       }),
       skip_default_group_bind: true
-    })
+    }))
   })
 
   it('merges multiple selected JSON files before importing', async () => {
@@ -141,7 +156,8 @@ describe('ImportDataModal', () => {
       proxy_reused: 0,
       proxy_failed: 0,
       account_created: 2,
-      account_failed: 0
+      account_failed: 0,
+      account_ids: [101, 102]
     })
 
     const wrapper = mountModal()
@@ -165,14 +181,15 @@ describe('ImportDataModal', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(adminAPI.accounts.importData).toHaveBeenCalledWith({
+    expect(adminAPI.accounts.importData).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         proxies: [{ proxy_key: 'p' }],
         accounts: [{ name: 'a' }, { name: 'b' }]
       }),
       skip_default_group_bind: true
-    })
+    }))
     expect(showSuccess).toHaveBeenCalledWith('admin.accounts.dataImportSuccess')
+    expect(wrapper.emitted('imported')).toEqual([[[101, 102]]])
   })
 
   it('部分成功时关闭弹窗仍通知父组件刷新', async () => {
@@ -182,7 +199,8 @@ describe('ImportDataModal', () => {
       proxy_reused: 0,
       proxy_failed: 0,
       account_created: 1,
-      account_failed: 1
+      account_failed: 1,
+      account_ids: [101]
     })
 
     const wrapper = mountModal()
@@ -208,7 +226,71 @@ describe('ImportDataModal', () => {
     // 第二个 btn-secondary 是 footer 的取消按钮(第一个是选择文件)
     await wrapper.findAll('button.btn-secondary')[1]!.trigger('click')
 
-    expect(wrapper.emitted('imported')).toHaveLength(1)
+    expect(wrapper.emitted('imported')).toEqual([[[101]]])
     expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
+  it('导入时会提交所选分组', async () => {
+    getAllGroups.mockResolvedValue([
+      {
+        id: 12,
+        name: 'OpenAI',
+        platform: 'openai',
+        subscription_type: 'standard',
+        rate_multiplier: 1,
+        account_count: 0
+      },
+      {
+        id: 15,
+        name: 'Claude',
+        platform: 'anthropic',
+        subscription_type: 'standard',
+        rate_multiplier: 1,
+        account_count: 0
+      }
+    ])
+    importData.mockResolvedValue({
+      account_created: 1,
+      account_failed: 0,
+      proxy_created: 0,
+      proxy_reused: 0,
+      proxy_failed: 0
+    })
+
+    const wrapper = mount(ImportDataModal, {
+      props: { show: true },
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          GroupBadge: { template: '<span><slot />{{ name }}</span>', props: ['name'] },
+          Icon: true
+        }
+      }
+    })
+    await flushPromises()
+
+    const groupCheckboxes = wrapper.findAll('input[type="checkbox"]')
+    await groupCheckboxes[0].setValue(true)
+    await groupCheckboxes[1].setValue(true)
+
+    const input = wrapper.find('input[type="file"]')
+    const payload = JSON.stringify({ type: 'sub2api-data', version: 1, proxies: [], accounts: [] })
+    const file = new File([payload], 'data.json', { type: 'application/json' })
+    Object.defineProperty(file, 'text', {
+      value: () => Promise.resolve(payload)
+    })
+    Object.defineProperty(input.element, 'files', {
+      value: [file]
+    })
+
+    await input.trigger('change')
+    await wrapper.find('form').trigger('submit')
+    await Promise.resolve()
+
+    expect(adminAPI.accounts.importData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        group_ids: [12, 15]
+      })
+    )
   })
 })

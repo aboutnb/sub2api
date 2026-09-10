@@ -1,4 +1,4 @@
-.PHONY: build build-backend build-frontend test test-backend test-frontend test-frontend-critical
+.PHONY: build build-backend build-frontend test test-backend test-frontend test-frontend-critical check-flowai-contract check-flowai-contract-strict review-flowai-upstream
 
 FRONTEND_CRITICAL_VITEST := \
 	src/i18n/__tests__/localeKeyCompleteness.spec.ts \
@@ -40,3 +40,15 @@ test-frontend:
 
 test-frontend-critical:
 	@pnpm --dir frontend exec vitest run $(FRONTEND_CRITICAL_VITEST)
+
+# Check FlowAI-only behavior before merging upstream or publishing an image.
+check-flowai-contract:
+	@bash tools/check_flowai_branch_contract.sh
+
+# Use this gate for a release candidate or CI-equivalent local verification.
+check-flowai-contract-strict:
+	@FLOWAI_REQUIRE_CLEAN=1 bash tools/check_flowai_branch_contract.sh
+
+# Review upstream-only changes and simulate the merge without touching the worktree.
+review-flowai-upstream:
+	@bash tools/review_flowai_upstream.sh

@@ -184,6 +184,15 @@
                 <li>{{ t('redeem.codeRule2') }}</li>
                 <li>
                   {{ t('redeem.codeRule3') }}
+                  <a
+                    href="https://t.me/wable77"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="ml-1.5 inline-flex items-center rounded-md bg-primary-200/60 px-2 py-0.5 text-xs font-semibold text-primary-900 underline-offset-2 transition-colors hover:bg-primary-300/70 hover:underline dark:bg-primary-800/50 dark:text-primary-100 dark:hover:bg-primary-700/60"
+                    aria-label="Telegram @wable77"
+                  >
+                    TG：@wable77
+                  </a>
                   <span
                     v-if="contactInfo"
                     class="ml-1.5 inline-flex items-center rounded-md bg-primary-200/50 px-2 py-0.5 text-xs font-medium text-primary-800 dark:bg-primary-800/40 dark:text-primary-200"
@@ -278,8 +287,15 @@
                   />
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-gray-900 dark:text-white">
-                    {{ getHistoryItemTitle(item) }}
+                  <p class="flex flex-wrap items-center gap-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                    <span>{{ getHistoryItemTitle(item) }}</span>
+                    <span
+                      v-if="isLuckyCheckin(item)"
+                      data-testid="lucky-checkin-tag"
+                      class="rounded bg-cyan-50 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300"
+                    >
+                      {{ t('checkin.lucky') }}
+                    </span>
                   </p>
                   <p class="text-xs text-gray-500 dark:text-dark-400">
                     {{ formatDateTime(item.used_at) }}
@@ -304,17 +320,20 @@
                   {{ formatHistoryValue(item) }}
                 </p>
                 <p
-                  v-if="!isAdminAdjustment(item.type)"
+                  v-if="!isAdminAdjustment(item.type) && !isCheckinType(item.type)"
                   class="font-mono text-xs text-gray-400 dark:text-dark-500"
                 >
                   {{ item.code.slice(0, 8) }}...
                 </p>
-                <p v-else class="text-xs text-gray-400 dark:text-dark-500">
+                <p v-else-if="isAdminAdjustment(item.type)" class="text-xs text-gray-400 dark:text-dark-500">
                   {{ t('redeem.adminAdjustment') }}
+                </p>
+                <p v-else class="text-xs text-gray-400 dark:text-dark-500">
+                  {{ t('redeem.checkinRecord') }}
                 </p>
                 <!-- Display notes for admin adjustments -->
                 <p
-                  v-if="item.notes"
+                  v-if="item.notes && !isCheckinType(item.type)"
                   class="mt-1 text-xs text-gray-500 dark:text-dark-400 italic max-w-[200px] truncate"
                   :title="item.notes"
                 >
@@ -379,7 +398,7 @@ const contactInfo = ref('')
 
 // Helper functions for history display
 const isBalanceType = (type: string) => {
-  return type === 'balance' || type === 'admin_balance'
+  return type === 'balance' || type === 'admin_balance' || type === 'checkin'
 }
 
 const isSubscriptionType = (type: string) => {
@@ -390,11 +409,16 @@ const isAdminAdjustment = (type: string) => {
   return type === 'admin_balance' || type === 'admin_concurrency'
 }
 
+const isCheckinType = (type: string) => type === 'checkin'
+const isLuckyCheckin = (item: RedeemHistoryItem) => isCheckinType(item.type) && item.checkin_mode === 'lucky'
+
 const getHistoryItemTitle = (item: RedeemHistoryItem) => {
   if (item.type === 'balance') {
     return t('redeem.balanceAddedRedeem')
   } else if (item.type === 'admin_balance') {
     return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
+  } else if (item.type === 'checkin') {
+    return t('redeem.balanceChangedCheckin')
   } else if (item.type === 'concurrency') {
     return t('redeem.concurrencyAddedRedeem')
   } else if (item.type === 'admin_concurrency') {
@@ -407,8 +431,8 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
 
 const formatHistoryValue = (item: RedeemHistoryItem) => {
   if (isBalanceType(item.type)) {
-    const sign = item.value >= 0 ? '+' : ''
-    return `${sign}$${item.value.toFixed(2)}`
+    const sign = item.value >= 0 ? '+' : '-'
+    return `${sign}$${Math.abs(item.value).toFixed(2)}`
   } else if (isSubscriptionType(item.type)) {
     // 订阅类型显示有效天数和分组名称
     const days = item.validity_days || Math.round(item.value)

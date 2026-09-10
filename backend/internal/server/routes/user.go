@@ -40,6 +40,11 @@ func RegisterUserRoutes(
 			user.GET("/api-keys/:id/usage/daily", panelRateLimiter.Heavy(), h.Usage.GetMyAPIKeyDailyUsage)
 			user.GET("/platform-quotas", h.User.GetMyPlatformQuotas)
 
+			// 每日签到
+			user.GET("/checkin/status", h.Checkin.GetStatus)
+			user.POST("/checkin", h.Checkin.CheckIn)
+			user.GET("/checkin/records", h.Checkin.GetRecords)
+
 			// 通知邮箱管理
 			notifyEmail := user.Group("/notify-email")
 			{
@@ -76,6 +81,7 @@ func RegisterUserRoutes(
 		keys := authenticated.Group("/keys")
 		{
 			keys.GET("", h.APIKey.List)
+			keys.GET("/smart-routing/status", h.APIKey.GetSmartRoutingStatus)
 			keys.GET("/:id", h.APIKey.GetByID)
 			keys.POST("", h.APIKey.Create)
 			keys.PUT("/:id", h.APIKey.Update)

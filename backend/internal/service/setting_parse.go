@@ -18,6 +18,29 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 )
 
+const defaultUserConcurrencyFallback = 5
+
+func normalizeUserConcurrency(value int) int {
+	if value < -1 {
+		return -1
+	}
+	return value
+}
+
+func (s *SettingService) defaultUserConcurrency() int {
+	if s != nil && s.cfg != nil {
+		return normalizeUserConcurrency(s.cfg.Default.UserConcurrency)
+	}
+	return defaultUserConcurrencyFallback
+}
+
+func (s *SettingService) defaultUserBalance() float64 {
+	if s != nil && s.cfg != nil {
+		return s.cfg.Default.UserBalance
+	}
+	return 0
+}
+
 // InitializeDefaultSettings 初始化默认设置
 func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	// 检查是否已有设置
@@ -52,6 +75,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("marshal default forwarded client IP headers: %w", err)
 	}
+	defaultConcurrency := s.defaultUserConcurrency()
+	defaultBalance := s.defaultUserBalance()
 
 	// 初始化默认设置
 	defaults := map[string]string{
@@ -123,8 +148,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOIDCConnectUserInfoEmailPath:              "",
 		SettingKeyOIDCConnectUserInfoIDPath:                 "",
 		SettingKeyOIDCConnectUserInfoUsernamePath:           "",
-		SettingKeyDefaultConcurrency:                        strconv.Itoa(s.cfg.Default.UserConcurrency),
-		SettingKeyDefaultBalance:                            strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
+		SettingKeyDefaultConcurrency:                        strconv.Itoa(defaultConcurrency),
+		SettingKeyDefaultBalance:                            strconv.FormatFloat(defaultBalance, 'f', 8, 64),
 		SettingKeyAffiliateRebateRate:                       strconv.FormatFloat(AffiliateRebateRateDefault, 'f', 8, 64),
 		SettingKeyAffiliateRebateFreezeHours:                strconv.Itoa(AffiliateRebateFreezeHoursDefault),
 		SettingKeyAffiliateRebateDurationDays:               strconv.Itoa(AffiliateRebateDurationDaysDefault),
@@ -202,6 +227,12 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
 
+		// Smart routing feature (default disabled; opt-in)
+		SettingKeySmartRoutingEnabled: "false",
+
+		// User subscription page (default enabled; opt-out)
+		SettingKeyUserSubscriptionsEnabled: "true",
+
 		// Model plaza feature (default disabled; opt-in, public unless require_auth)
 		SettingKeyModelPlazaEnabled:       "false",
 		SettingKeyModelPlazaRequireAuth:   "false",
@@ -264,7 +295,6 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 		SettingKeyAllowUserViewErrorRequests: "false",
 	}
-
 	return s.settingRepo.SetMultiple(ctx, defaults)
 }
 
@@ -357,6 +387,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		SiteSubtitle:                           s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
 		APIBaseURL:                             settings[SettingKeyAPIBaseURL],
 		ContactInfo:                            settings[SettingKeyContactInfo],
+		CommunityGroupName:                     settings[SettingKeyCommunityGroupName],
+		CommunityGroupIcon:                     settings[SettingKeyCommunityGroupIcon],
+		CommunityGroupURL:                      settings[SettingKeyCommunityGroupURL],
 		DocURL:                                 settings[SettingKeyDocURL],
 		HomeContent:                            settings[SettingKeyHomeContent],
 		CompactHomeEnabled:                     settings[SettingKeyCompactHomeEnabled] == "true",
@@ -379,10 +412,10 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.SMTPPort = 587
 	}
 
-	if concurrency, err := strconv.Atoi(settings[SettingKeyDefaultConcurrency]); err == nil {
+	if concurrency, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyDefaultConcurrency])); err == nil && concurrency >= -1 {
 		result.DefaultConcurrency = concurrency
 	} else {
-		result.DefaultConcurrency = s.cfg.Default.UserConcurrency
+		result.DefaultConcurrency = s.defaultUserConcurrency()
 	}
 
 	if rpm, err := strconv.Atoi(settings[SettingKeyDefaultUserRPMLimit]); err == nil && rpm >= 0 {
@@ -393,7 +426,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	if balance, err := strconv.ParseFloat(settings[SettingKeyDefaultBalance], 64); err == nil {
 		result.DefaultBalance = balance
 	} else {
-		result.DefaultBalance = s.cfg.Default.UserBalance
+		result.DefaultBalance = s.defaultUserBalance()
 	}
 	if rebateRate, err := strconv.ParseFloat(settings[SettingKeyAffiliateRebateRate], 64); err == nil {
 		result.AffiliateRebateRate = clampAffiliateRebateRate(rebateRate)
@@ -819,6 +852,10 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Available channels feature (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"
+	result.SmartRoutingEnabled = settings[SettingKeySmartRoutingEnabled] == "true"
+
+	// User subscription page (default: enabled; fail open for existing installs)
+	result.UserSubscriptionsEnabled = !isFalseSettingValue(settings[SettingKeyUserSubscriptionsEnabled])
 
 	// Model plaza feature (default: disabled; strict true)
 	result.ModelPlazaEnabled = settings[SettingKeyModelPlazaEnabled] == "true"
@@ -1207,7 +1244,7 @@ func parseProviderDefaultGrantSettings(settings map[string]string, keys authSour
 	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[keys.balance]), 64); err == nil {
 		result.Balance = v
 	}
-	if v, err := strconv.Atoi(strings.TrimSpace(settings[keys.concurrency])); err == nil {
+	if v, err := strconv.Atoi(strings.TrimSpace(settings[keys.concurrency])); err == nil && v >= -1 {
 		result.Concurrency = v
 	}
 	if items := parseDefaultSubscriptions(settings[keys.subscriptions]); items != nil {
@@ -1233,6 +1270,7 @@ func parseProviderDefaultGrantSettings(settings map[string]string, keys authSour
 }
 
 func writeProviderDefaultGrantUpdates(updates map[string]string, keys authSourceDefaultKeySet, settings ProviderDefaultGrantSettings) {
+	settings.Concurrency = normalizeUserConcurrency(settings.Concurrency)
 	updates[keys.balance] = strconv.FormatFloat(settings.Balance, 'f', 8, 64)
 	updates[keys.concurrency] = strconv.Itoa(settings.Concurrency)
 
@@ -1276,7 +1314,7 @@ func mergeProviderDefaultGrantSettings(globalDefaults ProviderDefaultGrantSettin
 	if providerDefaults.Balance >= 0 {
 		result.Balance = providerDefaults.Balance
 	}
-	if providerDefaults.Concurrency > 0 {
+	if providerDefaults.Concurrency >= -1 {
 		result.Concurrency = providerDefaults.Concurrency
 	}
 	if len(providerDefaults.Subscriptions) > 0 {

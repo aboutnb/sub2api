@@ -1,16 +1,10 @@
 <template>
   <div
-    :class="[
-      'group relative flex flex-col overflow-hidden rounded-2xl border transition-all',
-      'hover:shadow-xl hover:-translate-y-0.5',
-      borderClass,
-      'bg-white dark:bg-dark-800',
-    ]"
+    class="group relative flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-[border-color,box-shadow] hover:border-gray-300 hover:shadow-md dark:border-dark-700 dark:bg-dark-800 dark:hover:border-dark-600"
   >
-    <!-- Colored top accent bar -->
-    <div :class="['h-1.5', accentClass]" />
+    <div :class="['h-0.5', accentClass]" />
 
-    <div class="flex flex-1 flex-col p-4">
+    <div class="flex flex-1 flex-col p-5">
       <!-- Header: name + badge + price -->
       <div class="mb-3 flex items-start justify-between gap-2">
         <div class="min-w-0 flex-1">
@@ -27,7 +21,7 @@
         <div class="shrink-0 text-right">
           <div class="flex items-baseline gap-1">
             <span class="text-xs text-gray-400 dark:text-dark-500">{{ planCurrencySymbol }}</span>
-            <span :class="['text-2xl font-extrabold tracking-tight', textClass]">{{ plan.price }}</span>
+            <span class="text-2xl font-bold tabular-nums text-gray-950 dark:text-white">{{ plan.price }}</span>
             <span v-if="plan.currency" class="text-xs font-medium text-gray-400 dark:text-dark-500">{{ plan.currency }}</span>
           </div>
           <div class="flex items-center justify-end gap-1">
@@ -44,7 +38,7 @@
       </div>
 
       <!-- Group quota info (compact) -->
-      <div class="mb-3 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-gray-50 px-3 py-2 text-xs dark:bg-dark-700/50">
+      <div class="mb-3 grid grid-cols-2 gap-x-3 gap-y-1 border-y border-gray-100 bg-gray-50/60 px-3 py-3 text-xs dark:border-dark-700 dark:bg-dark-900/30">
         <div class="flex items-center justify-between">
           <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.rate') }}</span>
           <span class="font-medium text-gray-700 dark:text-gray-300">{{ rateDisplay }}</span>
@@ -83,9 +77,7 @@
       <!-- Features list (compact) -->
       <div v-if="plan.features.length > 0" class="mb-3 space-y-1">
         <div v-for="feature in plan.features" :key="feature" class="flex items-start gap-1.5">
-          <svg :class="['mt-0.5 h-3.5 w-3.5 flex-shrink-0', iconClass]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-          </svg>
+          <Icon name="check" size="sm" class="mt-0.5 flex-shrink-0 text-primary-600 dark:text-primary-400" :stroke-width="2.5" />
           <span class="text-xs text-gray-600 dark:text-gray-300">{{ feature }}</span>
         </div>
       </div>
@@ -95,10 +87,11 @@
       <!-- Subscribe Button -->
       <button
         type="button"
-        :class="['w-full rounded-xl py-2.5 text-sm font-semibold transition-all active:scale-[0.98]', btnClass]"
+        class="flex w-full items-center justify-center gap-2 rounded-md bg-gray-950 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200"
         @click="emit('select', plan)"
       >
-        {{ isRenewal ? t('payment.renewNow') : t('payment.subscribeNow') }}
+        <span>{{ isRenewal ? t('payment.renewNow') : t('payment.subscribeNow') }}</span>
+        <Icon name="arrowRight" size="sm" />
       </button>
     </div>
   </div>
@@ -107,6 +100,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import Icon from '@/components/icons/Icon.vue'
 import type { SubscriptionPlan } from '@/types/payment'
 import type { UserSubscription } from '@/types'
 import { useAppStore } from '@/stores/app'
@@ -116,10 +110,6 @@ import { currencySymbol } from '@/components/payment/currency'
 import {
   platformAccentBarClass,
   platformBadgeLightClass,
-  platformBorderClass,
-  platformTextClass,
-  platformIconClass,
-  platformButtonClass,
   platformDiscountClass,
   platformLabel,
 } from '@/utils/platformColors'
@@ -135,11 +125,7 @@ const isRenewal = computed(() =>
 
 // Derived color classes from central config
 const accentClass = computed(() => platformAccentBarClass(platform.value))
-const borderClass = computed(() => platformBorderClass(platform.value))
 const badgeLightClass = computed(() => platformBadgeLightClass(platform.value))
-const textClass = computed(() => platformTextClass(platform.value))
-const iconClass = computed(() => platformIconClass(platform.value))
-const btnClass = computed(() => platformButtonClass(platform.value))
 const discountClass = computed(() => platformDiscountClass(platform.value))
 const pLabel = computed(() => platformLabel(platform.value))
 

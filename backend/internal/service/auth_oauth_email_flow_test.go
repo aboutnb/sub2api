@@ -147,6 +147,23 @@ func newOAuthEmailFlowAuthService(
 	)
 }
 
+func TestSendPendingOAuthVerifyCode_EmailAliasNotAllowed(t *testing.T) {
+	authService := newOAuthEmailFlowAuthService(
+		&userRepoStub{},
+		&redeemCodeRepoStub{},
+		&refreshTokenCacheStub{},
+		map[string]string{
+			SettingKeyRegistrationEnabled: "true",
+		},
+		&emailCacheStub{},
+		nil,
+	)
+
+	result, err := authService.SendPendingOAuthVerifyCode(context.Background(), "user+spam@example.com")
+	require.Nil(t, result)
+	require.ErrorIs(t, err, ErrEmailAliasNotAllowed)
+}
+
 func TestRegisterOAuthEmailAccountRollsBackCreatedUserWhenTokenPairGenerationFails(t *testing.T) {
 	userRepo := &userRepoStub{nextID: 42}
 	redeemRepo := &redeemCodeRepoStub{

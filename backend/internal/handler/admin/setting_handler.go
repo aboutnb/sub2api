@@ -58,6 +58,7 @@ type SettingHandler struct {
 	opsService               *service.OpsService
 	paymentConfigService     *service.PaymentConfigService
 	paymentService           *service.PaymentService
+	invoiceSettingsService   *service.InvoiceSettingsService
 	userAttributeService     *service.UserAttributeService
 	notificationEmailService *service.NotificationEmailService
 	totpService              *service.TotpService
@@ -87,6 +88,10 @@ func (h *SettingHandler) SetNotificationEmailService(notificationEmailService *s
 // changing the constructor signature used by existing unit tests.
 func (h *SettingHandler) SetAliyunCaptchaService(aliyunCaptchaService *service.AliyunCaptchaService) {
 	h.aliyunCaptchaService = aliyunCaptchaService
+}
+
+func (h *SettingHandler) SetInvoiceSettingsService(invoiceSettingsService *service.InvoiceSettingsService) {
+	h.invoiceSettingsService = invoiceSettingsService
 }
 
 // SetStepUpDeps attaches the services backing the step-up switch preconditions
@@ -128,7 +133,18 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		paymentCfg, _ = h.paymentConfigService.GetPaymentConfig(c.Request.Context())
 	}
 	if paymentCfg == nil {
-		paymentCfg = &service.PaymentConfig{}
+		paymentCfg = &service.PaymentConfig{SubscriptionFeeEnabled: true}
+	}
+	invoiceSettings := &service.InvoiceAdminSettings{
+		TimeoutSeconds: 15,
+		FeePayer:       service.InvoiceFeePayerCustomer,
+	}
+	if h.invoiceSettingsService != nil {
+		invoiceSettings, err = h.invoiceSettingsService.GetAdminSettings(c.Request.Context())
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
 	}
 	passkeyConfigured, passkeyRPID, passkeyRPOrigins := h.settingService.PasskeyConfiguration()
 
@@ -251,6 +267,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		SiteSubtitle:                                           settings.SiteSubtitle,
 		APIBaseURL:                                             settings.APIBaseURL,
 		ContactInfo:                                            settings.ContactInfo,
+		CommunityGroupName:                                     settings.CommunityGroupName,
+		CommunityGroupIcon:                                     settings.CommunityGroupIcon,
+		CommunityGroupURL:                                      settings.CommunityGroupURL,
 		DocURL:                                                 settings.DocURL,
 		HomeContent:                                            settings.HomeContent,
 		CompactHomeEnabled:                                     settings.CompactHomeEnabled,
@@ -349,6 +368,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		AccountQuotaNotifyEmails:                               dto.NotifyEmailEntriesFromService(settings.AccountQuotaNotifyEmails),
 		PaymentEnabled:                                         paymentCfg.Enabled,
 		PaymentMinAmount:                                       paymentCfg.MinAmount,
+		PaymentUSDTMinAmount:                                   paymentCfg.USDTMinAmount,
 		PaymentMaxAmount:                                       paymentCfg.MaxAmount,
 		PaymentDailyLimit:                                      paymentCfg.DailyLimit,
 		PaymentOrderTimeoutMin:                                 paymentCfg.OrderTimeoutMin,
@@ -356,8 +376,11 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PaymentEnabledTypes:                                    paymentCfg.EnabledTypes,
 		PaymentBalanceDisabled:                                 paymentCfg.BalanceDisabled,
 		PaymentBalanceRechargeMultiplier:                       paymentCfg.BalanceRechargeMultiplier,
+		PaymentRechargeBonusTiers:                              paymentCfg.RechargeBonusTiers,
 		PaymentSubscriptionUSDToCNYRate:                        paymentCfg.SubscriptionUSDToCNYRate,
+		PaymentSubscriptionFeeEnabled:                          paymentCfg.SubscriptionFeeEnabled,
 		PaymentRechargeFeeRate:                                 paymentCfg.RechargeFeeRate,
+		PaymentRechargeFeeCredited:                             paymentCfg.RechargeFeeCredited,
 		PaymentLoadBalanceStrat:                                paymentCfg.LoadBalanceStrategy,
 		PaymentProductNamePrefix:                               paymentCfg.ProductNamePrefix,
 		PaymentProductNameSuffix:                               paymentCfg.ProductNameSuffix,
@@ -370,19 +393,26 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PaymentCancelRateLimitMode:                             paymentCfg.CancelRateLimitMode,
 		PaymentAlipayForceQRCode:                               paymentCfg.AlipayForceQRCode,
 		PaymentAlipayMobilePrecreateDeepLink:                   paymentCfg.AlipayMobilePrecreateDeepLink,
-
-		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
-		ChannelMonitorMode:                   settings.ChannelMonitorMode,
-		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
-		ChannelMonitorHideThroughput:         settings.ChannelMonitorHideThroughput,
-		ChannelMonitorShowQuota:              settings.ChannelMonitorShowQuota,
-		ChannelMonitorHideUserRanking:        settings.ChannelMonitorHideUserRanking,
+		InvoiceEnabled:                                         invoiceSettings.Enabled,
+		InvoiceBaseURL:                                         invoiceSettings.BaseURL,
+		InvoiceClientID:                                        invoiceSettings.ClientID,
+		InvoiceClientSecretConfigured:                          invoiceSettings.ClientSecretConfigured,
+		InvoiceTimeoutSeconds:                                  invoiceSettings.TimeoutSeconds,
+		InvoiceFeePayer:                                        invoiceSettings.FeePayer,
+		ChannelMonitorEnabled:                                  settings.ChannelMonitorEnabled,
+		ChannelMonitorMode:                                     settings.ChannelMonitorMode,
+		ChannelMonitorDefaultIntervalSeconds:                   settings.ChannelMonitorDefaultIntervalSeconds,
+		ChannelMonitorHideThroughput:                           settings.ChannelMonitorHideThroughput,
+		ChannelMonitorShowQuota:                                settings.ChannelMonitorShowQuota,
+		ChannelMonitorHideUserRanking:                          settings.ChannelMonitorHideUserRanking,
 
 		GrokDefaultTextModel:           settings.GrokDefaultTextModel,
 		GrokCrossClientModelMapEnabled: settings.GrokCrossClientModelMapEnabled,
 		GrokDefaultBaseURLMode:         settings.GrokDefaultBaseURLMode,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
+		SmartRoutingEnabled:      settings.SmartRoutingEnabled,
+		UserSubscriptionsEnabled: settings.UserSubscriptionsEnabled,
 
 		ModelPlazaEnabled:       settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:   settings.ModelPlazaRequireAuth,

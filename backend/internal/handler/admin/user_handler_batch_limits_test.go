@@ -72,6 +72,7 @@ func TestUserHandlerBatchUpdateLimitsAcceptsPartialAndZeroValues(t *testing.T) {
 		{name: "concurrency only", body: `{"user_ids":[1,2],"concurrency":10}`, expectedConcurrency: pointerTo(10)},
 		{name: "both limits", body: `{"user_ids":[1,2],"concurrency":8,"rpm_limit":60}`, expectedConcurrency: pointerTo(8), expectedRPMLimit: pointerTo(60)},
 		{name: "explicit zero", body: `{"user_ids":[1,2],"concurrency":0,"rpm_limit":0}`, expectedConcurrency: pointerTo(0), expectedRPMLimit: pointerTo(0)},
+		{name: "explicit deny all", body: `{"user_ids":[1,2],"concurrency":-1}`, expectedConcurrency: pointerTo(-1)},
 	}
 
 	for _, test := range tests {
@@ -111,6 +112,7 @@ func TestUserHandlerBatchUpdateLimitsRejectsInvalidRequests(t *testing.T) {
 		{name: "no limits", body: []byte(`{"user_ids":[1]}`)},
 		{name: "invalid json", body: []byte(`{"user_ids":`)},
 		{name: "missing user ids", body: []byte(`{"rpm_limit":10}`)},
+		{name: "concurrency below deny-all sentinel", body: []byte(`{"user_ids":[1],"concurrency":-2}`)},
 		{name: "more than 500 ids", body: tooManyBody},
 	}
 

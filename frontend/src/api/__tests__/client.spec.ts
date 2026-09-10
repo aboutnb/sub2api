@@ -12,6 +12,7 @@ describe('API Client', () => {
 
   beforeEach(async () => {
     localStorage.clear()
+    window.__APP_CONFIG__ = undefined
     window.history.replaceState({}, '', '/')
     // 每次测试重新导入以获取干净的模块状态
     vi.resetModules()
@@ -120,6 +121,245 @@ describe('API Client', () => {
 
       const config = adapter.mock.calls[0][0]
       expect(config.withCredentials).toBe(true)
+    })
+
+    it('启用公开访问守卫时自动附加 publish key header', async () => {
+      window.__APP_CONFIG__ = {
+        public_access_guard_enabled: true,
+        public_access_publish_key: 'pub-test-key',
+        public_access_header_name: 'x-custom-public-key',
+      } as any
+
+      const adapter = vi.fn().mockResolvedValue({
+        status: 200,
+        data: { code: 0, data: {} },
+        headers: {},
+        config: {},
+        statusText: 'OK',
+      })
+      apiClient.defaults.adapter = adapter
+
+      await apiClient.post('/auth/logout', {})
+
+      const config = adapter.mock.calls[0][0]
+      expect(config.headers.get('x-custom-public-key')).toBe('pub-test-key')
+    })
+
+    it('注册相关接口自动附加注册挑战载荷', async () => {
+      vi.spyOn(axios, 'get').mockResolvedValue({
+        data: {
+          code: 0,
+          data: {
+            token: 'challenge-token',
+            issued_at: Date.now() - 2_000,
+            expires_at: Date.now() + 60_000,
+            min_elapsed_ms: 0,
+            trap_field: 'company_website_test',
+            salt: 'challenge-salt'
+          }
+        }
+      })
+
+      const adapter = vi.fn().mockResolvedValue({
+        status: 200,
+        data: { code: 0, data: {} },
+        headers: {},
+        config: {},
+        statusText: 'OK',
+      })
+      apiClient.defaults.adapter = adapter
+
+      await apiClient.post('/auth/register', {
+        email: 'User@Example.com',
+        password: 'secret-123'
+      })
+
+      expect(axios.get).toHaveBeenCalledWith(
+        '/auth/registration-challenge',
+        expect.objectContaining({ withCredentials: true })
+      )
+      const config = adapter.mock.calls[0][0]
+      const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
+      expect(body.registration_challenge).toEqual(
+        expect.objectContaining({
+          token: 'challenge-token',
+          trap_field: 'company_website_test',
+          trap_value: ''
+        })
+      )
+      expect(body.registration_challenge.proof).toEqual(expect.any(String))
+    })
+
+    it('设备时间不准确时仍按服务器时间生成注册挑战', async () => {
+      vi.useFakeTimers()
+      try {
+        const deviceNow = Date.parse('2035-01-01T00:00:00Z')
+        const serverIssuedAt = Date.parse('2026-07-12T00:00:00Z')
+        vi.setSystemTime(deviceNow)
+        vi.spyOn(axios, 'get').mockResolvedValue({
+          data: {
+            code: 0,
+            data: {
+              token: 'clock-safe-token',
+              issued_at: serverIssuedAt,
+              expires_at: serverIssuedAt + 15 * 60_000,
+              min_elapsed_ms: 900,
+              trap_field: 'company_website_clock',
+              salt: 'clock-safe-salt'
+            }
+          }
+        })
+
+        const adapter = vi.fn().mockResolvedValue({
+          status: 200,
+          data: { code: 0, data: {} },
+          headers: {},
+          config: {},
+          statusText: 'OK',
+        })
+        apiClient.defaults.adapter = adapter
+
+        const request = apiClient.post('/auth/register', {
+          email: 'user@example.com',
+          password: 'secret-123'
+        })
+        await vi.advanceTimersByTimeAsync(900)
+        await request
+
+        const config = adapter.mock.calls[0][0]
+        const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
+        expect(body.registration_challenge.completed_at).toBe(serverIssuedAt + 900)
+        expect(body.registration_challenge.completed_at).not.toBe(deviceNow + 900)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('注册挑战失效时自动获取新挑战并重试一次', async () => {
+      const now = Date.now()
+      vi.spyOn(axios, 'get')
+        .mockResolvedValueOnce({
+          data: {
+            code: 0,
+            data: {
+              token: 'expired-token',
+              issued_at: now,
+              expires_at: now + 15 * 60_000,
+              min_elapsed_ms: 0,
+              trap_field: 'company_website_expired',
+              salt: 'expired-salt'
+            }
+          }
+        })
+        .mockResolvedValueOnce({
+          data: {
+            code: 0,
+            data: {
+              token: 'fresh-token',
+              issued_at: now,
+              expires_at: now + 15 * 60_000,
+              min_elapsed_ms: 0,
+              trap_field: 'company_website_fresh',
+              salt: 'fresh-salt'
+            }
+          }
+        })
+
+      let attempts = 0
+      const submittedTokens: string[] = []
+      const adapter = vi.fn().mockImplementation(async config => {
+        attempts += 1
+        const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
+        submittedTokens.push(body.registration_challenge.token)
+        if (attempts === 1) {
+          return Promise.reject({
+            response: {
+              status: 400,
+              data: {
+                code: 400,
+                reason: 'REGISTRATION_CHALLENGE_INVALID',
+                message: '注册验证已失效'
+              }
+            },
+            config,
+            code: 'ERR_BAD_REQUEST'
+          })
+        }
+        return {
+          status: 200,
+          data: { code: 0, data: {} },
+          headers: {},
+          config,
+          statusText: 'OK',
+        }
+      })
+      apiClient.defaults.adapter = adapter
+
+      await apiClient.post('/auth/register', {
+        email: 'user@example.com',
+        password: 'secret-123'
+      })
+
+      expect(adapter).toHaveBeenCalledTimes(2)
+      expect(axios.get).toHaveBeenCalledTimes(2)
+      expect(submittedTokens).toEqual(['expired-token', 'fresh-token'])
+    })
+
+    it('注册相关接口不会复用已提交的注册挑战', async () => {
+      const now = Date.now()
+      vi.spyOn(axios, 'get')
+        .mockResolvedValueOnce({
+          data: {
+            code: 0,
+            data: {
+              token: 'challenge-token-1',
+              issued_at: now - 2_000,
+              expires_at: now + 60_000,
+              min_elapsed_ms: 0,
+              trap_field: 'company_website_test_1',
+              salt: 'challenge-salt-1'
+            }
+          }
+        })
+        .mockResolvedValueOnce({
+          data: {
+            code: 0,
+            data: {
+              token: 'challenge-token-2',
+              issued_at: now - 2_000,
+              expires_at: now + 60_000,
+              min_elapsed_ms: 0,
+              trap_field: 'company_website_test_2',
+              salt: 'challenge-salt-2'
+            }
+          }
+        })
+
+      const adapter = vi.fn().mockResolvedValue({
+        status: 200,
+        data: { code: 0, data: {} },
+        headers: {},
+        config: {},
+        statusText: 'OK',
+      })
+      apiClient.defaults.adapter = adapter
+
+      await apiClient.post('/auth/send-verify-code', {
+        email: 'user@example.com'
+      })
+      await apiClient.post('/auth/register', {
+        email: 'user@example.com',
+        password: 'secret-123',
+        verify_code: '123456'
+      })
+
+      expect(axios.get).toHaveBeenCalledTimes(2)
+      const firstRawBody = adapter.mock.calls[0][0].data
+      const secondRawBody = adapter.mock.calls[1][0].data
+      const firstBody = typeof firstRawBody === 'string' ? JSON.parse(firstRawBody) : firstRawBody
+      const secondBody = typeof secondRawBody === 'string' ? JSON.parse(secondRawBody) : secondRawBody
+      expect(firstBody.registration_challenge.token).toBe('challenge-token-1')
+      expect(secondBody.registration_challenge.token).toBe('challenge-token-2')
     })
 
     it('Admin API 在进入管理页面前也带 Admin UI 标记', async () => {

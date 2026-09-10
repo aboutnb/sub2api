@@ -25,6 +25,11 @@ export type OrderType = 'balance' | 'subscription'
 
 // ==================== Configuration ====================
 
+export interface RechargeBonusTier {
+  min_amount: number
+  bonus_percent: number
+}
+
 export interface PaymentConfig {
   payment_enabled: boolean
   min_amount: number
@@ -34,6 +39,7 @@ export interface PaymentConfig {
   order_timeout_minutes: number
   balance_disabled: boolean
   balance_recharge_multiplier: number
+  recharge_bonus_tiers: RechargeBonusTier[]
   subscription_usd_to_cny_rate: number
   enabled_payment_types: PaymentType[]
   help_image_url: string
@@ -44,6 +50,8 @@ export interface PaymentConfig {
 export interface MethodLimit {
   currency?: string
   display_name?: string
+  /** Explicit provider launch mode when all candidate instances agree. */
+  payment_mode?: string
   daily_limit: number
   daily_used: number
   daily_remaining: number
@@ -68,9 +76,12 @@ export interface CheckoutInfoResponse {
   plans: SubscriptionPlan[]
   balance_disabled: boolean
   balance_recharge_multiplier: number
+  recharge_bonus_tiers: RechargeBonusTier[]
   /** Subscription CNY conversion rate (1 USD = X CNY); 0 = disabled, plan price is charged as-is */
   subscription_usd_to_cny_rate: number
+  subscription_fee_enabled: boolean
   recharge_fee_rate: number
+  recharge_fee_credited: boolean
   help_text: string
   help_image_url: string
   stripe_publishable_key: string
@@ -104,6 +115,98 @@ export interface PaymentOrder {
   refund_request_reason?: string
   plan_id?: number
   provider_instance_id?: string
+  /** Latest local invoice workflow status for this order, when claimed. */
+  invoice_status?: InvoiceOrderStatus
+}
+
+// ==================== Invoices ====================
+
+export type InvoiceOrderStatus =
+  | 'draft'
+  | 'failed'
+  | 'submitting'
+  | 'submission_unknown'
+  | 'pending'
+  | 'approved'
+  | 'completed'
+
+export interface InvoiceConfig {
+  enabled: boolean
+  supports_tax_payment: boolean
+  max_orders: number
+  fee_payer: 'customer' | 'platform' | 'user_choice'
+}
+
+export interface InvoiceTaxPayment {
+  taxOrderNo: string
+  payUrl: string
+}
+
+export interface InvoiceValidation {
+  orders?: Array<Record<string, unknown>>
+  totalAmount?: string
+  invoiceAmount?: string
+  currency?: string
+  taxAmount?: string
+  taxPaidAmount?: string
+  taxDueAmount?: string
+  taxOrderNo?: string
+  payUrl?: string
+  taxPayments?: Record<string, InvoiceTaxPayment>
+}
+
+export interface InvoiceDraft {
+  draft_id: number
+  order_ids: number[]
+  need_pay_tax: boolean
+  validation: InvoiceValidation
+  tax_order_nos: string[]
+}
+
+export interface InvoiceTaxStatus {
+  paid: boolean
+  ready: boolean
+  validation?: InvoiceValidation
+  tax_order_nos: string[]
+}
+
+export type InvoiceStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'completed'
+  | 'canceled'
+  | 'submitting'
+  | 'submission_unknown'
+  | 'failed'
+
+export interface InvoiceApplication {
+  id: number
+  external_id?: string
+  order_ids: number[]
+  order_nos: string[]
+  need_pay_tax: boolean
+  tax_order_nos: string[]
+  status: InvoiceStatus
+  title?: string
+  recipient_email?: string
+  total_amount: string
+  currency: string
+  request_id?: string
+  error_code?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface InvoiceApplyRequest {
+  buyer_type: 'individual' | 'company'
+  title: string
+  taxpayer_id: string
+  buyer_address?: string
+  buyer_phone?: string
+  buyer_bank?: string
+  buyer_bank_account?: string
+  recipient_email: string
 }
 
 // ==================== Plans & Channels ====================

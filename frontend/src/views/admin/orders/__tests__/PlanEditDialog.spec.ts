@@ -143,6 +143,7 @@ describe('PlanEditDialog', () => {
     const wrapper = mountDialog({
       paymentConfig: {
         subscription_usd_to_cny_rate: 7.15,
+        subscription_fee_enabled: true,
         recharge_fee_rate: 2.5,
       },
     })
@@ -167,6 +168,23 @@ describe('PlanEditDialog', () => {
 
     expect(wrapper.text()).not.toContain('preview')
     expect(wrapper.text()).not.toContain('¥71.43')
+  })
+
+  it('keeps the converted preview but omits the fee when subscription fees are disabled', async () => {
+    const wrapper = mountDialog({
+      paymentConfig: {
+        subscription_usd_to_cny_rate: 7.15,
+        subscription_fee_enabled: false,
+        recharge_fee_rate: 2.5,
+      },
+    })
+
+    await wrapper.find('input[type="number"]').setValue('9.99')
+
+    expect(wrapper.text()).toContain('preview')
+    expect(wrapper.text()).toContain('¥71.43')
+    expect(wrapper.text()).not.toContain('fee 2.5')
+    expect(wrapper.text()).not.toContain('¥73.22')
   })
 
   it('allows composite subscription groups for payment plans', () => {

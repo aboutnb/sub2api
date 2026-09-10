@@ -28,6 +28,16 @@
 
       <!-- Registration Form -->
       <form v-else @submit.prevent="handleRegister" class="space-y-5">
+        <input
+          data-registration-trap
+          type="text"
+          name="company_website"
+          tabindex="-1"
+          autocomplete="off"
+          aria-hidden="true"
+          class="pointer-events-none absolute -left-[10000px] top-auto h-px w-px opacity-0"
+        />
+
         <!-- Email Input -->
         <div>
           <label for="email" class="input-label">

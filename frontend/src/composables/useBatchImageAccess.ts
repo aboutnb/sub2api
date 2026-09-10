@@ -18,7 +18,15 @@ function keyAllowsBatchImage(key: ApiKey): boolean {
 }
 
 async function loadBatchImageAccess(force = false): Promise<boolean> {
-  const authStore = useAuthStore()
+  let authStore: ReturnType<typeof useAuthStore>
+  try {
+    authStore = useAuthStore()
+  } catch {
+    loaded.value = true
+    hasAllowedBatchImageKey.value = false
+    return false
+  }
+
   if (!authStore.isAuthenticated) {
     loaded.value = true
     hasAllowedBatchImageKey.value = false

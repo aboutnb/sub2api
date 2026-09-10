@@ -20,7 +20,14 @@ import (
 
 // APIKeyHandler handles API key-related requests
 type APIKeyHandler struct {
-	apiKeyService *service.APIKeyService
+	apiKeyService     *service.APIKeyService
+	smartRouteService *service.SmartRouteService
+}
+
+// SetSmartRouteService attaches the optional routing facade while preserving the
+// legacy constructor used by focused handler tests.
+func (h *APIKeyHandler) SetSmartRouteService(svc *service.SmartRouteService) {
+	h.smartRouteService = svc
 }
 
 // NewAPIKeyHandler creates a new APIKeyHandler
@@ -41,9 +48,10 @@ type CreateAPIKeyRequest struct {
 	ExpiresInDays *int     `json:"expires_in_days"` // 过期天数
 
 	// Rate limit fields (0 = unlimited)
-	RateLimit5h *float64 `json:"rate_limit_5h"`
-	RateLimit1d *float64 `json:"rate_limit_1d"`
-	RateLimit7d *float64 `json:"rate_limit_7d"`
+	RateLimit5h *float64                 `json:"rate_limit_5h"`
+	RateLimit1d *float64                 `json:"rate_limit_1d"`
+	RateLimit7d *float64                 `json:"rate_limit_7d"`
+	Routing     *service.SmartRouteInput `json:"routing"`
 }
 
 // UpdateAPIKeyRequest represents the update API key request payload
@@ -58,10 +66,27 @@ type UpdateAPIKeyRequest struct {
 	ResetQuota  *bool     `json:"reset_quota"`  // 重置已用配额
 
 	// Rate limit fields (nil = no change, 0 = unlimited)
-	RateLimit5h         *float64 `json:"rate_limit_5h"`
-	RateLimit1d         *float64 `json:"rate_limit_1d"`
-	RateLimit7d         *float64 `json:"rate_limit_7d"`
-	ResetRateLimitUsage *bool    `json:"reset_rate_limit_usage"` // 重置限速用量
+	RateLimit5h         *float64                 `json:"rate_limit_5h"`
+	RateLimit1d         *float64                 `json:"rate_limit_1d"`
+	RateLimit7d         *float64                 `json:"rate_limit_7d"`
+	ResetRateLimitUsage *bool                    `json:"reset_rate_limit_usage"` // 重置限速用量
+	Routing             *service.SmartRouteInput `json:"routing"`
+}
+
+func (h *APIKeyHandler) withRouting(ctx context.Context, key *service.APIKey, config *service.SmartRouteConfig) (*dto.APIKey, error) {
+	out := dto.APIKeyFromService(key)
+	if out == nil || h.smartRouteService == nil {
+		return out, nil
+	}
+	if config == nil {
+		var err error
+		config, err = h.smartRouteService.GetConfig(ctx, key.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	out.Routing = config
+	return out, nil
 }
 
 func validAPIKeyLimit(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0 }
@@ -141,8 +166,23 @@ func (h *APIKeyHandler) List(c *gin.Context) {
 	}
 
 	out := make([]dto.APIKey, 0, len(keys))
+	ids := make([]int64, 0, len(keys))
 	for i := range keys {
-		out = append(out, *dto.APIKeyFromService(&keys[i]))
+		ids = append(ids, keys[i].ID)
+	}
+	configs := map[int64]*service.SmartRouteConfig{}
+	if h.smartRouteService != nil {
+		loaded, loadErr := h.smartRouteService.GetConfigs(c.Request.Context(), ids)
+		if loadErr != nil {
+			response.ErrorFrom(c, loadErr)
+			return
+		}
+		configs = loaded
+	}
+	for i := range keys {
+		mapped := dto.APIKeyFromService(&keys[i])
+		mapped.Routing = configs[keys[i].ID]
+		out = append(out, *mapped)
 	}
 	response.Paginated(c, out, result.Total, page, pageSize)
 }
@@ -174,7 +214,12 @@ func (h *APIKeyHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, dto.APIKeyFromService(key))
+	out, routingErr := h.withRouting(c.Request.Context(), key, nil)
+	if routingErr != nil {
+		response.ErrorFrom(c, routingErr)
+		return
+	}
+	response.Success(c, out)
 }
 
 // Create handles creating a new API key
@@ -193,6 +238,10 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 	}
 	if err := validateAPIKeyCreateRequest(req); err != nil {
 		response.BadRequest(c, "Invalid request: numeric limits must be finite and non-negative, and expires_in_days must be greater than zero")
+		return
+	}
+	if req.Routing != nil && req.GroupID != nil {
+		response.BadRequest(c, "routing and top-level group_id are mutually exclusive")
 		return
 	}
 
@@ -218,11 +267,22 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 	}
 
 	executeUserIdempotentJSON(c, "user.api_keys.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
-		key, err := h.apiKeyService.Create(ctx, subject.UserID, svcReq)
+		var key *service.APIKey
+		var routing *service.SmartRouteConfig
+		var err error
+		if h.smartRouteService != nil && req.Routing != nil {
+			key, routing, err = h.smartRouteService.CreateAPIKey(ctx, subject.UserID, svcReq, req.Routing)
+		} else {
+			key, err = h.apiKeyService.Create(ctx, subject.UserID, svcReq)
+		}
 		if err != nil {
 			return nil, err
 		}
-		return dto.APIKeyFromService(key), nil
+		out, routingErr := h.withRouting(ctx, key, routing)
+		if routingErr != nil {
+			return nil, routingErr
+		}
+		return out, nil
 	})
 }
 
@@ -248,6 +308,10 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 	}
 	if err := validateAPIKeyUpdateRequest(req); err != nil {
 		response.BadRequest(c, "Invalid request: numeric limits must be finite and non-negative")
+		return
+	}
+	if req.Routing != nil && req.GroupID != nil {
+		response.BadRequest(c, "routing and top-level group_id are mutually exclusive")
 		return
 	}
 
@@ -284,13 +348,40 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 		}
 	}
 
-	key, err := h.apiKeyService.Update(c.Request.Context(), keyID, subject.UserID, svcReq)
+	var key *service.APIKey
+	var routing *service.SmartRouteConfig
+	useSmartRouteFacade := h.smartRouteService != nil && req.Routing != nil
+	if h.smartRouteService != nil && req.Routing == nil && req.GroupID != nil {
+		config, configErr := h.smartRouteService.GetConfig(c.Request.Context(), keyID)
+		if configErr != nil {
+			response.ErrorFrom(c, configErr)
+			return
+		}
+		useSmartRouteFacade = config != nil
+	}
+	if useSmartRouteFacade {
+		key, routing, err = h.smartRouteService.UpdateAPIKey(c.Request.Context(), keyID, subject.UserID, svcReq, req.Routing, req.GroupID != nil)
+	} else {
+		key, err = h.apiKeyService.Update(c.Request.Context(), keyID, subject.UserID, svcReq)
+	}
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
-	response.Success(c, dto.APIKeyFromService(key))
+	out, routingErr := h.withRouting(c.Request.Context(), key, routing)
+	if routingErr != nil {
+		response.ErrorFrom(c, routingErr)
+		return
+	}
+	response.Success(c, out)
+}
+
+// GetSmartRoutingStatus exposes the rollout switch to the API key form.
+func (h *APIKeyHandler) GetSmartRoutingStatus(c *gin.Context) {
+	enabled := h.smartRouteService != nil && h.smartRouteService.Enabled(c.Request.Context())
+	c.Header("Cache-Control", "no-store")
+	response.Success(c, gin.H{"enabled": enabled})
 }
 
 // Delete handles deleting an API key

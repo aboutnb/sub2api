@@ -3864,9 +3864,9 @@
                   <input
                     v-model.number="form.default_concurrency"
                     type="number"
-                    min="1"
+                    min="-1"
                     class="input"
-                    placeholder="1"
+                    placeholder="5"
                   />
                   <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                     {{ t("admin.settings.defaults.defaultConcurrencyHint") }}
@@ -4184,7 +4184,7 @@
                             authSourceDefaults[authSource.source].concurrency
                           "
                           type="number"
-                          min="1"
+                          min="-1"
                           class="input"
                           placeholder="5"
                         />
@@ -6528,6 +6528,60 @@
                 </p>
               </div>
 
+              <!-- Community Group -->
+              <div class="space-y-4 border-l-2 border-primary-200 pl-4 dark:border-primary-800">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ t("admin.settings.site.communityGroupName") }}
+                    </label>
+                    <input
+                      v-model="form.community_group_name"
+                      type="text"
+                      class="input"
+                      :placeholder="t('admin.settings.site.communityGroupNamePlaceholder')"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.communityGroupNameHint") }}
+                    </p>
+                  </div>
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ t("admin.settings.site.communityGroupUrl") }}
+                    </label>
+                    <input
+                      v-model="form.community_group_url"
+                      type="url"
+                      class="input font-mono text-sm"
+                      :placeholder="t('admin.settings.site.communityGroupUrlPlaceholder')"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.communityGroupUrlHint") }}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.site.communityGroupIcon") }}
+                  </label>
+                  <ImageUpload
+                    v-model="form.community_group_icon"
+                    mode="image"
+                    size="sm"
+                    :upload-label="t('admin.settings.site.uploadImage')"
+                    :remove-label="t('admin.settings.site.remove')"
+                    :hint="t('admin.settings.site.communityGroupIconHint')"
+                    :max-size="100 * 1024"
+                  />
+                </div>
+              </div>
+
               <!-- Doc URL -->
               <div>
                 <label
@@ -7147,6 +7201,30 @@
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.features.smartRouting.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.features.smartRouting.description') }}
+            </p>
+          </div>
+          <div class="p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.smartRouting.enabled') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.smartRouting.enabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.smart_routing_enabled" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
               {{ t('admin.settings.features.availableChannels.title') }}
             </h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -7173,6 +7251,39 @@
                 </p>
               </div>
               <Toggle v-model="form.available_channels_enabled" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.features.userSubscriptions.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.features.userSubscriptions.description') }}
+            </p>
+            <p class="mt-1.5 text-xs">
+              <router-link
+                to="/admin/subscriptions"
+                class="inline-flex items-center gap-1 text-primary-600 hover:underline dark:text-primary-400"
+              >
+                {{ t('admin.settings.features.userSubscriptions.configureLink') }}
+                <span aria-hidden="true">→</span>
+              </router-link>
+            </p>
+          </div>
+          <div class="p-6">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.userSubscriptions.enabled') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.userSubscriptions.enabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.user_subscriptions_enabled" />
             </div>
           </div>
         </div>
@@ -7773,6 +7884,10 @@
                 <Toggle v-model="form.payment_enabled" />
               </div>
               <template v-if="form.payment_enabled">
+                <div class="flex items-center gap-3 border-t border-gray-100 pt-5 dark:border-dark-700">
+                  <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.payment.sections.pricing") }}</span>
+                  <span class="h-px flex-1 bg-gray-100 dark:bg-dark-700" />
+                </div>
                 <!-- Row 1: Product name -->
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
@@ -7831,6 +7946,25 @@
                       min="0"
                       class="input"
                       :placeholder="t('admin.settings.payment.noLimit')"
+                    />
+                  </div>
+                  <div>
+                    <label class="input-label">{{
+                      t("admin.settings.payment.usdtMinAmount")
+                    }}</label
+                    ><input
+                      :value="form.payment_usdt_min_amount ?? ''"
+                      @input="
+                        form.payment_usdt_min_amount =
+                          parseFloat(
+                            ($event.target as HTMLInputElement).value,
+                          ) || 0
+                      "
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input"
+                      placeholder="50"
                     />
                   </div>
                   <div>
@@ -7983,6 +8117,28 @@
                         })
                       }}
                     </p>
+                    <div class="mt-3 flex items-center justify-between gap-4 border-t border-gray-200 pt-3 dark:border-dark-600">
+                      <div>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {{ t("admin.settings.payment.rechargeFeeCredited") }}
+                        </label>
+                        <p class="mt-0.5 text-xs text-gray-400">
+                          {{ t("admin.settings.payment.rechargeFeeCreditedHint") }}
+                        </p>
+                      </div>
+                      <Toggle v-model="form.payment_recharge_fee_credited" />
+                    </div>
+                    <div class="mt-3 flex items-center justify-between gap-4 border-t border-gray-200 pt-3 dark:border-dark-600">
+                      <div>
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {{ t("admin.settings.payment.subscriptionFeeEnabled") }}
+                        </label>
+                        <p class="mt-0.5 text-xs text-gray-400">
+                          {{ t("admin.settings.payment.subscriptionFeeEnabledHint") }}
+                        </p>
+                      </div>
+                      <Toggle v-model="form.payment_subscription_fee_enabled" />
+                    </div>
                   </div>
                   <div>
                     <label class="input-label"
@@ -8000,7 +8156,82 @@
                     </p>
                   </div>
                 </div>
+                <div class="border-t border-gray-100 pt-5 dark:border-dark-700" data-testid="recharge-bonus-tiers">
+                  <div class="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        {{ t("admin.settings.payment.rechargeBonusTiers") }}
+                      </h3>
+                      <p class="mt-1 text-xs leading-5 text-gray-400">
+                        {{ t("admin.settings.payment.rechargeBonusTiersHint") }}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm shrink-0"
+                      :disabled="form.payment_recharge_bonus_tiers.length >= 20"
+                      :title="t('admin.settings.payment.addRechargeBonusTier')"
+                      :aria-label="t('admin.settings.payment.addRechargeBonusTier')"
+                      data-testid="add-recharge-bonus-tier"
+                      @click="addRechargeBonusTier"
+                    >
+                      <Icon name="plus" size="sm" />
+                    </button>
+                  </div>
+                  <div v-if="form.payment_recharge_bonus_tiers.length > 0" class="mt-3 divide-y divide-gray-100 border-y border-gray-100 dark:divide-dark-700 dark:border-dark-700">
+                    <div
+                      v-for="(tier, index) in form.payment_recharge_bonus_tiers"
+                      :key="index"
+                      class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-end gap-3 py-3"
+                      data-testid="recharge-bonus-tier"
+                    >
+                      <label class="min-w-0">
+                        <span class="input-label">{{ t("admin.settings.payment.rechargeBonusThreshold") }}</span>
+                        <input
+                          v-model.number="tier.min_amount"
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          class="input"
+                          :aria-label="`${t('admin.settings.payment.rechargeBonusThreshold')} ${index + 1}`"
+                        />
+                      </label>
+                      <label class="min-w-0">
+                        <span class="input-label">{{ t("admin.settings.payment.rechargeBonusPercent") }}</span>
+                        <div class="relative">
+                          <input
+                            v-model.number="tier.bonus_percent"
+                            type="number"
+                            min="0.01"
+                            max="100"
+                            step="0.01"
+                            class="input pr-8"
+                            :aria-label="`${t('admin.settings.payment.rechargeBonusPercent')} ${index + 1}`"
+                          />
+                          <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">%</span>
+                        </div>
+                      </label>
+                      <button
+                        type="button"
+                        class="flex h-9 w-9 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                        :title="t('admin.settings.payment.removeRechargeBonusTier')"
+                        :aria-label="t('admin.settings.payment.removeRechargeBonusTier')"
+                        data-testid="remove-recharge-bonus-tier"
+                        @click="removeRechargeBonusTier(index)"
+                      >
+                        <Icon name="trash" size="sm" />
+                      </button>
+                    </div>
+                  </div>
+                  <p v-else class="mt-3 text-xs text-gray-400">
+                    {{ t("admin.settings.payment.rechargeBonusDisabled") }}
+                  </p>
+                </div>
                 <!-- Row 3: Pending orders + load balance + cancel rate limit (all in one row) -->
+                <div class="flex items-center gap-3 border-t border-gray-100 pt-5 dark:border-dark-700">
+                  <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.payment.sections.orderRules") }}</span>
+                  <span class="h-px flex-1 bg-gray-100 dark:bg-dark-700" />
+                </div>
                 <div class="flex flex-wrap items-end gap-4">
                   <div class="w-28">
                     <label class="input-label">{{
@@ -8179,6 +8410,10 @@
                   </div>
                 </div>
                 <!-- Row 4: Enabled payment types (provider badges like sub2apipay) -->
+                <div class="flex items-center gap-3 border-t border-gray-100 pt-5 dark:border-dark-700">
+                  <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.payment.sections.methods") }}</span>
+                  <span class="h-px flex-1 bg-gray-100 dark:bg-dark-700" />
+                </div>
                 <div>
                   <label class="input-label">{{
                     t("admin.settings.payment.enabledPaymentTypes")
@@ -8254,7 +8489,172 @@
                   </div>
                 </div>
               </template>
+
             </div>
+          </div>
+
+          <div class="card overflow-hidden">
+            <section
+              data-testid="invoice-settings"
+              class="p-6"
+            >
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div class="flex min-w-0 items-start gap-3">
+                    <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      <Icon name="document" size="sm" :stroke-width="1.8" />
+                    </div>
+                    <div class="min-w-0">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <h3 class="font-semibold text-gray-900 dark:text-white">
+                          {{ t("admin.settings.payment.invoice.title") }}
+                        </h3>
+                        <span
+                          v-if="form.invoice_enabled"
+                          :class="[
+                            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
+                            invoiceConfigurationReady
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                              : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+                          ]"
+                        >
+                          <Icon
+                            :name="invoiceConfigurationReady ? 'checkCircle' : 'exclamationCircle'"
+                            size="xs"
+                          />
+                          {{
+                            invoiceConfigurationReady
+                              ? t("admin.settings.payment.invoice.configured")
+                              : t("admin.settings.payment.invoice.incomplete")
+                          }}
+                        </span>
+                      </div>
+                      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {{ t("admin.settings.payment.invoice.description") }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex flex-shrink-0 items-center gap-3 sm:pt-1">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.payment.invoice.enabled") }}
+                    </span>
+                    <Toggle v-model="form.invoice_enabled" />
+                  </div>
+                </div>
+
+                <div
+                  v-if="form.invoice_enabled"
+                  class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6"
+                >
+                  <div class="sm:col-span-2 lg:col-span-6">
+                    <label class="input-label">
+                      {{ t("admin.settings.payment.invoice.feePayer") }}
+                    </label>
+                    <div
+                      data-testid="invoice-fee-payer"
+                      role="radiogroup"
+                      class="mt-1 grid grid-cols-1 rounded-md bg-gray-100 p-1 sm:inline-grid sm:grid-cols-3 dark:bg-dark-700"
+                    >
+                      <button
+                        v-for="option in invoiceFeePayerOptions"
+                        :key="option.value"
+                        type="button"
+                        role="radio"
+                        :aria-checked="form.invoice_fee_payer === option.value"
+                        :class="[
+                          'rounded px-3 py-2 text-sm font-medium transition-colors',
+                          form.invoice_fee_payer === option.value
+                            ? 'bg-white text-gray-950 shadow-sm dark:bg-dark-800 dark:text-white'
+                            : 'text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white',
+                        ]"
+                        @click="form.invoice_fee_payer = option.value"
+                      >
+                        {{ option.label }}
+                      </button>
+                    </div>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      {{ invoiceFeePayerHint }}
+                    </p>
+                  </div>
+                  <div class="sm:col-span-2 lg:col-span-3">
+                    <label class="input-label">
+                      {{ t("admin.settings.payment.invoice.baseUrl") }}
+                    </label>
+                    <input
+                      v-model.trim="form.invoice_base_url"
+                      type="url"
+                      class="input"
+                      placeholder="https://oauth.xzncraft.cn"
+                      autocomplete="url"
+                    />
+                  </div>
+                  <div class="sm:col-span-2 lg:col-span-2">
+                    <label class="input-label">
+                      {{ t("admin.settings.payment.invoice.clientId") }}
+                    </label>
+                    <input
+                      v-model.trim="form.invoice_client_id"
+                      type="text"
+                      class="input"
+                      autocomplete="off"
+                    />
+                  </div>
+                  <div class="lg:col-span-1">
+                    <label class="input-label">
+                      {{ t("admin.settings.payment.invoice.timeout") }}
+                    </label>
+                    <div class="relative">
+                      <input
+                        v-model.number="form.invoice_timeout_seconds"
+                        type="number"
+                        min="1"
+                        max="120"
+                        step="1"
+                        class="input pr-10"
+                      />
+                      <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400">
+                        {{ t("admin.settings.payment.invoice.seconds") }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="sm:col-span-2 lg:col-span-3">
+                    <label class="input-label">
+                      {{ t("admin.settings.payment.invoice.clientSecret") }}
+                    </label>
+                    <input
+                      v-model="form.invoice_client_secret"
+                      type="password"
+                      class="input"
+                      autocomplete="new-password"
+                      :placeholder="
+                        form.invoice_client_secret_configured
+                          ? t('admin.settings.payment.invoice.secretConfiguredPlaceholder')
+                          : t('admin.settings.payment.invoice.secretPlaceholder')
+                      "
+                    />
+                    <p
+                      v-if="!form.totp_encryption_key_configured"
+                      class="mt-2 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300"
+                    >
+                      <Icon
+                        name="exclamationCircle"
+                        size="xs"
+                        class="mt-0.5 flex-shrink-0"
+                      />
+                      <span>{{
+                        t(
+                          "admin.settings.payment.invoice.secretEncryptionKeyRequired",
+                        )
+                      }}</span>
+                    </p>
+                  </div>
+                  <div class="sm:col-span-2 lg:col-span-3 lg:self-end">
+                    <div class="flex items-start gap-2 border-l-2 border-emerald-500 pl-3 text-xs text-gray-500 dark:text-gray-400">
+                      <Icon name="infoCircle" size="xs" class="mt-0.5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <p>{{ t("admin.settings.payment.invoice.requirement") }}</p>
+                    </div>
+                  </div>
+              </div>
+            </section>
           </div>
 
           <!-- Provider Management -->
@@ -8777,6 +9177,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api";
 import {
@@ -8853,6 +9254,7 @@ import {
 } from "./codexFingerprintSignals";
 
 const { t, locale } = useI18n();
+const route = useRoute();
 const appStore = useAppStore();
 // 关闭 step-up 开关是敏感操作：后端返回 STEP_UP_REQUIRED 时弹 TOTP 码重试
 const settingsStepUp = useStepUp();
@@ -8885,7 +9287,6 @@ type SettingsTab =
   | "payment"
   | "email"
   | "backup";
-const activeTab = ref<SettingsTab>("general");
 const settingsTabs = [
   { key: "general" as SettingsTab, icon: "home" as const },
   { key: "agreement" as SettingsTab, icon: "document" as const },
@@ -8897,6 +9298,12 @@ const settingsTabs = [
   { key: "email" as SettingsTab, icon: "mail" as const },
   { key: "backup" as SettingsTab, icon: "database" as const },
 ];
+const requestedSettingsTab = String(route?.query?.tab || "") as SettingsTab;
+const activeTab = ref<SettingsTab>(
+  settingsTabs.some((tab) => tab.key === requestedSettingsTab)
+    ? requestedSettingsTab
+    : "general",
+);
 
 const settingsTabKeyboardActions = {
   ArrowLeft: -1,
@@ -9515,6 +9922,7 @@ type SettingsForm = Omit<
   oidc_connect_client_secret: string;
   github_oauth_client_secret: string;
   google_oauth_client_secret: string;
+  invoice_client_secret: string;
   force_email_on_third_party_signup: boolean;
   openai_low_upstream_rate_priority_enabled: boolean;
   openai_oauth_scheduling_rate_multiplier: number;
@@ -9577,6 +9985,9 @@ const form = reactive<SettingsForm>({
   site_subtitle: "Subscription to API Conversion Platform",
   api_base_url: "",
   contact_info: "",
+  community_group_name: "",
+  community_group_icon: "",
+  community_group_url: "",
   doc_url: "",
   home_content: "",
   compact_home_enabled: false,
@@ -9587,14 +9998,21 @@ const form = reactive<SettingsForm>({
   cyber_session_block_enabled: false,
   cyber_session_block_ttl_seconds: 3600,
   payment_min_amount: 1,
+  payment_usdt_min_amount: 50,
   payment_max_amount: 10000,
   payment_daily_limit: 50000,
   payment_max_pending_orders: 3,
   payment_order_timeout_minutes: 30,
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
+  payment_recharge_bonus_tiers: [
+    { min_amount: 50, bonus_percent: 5 },
+    { min_amount: 100, bonus_percent: 10 },
+  ],
   payment_subscription_usd_to_cny_rate: 0,
+  payment_subscription_fee_enabled: true,
   payment_recharge_fee_rate: 0,
+  payment_recharge_fee_credited: false,
   payment_enabled_types: [],
   payment_help_image_url: "",
   payment_help_text: "",
@@ -9608,6 +10026,13 @@ const form = reactive<SettingsForm>({
   payment_cancel_rate_limit_window_mode: "rolling",
   payment_alipay_force_qrcode: false,
   payment_alipay_mobile_precreate_deep_link: false,
+  invoice_enabled: false,
+  invoice_base_url: "https://oauth.xzncraft.cn",
+  invoice_client_id: "",
+  invoice_client_secret: "",
+  invoice_client_secret_configured: false,
+  invoice_timeout_seconds: 15,
+  invoice_fee_payer: "customer",
   table_default_page_size: tablePageSizeDefault,
   table_page_size_options: [10, 20, 50, 100],
   custom_menu_items: [] as Array<{
@@ -9814,6 +10239,11 @@ const form = reactive<SettingsForm>({
   channel_monitor_hide_user_ranking: false,
   // Available Channels feature switch
   available_channels_enabled: false,
+  // Smart routing feature switch
+  smart_routing_enabled: false,
+  // User-facing subscription page and sidebar entry
+  user_subscriptions_enabled: true,
+
   // Model Plaza feature switches + description
   model_plaza_enabled: false,
   model_plaza_require_auth: false,
@@ -10624,6 +11054,19 @@ function removeEndpoint(index: number) {
   form.custom_endpoints.splice(index, 1);
 }
 
+function addRechargeBonusTier() {
+  if (form.payment_recharge_bonus_tiers.length >= 20) return;
+  const last = form.payment_recharge_bonus_tiers.at(-1);
+  form.payment_recharge_bonus_tiers.push({
+    min_amount: Math.round(((Number(last?.min_amount) || 0) + 50) * 100) / 100,
+    bonus_percent: Number(last?.bonus_percent) || 5,
+  });
+}
+
+function removeRechargeBonusTier(index: number) {
+  form.payment_recharge_bonus_tiers.splice(index, 1);
+}
+
 function addLoginAgreementDocument() {
   form.login_agreement_documents.push({
     id: `custom-${Date.now().toString(36)}`,
@@ -10862,6 +11305,7 @@ async function loadSettings() {
     form.tencent_captcha_cloud_secret_id = "";
     form.tencent_captcha_cloud_secret_key = "";
     form.aliyun_captcha_access_key_secret = "";
+    form.invoice_client_secret = "";
     form.linuxdo_connect_client_secret = "";
     form.dingtalk_connect_client_secret = "";
     form.github_oauth_client_secret = "";
@@ -11021,9 +11465,55 @@ function findDuplicateDefaultSubscription(
   });
 }
 
+const invoiceConfigurationReady = computed(
+  () =>
+    form.invoice_base_url.trim() !== "" &&
+    form.invoice_client_id.trim() !== "" &&
+    (form.invoice_client_secret_configured ||
+      form.invoice_client_secret.trim() !== ""),
+);
+
+const invoiceFeePayerOptions = computed(() => [
+  {
+    value: "customer" as const,
+    label: t("admin.settings.payment.invoice.feePayerCustomer"),
+  },
+  {
+    value: "platform" as const,
+    label: t("admin.settings.payment.invoice.feePayerPlatform"),
+  },
+  {
+    value: "user_choice" as const,
+    label: t("admin.settings.payment.invoice.feePayerUserChoice"),
+  },
+]);
+
+const invoiceFeePayerHint = computed(() => {
+  if (form.invoice_fee_payer === "platform") {
+    return t("admin.settings.payment.invoice.feePayerPlatformHint");
+  }
+  if (form.invoice_fee_payer === "user_choice") {
+    return t("admin.settings.payment.invoice.feePayerUserChoiceHint");
+  }
+  return t("admin.settings.payment.invoice.feePayerCustomerHint");
+});
+
 async function saveSettings() {
   saving.value = true;
   try {
+    if (form.invoice_enabled && !invoiceConfigurationReady.value) {
+      appStore.showError(t("admin.settings.payment.invoice.incompleteError"));
+      return;
+    }
+    if (
+      form.invoice_enabled &&
+      (!Number.isInteger(Number(form.invoice_timeout_seconds)) ||
+        Number(form.invoice_timeout_seconds) < 1 ||
+        Number(form.invoice_timeout_seconds) > 120)
+    ) {
+      appStore.showError(t("admin.settings.payment.invoice.timeoutError"));
+      return;
+    }
     const normalizedTableDefaultPageSize = Math.floor(
       Number(form.table_default_page_size),
     );
@@ -11155,6 +11645,7 @@ async function saveSettings() {
     };
     // Optional URL fields: auto-clear invalid values so they don't cause backend 400 errors
     if (!isValidHttpUrl(form.frontend_url)) form.frontend_url = "";
+    if (!isValidHttpUrl(form.community_group_url)) form.community_group_url = "";
     if (!isValidHttpUrl(form.doc_url)) form.doc_url = "";
     syncWeChatConnectMode();
     const wechatStoredMode = deriveWeChatConnectStoredMode(
@@ -11213,6 +11704,9 @@ async function saveSettings() {
       site_subtitle: form.site_subtitle,
       api_base_url: form.api_base_url,
       contact_info: form.contact_info,
+      community_group_name: form.community_group_name,
+      community_group_icon: form.community_group_icon,
+      community_group_url: form.community_group_url,
       doc_url: form.doc_url,
       home_content: form.home_content,
       compact_home_enabled: form.compact_home_enabled,
@@ -11397,6 +11891,7 @@ async function saveSettings() {
       cyber_session_block_ttl_seconds:
         Number(form.cyber_session_block_ttl_seconds) || 3600,
       payment_min_amount: Number(form.payment_min_amount) || 0,
+      payment_usdt_min_amount: Number(form.payment_usdt_min_amount) || 0,
       payment_max_amount: Number(form.payment_max_amount) || 0,
       payment_daily_limit: Number(form.payment_daily_limit) || 0,
       payment_max_pending_orders: Number(form.payment_max_pending_orders) || 0,
@@ -11405,9 +11900,15 @@ async function saveSettings() {
       payment_balance_disabled: form.payment_balance_disabled,
       payment_balance_recharge_multiplier:
         Number(form.payment_balance_recharge_multiplier) || 1,
+      payment_recharge_bonus_tiers: form.payment_recharge_bonus_tiers.map((tier) => ({
+        min_amount: Number(tier.min_amount),
+        bonus_percent: Number(tier.bonus_percent),
+      })),
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,
+      payment_subscription_fee_enabled: form.payment_subscription_fee_enabled,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,
+      payment_recharge_fee_credited: form.payment_recharge_fee_credited,
       payment_enabled_types: form.payment_enabled_types,
       payment_load_balance_strategy: form.payment_load_balance_strategy,
       payment_product_name_prefix: form.payment_product_name_prefix,
@@ -11425,6 +11926,12 @@ async function saveSettings() {
       payment_alipay_force_qrcode: form.payment_alipay_force_qrcode,
       payment_alipay_mobile_precreate_deep_link:
         form.payment_alipay_mobile_precreate_deep_link,
+      invoice_enabled: form.invoice_enabled,
+      invoice_base_url: form.invoice_base_url.trim(),
+      invoice_client_id: form.invoice_client_id.trim(),
+      invoice_client_secret: form.invoice_client_secret.trim(),
+      invoice_timeout_seconds: Number(form.invoice_timeout_seconds) || 15,
+      invoice_fee_payer: form.invoice_fee_payer,
       openai_low_upstream_rate_priority_enabled:
         form.openai_low_upstream_rate_priority_enabled,
       openai_oauth_scheduling_rate_multiplier:
@@ -11478,6 +11985,11 @@ async function saveSettings() {
       channel_monitor_hide_user_ranking: Boolean(form.channel_monitor_hide_user_ranking),
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
+      // Smart routing feature switch
+      smart_routing_enabled: form.smart_routing_enabled,
+      // User-facing subscription page and sidebar entry
+      user_subscriptions_enabled: form.user_subscriptions_enabled,
+
       // Model Plaza feature switches + description
       model_plaza_enabled: form.model_plaza_enabled,
       model_plaza_require_auth: form.model_plaza_require_auth,
@@ -11558,6 +12070,7 @@ async function saveSettings() {
     smtpPasswordManuallyEdited.value = false;
     form.turnstile_secret_key = "";
     form.aliyun_captcha_access_key_secret = "";
+    form.invoice_client_secret = "";
     form.linuxdo_connect_client_secret = "";
     form.dingtalk_connect_client_secret = "";
     form.github_oauth_client_secret = "";

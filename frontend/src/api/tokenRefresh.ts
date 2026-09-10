@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { ApiResponse } from '@/types'
+import { withPublicAccessHeader } from './publicAccess'
 import { getAPIBaseURL } from './url'
 
 const AUTH_TOKEN_KEY = 'auth_token'
@@ -145,7 +146,10 @@ async function requestTokenPair(
     const response = await axios.post<ApiResponse<RefreshTokenResponse>>(
       `${getAPIBaseURL()}/auth/refresh`,
       { refresh_token: snapshot.refreshToken },
-      { headers: { 'Content-Type': 'application/json' }, timeout: TOKEN_REFRESH_TIMEOUT_MS }
+      {
+        headers: withPublicAccessHeader({ 'Content-Type': 'application/json' }),
+        timeout: TOKEN_REFRESH_TIMEOUT_MS
+      }
     )
     const payload = response.data
     if (payload.code !== 0 || !payload.data) {

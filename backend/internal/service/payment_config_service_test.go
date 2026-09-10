@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -101,6 +102,12 @@ func TestParsePaymentConfig(t *testing.T) {
 		if cfg.MinAmount != 1 {
 			t.Fatalf("expected MinAmount=1, got %v", cfg.MinAmount)
 		}
+		if cfg.USDTMinAmount != defaultUSDTMinRechargeAmount {
+			t.Fatalf("expected USDTMinAmount=%v, got %v", defaultUSDTMinRechargeAmount, cfg.USDTMinAmount)
+		}
+		if len(cfg.RechargeBonusTiers) != 2 || cfg.RechargeBonusTiers[0].MinAmount != 50 || cfg.RechargeBonusTiers[1].MinAmount != 100 {
+			t.Fatalf("expected default recharge bonus tiers, got %#v", cfg.RechargeBonusTiers)
+		}
 		if cfg.MaxAmount != 0 {
 			t.Fatalf("expected MaxAmount=0 (no limit), got %v", cfg.MaxAmount)
 		}
@@ -116,6 +123,12 @@ func TestParsePaymentConfig(t *testing.T) {
 		if len(cfg.EnabledTypes) != 0 {
 			t.Fatalf("expected empty EnabledTypes, got %v", cfg.EnabledTypes)
 		}
+		if cfg.RechargeFeeCredited {
+			t.Fatal("expected RechargeFeeCredited=false by default")
+		}
+		if !cfg.SubscriptionFeeEnabled {
+			t.Fatal("expected SubscriptionFeeEnabled=true by default")
+		}
 		if cfg.AlipayMobilePrecreateDeepLink {
 			t.Fatal("expected AlipayMobilePrecreateDeepLink=false by default")
 		}
@@ -126,12 +139,16 @@ func TestParsePaymentConfig(t *testing.T) {
 		vals := map[string]string{
 			SettingPaymentEnabled:                "true",
 			SettingMinRechargeAmount:             "5.00",
+			SettingUSDTMinRechargeAmount:         "25.00",
 			SettingMaxRechargeAmount:             "1000.00",
 			SettingDailyRechargeLimit:            "5000.00",
 			SettingOrderTimeoutMinutes:           "15",
 			SettingMaxPendingOrders:              "5",
 			SettingEnabledPaymentTypes:           "alipay,wxpay,stripe",
 			SettingBalancePayDisabled:            "true",
+			SettingSubscriptionFeeEnabled:        "false",
+			SettingRechargeFeeCredited:           "true",
+			SettingRechargeBonusTiers:            `[{"min_amount":200,"bonus_percent":12.5}]`,
 			SettingLoadBalanceStrategy:           "least_amount",
 			SettingProductNamePrefix:             "PRE",
 			SettingProductNameSuffix:             "SUF",
@@ -144,6 +161,9 @@ func TestParsePaymentConfig(t *testing.T) {
 		}
 		if cfg.MinAmount != 5 {
 			t.Fatalf("MinAmount = %v, want 5", cfg.MinAmount)
+		}
+		if cfg.USDTMinAmount != 25 {
+			t.Fatalf("USDTMinAmount = %v, want 25", cfg.USDTMinAmount)
 		}
 		if cfg.MaxAmount != 1000 {
 			t.Fatalf("MaxAmount = %v, want 1000", cfg.MaxAmount)
@@ -165,6 +185,15 @@ func TestParsePaymentConfig(t *testing.T) {
 		}
 		if !cfg.BalanceDisabled {
 			t.Fatal("expected BalanceDisabled=true")
+		}
+		if !cfg.RechargeFeeCredited {
+			t.Fatal("expected RechargeFeeCredited=true")
+		}
+		if len(cfg.RechargeBonusTiers) != 1 || cfg.RechargeBonusTiers[0].MinAmount != 200 || cfg.RechargeBonusTiers[0].BonusPercent != 12.5 {
+			t.Fatalf("RechargeBonusTiers = %#v", cfg.RechargeBonusTiers)
+		}
+		if cfg.SubscriptionFeeEnabled {
+			t.Fatal("expected SubscriptionFeeEnabled=false")
 		}
 		if cfg.LoadBalanceStrategy != "least_amount" {
 			t.Fatalf("LoadBalanceStrategy = %q, want %q", cfg.LoadBalanceStrategy, "least_amount")
@@ -235,6 +264,33 @@ func TestParsePaymentConfig(t *testing.T) {
 			t.Fatalf("expected empty EnabledTypes for empty string, got %v", cfg.EnabledTypes)
 		}
 	})
+}
+
+func TestParsePaymentConfigUSDTMinimum(t *testing.T) {
+	t.Parallel()
+	svc := &PaymentConfigService{}
+
+	if got := svc.parsePaymentConfig(map[string]string{SettingUSDTMinRechargeAmount: "0"}).USDTMinAmount; got != 0 {
+		t.Fatalf("explicit zero USDT minimum = %v, want 0", got)
+	}
+	for _, value := range []string{"-1", "NaN", "+Inf", "invalid"} {
+		if got := svc.parsePaymentConfig(map[string]string{SettingUSDTMinRechargeAmount: value}).USDTMinAmount; got != defaultUSDTMinRechargeAmount {
+			t.Fatalf("invalid USDT minimum %q = %v, want default %v", value, got, defaultUSDTMinRechargeAmount)
+		}
+	}
+}
+
+func TestIsUSDTPaymentType(t *testing.T) {
+	t.Parallel()
+	tests := map[string]bool{
+		"usdt": true, "USDT_TRC20": true, "usdt-trc20": true, "usdt.trc20": true,
+		"alipay": false, "card_usdt": false, "": false,
+	}
+	for input, want := range tests {
+		if got := isUSDTPaymentType(input); got != want {
+			t.Fatalf("isUSDTPaymentType(%q) = %v, want %v", input, got, want)
+		}
+	}
 }
 
 func TestGetBasePaymentType(t *testing.T) {
@@ -472,6 +528,58 @@ func TestUpdatePaymentConfig_PersistsVisibleMethodRouting(t *testing.T) {
 	}
 	if repo.values[SettingPaymentVisibleMethodWxpaySource] != VisibleMethodSourceOfficialWechat {
 		t.Fatalf("wxpay source = %q, want %q", repo.values[SettingPaymentVisibleMethodWxpaySource], VisibleMethodSourceOfficialWechat)
+	}
+}
+
+func TestUpdatePaymentConfig_PersistsRechargeFeeCredited(t *testing.T) {
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{}}
+	svc := &PaymentConfigService{settingRepo: repo}
+	enabled := true
+
+	err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{
+		RechargeFeeCredited: &enabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdatePaymentConfig returned error: %v", err)
+	}
+	if repo.values[SettingRechargeFeeCredited] != "true" {
+		t.Fatalf("recharge fee credited = %q, want true", repo.values[SettingRechargeFeeCredited])
+	}
+}
+
+func TestUpdatePaymentConfig_PersistsSubscriptionFeeEnabled(t *testing.T) {
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{}}
+	svc := &PaymentConfigService{settingRepo: repo}
+	enabled := false
+
+	err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{
+		SubscriptionFeeEnabled: &enabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdatePaymentConfig returned error: %v", err)
+	}
+	if repo.values[SettingSubscriptionFeeEnabled] != "false" {
+		t.Fatalf("subscription fee enabled = %q, want false", repo.values[SettingSubscriptionFeeEnabled])
+	}
+}
+
+func TestUpdatePaymentConfigUSDTMinimum(t *testing.T) {
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{}}
+	svc := &PaymentConfigService{settingRepo: repo}
+
+	zero := 0.0
+	if err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{USDTMinAmount: &zero}); err != nil {
+		t.Fatalf("persist explicit zero USDT minimum: %v", err)
+	}
+	if got := repo.values[SettingUSDTMinRechargeAmount]; got != "0.00" {
+		t.Fatalf("stored USDT minimum = %q, want 0.00", got)
+	}
+
+	for _, invalid := range []float64{-1, math.NaN(), math.Inf(1)} {
+		value := invalid
+		if err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{USDTMinAmount: &value}); err == nil {
+			t.Fatalf("expected invalid USDT minimum %v to fail", invalid)
+		}
 	}
 }
 

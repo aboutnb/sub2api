@@ -1148,6 +1148,31 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 			imageCounter.AddSSEData(upstreamMessage)
 
+			if eventType == "response.failed" {
+				if hit, code, msg := detectOpenAICyberPolicy(upstreamMessage); hit {
+					MarkOpsCyberPolicy(c, CyberPolicyMark{
+						Code:           code,
+						Message:        msg,
+						Body:           truncateString(string(upstreamMessage), 4096),
+						UpstreamStatus: http.StatusOK,
+						UpstreamInTok:  usage.InputTokens,
+						UpstreamOutTok: usage.OutputTokens,
+					})
+				}
+				failedMessage := extractOpenAISSEErrorMessage(upstreamMessage)
+				if turn == 1 && !wroteDownstream && isOpenAIModelCapacityErrorMessage(failedMessage) {
+					headers := lease.HandshakeHeaders()
+					return nil, s.newOpenAIStreamFailoverError(
+						c,
+						account,
+						false,
+						headers.Get("x-request-id"),
+						upstreamMessage,
+						failedMessage,
+						headers,
+					)
+				}
+			}
 			if !clientDisconnected {
 				if needModelReplace && len(mappedModelBytes) > 0 && openAIWSEventMayContainModel(eventType) && bytes.Contains(upstreamMessage, mappedModelBytes) {
 					upstreamMessage = replaceOpenAIWSMessageModel(upstreamMessage, mappedModel, originalModel)

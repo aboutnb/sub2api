@@ -376,10 +376,10 @@ func (s *GeminiMessagesCompatService) buildPreCheckUsageResultMap(ctx context.Co
 }
 
 // isBetterGeminiAccount 判断 candidate 是否比 current 更优。
-// 规则：优先级更高（数值更小）优先；同优先级时，未使用过的优先（OAuth > 非 OAuth），其次是最久未使用的。
+// 规则：优先级更高（数值更小）优先；1 为最高优先级；同优先级时，未使用过的优先（OAuth > 非 OAuth），其次是最久未使用的。
 //
 // isBetterGeminiAccount checks if candidate is better than current.
-// Rules: higher priority (lower value) wins; same priority: never used (OAuth > non-OAuth) > least recently used.
+// Rules: higher priority (lower value) wins; priority 1 is highest; same priority: never used (OAuth > non-OAuth) > least recently used.
 func (s *GeminiMessagesCompatService) isBetterGeminiAccount(candidate, current *Account) bool {
 	// 优先级更高（数值更小）
 	if candidate.Priority < current.Priority {
@@ -782,6 +782,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 		requestIDHeader = idHeader
 
 		resp, err = s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+		SetOpsHTTPUpstreamTrace(c, upstreamReq)
 		if err != nil {
 			safeErr := sanitizeUpstreamErrorMessage(err.Error())
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
@@ -1793,7 +1794,7 @@ func (s *GeminiMessagesCompatService) writeGeminiNativeUpstreamError(c *gin.Cont
 		contentType = "application/json"
 	}
 	MarkResponseCommitted(c)
-	c.Data(resp.StatusCode, contentType, respBody)
+	c.Data(resp.StatusCode, contentType, SanitizeUpstreamErrorBodyForClient(c, respBody))
 	if upstreamMsg == "" {
 		return fmt.Errorf("gemini upstream error: %d", resp.StatusCode)
 	}
@@ -1817,16 +1818,8 @@ func sleepGeminiBackoff(attempt int) {
 }
 
 var (
-	sensitiveQueryParamRegex = regexp.MustCompile(`(?i)([?&](?:key|client_secret|access_token|refresh_token)=)[^&"\s]+`)
-	retryInRegex             = regexp.MustCompile(`Please retry in ([0-9.]+)s`)
+	retryInRegex = regexp.MustCompile(`Please retry in ([0-9.]+)s`)
 )
-
-func sanitizeUpstreamErrorMessage(msg string) string {
-	if msg == "" {
-		return msg
-	}
-	return sensitiveQueryParamRegex.ReplaceAllString(msg, `$1***`)
-}
 
 func (s *GeminiMessagesCompatService) writeGeminiMappedError(c *gin.Context, account *Account, upstreamStatus int, upstreamRequestID string, body []byte) error {
 	MarkResponseCommitted(c)
@@ -2407,6 +2400,7 @@ func generateAnthropicMsgID() string {
 
 func (s *GeminiMessagesCompatService) writeClaudeError(c *gin.Context, status int, errType, message string) error {
 	MarkResponseCommitted(c)
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(status, gin.H{
 		"type":  "error",
 		"error": gin.H{"type": errType, "message": message},
@@ -2416,6 +2410,7 @@ func (s *GeminiMessagesCompatService) writeClaudeError(c *gin.Context, status in
 
 func (s *GeminiMessagesCompatService) writeGoogleError(c *gin.Context, status int, message string) error {
 	MarkResponseCommitted(c)
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(status, gin.H{
 		"error": gin.H{
 			"code":    status,
@@ -2763,6 +2758,11 @@ func (s *GeminiMessagesCompatService) handleNativeStreamingResponse(c *gin.Conte
 					} else {
 						rawBytes = []byte(payload)
 					}
+					sanitizedBytes := sanitizeUpstreamErrorSSEDataForClient(c, rawBytes)
+					if !bytes.Equal(sanitizedBytes, rawBytes) {
+						rawBytes = sanitizedBytes
+						rawToWrite = string(sanitizedBytes)
+					}
 
 					if u := extractGeminiUsage(rawBytes); u != nil {
 						usage = u
@@ -2775,7 +2775,7 @@ func (s *GeminiMessagesCompatService) handleNativeStreamingResponse(c *gin.Conte
 						firstTokenMs = &ms
 					}
 
-					if isOAuth {
+					if isOAuth || rawToWrite != payload {
 						// SSE format requires double newline (\n\n) to separate events
 						_, _ = fmt.Fprintf(c.Writer, "data: %s\n\n", rawToWrite)
 					} else {

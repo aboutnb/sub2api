@@ -93,6 +93,7 @@ func (s *OpenAIGatewayService) ForwardEmbeddings(
 		proxyURL = account.Proxy.URL()
 	}
 	resp, err := s.doOpenAIUpstream(upstreamReq, proxyURL, account)
+	SetOpsHTTPUpstreamTrace(c, upstreamReq)
 	if err != nil {
 		safeErr := sanitizeUpstreamErrorMessage(err.Error())
 		setOpsUpstreamError(c, 0, safeErr, "")
@@ -183,7 +184,12 @@ func writeOpenAIEmbeddingsUpstreamResponse(c *gin.Context, resp *http.Response, 
 		return
 	}
 	if resp.Header != nil {
-		responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, filter)
+		if resp.StatusCode >= http.StatusMultipleChoices {
+			responseheaders.WriteFilteredErrorHeaders(c.Writer.Header(), resp.Header, filter)
+			body = SanitizeUpstreamErrorBodyForClient(c, body)
+		} else {
+			responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, filter)
+		}
 	}
 	if ct := resp.Header.Get("Content-Type"); ct != "" {
 		c.Writer.Header().Set("Content-Type", ct)
@@ -195,6 +201,7 @@ func writeOpenAIEmbeddingsUpstreamResponse(c *gin.Context, resp *http.Response, 
 }
 
 func writeOpenAIEmbeddingsError(c *gin.Context, statusCode int, errType, message string) {
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(statusCode, gin.H{
 		"error": gin.H{
 			"type":    errType,

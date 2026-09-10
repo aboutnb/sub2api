@@ -2932,7 +2932,55 @@
           <label class="input-label mb-0">{{ t('admin.accounts.proxy') }}</label>
           <ProxyAdBanner />
         </div>
-        <ProxySelector v-model="form.proxy_id" :proxies="proxies" />
+        <div class="space-y-3">
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              @click="proxyMode = 'direct'"
+              :class="[
+                'rounded-lg border px-4 py-3 text-left transition-all',
+                proxyMode === 'direct'
+                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                  : 'border-gray-200 hover:border-primary-300 dark:border-dark-600 dark:hover:border-primary-700'
+              ]"
+            >
+              <div class="text-sm font-medium text-gray-900 dark:text-white">
+                {{ t('admin.accounts.proxyModeDirect') }}
+              </div>
+              <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.proxyModeDirectHint') }}
+              </div>
+            </button>
+            <button
+              type="button"
+              @click="proxyMode = 'project_mihomo'"
+              :class="[
+                'rounded-lg border px-4 py-3 text-left transition-all',
+                proxyMode === 'project_mihomo'
+                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                  : 'border-gray-200 hover:border-primary-300 dark:border-dark-600 dark:hover:border-primary-700'
+              ]"
+            >
+              <div class="text-sm font-medium text-gray-900 dark:text-white">
+                {{ t('admin.accounts.proxyModeProjectMihomo') }}
+              </div>
+              <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.proxyModeProjectMihomoHint') }}
+              </div>
+            </button>
+          </div>
+          <ProxySelector
+            v-if="proxyMode === 'direct'"
+            v-model="form.proxy_id"
+            :proxies="proxies"
+          />
+          <div
+            v-else
+            class="rounded-lg border border-dashed border-primary-200 bg-primary-50/70 px-4 py-3 text-sm text-primary-700 dark:border-primary-800 dark:bg-primary-900/20 dark:text-primary-200"
+          >
+            {{ t('admin.accounts.proxyModeProjectMihomoSummary') }}
+          </div>
+        </div>
       </div>
 
       <UpstreamRequestIdHeaderField
@@ -3473,7 +3521,7 @@
         :loading="currentOAuthLoading"
         :error="currentOAuthError"
         :show-help="form.platform === 'anthropic'"
-        :show-proxy-warning="form.platform !== 'openai' && form.platform !== 'grok' && !!form.proxy_id"
+        :show-proxy-warning="form.platform !== 'openai' && form.platform !== 'grok' && !!currentDirectProxyId"
         :allow-multiple="form.platform === 'anthropic'"
         :show-cookie-option="form.platform === 'anthropic'"
         :show-refresh-token-option="form.platform === 'openai' || form.platform === 'antigravity' || form.platform === 'grok'"
@@ -4601,6 +4649,41 @@ const form = reactive({
   group_ids: [] as number[],
   expires_at: null as number | null
 })
+const proxyMode = ref<'direct' | 'project_mihomo'>('direct')
+
+const currentDirectProxyId = computed(() =>
+  proxyMode.value === 'direct' ? form.proxy_id : null
+)
+
+const withCurrentProxySelection = (payload: CreateAccountRequest): CreateAccountRequest => {
+  const nextPayload: CreateAccountRequest = {
+    ...payload
+  }
+  if (proxyMode.value === 'project_mihomo') {
+    nextPayload.proxy_id = null
+    nextPayload.proxy_provider = 'project_mihomo'
+    return nextPayload
+  }
+  nextPayload.proxy_id = form.proxy_id
+  delete nextPayload.proxy_provider
+  return nextPayload
+}
+
+const withCurrentCodexImportProxySelection = (
+  payload: import('@/types').CodexSessionImportRequest
+): import('@/types').CodexSessionImportRequest => {
+  const nextPayload: import('@/types').CodexSessionImportRequest = {
+    ...payload
+  }
+  if (proxyMode.value === 'project_mihomo') {
+    nextPayload.proxy_id = null
+    nextPayload.proxy_provider = 'project_mihomo'
+    return nextPayload
+  }
+  nextPayload.proxy_id = form.proxy_id
+  delete nextPayload.proxy_provider
+  return nextPayload
+}
 
 // Helper to check if current type needs OAuth flow
 const isOAuthFlow = computed(() => {
@@ -5110,7 +5193,9 @@ const ensureAntigravityMixedChannelConfirmed = async (onConfirm: () => Promise<v
 const submitCreateAccount = async (payload: CreateAccountRequest) => {
   submitting.value = true
   try {
-    const account = await adminAPI.accounts.create(withAntigravityConfirmFlag(payload))
+    const account = await adminAPI.accounts.create(
+      withAntigravityConfirmFlag(withCurrentProxySelection(payload))
+    )
     const modelMapping = payload.credentials.model_mapping
     const hasConcreteMappedTarget = payload.type === 'apikey' &&
       typeof modelMapping === 'object' &&
@@ -5751,20 +5836,20 @@ const goBackToBasicInfo = () => {
 
 const handleGenerateUrl = async () => {
   if (form.platform === 'openai') {
-    await openaiOAuth.generateAuthUrl(form.proxy_id)
+    await openaiOAuth.generateAuthUrl(currentDirectProxyId.value)
   } else if (form.platform === 'gemini') {
     await geminiOAuth.generateAuthUrl(
-      form.proxy_id,
+      currentDirectProxyId.value,
       oauthFlowRef.value?.projectId,
       geminiOAuthType.value,
       geminiSelectedTier.value
     )
   } else if (form.platform === 'antigravity') {
-    await antigravityOAuth.generateAuthUrl(form.proxy_id)
-  } else if (form.platform === 'grok') {
-    await grokOAuth.generateAuthUrl(form.proxy_id)
+	    await antigravityOAuth.generateAuthUrl(currentDirectProxyId.value)
+	  } else if (form.platform === 'grok') {
+	    await grokOAuth.generateAuthUrl(currentDirectProxyId.value)
   } else {
-    await oauth.generateAuthUrl(addMethod.value, form.proxy_id)
+    await oauth.generateAuthUrl(addMethod.value, currentDirectProxyId.value)
   }
 }
 
@@ -5856,7 +5941,6 @@ const createAccountAndFinish = async (
     type,
     credentials,
     extra: finalExtra,
-    proxy_id: form.proxy_id,
     concurrency: form.concurrency,
     load_factor: form.load_factor ?? undefined,
     priority: form.priority,
@@ -5867,7 +5951,7 @@ const createAccountAndFinish = async (
     // 非 apikey 类型（bedrock/oauth）不传，后端不动作。
     upstream_billing_probe_enabled: type === 'apikey' ? upstreamBillingAutoProbeEnabled.value : undefined,
     auto_pause_on_expired: autoPauseOnExpired.value
-  })
+  }).then(() => undefined)
 }
 
 // Grok 手动 RT 批量验证和创建
@@ -6163,7 +6247,7 @@ const handleOpenAIExchange = async (authCode: string) => {
       authCode.trim(),
       oauthClient.sessionId.value,
       stateToUse,
-      form.proxy_id
+      currentDirectProxyId.value
     )
     if (!tokenInfo) return
 
@@ -6192,14 +6276,14 @@ const handleOpenAIExchange = async (authCode: string) => {
     }
 
     if (shouldCreateOpenAI) {
-      await adminAPI.accounts.create({
+      await adminAPI.accounts.create(withCurrentProxySelection({
         name: form.name,
         notes: form.notes,
         platform: 'openai',
         type: 'oauth',
         credentials,
-        extra: withUpstreamRequestIdHeader(extra),
-        proxy_id: form.proxy_id,
+		extra: withUpstreamRequestIdHeader(extra),
+		proxy_id: form.proxy_id,
         concurrency: form.concurrency,
         load_factor: form.load_factor ?? undefined,
         priority: form.priority,
@@ -6207,7 +6291,7 @@ const handleOpenAIExchange = async (authCode: string) => {
         group_ids: form.group_ids,
         expires_at: form.expires_at,
         auto_pause_on_expired: autoPauseOnExpired.value
-      })
+      }))
       appStore.showSuccess(t('admin.accounts.accountCreated'))
     }
 
@@ -6300,11 +6384,10 @@ const handleOpenAIImportCodexSession = async (content: string) => {
 
   try {
     const extra = buildOpenAICodexImportExtra()
-    const result = await adminAPI.accounts.importCodexSession({
+    const result = await adminAPI.accounts.importCodexSession(withCurrentCodexImportProxySelection({
       content: trimmed,
       name: form.name,
       notes: form.notes || null,
-      proxy_id: form.proxy_id,
       concurrency: form.concurrency,
       load_factor: form.load_factor ?? undefined,
       priority: form.priority,
@@ -6315,7 +6398,7 @@ const handleOpenAIImportCodexSession = async (content: string) => {
       credential_extras: Object.keys(credentialExtras).length > 0 ? credentialExtras : undefined,
       extra: withUpstreamRequestIdHeader(extra),
       update_existing: true
-    })
+    }))
 
     const successCount = result.created + result.updated
     const params = {
@@ -6437,7 +6520,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
       try {
         const tokenInfo = await oauthClient.validateRefreshToken(
           refreshTokens[i],
-          form.proxy_id,
+          currentDirectProxyId.value,
           clientId
         )
         if (!tokenInfo) {
@@ -6473,14 +6556,14 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
         const accountName = refreshTokens.length > 1 ? `${baseName} #${i + 1}` : baseName
 
         if (shouldCreateOpenAI) {
-          await adminAPI.accounts.create({
+          await adminAPI.accounts.create(withCurrentProxySelection({
             name: accountName,
             notes: form.notes,
             platform: 'openai',
             type: 'oauth',
             credentials,
-            extra: withUpstreamRequestIdHeader(extra),
-            proxy_id: form.proxy_id,
+			extra: withUpstreamRequestIdHeader(extra),
+			proxy_id: form.proxy_id,
             concurrency: form.concurrency,
             load_factor: form.load_factor ?? undefined,
             priority: form.priority,
@@ -6488,7 +6571,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
             group_ids: form.group_ids,
             expires_at: form.expires_at,
             auto_pause_on_expired: autoPauseOnExpired.value
-          })
+          }))
         }
 
         successCount++
@@ -6556,7 +6639,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
       try {
         const tokenInfo = await antigravityOAuth.validateRefreshToken(
           refreshTokens[i],
-          form.proxy_id
+          currentDirectProxyId.value
         )
         if (!tokenInfo) {
           failedCount++
@@ -6578,8 +6661,8 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
           platform: 'antigravity',
           type: 'oauth',
           credentials,
-          extra: withUpstreamRequestIdHeader({}),
-          proxy_id: form.proxy_id,
+			extra: withUpstreamRequestIdHeader({}),
+			proxy_id: form.proxy_id,
           concurrency: form.concurrency,
           load_factor: form.load_factor ?? undefined,
           priority: form.priority,
@@ -6588,7 +6671,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
         })
-        await adminAPI.accounts.create(createPayload)
+        await adminAPI.accounts.create(withCurrentProxySelection(createPayload))
         successCount++
       } catch (error: any) {
         failedCount++
@@ -6641,7 +6724,7 @@ const handleGeminiExchange = async (authCode: string) => {
       code: authCode.trim(),
       sessionId: geminiOAuth.sessionId.value,
       state: stateToUse,
-      proxyId: form.proxy_id,
+      proxyId: currentDirectProxyId.value,
       oauthType: geminiOAuthType.value,
       tierId: geminiSelectedTier.value
     })
@@ -6678,7 +6761,7 @@ const handleAntigravityExchange = async (authCode: string) => {
       code: authCode.trim(),
       sessionId: antigravityOAuth.sessionId.value,
       state: stateToUse,
-      proxyId: form.proxy_id
+      proxyId: currentDirectProxyId.value
     })
 		if (!tokenInfo) return
 
@@ -6749,7 +6832,7 @@ const handleAnthropicExchange = async (authCode: string) => {
   oauth.error.value = ''
 
   try {
-    const proxyConfig = form.proxy_id ? { proxy_id: form.proxy_id } : {}
+    const proxyConfig = currentDirectProxyId.value ? { proxy_id: currentDirectProxyId.value } : {}
     const endpoint =
       addMethod.value === 'oauth'
         ? '/admin/accounts/exchange-code'
@@ -6853,7 +6936,7 @@ const handleCookieAuth = async (sessionKey: string) => {
   oauth.error.value = ''
 
   try {
-    const proxyConfig = form.proxy_id ? { proxy_id: form.proxy_id } : {}
+    const proxyConfig = currentDirectProxyId.value ? { proxy_id: currentDirectProxyId.value } : {}
     const keys = oauth.parseSessionKeys(sessionKey)
 
     if (keys.length === 0) {
@@ -6953,14 +7036,14 @@ const handleCookieAuth = async (sessionKey: string) => {
           credentials.temp_unschedulable_rules = tempUnschedPayload
         }
 
-        await adminAPI.accounts.create({
+        await adminAPI.accounts.create(withCurrentProxySelection({
           name: accountName,
           notes: form.notes,
           platform: form.platform,
           type: addMethod.value, // Use addMethod as type: 'oauth' or 'setup-token'
           credentials,
-          extra: withUpstreamRequestIdHeader(extra),
-          proxy_id: form.proxy_id,
+			extra: withUpstreamRequestIdHeader(extra),
+			proxy_id: form.proxy_id,
           concurrency: form.concurrency,
           load_factor: form.load_factor ?? undefined,
           priority: form.priority,
@@ -6968,7 +7051,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           group_ids: form.group_ids,
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
-        })
+        }))
 
         successCount++
       } catch (error: any) {

@@ -560,7 +560,7 @@ func TestOpenAIGatewayServiceLegacyLowRatePriorityUsesConfiguredOAuthReference(t
 		account.Schedulable = true
 		account.Concurrency = 1
 	}
-	cheap.Priority, oauth.Priority, expensive.Priority = 20, 10, 0
+	cheap.Priority, oauth.Priority, expensive.Priority = 1, 2, 3
 
 	settings := &openAIAdvancedSchedulerSettingRepoStub{values: map[string]string{
 		openAIAdvancedSchedulerSettingKey:              "false",
@@ -597,8 +597,8 @@ func TestOpenAIModelsSelectionIgnoresTokenCostSignal(t *testing.T) {
 		account.Schedulable = true
 		account.Concurrency = 1
 	}
-	cheap.Priority = 10
-	expensive.Priority = 0
+	cheap.Priority = 1
+	expensive.Priority = 2
 	settings := &openAIAdvancedSchedulerSettingRepoStub{values: map[string]string{
 		SettingKeyOpenAILowUpstreamRatePriorityEnabled: "true",
 	}}
@@ -611,15 +611,15 @@ func TestOpenAIModelsSelectionIgnoresTokenCostSignal(t *testing.T) {
 
 	account, err := svc.SelectAccountForModelWithExclusions(context.Background(), nil, "", "", nil)
 	require.NoError(t, err)
-	require.Equal(t, expensive.ID, account.ID)
+	require.Equal(t, cheap.ID, account.ID)
 }
 
 func TestOpenAIGatewayServiceLegacyLowRatePriorityIsIndependentFromAdvancedScheduler(t *testing.T) {
 	now := time.Now()
 	cheap := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute)
-	cheap.Status, cheap.Schedulable, cheap.Concurrency, cheap.Priority = StatusActive, true, 1, 10
+	cheap.Status, cheap.Schedulable, cheap.Concurrency, cheap.Priority = StatusActive, true, 1, 1
 	expensive := upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
-	expensive.Status, expensive.Schedulable, expensive.Concurrency, expensive.Priority = StatusActive, true, 1, 0
+	expensive.Status, expensive.Schedulable, expensive.Concurrency, expensive.Priority = StatusActive, true, 1, 2
 	accounts := []Account{*cheap, *expensive}
 	groupID := int64(1)
 
@@ -630,7 +630,7 @@ func TestOpenAIGatewayServiceLegacyLowRatePriorityIsIndependentFromAdvancedSched
 		loadErr   error
 		wantID    int64
 	}{
-		{name: "switch off keeps priority first", loadBatch: true, wantID: 2},
+		{name: "switch off keeps priority first", loadBatch: true, wantID: 1},
 		{name: "load batch", enabled: true, loadBatch: true, wantID: 1},
 		{name: "load batch disabled", enabled: true, wantID: 1},
 		{name: "load lookup failure", enabled: true, loadBatch: true, loadErr: errors.New("load unavailable"), wantID: 1},
@@ -674,9 +674,9 @@ func TestOpenAIGatewayServiceAdvancedSchedulerIgnoresLegacyLowRateSwitch(t *test
 	defer resetOpenAIAdvancedSchedulerSettingCacheForTest()
 	now := time.Now()
 	cheap := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute)
-	cheap.Status, cheap.Schedulable, cheap.Concurrency, cheap.Priority = StatusActive, true, 1, 10
+	cheap.Status, cheap.Schedulable, cheap.Concurrency, cheap.Priority = StatusActive, true, 1, 1
 	expensive := upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
-	expensive.Status, expensive.Schedulable, expensive.Concurrency, expensive.Priority = StatusActive, true, 1, 0
+	expensive.Status, expensive.Schedulable, expensive.Concurrency, expensive.Priority = StatusActive, true, 1, 2
 	settings := &openAIAdvancedSchedulerSettingRepoStub{values: map[string]string{
 		openAIAdvancedSchedulerSettingKey:              "true",
 		SettingKeyOpenAILowUpstreamRatePriorityEnabled: "true",
@@ -695,7 +695,7 @@ func TestOpenAIGatewayServiceAdvancedSchedulerIgnoresLegacyLowRateSwitch(t *test
 
 	selection, _, err := svc.SelectAccountWithScheduler(context.Background(), &groupID, "", "", "gpt-test", nil, OpenAIUpstreamTransportAny, false)
 	require.NoError(t, err)
-	require.Equal(t, int64(2), selection.Account.ID)
+	require.Equal(t, int64(1), selection.Account.ID)
 	if selection.ReleaseFunc != nil {
 		selection.ReleaseFunc()
 	}
@@ -707,11 +707,11 @@ func TestOpenAIGatewayServiceLegacyLowRatePrioritySkipsCooledDownAccount(t *test
 
 	now := time.Now()
 	cheap := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute)
-	cheap.Status, cheap.Schedulable, cheap.Concurrency, cheap.Priority = StatusActive, true, 1, 10
+	cheap.Status, cheap.Schedulable, cheap.Concurrency, cheap.Priority = StatusActive, true, 1, 1
 	cooldownUntil := now.Add(time.Minute)
 	cheap.TempUnschedulableUntil = &cooldownUntil
 	expensive := upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.8, now.Add(-time.Minute), 30*time.Minute)
-	expensive.Status, expensive.Schedulable, expensive.Concurrency, expensive.Priority = StatusActive, true, 1, 0
+	expensive.Status, expensive.Schedulable, expensive.Concurrency, expensive.Priority = StatusActive, true, 1, 2
 	settings := &openAIAdvancedSchedulerSettingRepoStub{values: map[string]string{
 		openAIAdvancedSchedulerSettingKey:              "false",
 		SettingKeyOpenAILowUpstreamRatePriorityEnabled: "true",

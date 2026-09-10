@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/googleapi"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -23,6 +24,14 @@ func APIKeyAuthGoogle(apiKeyService *service.APIKeyService, cfg *config.Config) 
 //
 // It is intended for Gemini native endpoints (/v1beta) to match Gemini SDK expectations.
 func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config) gin.HandlerFunc {
+	return apiKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg, nil)
+}
+
+func APIKeyAuthWithSubscriptionGoogleAndResolver(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config, resolver APIKeyGroupResolver) gin.HandlerFunc {
+	return apiKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg, resolver)
+}
+
+func apiKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config, resolver APIKeyGroupResolver) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if rejectInvalidAuthAbuse(c, apiKeyService) {
 			abortWithGoogleError(c, 429, "Too many invalid authentication attempts; retry later")
@@ -113,22 +122,38 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			abortWithGoogleError(c, 401, "User account is not active")
 			return
 		}
-		if code, message, ok := validateAPIKeyGroupAvailable(apiKey); !ok {
-			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonAPIKeyGroupUnavailable)
-			if code == "GROUP_DELETED" {
-				MarkIngressRejected(c, IngressRejectGroupDeleted)
-			} else {
-				MarkIngressRejected(c, IngressRejectGroupDisabled)
+		if apiKey.GroupID == nil && resolver != nil {
+			resolved, resolveErr := resolver.Resolve(c, apiKey)
+			if resolveErr != nil {
+				abortWithGoogleError(c, infraerrors.Code(resolveErr), infraerrors.Message(resolveErr))
+				return
 			}
-			abortWithGoogleError(c, 403, message)
-			return
+			if resolved != nil {
+				apiKey = resolved
+				SetOpsFallbackAPIKey(c, apiKey)
+			}
 		}
-		// 专属分组授权校验：用户对该专属分组的授权被撤销后应拒绝（与主中间件一致，防止越权）。
-		if !validateAPIKeyGroupAllowed(apiKey) {
-			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonAPIKeyGroupUnavailable)
-			MarkIngressRejected(c, IngressRejectGroupNotAllowed)
-			abortWithGoogleError(c, 403, "API Key 所属专属分组不再允许当前用户使用")
-			return
+		_, smartRouteConfigured := GetSmartRouteFromContext(c)
+		ownerScopedHistory := isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path) ||
+			(smartRouteConfigured && isHistoricalBatchImageRead(c.Request.Method, c.Request.URL.Path))
+		if !ownerScopedHistory {
+			if code, message, ok := validateAPIKeyGroupAvailable(apiKey); !ok {
+				service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonAPIKeyGroupUnavailable)
+				if code == "GROUP_DELETED" {
+					MarkIngressRejected(c, IngressRejectGroupDeleted)
+				} else {
+					MarkIngressRejected(c, IngressRejectGroupDisabled)
+				}
+				abortWithGoogleError(c, 403, message)
+				return
+			}
+			// 专属分组授权校验：用户对该专属分组的授权被撤销后应拒绝（与主中间件一致，防止越权）。
+			if !validateAPIKeyGroupAllowed(apiKey) {
+				service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonAPIKeyGroupUnavailable)
+				MarkIngressRejected(c, IngressRejectGroupNotAllowed)
+				abortWithGoogleError(c, 403, "API Key 所属专属分组不再允许当前用户使用")
+				return
+			}
 		}
 
 		// 简易模式：跳过余额和订阅检查
@@ -145,28 +170,30 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			return
 		}
 
-		// Key 状态检查（状态字段可能因后台异步刷新而滞后，故显式拦截）。
-		switch apiKey.Status {
-		case service.StatusAPIKeyQuotaExhausted:
-			abortWithGoogleError(c, 429, "API key 额度已用完")
-			return
-		case service.StatusAPIKeyExpired:
-			abortWithGoogleError(c, 403, "API key 已过期")
-			return
-		}
+		if !ownerScopedHistory {
+			// Key 状态检查（状态字段可能因后台异步刷新而滞后，故显式拦截）。
+			switch apiKey.Status {
+			case service.StatusAPIKeyQuotaExhausted:
+				abortWithGoogleError(c, 429, "API key 额度已用完")
+				return
+			case service.StatusAPIKeyExpired:
+				abortWithGoogleError(c, 403, "API key 已过期")
+				return
+			}
 
-		// 运行时过期/配额检查（即使状态是 active，也要检查时间和用量，与主中间件一致）。
-		if apiKey.IsExpired() {
-			abortWithGoogleError(c, 403, "API key 已过期")
-			return
-		}
-		if apiKey.IsQuotaExhausted() {
-			abortWithGoogleError(c, 429, "API key 额度已用完")
-			return
+			// 运行时过期/配额检查（即使状态是 active，也要检查时间和用量，与主中间件一致）。
+			if apiKey.IsExpired() {
+				abortWithGoogleError(c, 403, "API key 已过期")
+				return
+			}
+			if apiKey.IsQuotaExhausted() {
+				abortWithGoogleError(c, 429, "API key 额度已用完")
+				return
+			}
 		}
 
 		isSubscriptionType := apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
-		if isSubscriptionType && subscriptionService != nil {
+		if !ownerScopedHistory && isSubscriptionType && subscriptionService != nil {
 			subscription, err := subscriptionService.GetActiveSubscription(
 				c.Request.Context(),
 				apiKey.User.ID,
@@ -199,7 +226,7 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			}
 
 			c.Set(string(ContextKeySubscription), subscription)
-		} else {
+		} else if !ownerScopedHistory {
 			if apiKeyBalanceBelowAuthThreshold(apiKey.User.Balance, cfg) {
 				abortWithGoogleError(c, 403, "Insufficient account balance")
 				return

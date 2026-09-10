@@ -30,6 +30,16 @@
 
       <!-- Verification Form -->
       <form v-else @submit.prevent="handleVerify" class="space-y-5">
+        <input
+          data-registration-trap
+          type="text"
+          name="company_website"
+          tabindex="-1"
+          autocomplete="off"
+          aria-hidden="true"
+          class="pointer-events-none absolute -left-[10000px] top-auto h-px w-px opacity-0"
+        />
+
         <!-- Verification Code Input -->
         <div>
           <label for="code" class="input-label text-center">

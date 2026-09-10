@@ -174,7 +174,7 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 	if err != nil {
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
-	grantPlan := s.resolveSignupGrantPlan(ctx, providerType)
+	grant := s.prepareSignupGrant(ctx, providerType)
 	var defaultRPMLimit int
 	if s.settingService != nil {
 		defaultRPMLimit = s.settingService.GetDefaultUserRPMLimit(ctx)
@@ -184,8 +184,8 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 		Username:     strings.TrimSpace(username),
 		PasswordHash: hashedPassword,
 		Role:         RoleUser,
-		Balance:      grantPlan.Balance,
-		Concurrency:  grantPlan.Concurrency,
+		Balance:      grant.initialBalance(),
+		Concurrency:  grant.initialConcurrency(),
 		RPMLimit:     defaultRPMLimit,
 		Status:       StatusActive,
 		SignupSource: providerType,
@@ -200,10 +200,17 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 		}
 		return nil, ErrServiceUnavailable
 	}
+	grantAllowed, grantErr := s.applySignupGrant(ctx, user, grant)
+	if grantErr != nil {
+		_ = s.RollbackOAuthEmailAccountCreation(ctx, user.ID, invitationCode)
+		return nil, grantErr
+	}
 	s.postAuthUserBootstrap(ctx, user, providerType, false)
-	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
-	// snapshot user × platform quota（fail-open）
-	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
+	if grantAllowed {
+		s.assignSubscriptions(ctx, user.ID, grant.plan.Subscriptions, "auto assigned by signup defaults")
+		// snapshot user × platform quota（fail-open）
+		_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grant.plan)
+	}
 	s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
 	if invitationRedeemCode != nil {
 		if err := s.useOAuthRegistrationInvitation(ctx, invitationRedeemCode.ID, user.ID); err != nil {

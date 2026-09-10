@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -20,6 +21,8 @@ func RegisterPaymentRoutes(
 	adminAuth middleware.AdminAuthMiddleware,
 	auditLog middleware.AuditLogMiddleware,
 	settingService *service.SettingService,
+	cfg *config.Config,
+	publicAccessGuard gin.HandlerFunc,
 	panelRateLimiter *middleware.PanelRateLimiter,
 ) {
 	// --- User-facing payment endpoints (authenticated) ---
@@ -33,6 +36,19 @@ func RegisterPaymentRoutes(
 		authenticated.GET("/checkout-info", paymentHandler.GetCheckoutInfo)
 		authenticated.GET("/plans", paymentHandler.GetPlans)
 		authenticated.GET("/limits", paymentHandler.GetLimits)
+
+		invoices := authenticated.Group("/invoices")
+		{
+			invoices.GET("/config", paymentHandler.GetInvoiceConfig)
+			invoices.GET("/drafts/current", paymentHandler.GetCurrentInvoiceDraft)
+			invoices.POST("/validate", paymentHandler.ValidateInvoiceOrders)
+			invoices.POST("/drafts/:id/tax-status", paymentHandler.CheckInvoiceTaxPayment)
+			invoices.POST("/drafts/:id/apply", paymentHandler.ApplyInvoice)
+			invoices.POST("/drafts/:id/abandon", paymentHandler.AbandonInvoiceDraft)
+			invoices.GET("", paymentHandler.ListInvoices)
+			invoices.POST("/:id/cancel", paymentHandler.CancelInvoice)
+			invoices.GET("/:id/pdf", paymentHandler.DownloadInvoicePDF)
+		}
 
 		orders := authenticated.Group("/orders")
 		{
@@ -51,6 +67,12 @@ func RegisterPaymentRoutes(
 	// The legacy anonymous out_trade_no verify endpoint remains available as a
 	// persisted-state compatibility path for staggered upgrades.
 	public := v1.Group("/payment/public")
+	if cfg != nil &&
+		cfg.Security.PublicAccessGuard.Enabled &&
+		cfg.Security.PublicAccessGuard.ProtectSitePublicPOST &&
+		publicAccessGuard != nil {
+		public.Use(publicAccessGuard)
+	}
 	{
 		public.POST("/orders/verify", paymentHandler.VerifyOrderPublic)
 		public.POST("/orders/resolve", paymentHandler.ResolveOrderPublicByResumeToken)

@@ -154,6 +154,7 @@ const (
 	RedeemTypeSubscription     = domain.RedeemTypeSubscription
 	RedeemTypeInvitation       = domain.RedeemTypeInvitation
 	RedeemTypeAffiliateBalance = "affiliate_balance"
+	RedeemTypeCheckin          = "checkin"
 )
 
 // PromoCode status constants
@@ -358,6 +359,9 @@ const (
 	SettingKeySiteSubtitle                = "site_subtitle"                 // 网站副标题
 	SettingKeyAPIBaseURL                  = "api_base_url"                  // API端点地址（用于客户端配置和导入）
 	SettingKeyContactInfo                 = "contact_info"                  // 客服联系方式
+	SettingKeyCommunityGroupName          = "community_group_name"          // 交流群名称
+	SettingKeyCommunityGroupIcon          = "community_group_icon"          // 交流群图标
+	SettingKeyCommunityGroupURL           = "community_group_url"           // 交流群链接
 	SettingKeyDocURL                      = "doc_url"                       // 文档链接
 	SettingKeyHomeContent                 = "home_content"                  // 首页内容（支持 Markdown/HTML，或 URL 作为 iframe src）
 	SettingKeyCompactHomeEnabled          = "compact_home_enabled"          // 是否启用内置简洁首页
@@ -512,6 +516,14 @@ const (
 	// user-facing aggregate view. When false: user endpoint returns an empty list and the
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled = "available_channels_enabled"
+
+	// SettingKeySmartRoutingEnabled gates creation and execution of smart-routed API keys.
+	// It is opt-in so mixed-version deployments cannot send a smart key to an old node.
+	SettingKeySmartRoutingEnabled = "smart_routing_enabled"
+
+	// SettingKeyUserSubscriptionsEnabled controls the user-facing "My Subscriptions"
+	// page and sidebar entry. Admin subscription management and billing remain available.
+	SettingKeyUserSubscriptionsEnabled = "user_subscriptions_enabled"
 
 	// SettingKeyModelPlazaEnabled is a DB-backed soft switch for the Model Plaza page
 	// (public group/model pricing showcase). When false: the plaza endpoint returns 404
@@ -693,6 +705,9 @@ const (
 
 	// Web Search Emulation
 	SettingKeyWebSearchEmulationConfig = "web_search_emulation_config" // JSON 配置
+
+	// Project Mihomo
+	SettingKeyProjectMihomoSettings = "project_mihomo_settings" // JSON 配置
 )
 
 // SettingKeyDefaultPlatformQuotas —— 系统全局：每用户 × 平台日/周/月 USD 上限（JSON）。

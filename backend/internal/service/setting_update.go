@@ -341,6 +341,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeySiteSubtitle] = settings.SiteSubtitle
 	updates[SettingKeyAPIBaseURL] = settings.APIBaseURL
 	updates[SettingKeyContactInfo] = settings.ContactInfo
+	updates[SettingKeyCommunityGroupName] = strings.TrimSpace(settings.CommunityGroupName)
+	updates[SettingKeyCommunityGroupIcon] = strings.TrimSpace(settings.CommunityGroupIcon)
+	updates[SettingKeyCommunityGroupURL] = strings.TrimSpace(settings.CommunityGroupURL)
 	updates[SettingKeyDocURL] = settings.DocURL
 	updates[SettingKeyHomeContent] = settings.HomeContent
 	updates[SettingKeyCompactHomeEnabled] = strconv.FormatBool(settings.CompactHomeEnabled)
@@ -361,6 +364,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyCustomEndpoints] = settings.CustomEndpoints
 
 	// 默认配置
+	settings.DefaultConcurrency = normalizeUserConcurrency(settings.DefaultConcurrency)
 	updates[SettingKeyDefaultConcurrency] = strconv.Itoa(settings.DefaultConcurrency)
 	updates[SettingKeyDefaultBalance] = strconv.FormatFloat(settings.DefaultBalance, 'f', 8, 64)
 	settings.AffiliateRebateRate = clampAffiliateRebateRate(settings.AffiliateRebateRate)
@@ -431,6 +435,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	// Available channels feature switch
 	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
+	// Smart routing feature switch (opt-in; single-group keys do not depend on it)
+	updates[SettingKeySmartRoutingEnabled] = strconv.FormatBool(settings.SmartRoutingEnabled)
+
+	// User subscription page feature switch
+	updates[SettingKeyUserSubscriptionsEnabled] = strconv.FormatBool(settings.UserSubscriptionsEnabled)
 
 	// Model plaza feature switches + description
 	updates[SettingKeyModelPlazaEnabled] = strconv.FormatBool(settings.ModelPlazaEnabled)

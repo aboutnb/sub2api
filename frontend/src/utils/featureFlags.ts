@@ -104,6 +104,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Available Channels',
   }),
+  userSubscriptions: defineFlag({
+    key: 'user_subscriptions_enabled',
+    mode: 'opt-out',
+    label: 'User Subscriptions',
+  }),
   modelPlaza: defineFlag({
     key: 'model_plaza_enabled',
     mode: 'opt-in',
@@ -128,6 +133,11 @@ export const FeatureFlags = {
     key: 'affiliate_enabled',
     mode: 'opt-in',
     label: 'Affiliate',
+  }),
+  checkin: defineFlag({
+    key: 'checkin_enabled',
+    mode: 'opt-in',
+    label: 'Check-in',
   }),
 } as const
 

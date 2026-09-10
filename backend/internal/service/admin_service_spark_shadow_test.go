@@ -263,8 +263,8 @@ func TestCreateShadow_InheritsParentConcurrency(t *testing.T) {
 }
 
 // TestCreateShadow_InheritsParentPriorityWhenOmitted 验证外审第5轮 P1:未指定优先级时
-// 影子继承母账号 priority,而非直写 0 抢到最高调度优先级(repo SetPriority 绕过 ent 默认 50,
-// 调度比较数值越小越优先;前端一键创建只传 name 即触发该路径)。
+// 影子继承母账号 priority，而非直写 0 抢到最高调度优先级（repo SetPriority 绕过 ent 默认 50，
+// 调度比较数值越小越优先；前端一键创建只传 name 即触发该路径）。
 func TestCreateShadow_InheritsParentPriorityWhenOmitted(t *testing.T) {
 	ctx := context.Background()
 

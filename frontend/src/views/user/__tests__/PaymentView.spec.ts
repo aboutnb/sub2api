@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, shallowMount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import PaymentView from '../PaymentView.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 import { formatPaymentAmount } from '@/components/payment/currency'
@@ -26,6 +27,7 @@ const showWarning = vi.hoisted(() => vi.fn())
 const getCheckoutInfo = vi.hoisted(() => vi.fn())
 const bridgeInvoke = vi.hoisted(() => vi.fn())
 const translate = vi.hoisted(() => vi.fn((key: string) => key))
+const mobileDevice = vi.hoisted(() => vi.fn(() => true))
 
 vi.mock('vue-router', async () => {
   const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
@@ -88,8 +90,12 @@ vi.mock('@/api/payment', () => ({
 }))
 
 vi.mock('@/utils/device', () => ({
-  isMobileDevice: () => true,
+  isMobileDevice: mobileDevice,
 }))
+
+beforeEach(() => {
+  mobileDevice.mockReturnValue(true)
+})
 
 function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
   const wxpayMethod: MethodLimit = {
@@ -110,8 +116,11 @@ function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
     plans: [],
     balance_disabled: false,
     balance_recharge_multiplier: 1,
+    recharge_bonus_tiers: [],
     subscription_usd_to_cny_rate: 0,
+    subscription_fee_enabled: true,
     recharge_fee_rate: 0,
+    recharge_fee_credited: false,
     help_text: '',
     help_image_url: '',
     stripe_publishable_key: '',
@@ -121,6 +130,145 @@ function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
     data: { ...data, ...overrides },
   }
 }
+
+async function mountRecharge(checkout: Partial<CheckoutInfoResponse> = {}) {
+  vi.useRealTimers()
+  routeState.path = '/purchase'
+  routeState.query = { tab: 'recharge' }
+  getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture(checkout))
+  window.localStorage.clear()
+
+  const wrapper = shallowMount(PaymentView, {
+    global: {
+      stubs: {
+        AppLayout: { template: '<div><slot /></div>' },
+        Teleport: true,
+        Transition: false,
+      },
+    },
+  })
+  await flushPromises()
+  const amountInput = wrapper.findComponent({ name: 'AmountInput' })
+  amountInput.vm.$emit('update:modelValue', 100)
+  await nextTick()
+  return wrapper
+}
+
+describe('PaymentView balance recharge credited fee', () => {
+  it('limits recharge quick amounts to 500', async () => {
+    const wrapper = await mountRecharge()
+    const amountInput = wrapper.findComponent({ name: 'AmountInput' })
+
+    expect(amountInput.props('amounts')).toEqual([10, 20, 50, 100, 200, 500])
+  })
+
+  it('shows configured bonus badges and previews the highest matching tier', async () => {
+    const wrapper = await mountRecharge({
+      recharge_bonus_tiers: [
+        { min_amount: 50, bonus_percent: 5 },
+        { min_amount: 100, bonus_percent: 10 },
+      ],
+    })
+    const amountInput = wrapper.findComponent({ name: 'AmountInput' })
+
+    expect(amountInput.props('amountBadges')).toEqual({
+      50: 'payment.bonusBadge',
+      100: 'payment.bonusBadge',
+      200: 'payment.bonusBadge',
+      500: 'payment.bonusBadge',
+    })
+    expect(wrapper.text()).toContain('payment.rechargeBonus')
+    expect(wrapper.text()).toContain('+$10.00')
+    expect(wrapper.text()).toContain('$110.00')
+  })
+
+  it('shows the full paid amount as credited balance when enabled', async () => {
+    const wrapper = await mountRecharge({
+      subscription_fee_enabled: false,
+      recharge_fee_rate: 2,
+      recharge_fee_credited: true,
+    })
+
+    expect(wrapper.text()).toContain('payment.creditedBalance')
+    expect(wrapper.text()).toContain('payment.feeCreditedNotice')
+    expect(wrapper.text()).toContain('$102.00')
+    expect(wrapper.text()).toContain(formatPaymentAmount(102, 'CNY'))
+    expect(wrapper.find('[data-test="recharge-checkout-layout"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="recharge-summary"]').text()).toContain('payment.checkoutSummary')
+  })
+
+  it('keeps the fee outside credited balance when disabled', async () => {
+    const wrapper = await mountRecharge({
+      recharge_fee_rate: 2,
+      recharge_fee_credited: false,
+    })
+
+    expect(wrapper.text()).not.toContain('payment.creditedBalance')
+    expect(wrapper.text()).not.toContain('payment.feeCreditedNotice')
+    expect(wrapper.text()).toContain(formatPaymentAmount(102, 'CNY'))
+  })
+})
+
+describe('PaymentView GM popup flow', () => {
+  beforeEach(() => {
+    createOrder.mockReset()
+    mobileDevice.mockReturnValue(false)
+  })
+
+  it('opens GM checkout during the click and navigates the same window after order creation', async () => {
+    let resolveOrder: (value: Record<string, unknown>) => void = () => {}
+    createOrder.mockReturnValue(new Promise(resolve => {
+      resolveOrder = resolve
+    }))
+
+    const popupLocation = { href: 'about:blank' }
+    const popup = {
+      closed: false,
+      location: popupLocation,
+      focus: vi.fn(),
+      close: vi.fn(),
+    } as unknown as Window
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(popup)
+
+    const wrapper = await mountRecharge({
+      methods: {
+        usdt_trc20: {
+          ...checkoutInfoFixture().data.methods.wxpay,
+          display_name: 'USDT-TRC20',
+          payment_mode: 'popup',
+        },
+      },
+    })
+
+    const submitButton = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))
+    expect(submitButton).toBeDefined()
+
+    const click = submitButton!.trigger('click')
+    await nextTick()
+    expect(openSpy).toHaveBeenCalledWith('about:blank', expect.stringContaining('paymentPopup-'), expect.any(String))
+
+    resolveOrder({
+      order_id: 901,
+      amount: 100,
+      pay_amount: 100,
+      fee_rate: 0,
+      expires_at: '2099-01-01T00:10:00.000Z',
+      payment_type: 'usdt_trc20',
+      out_trade_no: 'sub2_gm_901',
+      pay_url: 'https://gm.example.com/checkout/901',
+      payment_mode: 'popup',
+    })
+    await click
+    await flushPromises()
+
+    expect(openSpy).toHaveBeenCalledTimes(1)
+    expect(popupLocation.href).toBe('https://gm.example.com/checkout/901')
+    expect(popup.focus).toHaveBeenCalled()
+
+    wrapper.unmount()
+    openSpy.mockRestore()
+  })
+})
 
 function checkoutInfoWithPlansFixture(options: {
   checkout?: Partial<CheckoutInfoResponse>
@@ -418,6 +566,8 @@ describe('PaymentView subscription confirmation amounts', () => {
 
     expect(text).toContain(convertedPrice)
     expect(text).toContain(convertedOriginalPrice)
+    expect(wrapper.find('[data-test="subscription-checkout-layout"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="subscription-summary"]').text()).toContain(convertedPrice)
     expect(text).not.toContain(formatPaymentAmount(9.99, 'CNY'))
     // 换算必须使用订阅汇率（×7.15），而不是余额倍率（÷0.14 = 71.36）
     expect(text).not.toContain(formatPaymentAmount(71.36, 'CNY'))
@@ -464,6 +614,7 @@ describe('PaymentView subscription confirmation amounts', () => {
     const wrapper = await mountSubscriptionConfirm({
       checkout: {
         subscription_usd_to_cny_rate: 7.15,
+        subscription_fee_enabled: true,
         recharge_fee_rate: 2.5,
       },
       method: {
@@ -483,6 +634,31 @@ describe('PaymentView subscription confirmation amounts', () => {
     expect(text).toContain(fee)
     expect(text).toContain(total)
     expect(wrapper.findAll('button').some(button => button.text().includes(total))).toBe(true)
+  })
+
+  it('does not add the recharge fee when subscription fees are disabled', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: {
+        subscription_usd_to_cny_rate: 7.15,
+        subscription_fee_enabled: false,
+        recharge_fee_rate: 2.5,
+      },
+      method: {
+        currency: 'CNY',
+      },
+      plan: {
+        price: 9.99,
+      },
+    })
+
+    const text = wrapper.text()
+    const convertedPrice = formatPaymentAmount(71.43, 'CNY')
+    const totalWithFee = formatPaymentAmount(73.22, 'CNY')
+
+    expect(text).toContain(convertedPrice)
+    expect(text).not.toContain(totalWithFee)
+    expect(text).not.toContain('payment.fee')
+    expect(wrapper.findAll('button').some(button => button.text().includes(convertedPrice))).toBe(true)
   })
 })
 

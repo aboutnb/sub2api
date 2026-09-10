@@ -21,10 +21,10 @@ func newGatewayRoutesTestRouter(platform ...string) *gin.Engine {
 			MaxBodySize:     1024 * 1024,
 			TextMaxBodySize: 1024 * 1024,
 		},
-	}, platform...)
+	}, nil, platform...)
 }
 
-func newGatewayRoutesTestRouterWithConfig(cfg *config.Config, platform ...string) *gin.Engine {
+func newGatewayRoutesTestRouterWithConfig(cfg *config.Config, authCalled *bool, platform ...string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
@@ -40,6 +40,9 @@ func newGatewayRoutesTestRouterWithConfig(cfg *config.Config, platform ...string
 			AsyncImage:    handler.NewAsyncImageHandler(nil, nil),
 		},
 		servermiddleware.APIKeyAuthMiddleware(func(c *gin.Context) {
+			if authCalled != nil {
+				*authCalled = true
+			}
 			groupID := int64(1)
 			c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
 				GroupID: &groupID,
@@ -47,6 +50,7 @@ func newGatewayRoutesTestRouterWithConfig(cfg *config.Config, platform ...string
 			})
 			c.Next()
 		}),
+		nil,
 		nil,
 		nil,
 		nil,
@@ -122,6 +126,26 @@ func TestGatewayRoutesOpenAIImagesPathsAreRegistered(t *testing.T) {
 		router.ServeHTTP(w, req)
 		require.NotEqual(t, http.StatusNotFound, w.Code, "path=%s should hit OpenAI images handler", path)
 	}
+}
+
+func TestGatewayRoutesRejectMalformedGatewayKeyBeforeAuth(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Security.PublicAccessGuard.Enabled = true
+	cfg.Security.PublicAccessGuard.RejectMalformedGatewayKeys = true
+	cfg.Security.PublicAccessGuard.GatewayKeyAllowedPrefixes = []string{"sk-"}
+
+	authCalled := false
+	router := newGatewayRoutesTestRouterWithConfig(cfg, &authCalled)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer junk")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+	require.False(t, authCalled)
 }
 
 func TestGatewayRoutesAsyncImagesPathsAreRegistered(t *testing.T) {
@@ -400,7 +424,7 @@ func TestGatewayRoutesGrokAllowsCLICompatibilityEntrypoints(t *testing.T) {
 
 	countTokensRouter := newGatewayRoutesTestRouterWithConfig(&config.Config{
 		Gateway: config.GatewayConfig{MaxBodySize: 1024 * 1024},
-	}, service.PlatformGrok)
+	}, nil, service.PlatformGrok)
 	for _, path := range []string{"/v1/messages/count_tokens", "/messages/count_tokens"} {
 		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"model":"grok","messages":[{"role":"user","content":"hi"}]}`))
 		req.Header.Set("Content-Type", "application/json")

@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"strings"
@@ -213,6 +214,8 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 		return nil, err
 	}
 
+	attachHTTPUpstreamTrace(req)
+
 	// 执行请求
 	client := s.httpClientForUpstreamRequest(entry.client, req)
 	client = httpClientWithGrokAccessDeniedFallback(client)
@@ -277,6 +280,8 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 		slog.Debug("tls_fingerprint_acquire_client_failed", "account_id", accountID, "error", err)
 		return nil, err
 	}
+
+	attachHTTPUpstreamTrace(req)
 
 	client := s.httpClientForUpstreamRequest(entry.client, req)
 	client = httpClientWithGrokAccessDeniedFallback(client)
@@ -1433,6 +1438,16 @@ func buildUpstreamTransportWithTLSFingerprint(settings poolSettings, proxyURL *u
 	}
 
 	return transport, nil
+}
+
+func attachHTTPUpstreamTrace(req *http.Request) {
+	if req == nil {
+		return
+	}
+	trace := service.NewHTTPUpstreamTrace(time.Now())
+	ctx := service.WithHTTPUpstreamTrace(req.Context(), trace)
+	ctx = httptrace.WithClientTrace(ctx, trace.ClientTrace())
+	*req = *req.WithContext(ctx)
 }
 
 // trackedBody 带跟踪功能的响应体包装器

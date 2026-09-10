@@ -27,7 +27,7 @@
             id="bulk-concurrency"
             v-model="concurrencyValue"
             type="number"
-            min="0"
+            min="-1"
             step="1"
             class="input"
             data-test="concurrency-input"
@@ -117,19 +117,19 @@ const rpmLimitValue = ref<string | number>('')
 const submitting = ref(false)
 const MAX_BATCH_USER_IDS = 500
 
-const parseLimit = (value: string | number): number | null | undefined => {
+const parseLimit = (value: string | number, minimum = 0): number | null | undefined => {
   const trimmed = String(value).trim()
   if (!trimmed) return undefined
   const parsed = Number(trimmed)
-  if (!Number.isInteger(parsed) || parsed < 0) return null
+  if (!Number.isInteger(parsed) || parsed < minimum) return null
   return parsed
 }
 
 const parsedConcurrency = computed(() =>
-  enableConcurrency.value ? parseLimit(concurrencyValue.value) : undefined
+  enableConcurrency.value ? parseLimit(concurrencyValue.value, -1) : undefined
 )
 const parsedRPMLimit = computed(() =>
-  enableRPMLimit.value ? parseLimit(rpmLimitValue.value) : undefined
+  enableRPMLimit.value ? parseLimit(rpmLimitValue.value, 0) : undefined
 )
 const hasInvalidValue = computed(() =>
   parsedConcurrency.value === null || parsedRPMLimit.value === null

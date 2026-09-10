@@ -8,6 +8,20 @@ permissions:
   contents: read
 
 jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Check reviewed upstream and Aivoza contract
+        run: |
+          upstream_sha="$(cat .github/aivoza-upstream-ref)"
+          git fetch --no-tags https://github.com/Wei-Shaw/sub2api.git "$upstream_sha"
+          git update-ref refs/remotes/upstream/main FETCH_HEAD
+          make review-flowai-upstream
+          make check-flowai-contract-strict
+
   shell:
     runs-on: macos-15
     steps:
@@ -58,8 +72,11 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: pnpm install --frozen-lockfile
-      - name: Frontend typecheck and critical vitest
-        run: make test-frontend
+      - name: Frontend lint, typecheck, full tests and production build
+        run: |
+          make test-frontend
+          pnpm --dir frontend exec vitest run
+          pnpm --dir frontend run build
 
   golangci-lint:
     runs-on: ubuntu-latest

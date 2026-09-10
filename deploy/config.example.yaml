@@ -101,6 +101,21 @@ webauthn:
 run_mode: "standard"
 
 # =============================================================================
+# XZNOAuth Invoice Integration (Optional)
+# XZNOAuth 自助开票对接（可选）
+# =============================================================================
+# Credentials are server-side only. The invoice entry is hidden when disabled.
+# 凭据仅保存在服务端；关闭后“我的订单”不会显示开票入口。
+invoice:
+  enabled: false
+  base_url: "https://oauth.xzncraft.cn"
+  client_id: ""
+  client_secret: ""
+  # Each request selects whether the platform or customer bears the invoice fee.
+  # 每次开票由用户选择平台承担或用户支付开票费。
+  timeout_seconds: 15
+
+# =============================================================================
 # CORS Configuration
 # 跨域资源共享 (CORS) 配置
 # =============================================================================
@@ -202,6 +217,82 @@ security:
     # 辅助服务（更新检查、定价数据拉取）代理初始化失败时是否允许回退直连。
     # 不影响 AI 账号网关连接。默认 false：fail-fast 防止 IP 泄露。
     allow_direct_on_error: false
+  public_access_guard:
+    # Lightweight "honest-client" noise filter for public POST endpoints and malformed gateway keys.
+    # 轻量“防君子”降噪：保护站点公开 POST，并在网关鉴权查库前短路明显不像平台 API Key 的噪音。
+    # This publish key is sent to the browser and is NOT a security boundary.
+    # 该 publish key 会下发到浏览器，不是安全边界；恶意攻击仍需通过 IP/WAF/反代限流控制。
+    enabled: false
+    # Example: set a random public marker and keep it stable across rolling restarts.
+    # 示例：设置一个随机公开标记，滚动重启期间保持一致。
+    publish_key: "replace-with-random-public-marker"
+    # Header automatically attached by the official frontend when enabled.
+    # 官方前端启用后会自动携带的 Header。
+    # If you customize it for cross-origin deployments, also allow it in CORS/reverse proxy rules.
+    # 跨域部署如自定义该 Header 名，也要同步放行 CORS/反代规则。
+    header_name: "x-sub2api-publish-key"
+    # Require the publish key on first-party public AJAX POST endpoints (auth/payment public lookups).
+    # 对站点一方公开 AJAX POST 接口要求携带 publish key。
+    protect_site_public_post: true
+    # Reject obviously malformed AI gateway API keys before DB lookup.
+    # AI 网关请求中明显不像平台 API Key 的值，在查库前直接拒绝。
+    reject_malformed_gateway_keys: true
+    # Prefixes accepted by the cheap gateway key shape check. The configured default.api_key_prefix is always allowed too.
+    # 网关 Key 形状检查允许的前缀；当前 default.api_key_prefix 也会自动允许。
+    gateway_key_allowed_prefixes:
+      - "sk-"
+      - "sk_"
+      - "sk-ant-"
+      - "sk-ant_"
+      - "sk-proj-"
+      - "sk-proj_"
+  cloudflare_site_protection:
+    # Origin direct-access guard for protected first-party website pages; APIs are bypassed below.
+    # Cloudflare 站点源站直连防护：保护前端页面流量，API 默认绕过以避免浏览器挑战过期后中断请求。
+    # This rejects protected site traffic that does not carry Cloudflare/reverse-proxy markers.
+    # 这会拒绝没有 Cloudflare/反代标记的受保护站点流量。
+    # It does not replace Cloudflare WAF/rate limiting/origin firewall rules.
+    # 它不能替代 Cloudflare WAF、限流或源站防火墙规则。
+    enabled: false
+    # Headers expected on requests forwarded by Cloudflare.
+    # 经过 Cloudflare 转发时应存在的请求头。
+    # Set to [] if you rely only on required_secret_header or trusted_proxy_cidrs.
+    # 如果只依赖 secret header 或 CIDR 白名单，可设为 []。
+    required_headers:
+      - "CF-Connecting-IP"
+      - "CF-Ray"
+    # Optional stronger origin guard: configure a Cloudflare Transform Rule or your reverse proxy
+    # to inject this private header before forwarding to the origin.
+    # 可选的更强源站保护：在 Cloudflare Transform Rule 或反代中注入该私密 Header。
+    required_secret_header: ""
+    required_secret_value: ""
+    # Optional RemoteAddr allowlist for Cloudflare/proxy IPs. Use CIDR or single IP values.
+    # 可选 RemoteAddr 白名单，填 Cloudflare/反代出口 IP，支持 CIDR 或单个 IP。
+    # If your app sits behind Nginx on 127.0.0.1, enforce Cloudflare IPs in Nginx/firewall instead.
+    # 如果应用在 Nginx 后且 RemoteAddr 是 127.0.0.1，应在 Nginx/防火墙层限制 Cloudflare IP。
+    trusted_proxy_cidrs: []
+    # Protected site prefixes. Default "/" protects the embedded frontend; API prefixes are bypassed below.
+    # 受保护的站点前缀。默认 "/" 会保护内置前端；API 前缀在下方绕过。
+    protected_prefixes:
+      - "/"
+    # Exact paths that remain reachable without Cloudflare markers.
+    # 不要求 Cloudflare 标记的精确路径。
+    bypass_paths:
+      - "/health"
+    # API paths are bypassed by default so expired Cloudflare browser challenges do not break XHR/API clients.
+    # 默认绕过 API 路径，避免 Cloudflare 浏览器挑战过期后影响 XHR/API 客户端。
+    bypass_prefixes:
+      - "/api"
+      - "/setup"
+      - "/v1"
+      - "/v1beta"
+      - "/responses"
+      - "/chat/completions"
+      - "/embeddings"
+      - "/images"
+      - "/videos"
+      - "/backend-api/codex"
+      - "/antigravity"
 
 # =============================================================================
 # Gateway Configuration

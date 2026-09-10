@@ -11,7 +11,12 @@ import type {
   CheckoutInfoResponse,
   CreateOrderRequest,
   CreateOrderResult,
-  PaymentOrder
+  PaymentOrder,
+  InvoiceConfig,
+  InvoiceDraft,
+  InvoiceTaxStatus,
+  InvoiceApplication,
+  InvoiceApplyRequest,
 } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
@@ -87,5 +92,53 @@ export const paymentAPI = {
   /** Get provider instance IDs that allow user refund */
   getRefundEligibleProviders() {
     return apiClient.get<{ provider_instance_ids: string[] }>('/payment/orders/refund-eligible-providers')
+  },
+
+  /** Get the server-side invoice integration state (never includes credentials). */
+  getInvoiceConfig() {
+    return apiClient.get<InvoiceConfig>('/payment/invoices/config')
+  },
+
+  /** Validate owned completed orders and create a local invoice draft. */
+  validateInvoiceOrders(orderIds: number[], needPayTax: boolean) {
+    return apiClient.post<InvoiceDraft>('/payment/invoices/validate', {
+      order_ids: orderIds,
+      need_pay_tax: needPayTax,
+    })
+  },
+
+  /** Return the caller's unfinished invoice draft, if one exists. */
+  getCurrentInvoiceDraft() {
+    return apiClient.get<InvoiceDraft | null>('/payment/invoices/drafts/current')
+  },
+
+  /** Confirm one tax checkout and reconcile the original order set. */
+  checkInvoiceTaxPayment(draftId: number, taxOrderNo: string) {
+    return apiClient.post<InvoiceTaxStatus>(`/payment/invoices/drafts/${draftId}/tax-status`, {
+      tax_order_no: taxOrderNo,
+    })
+  },
+
+  /** Submit buyer data for a validated invoice draft. */
+  applyInvoice(draftId: number, data: InvoiceApplyRequest) {
+    return apiClient.post<InvoiceApplication>(`/payment/invoices/drafts/${draftId}/apply`, data)
+  },
+
+  /** Release an unfinished draft only when it has no invoice-fee checkout. */
+  abandonInvoiceDraft(draftId: number) {
+    return apiClient.post(`/payment/invoices/drafts/${draftId}/abandon`)
+  },
+
+  /** List the current user's locally-owned invoice applications. */
+  getInvoices(params?: { page?: number; page_size?: number }) {
+    return apiClient.get<BasePaginationResponse<InvoiceApplication>>('/payment/invoices', { params })
+  },
+
+  cancelInvoice(id: number) {
+    return apiClient.post<InvoiceApplication>(`/payment/invoices/${id}/cancel`)
+  },
+
+  downloadInvoicePDF(id: number) {
+    return apiClient.get<Blob>(`/payment/invoices/${id}/pdf`, { responseType: 'blob' })
   }
 }

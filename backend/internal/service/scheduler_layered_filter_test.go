@@ -229,7 +229,7 @@ func TestLayeredFilterIntegration(t *testing.T) {
 			{account: &Account{ID: 4, Priority: 2, LastUsedAt: &muchEarlier}, loadInfo: &AccountLoadInfo{LoadRate: 0}},
 		}
 
-		// 1. 取优先级最小的集合 → ID: 1, 2, 3
+		// 1. 取优先级最高的集合 → ID: 1, 2, 3
 		step1 := filterByMinPriority(accounts)
 		require.Len(t, step1, 3)
 

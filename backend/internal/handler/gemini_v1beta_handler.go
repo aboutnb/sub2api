@@ -76,6 +76,29 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		c.JSON(http.StatusOK, antigravity.FallbackGeminiModelsList())
 		return
 	}
+	if routing, smart := middleware.GetSmartRouteFromContext(c); smart {
+		modelIDs := make([]string, 0)
+		for _, group := range routing.RuntimeGroups {
+			if group == nil {
+				continue
+			}
+			groupID := group.ID
+			available := h.gatewayService.GetAvailableModels(c.Request.Context(), &groupID, group.Platform)
+			fallback := defaultModelIDsForPlatform(group.Platform)
+			if group.ModelAllowlistEnabled() {
+				available = group.ModelAllowlist.FilterForListing(modelListingSource(group.Platform, available, fallback))
+			} else if len(available) == 0 {
+				available = fallback
+			}
+			modelIDs = mergeModelIDs(modelIDs, available)
+		}
+		models := make([]gemini.Model, 0, len(modelIDs))
+		for _, modelID := range modelIDs {
+			models = append(models, gemini.FallbackModel(modelID))
+		}
+		c.JSON(http.StatusOK, gemini.ModelsListResponse{Models: models})
+		return
+	}
 
 	account, err := h.geminiCompatService.SelectAccountForAIStudioEndpoints(c.Request.Context(), apiKey.GroupID)
 	if err != nil {
@@ -728,6 +751,7 @@ func (h *GatewayHandler) handleGeminiFailoverExhausted(c *gin.Context, failoverE
 			if !rule.PassthroughBody && rule.CustomMessage != nil {
 				msg = *rule.CustomMessage
 			}
+			msg = service.SanitizeUpstreamErrorMessageForClient(c, msg)
 
 			if rule.SkipMonitoring {
 				c.Set(service.OpsSkipPassthroughKey, true)
@@ -769,6 +793,7 @@ type pathParseError struct{ msg string }
 func (e *pathParseError) Error() string { return e.msg }
 
 func googleError(c *gin.Context, status int, message string) {
+	message = service.SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(status, gin.H{
 		"error": gin.H{
 			"code":    status,

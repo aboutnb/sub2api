@@ -324,6 +324,7 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 		proxyURL = account.Proxy.URL()
 	}
 	resp, err := s.doOpenAIUpstream(upstreamReq, proxyURL, account)
+	SetOpsHTTPUpstreamTrace(c, upstreamReq)
 	if err != nil {
 		safeErr := sanitizeUpstreamErrorMessage(err.Error())
 		setOpsUpstreamError(c, 0, safeErr, "")
@@ -480,6 +481,7 @@ func (s *OpenAIGatewayService) buildInputTokensUpstreamRequest(
 }
 
 func writeAnthropicCountTokensError(c *gin.Context, status int, errType, message string) {
+	message = SanitizeUpstreamErrorMessageForClient(c, message)
 	c.JSON(status, gin.H{
 		"type": "error",
 		"error": gin.H{

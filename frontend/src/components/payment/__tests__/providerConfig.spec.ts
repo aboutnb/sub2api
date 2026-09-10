@@ -1,12 +1,44 @@
 import { describe, expect, it } from 'vitest'
 import {
   PAYMENT_CURRENCY_OPTIONS,
+  PAYMENT_POPUP_PREFERRED_HEIGHT,
+  PAYMENT_POPUP_PREFERRED_WIDTH,
+  USDT_PAYMENT_POPUP_PREFERRED_WIDTH,
   PROVIDER_CONFIG_FIELDS,
+  getPaymentPopupFeatures,
+  getPaymentPopupFeaturesForMethod,
+  isUSDTPaymentMethod,
   isBuiltInAlipayMethod,
   isBuiltInWxpayMethod,
   parseEasyPayCustomMethods,
   serializeEasyPayCustomMethods,
 } from '@/components/payment/providerConfig'
+
+describe('payment popup sizing', () => {
+  it('uses the compact width only for USDT checkout and centers both sizes', () => {
+    const originalScreen = Object.getOwnPropertyDescriptor(window, 'screen')
+    Object.defineProperty(window, 'screen', {
+      configurable: true,
+      value: { availWidth: 1440, availHeight: 1000 },
+    })
+
+    try {
+      expect(PAYMENT_POPUP_PREFERRED_WIDTH).toBe(1250)
+      expect(USDT_PAYMENT_POPUP_PREFERRED_WIDTH).toBe(625)
+      expect(PAYMENT_POPUP_PREFERRED_HEIGHT).toBe(900)
+      expect(getPaymentPopupFeaturesForMethod('usdt_trc20')).toBe(
+        'width=625,height=900,left=407,top=50,scrollbars=yes,resizable=yes',
+      )
+      expect(getPaymentPopupFeatures()).toBe(
+        'width=1250,height=900,left=95,top=50,scrollbars=yes,resizable=yes',
+      )
+      expect(isUSDTPaymentMethod('USDT-TRC20')).toBe(true)
+      expect(isUSDTPaymentMethod('alipay')).toBe(false)
+    } finally {
+      if (originalScreen) Object.defineProperty(window, 'screen', originalScreen)
+    }
+  })
+})
 
 function findField(providerKey: string, key: string) {
   const fields = PROVIDER_CONFIG_FIELDS[providerKey] || []

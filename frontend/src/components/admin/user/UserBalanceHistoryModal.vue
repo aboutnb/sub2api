@@ -109,12 +109,19 @@
                 <Icon :name="getIconName(item)" size="sm" :class="getIconColor(item)" />
               </div>
               <div>
-                <p class="text-sm font-medium text-gray-900 dark:text-white">
-                  {{ getItemTitle(item) }}
+                <p class="flex flex-wrap items-center gap-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                  <span>{{ getItemTitle(item) }}</span>
+                  <span
+                    v-if="isLuckyCheckin(item)"
+                    data-testid="lucky-checkin-tag"
+                    class="rounded bg-cyan-50 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300"
+                  >
+                    {{ t('checkin.lucky') }}
+                  </span>
                 </p>
                 <!-- Notes (admin adjustment reason) -->
                 <p
-                  v-if="item.notes"
+                  v-if="item.notes && !isCheckinType(item.type)"
                   class="mt-0.5 text-xs text-gray-500 dark:text-dark-400"
                   :title="item.notes"
                 >
@@ -135,6 +142,12 @@
                 class="text-xs text-gray-400 dark:text-dark-500"
               >
                 {{ t('redeem.adminAdjustment') }}
+              </p>
+              <p
+                v-else-if="isCheckinType(item.type)"
+                class="text-xs text-gray-400 dark:text-dark-500"
+              >
+                {{ t('redeem.checkinRecord') }}
               </p>
               <p
                 v-else
@@ -201,6 +214,7 @@ const typeOptions = computed(() => [
   { value: 'balance', label: t('admin.users.typeBalance') },
   { value: 'affiliate_balance', label: t('admin.users.typeAffiliateBalance') },
   { value: 'admin_balance', label: t('admin.users.typeAdminBalance') },
+  { value: 'checkin', label: t('admin.users.typeCheckin') },
   { value: 'concurrency', label: t('admin.users.typeConcurrency') },
   { value: 'admin_concurrency', label: t('admin.users.typeAdminConcurrency') },
   { value: 'subscription', label: t('admin.users.typeSubscription') }
@@ -237,15 +251,18 @@ const loadHistory = async (page: number) => {
 
 // Helper: check if admin type
 const isAdminType = (type: string) => type === 'admin_balance' || type === 'admin_concurrency'
+const isCheckinType = (type: string) => type === 'checkin'
+const isLuckyCheckin = (item: BalanceHistoryItem) => isCheckinType(item.type) && item.checkin_mode === 'lucky'
 
 // Helper: check if balance type (includes admin_balance)
-const isBalanceType = (type: string) => type === 'balance' || type === 'admin_balance' || type === 'affiliate_balance'
+const isBalanceType = (type: string) => type === 'balance' || type === 'admin_balance' || type === 'affiliate_balance' || type === 'checkin'
 
 // Helper: check if subscription type
 const isSubscriptionType = (type: string) => type === 'subscription'
 
 // Icon name based on type
 const getIconName = (item: BalanceHistoryItem) => {
+  if (item.type === 'checkin') return 'calendar'
   if (isBalanceType(item.type)) return 'dollar'
   if (isSubscriptionType(item.type)) return 'badge'
   return 'bolt' // concurrency
@@ -299,6 +316,8 @@ const getItemTitle = (item: BalanceHistoryItem) => {
       return t('redeem.balanceAddedAffiliate')
     case 'admin_balance':
       return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
+    case 'checkin':
+      return t('redeem.balanceChangedCheckin')
     case 'concurrency':
       return t('redeem.concurrencyAddedRedeem')
     case 'admin_concurrency':
@@ -313,8 +332,8 @@ const getItemTitle = (item: BalanceHistoryItem) => {
 // Format display value
 const formatValue = (item: BalanceHistoryItem) => {
   if (isBalanceType(item.type)) {
-    const sign = item.value >= 0 ? '+' : ''
-    return `${sign}$${item.value.toFixed(2)}`
+    const sign = item.value >= 0 ? '+' : '-'
+    return `${sign}$${Math.abs(item.value).toFixed(2)}`
   }
   if (isSubscriptionType(item.type)) {
     const days = item.validity_days || Math.round(item.value)
