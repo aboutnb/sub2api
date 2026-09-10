@@ -63,6 +63,16 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 与上游同名文件的冲突处理：
 ```
 
+## 1.2 Aivoza 主线迁移（2026-09-11）
+
+- 用户授权正式主线迁移到 main；旧分支归档，未重写其历史。
+- 上游锁定 `98d86915becae9fe9491a91ffc6defd5235c8d2b`，版本 0.2.4；已审新增生图修复和版本同步，无新增上游迁移。
+- CI 对 main 和候选 PR 做语义契约、完整前端、后端单元/集成、lint；同 SHA 的 CI 和 Security Scan 成功后才能构建 `ghcr.io/aboutnb/aivoza-sub2api:sha-<sha12>`。
+- CI 使用 `.github/aivoza-upstream-ref` 固定已审上游，避免排队期间上游移动导致不可复现；下次同步 PR 必须更新该引用。
+- GitHub PR 的最终 merge commit 只有在第一父提交已包含于第二父提交、文件树与第二父提交完全相同且来自本仓库命名候选分支时，才继承候选的台账；有冲突或树变化的合并仍必须显式登记。
+- 旧 Release 不再在 fork 回写默认分支；不发布上游的通用二进制替换自定义版。
+- 本次尚未切换生产；需完成主题 PR、镜像构建、迁移演练、灰度健康与代理热切换。
+
 ## 2. 当前快照
 
 | 项目 | 值 |
@@ -503,6 +513,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | 2026-09-09 | `04661fec1` | chore: release FlowAI 0.2.3；仅更新嵌入式应用版本，不改变上游基线或 FlowAI 业务契约 | 版本/发布 |
 | 2026-09-09 | `af997094b` | test: align upstream 0.2.3 fixtures；适配上游路由认证链、Pinia/API mock 和英文账号管理 i18n key，不改变运行时业务契约 | CI/测试/i18n |
 | 2026-09-09 | `76b125bb1` | test: update upstream 0.2.3 service fixtures；补齐上游接口变更后的单元测试夹具，不改变运行时业务契约 | CI/测试 |
+| `ef38fe7a6eb19ed15171af535e941c0176da765e` | Revert "chore: sync VERSION to 0.1.163 [skip ci]" | 历史版本同步及回退，最终版本以 0.2.4 为准 | 契约及完整 CI |
+| `e63167456673345a31e0c63eed9ef91bee7ceba1` | chore: sync VERSION to 0.1.163 [skip ci] | 历史版本同步及回退，最终版本以 0.2.4 为准 | 契约及完整 CI |
 <!-- FLOWAI_LEDGER_NON_MERGE_END -->
 
 ## 8. 历史合并提交索引
@@ -576,6 +588,18 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | 2026-05-24 | `a993d72e4` | Merge origin/main into codex/flowai-theme-deploy |
 | 2026-05-22 | `7e63ea74e` | Merge branch Wei-Shaw main into codex/flowai-theme-deploy |
 | 2026-05-20 | `78ed94741` | Merge origin/main into codex/flowai-theme-deploy |
+| `d9af7dfe5b744b034cc353d43da68b0aade1538d` | merge: sync upstream 0.2.4 before Aivoza mainline migration | 上游 98d86915b 仅更新版本为 0.2.4，无冲突、无新增迁移 | 契约及完整 CI |
+| `70f1706307d26bf7373e217db6131f195522080d` | merge: preserve fork main history for Aivoza mainline | 合入 fork main 历史，无文本冲突、最终文件树未变化 | 契约及完整 CI |
+| `511ee924b154c0dbb2e9742b543e8588522fbb1a` | Merge branch 'Wei-Shaw:main' into sub2api-flowai | 保留 Image 2.5/OAuth 生图修复，与优先级及支付无关 | 契约及完整 CI |
+| `1239bc23053c9c76492b58d8a32c2a831f5d808b` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
+| `ba457492f18fea409c6210d7859b834a4afd9d66` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
+| `5bf0543409ee6e8df716774defedcec96e7a62f0` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
+| `a67681f5c4a6740d0b4a73567b2e1d782ea2beef` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
+| `db0955f68d2494305644c6528229b2ef37635a3b` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
+| `199f886533a997fc667e4d2eb27cf25e7c230557` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
+| `87b04f16f427d4fcd82686c88083df3cb1897795` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
+| `1f2711f042a468719afa478d5cc3cbb2a87223d1` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
+| `6c7fcef9a514648fe2aec1715c5e230721ffca8a` | Merge branch 'Wei-Shaw:main' into main | 保留既有分支历史；以本次完整契约和 CI 验证最终树 | 契约及完整 CI |
 <!-- FLOWAI_LEDGER_MERGE_END -->
 
 ## 9. 发布记录模板

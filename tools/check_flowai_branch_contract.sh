@@ -227,6 +227,20 @@ is_governance_commit() {
   [[ "$found_path" -eq 1 ]]
 }
 
+# GitHub adds a merge envelope after the reviewed PR commit. It introduces no
+# code only when the base is already included and the candidate tree is exact.
+is_reviewed_pr_merge() {
+  local commit="$1" subject parents first second
+  subject="$(git show -s --format=%s "$commit")"
+  [[ "$subject" =~ ^Merge\ pull\ request\ \#[0-9]+\ from\ aboutnb/(feature|fix|sync|migrate)/ ]] || return 1
+  parents="$(git show -s --format=%P "$commit")"
+  [[ "$(wc -w <<< "$parents" | tr -d ' ')" == "2" ]] || return 1
+  first="${parents%% *}"
+  second="${parents##* }"
+  git merge-base --is-ancestor "$first" "$second" || return 1
+  git diff --quiet "$commit" "$second"
+}
+
 check_commit_ledger() {
   local merge_base="$1"
   local nonmerge_ledger=""
@@ -273,7 +287,7 @@ check_commit_ledger() {
     [[ -z "$commit" ]] && continue
     total_merge=$((total_merge + 1))
     prefix="${commit:0:9}"
-    if ! ledger_has_commit "$merge_ledger" "$commit"; then
+    if ! ledger_has_commit "$merge_ledger" "$commit" && ! is_reviewed_pr_merge "$commit"; then
       fail "merge commit is missing from $CHANGELOG: $prefix $(git show -s --format=%s "$commit")"
       missing_merge=$((missing_merge + 1))
     fi
