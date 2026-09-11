@@ -37,16 +37,19 @@ func checkRegistrationSourceQuota(ctx context.Context, client *dbent.Client, sou
 		var remaining float64
 		if !rows.Next() {
 			err = rows.Err()
-			rows.Close()
+			_ = rows.Close()
 			if err != nil {
 				return err
 			}
 			return fmt.Errorf("registration source quota query returned no row")
 		}
 		err = rows.Scan(&count, &remaining)
-		rows.Close()
+		closeErr := rows.Close()
 		if err != nil {
 			return err
+		}
+		if closeErr != nil {
+			return closeErr
 		}
 		if count >= dim.limit {
 			return &service.RegistrationQuotaExceeded{Dimension: dim.column, RetryAfter: time.Duration(remaining * float64(time.Second))}

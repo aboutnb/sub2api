@@ -13,7 +13,7 @@ import (
 func TestRegistrationSourceReleaseKeepsBlockWhenCounterResetFails(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT scope,source_hash").WithArgs(int64(8)).WillReturnRows(sqlmock.NewRows([]string{"scope", "source_hash"}).AddRow("ip_ua", "identity-hash"))
 	mock.ExpectRollback()
@@ -28,7 +28,7 @@ func TestRegistrationSourceReleaseKeepsBlockWhenCounterResetFails(t *testing.T) 
 func TestRegistrationSourceReleasePreservesAuditAndResetsOnlyMatchedCounter(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT scope,source_hash").WithArgs(int64(8)).WillReturnRows(sqlmock.NewRows([]string{"scope", "source_hash"}).AddRow("ip", "ip-hash"))
 	mock.ExpectExec("UPDATE registration_source_blocks").WithArgs(int64(8), int64(1), "reviewed").WillReturnResult(sqlmock.NewResult(0, 1))
@@ -84,7 +84,7 @@ func TestRegistrationRiskReviewRejectsChangedOrAdminAccount(t *testing.T) {
 func TestRegistrationRiskReviewRollsBackOnAuditFailure(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	mock.ExpectBegin()
 	mock.ExpectQuery("SELECT r.user_id").WithArgs(int64(7)).WillReturnRows(sqlmock.NewRows([]string{"user_id", "concurrency", "previous_concurrency", "status", "role"}).AddRow(42, 3, 0, "observed", "user"))
 	mock.ExpectExec("UPDATE users SET concurrency").WithArgs(int64(42), -1).WillReturnResult(sqlmock.NewResult(0, 1))

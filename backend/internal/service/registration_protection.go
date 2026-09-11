@@ -121,7 +121,11 @@ func (s *SettingService) GetRegistrationProtectionSettingsCached(ctx context.Con
 	if err != nil {
 		return DefaultRegistrationProtectionSettings(), err
 	}
-	return value.(RegistrationProtectionSettings), nil
+	settings, ok := value.(RegistrationProtectionSettings)
+	if !ok {
+		return DefaultRegistrationProtectionSettings(), ErrServiceUnavailable
+	}
+	return settings, nil
 }
 
 // RegistrationSource is set only by trusted public registration handlers.
