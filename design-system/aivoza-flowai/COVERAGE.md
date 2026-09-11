@@ -215,9 +215,11 @@ by the coverage contract test so new overlays cannot ship unrecorded.
 - `frontend/src/components/common/HelpTooltip.vue`
 - `frontend/src/components/common/ProxySelector.vue`
 - `frontend/src/components/common/Select.vue`
+- `frontend/src/components/common/DateRangePicker.vue`
 - `frontend/src/components/common/Toast.vue`
 - `frontend/src/components/keys/UseKeyModal.vue`
 - `frontend/src/components/layout/AppSidebar.vue`
+- `frontend/src/components/layout/SupportContact.vue`
 - `frontend/src/components/payment/PaymentProviderDialog.vue`
 - `frontend/src/components/payment/PaymentQRDialog.vue`
 - `frontend/src/components/user/MonitorDetailDialog.vue`

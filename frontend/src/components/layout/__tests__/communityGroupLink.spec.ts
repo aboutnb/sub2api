@@ -18,6 +18,25 @@ describe('community group header link', () => {
     expect(communityIndex).toBeLessThan(docsIndex)
   })
 
+  it('keeps the group link in the frequent action row and out of More', () => {
+    const primaryIndex = headerSource.indexOf('data-testid="header-primary-actions"')
+    const communityIndex = headerSource.indexOf('<!-- Community Group Link -->')
+    const moreMenuIndex = headerSource.indexOf('id="app-more-menu"')
+
+    expect(communityIndex).toBeGreaterThan(primaryIndex)
+    expect(communityIndex).toBeLessThan(moreMenuIndex)
+    expect(headerSource.match(/<!-- Community Group Link -->/g)).toHaveLength(1)
+    expect(headerSource).toContain("const hasSecondaryActions = computed(() => Boolean(\n  docUrl.value")
+  })
+
+  it('keeps desktop action blocks compact while preserving coarse-pointer sizing', () => {
+    expect(headerSource).toContain('@media (pointer: fine)')
+    expect(headerSource).toContain('height: 2.25rem')
+    expect(headerSource).toContain('min-height: 2.25rem')
+    expect(headerSource).toContain(':deep(button)')
+    expect(headerSource).toContain(':deep(a[href])')
+  })
+
   it('sanitizes the configured URL and opens it safely', () => {
     expect(headerSource).toContain('sanitizeUrl(appStore.communityGroupUrl)')
     expect(headerSource).toContain(':href="communityGroupUrl"')
@@ -41,6 +60,6 @@ describe('community group header link', () => {
     expect(headerSource).not.toContain('border-cyan-200 bg-cyan-50')
     expect(headerSource).toContain('text-ink transition-all')
     expect(headerSource).toContain('hover:bg-surface-muted')
-    expect(headerSource).toContain('class="hidden max-w-28 truncate sm:inline"')
+    expect(headerSource).toContain('class="hidden max-w-28 truncate leading-tight sm:inline"')
   })
 })

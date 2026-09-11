@@ -7,7 +7,7 @@
       ref="triggerRef"
       type="button"
       @click="toggleTooltip"
-      class="flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-purple-50 px-3 py-1.5 transition-colors hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30"
+      class="flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-purple-50 px-3 py-1.5 leading-tight transition-colors hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30"
       :title="t('subscriptionProgress.viewDetails')"
       :aria-label="t('subscriptionProgress.viewDetails')"
       :aria-expanded="tooltipOpen"
@@ -24,7 +24,7 @@
             :class="getProgressDotClass(sub)"
           ></div>
         </div>
-        <span class="text-xs font-medium text-purple-700 dark:text-purple-300">
+        <span class="text-xs font-medium leading-tight text-purple-700 dark:text-purple-300">
           {{ activeSubscriptions.length }}
         </span>
       </div>
@@ -35,7 +35,7 @@
       v-else
       to="/subscriptions"
       data-testid="subscription-shortcut-empty"
-      class="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl bg-purple-50 px-3 text-sm font-semibold text-purple-700 transition-colors hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
+      class="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl bg-purple-50 px-3 text-sm font-semibold leading-tight text-purple-700 transition-colors hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
       :title="t('nav.mySubscriptions')"
       :aria-label="t('nav.mySubscriptions')"
     >

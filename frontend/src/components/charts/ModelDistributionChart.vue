@@ -1,6 +1,6 @@
 <template>
   <div class="card p-4">
-    <div class="mb-4 flex items-center justify-between gap-3">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <h3 class="text-sm font-semibold text-ink-strong dark:text-white">
         {{ !enableRankingView || activeView === 'model_distribution'
           ? t('admin.dashboard.modelDistribution')
@@ -9,34 +9,28 @@
       <div class="flex flex-wrap items-center justify-end gap-2">
         <div
           v-if="showSourceToggle"
-          class="inline-flex rounded-lg border border-line bg-surface-muted p-0.5 dark:border-line dark:bg-surface"
+          class="tabs"
         >
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-            :class="source === 'requested'
-              ? 'bg-white text-ink-strong shadow-sm dark:bg-surface-muted dark:text-white'
-              : 'text-ink-muted hover:text-ink dark:text-ink-muted dark:hover:text-gray-200'"
+            class="tab px-2.5 text-xs"
+            :aria-pressed="source === 'requested'"
             @click="emit('update:source', 'requested')"
           >
             {{ t('usage.requestedModel') }}
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-            :class="source === 'upstream'
-              ? 'bg-white text-ink-strong shadow-sm dark:bg-surface-muted dark:text-white'
-              : 'text-ink-muted hover:text-ink dark:text-ink-muted dark:hover:text-gray-200'"
+            class="tab px-2.5 text-xs"
+            :aria-pressed="source === 'upstream'"
             @click="emit('update:source', 'upstream')"
           >
             {{ t('usage.upstreamModel') }}
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-            :class="source === 'mapping'
-              ? 'bg-white text-ink-strong shadow-sm dark:bg-surface-muted dark:text-white'
-              : 'text-ink-muted hover:text-ink dark:text-ink-muted dark:hover:text-gray-200'"
+            class="tab px-2.5 text-xs"
+            :aria-pressed="source === 'mapping'"
             @click="emit('update:source', 'mapping')"
           >
             {{ t('usage.mapping') }}
@@ -44,50 +38,38 @@
         </div>
         <div
           v-if="showMetricToggle"
-          class="inline-flex rounded-lg border border-line bg-surface-muted p-0.5 dark:border-line dark:bg-surface"
+          class="tabs"
         >
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-            :class="metric === 'tokens'
-              ? 'bg-white text-ink-strong shadow-sm dark:bg-surface-muted dark:text-white'
-              : 'text-ink-muted hover:text-ink dark:text-ink-muted dark:hover:text-gray-200'"
+            class="tab px-2.5 text-xs"
+            :aria-pressed="metric === 'tokens'"
             @click="emit('update:metric', 'tokens')"
           >
             {{ t('admin.dashboard.metricTokens') }}
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-            :class="metric === 'actual_cost'
-              ? 'bg-white text-ink-strong shadow-sm dark:bg-surface-muted dark:text-white'
-              : 'text-ink-muted hover:text-ink dark:text-ink-muted dark:hover:text-gray-200'"
+            class="tab px-2.5 text-xs"
+            :aria-pressed="metric === 'actual_cost'"
             @click="emit('update:metric', 'actual_cost')"
           >
             {{ t('admin.dashboard.metricActualCost') }}
           </button>
         </div>
-        <div v-if="enableRankingView" class="inline-flex rounded-lg bg-surface-muted p-1 dark:bg-surface">
+        <div v-if="enableRankingView" class="tabs">
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-            :class="
-              activeView === 'model_distribution'
-                ? 'bg-white text-ink-strong shadow-sm dark:bg-surface-muted dark:text-white'
-                : 'text-ink-muted hover:text-ink dark:text-ink-muted dark:hover:text-gray-200'
-            "
+            class="tab px-2.5 text-xs"
+            :aria-pressed="activeView === 'model_distribution'"
             @click="activeView = 'model_distribution'"
           >
             {{ t('admin.dashboard.viewModelDistribution') }}
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-            :class="
-              activeView === 'spending_ranking'
-                ? 'bg-white text-ink-strong shadow-sm dark:bg-surface-muted dark:text-white'
-                : 'text-ink-muted hover:text-ink dark:text-ink-muted dark:hover:text-gray-200'
-            "
+            class="tab px-2.5 text-xs"
+            :aria-pressed="activeView === 'spending_ranking'"
             @click="activeView = 'spending_ranking'"
           >
             {{ t('admin.dashboard.viewSpendingRanking') }}

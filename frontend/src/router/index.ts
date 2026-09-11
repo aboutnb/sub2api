@@ -783,6 +783,7 @@ function focusRouteMainContent(): void {
   if (!target) return
 
   const addedTabIndex = !target.hasAttribute('tabindex')
+  target.setAttribute('data-route-focus', '')
   if (addedTabIndex) target.setAttribute('tabindex', '-1')
   target.focus({ preventScroll: true })
 

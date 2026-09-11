@@ -613,15 +613,14 @@ onUnmounted(() => {
 <style scoped>
 .select-trigger {
   @apply flex w-full items-center justify-between gap-2;
-  @apply min-h-11 rounded-xl px-4 py-2.5 text-sm;
+  @apply min-h-11 rounded-xl px-3 py-2 text-sm leading-5;
   @apply bg-white dark:bg-surface;
-  @apply border-2 border-line-control;
+  @apply border border-line-control;
   @apply text-ink-strong dark:text-gray-100;
   @apply transition-all duration-200;
-  @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25;
+  @apply focus:border-brand;
   @apply hover:border-line-control;
   @apply cursor-pointer;
-  box-shadow: inset 0 -2px 0 rgba(23, 32, 51, 0.035);
 }
 
 .select-trigger-clearable {
@@ -629,7 +628,7 @@ onUnmounted(() => {
 }
 
 .select-trigger-open {
-  @apply border-primary-500 ring-2 ring-primary-500/25;
+  @apply border-brand;
 }
 
 .select-trigger-error {
@@ -641,7 +640,7 @@ onUnmounted(() => {
 }
 
 .select-value {
-  @apply flex-1 truncate text-left;
+  @apply min-w-0 flex-1 truncate text-left;
 }
 
 .select-icon {
@@ -661,7 +660,7 @@ onUnmounted(() => {
   @apply w-max min-w-[200px];
   @apply bg-white dark:bg-surface;
   @apply rounded-xl;
-  @apply border-2 border-line dark:border-line-strong;
+  @apply border border-line-strong;
   @apply shadow-xl dark:shadow-black/40;
   @apply overflow-hidden;
   pointer-events: auto !important;
@@ -672,11 +671,19 @@ onUnmounted(() => {
   @apply border-b border-line dark:border-line;
 }
 
+.select-dropdown-portal .select-search:focus-within {
+  box-shadow: inset 0 -2px 0 var(--av-focus);
+}
+
 .select-dropdown-portal .select-search-input {
-  @apply flex-1 bg-transparent text-sm;
+  @apply min-w-0 min-h-9 flex-1 border-0 bg-transparent text-sm leading-5;
   @apply text-ink-strong dark:text-gray-100;
   @apply placeholder:text-ink-muted dark:placeholder:text-ink-muted;
-  @apply focus:outline-none;
+  @apply focus:outline-none focus:ring-0;
+}
+
+.select-dropdown-portal .select-search-input:focus-visible {
+  outline: none;
 }
 
 .select-dropdown-portal .select-options {
@@ -699,6 +706,10 @@ onUnmounted(() => {
 
 .select-dropdown-portal .select-option-focused {
   @apply bg-surface-muted dark:bg-surface-muted;
+}
+
+.select-dropdown-portal .select-option-selected.select-option-focused {
+  @apply bg-brand-soft text-brand;
 }
 
 .select-dropdown-portal .select-option-disabled {

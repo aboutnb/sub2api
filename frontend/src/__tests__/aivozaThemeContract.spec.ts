@@ -68,7 +68,7 @@ describe('Aivoza theme contract', () => {
     }
 
     expect(style).toContain("[tabindex='0']):focus-visible")
-    expect(style).toContain('outline: 3px solid var(--av-focus) !important')
+    expect(style).toContain('outline: 2px solid var(--av-focus)')
   })
 
   it('does not use poster-sized utility classes on headings', () => {
