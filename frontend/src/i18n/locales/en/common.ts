@@ -1,5 +1,34 @@
 export default {
   common: {
+    support: {
+      nameRequired: 'Enter a name for each contact.',
+      "editorHint": "Add contacts with custom names, icons and tags. Reorder to set display order. Changes apply after saving settings.",
+      "preview": "Preview dialog",
+      "empty": "No contacts added yet",
+      "newContact": "New contact",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "name": "Name",
+      "namePlaceholder": "e.g. Customer care, Technical support",
+      "tag": "Tag (optional)",
+      "tagPlaceholder": "e.g. WeChat, Weekdays",
+      "icon": "Icon",
+      "account": "Account / Contact details (optional)",
+      "accountPlaceholder": "Enter an account, email or contact details",
+      "url": "URL (optional)",
+      "urlHint": "Leave empty to hide the link button. Web, email and telephone links are supported.",
+      "invalidUrl": "Enter a valid http, https, mailto or tel link.",
+      "add": "Add contact",
+      "copyAccount": "Copy account",
+      "openLink": "Open link",
+      "icons": {
+            "chat": "Chat",
+            "mail": "Email",
+            "users": "Community",
+            "globe": "Website",
+            "link": "Link"
+      }
+},
     loading: 'Loading...',
     submitting: 'Submitting...',
     justNow: 'just now',
