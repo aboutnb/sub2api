@@ -86,6 +86,13 @@ selected states.
 - Date-range popovers render in the body, track scrolling, flip vertically and clamp to the visible viewport.
 - Module selections use a soft teal fill, a fine teal border and a clear pressed/selected state.
 - Contact support remains visible in the header's primary actions at every breakpoint.
+- Support contacts use the same dialog from the header, profile and redeem pages.
+  Settings provide ordered contact cards with a required name, a built-in icon,
+  custom optional tag, optional account/details and optional URL. A missing URL
+  removes the link action; unsafe schemes are rejected. Preview shares the live
+  contact-list component and uses the standard warm/teal/coral semantic tokens.
+  `contact_info` stores a version-1 JSON envelope; existing plain text remains
+  readable until edited. Empty lists serialize to an empty string.
 - Supported checks: 375px, 768px, 1024px, 1440px.
 - App header remains 64px; desktop sidebar remains 256px / 72px collapsed.
 - Main content width is capped at 1680px and remains fluid below it.

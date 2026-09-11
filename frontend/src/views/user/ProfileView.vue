@@ -27,7 +27,7 @@
             <h3 class="font-semibold text-primary-800 dark:text-primary-200">
               {{ t('common.contactSupport') }}
             </h3>
-            <p class="text-sm font-medium">{{ contactInfo }}</p>
+            <SupportContact :contact-info="contactInfo" />
           </div>
         </div>
       </div>
@@ -50,6 +50,7 @@
 </template>
 
 <script setup lang="ts">
+import SupportContact from "@/components/layout/SupportContact.vue"
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@/components/icons'

@@ -184,12 +184,7 @@
                 <li>{{ t('redeem.codeRule2') }}</li>
                 <li>
                   {{ t('redeem.codeRule3') }}
-                  <span
-                    v-if="contactInfo"
-                    class="ml-1.5 inline-flex items-center rounded-md bg-primary-200/50 px-2 py-0.5 text-xs font-medium text-primary-800 dark:bg-primary-800/40 dark:text-primary-200"
-                  >
-                    {{ contactInfo }}
-                  </span>
+                  <SupportContact v-if="contactInfo" :contact-info="contactInfo" />
                 </li>
                 <li>{{ t('redeem.codeRule4') }}</li>
               </ul>
@@ -352,6 +347,7 @@
 </template>
 
 <script setup lang="ts">
+import SupportContact from "@/components/layout/SupportContact.vue"
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'

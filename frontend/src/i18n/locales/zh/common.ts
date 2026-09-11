@@ -1,5 +1,34 @@
 export default {
   common: {
+    support: {
+      nameRequired: '请为每个联系方式填写名称。',
+      "editorHint": "添加多个联系方式，自定义名称、图标和标签。排序即展示顺序，保存设置后生效。",
+      "preview": "预览弹窗",
+      "empty": "暂未添加联系方式",
+      "newContact": "新联系方式",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "name": "名称",
+      "namePlaceholder": "例如：在线客服、技术支持",
+      "tag": "标签（可选）",
+      "tagPlaceholder": "例如：微信、工作日在线",
+      "icon": "图标",
+      "account": "账号 / 联系说明（可选）",
+      "accountPlaceholder": "填写微信号、邮箱或联系说明",
+      "url": "URL（可选）",
+      "urlHint": "留空则不显示跳转按钮；支持网页、邮箱和电话链接。",
+      "invalidUrl": "请输入有效的 http、https、mailto 或 tel 链接。",
+      "add": "添加联系方式",
+      "copyAccount": "复制账号",
+      "openLink": "打开链接",
+      "icons": {
+            "chat": "聊天",
+            "mail": "邮箱",
+            "users": "社群",
+            "globe": "网站",
+            "link": "链接"
+      }
+},
     loading: '加载中...',
     submitting: '提交中...',
     justNow: '刚刚',

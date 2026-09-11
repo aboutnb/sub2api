@@ -6645,23 +6645,7 @@
                 </button>
               </div>
 
-              <!-- Contact Info -->
-              <div>
-                <label
-                  class="mb-2 block text-sm font-medium text-ink dark:text-ink-muted"
-                >
-                  {{ t("admin.settings.site.contactInfo") }}
-                </label>
-                <input
-                  v-model="form.contact_info"
-                  type="text"
-                  class="input"
-                  :placeholder="t('admin.settings.site.contactInfoPlaceholder')"
-                />
-                <p class="mt-1.5 text-xs text-ink-muted dark:text-ink-muted">
-                  {{ t("admin.settings.site.contactInfoHint") }}
-                </p>
-              </div>
+              <SupportContactsEditor v-model="form.contact_info" />
 
               <!-- Community Group -->
               <div class="space-y-4 border-l-2 border-primary-200 pl-4 dark:border-primary-800">
@@ -9342,6 +9326,8 @@
 </template>
 
 <script setup lang="ts">
+import { validateSupportContacts } from "@/utils/supportContacts";
+import SupportContactsEditor from "@/components/admin/SupportContactsEditor.vue"
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
@@ -11669,6 +11655,11 @@ const invoiceFeePayerHint = computed(() => {
 });
 
 async function saveSettings() {
+  const contactError = validateSupportContacts(form.contact_info);
+  if (contactError) {
+    appStore.showError(t(`common.support.${contactError}`));
+    return;
+  }
   saving.value = true;
   try {
     if (form.invoice_enabled && !invoiceConfigurationReady.value) {
