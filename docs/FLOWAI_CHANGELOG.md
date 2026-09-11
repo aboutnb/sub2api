@@ -82,6 +82,15 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 - `deploy/Dockerfile` 已补充主题首页资源；生产不使用本地构建镜像。
 - `deploy/deploy-aivoza-bluegreen.py` 只接受 `ghcr.io/aboutnb/aivoza-sub2api@sha256:<digest>`。prepare 不改活动路由，promote 校验前置状态并热加载 Caddy，旧容器保持运行；依赖容器不重建。旧的 force-recreate 脚本不适用于本次连续服务发布。
 
+## 1.4 控件和筛选布局修复（2026-09-11）
+
+- `6c56e55eaffb7ebabcc6ba5c40bcdcfbe3e4a6cf` 发布现有本地前端修复；应用版本保持 0.2.4，无后端改动和数据库迁移。
+- 筛选条件使用响应式网格，操作按钮独立排列；图表切换和 API key 开关使用统一控件，保留原事件和数据语义。
+- DateRangePicker 弹层挂载到 body，按视口定位，保留 Escape、Tab 和关闭后焦点恢复；相关交互回归测试必须通过。
+- 顶部社群入口保留在常用操作区，客服入口读取既有 contactInfo，通过弹窗展示和复制；兑换页面去除硬编码联系地址。
+- 控件边框、桌面密度和键盘焦点统一；触摸按钮保持独立尺寸规则。必须保留 design-system/aivoza-flowai 文档及主题、日期和社群回归测试。
+- 验证：完整前端 Vitest、lint、typecheck、生产构建和严格分支契约；正式镜像由 main 的 GitHub CI 与 Security Scan 成功后构建。
+
 ## 2. 当前快照
 
 | 项目 | 值 |
@@ -425,6 +434,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
 | 日期 | 提交 | 说明 | 责任域 |
 | --- | --- | --- | --- |
+| 2026-09-11 | `6c56e55eaffb7ebabcc6ba5c40bcdcfbe3e4a6cf` | 统一筛选/控件布局，日期弹层视口定位及焦点恢复，顶部客服与社群入口 | 前端/主题 |
 | 2026-05-19 | `9c65bb8d6` | feat: add theme-aware logo and preview deploy config | 品牌/部署 |
 | 2026-05-20 | `9a05e6d83` | feat: add project mihomo proxy management | Mihomo |
 | 2026-05-21 | `625f2ff3a` | feat: refine multi-port proxy management | Mihomo |
