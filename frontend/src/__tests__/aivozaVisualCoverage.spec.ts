@@ -37,7 +37,7 @@ const sharedOverlays = [...vueFiles(componentsRoot), ...featureSurfaces].filter(
 
 describe('Aivoza visual coverage', () => {
   it('keeps all current view-owned surfaces in the release ledger', () => {
-    expect(views).toHaveLength(90)
+    expect(views).toHaveLength(91)
 
     const undocumented = views
       .map((path) => `frontend/src/views/${relative(viewsRoot, path)}`)

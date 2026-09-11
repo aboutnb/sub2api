@@ -102,6 +102,7 @@ remain usable.
 
 - `frontend/src/views/admin/AuditLogView.vue`
 - `frontend/src/views/admin/AuthIPBanView.vue`
+- `frontend/src/views/admin/RegistrationProtectionView.vue`
 - `frontend/src/views/admin/BackupView.vue`
 - `frontend/src/views/admin/PluginsView.vue`
 - `frontend/src/views/admin/RiskControlView.vue`
