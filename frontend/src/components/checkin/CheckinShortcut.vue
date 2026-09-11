@@ -9,7 +9,7 @@
         v-if="status?.normal_enabled"
         type="button"
         data-testid="quick-checkin-normal"
-        class="flex h-8 items-center gap-1.5 rounded-xl bg-amber-50 px-3 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
+        class="flex h-8 items-center gap-1.5 rounded-xl bg-amber-50 px-3 text-sm font-semibold leading-tight text-amber-700 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
         :disabled="submitting"
         :aria-label="t('checkin.normal')"
         :title="t('checkin.normal')"
@@ -23,7 +23,7 @@
         v-if="status?.lucky_enabled"
         type="button"
         data-testid="quick-checkin-lucky"
-        class="flex h-8 items-center gap-1.5 rounded-xl bg-violet-50 px-3 text-sm font-semibold text-violet-700 transition-colors hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-violet-900/20 dark:text-violet-300 dark:hover:bg-violet-900/30"
+        class="flex h-8 items-center gap-1.5 rounded-xl bg-violet-50 px-3 text-sm font-semibold leading-tight text-violet-700 transition-colors hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-violet-900/20 dark:text-violet-300 dark:hover:bg-violet-900/30"
         :disabled="submitting"
         :aria-label="t('checkin.lucky')"
         :title="t('checkin.lucky')"
@@ -37,7 +37,7 @@
     <button
       type="button"
       data-testid="checkin-shortcut"
-      class="h-8 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 sm:text-sm"
+      class="h-8 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 sm:text-sm"
       :class="status?.checked_in_today
         ? 'flex bg-emerald-50 text-emerald-700 hover:bg-emerald-100 focus-visible:ring-emerald-400/50 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/30'
         : quickActionAvailable

@@ -1114,15 +1114,13 @@ function handleToolbarRefresh() {
               </div>
 
               <!-- Time Window Selector -->
-              <div class="flex flex-wrap gap-1">
+              <div class="tabs">
                 <button
                   v-for="window in availableRealtimeWindows"
                   :key="window"
                   type="button"
-                  class="rounded px-1.5 py-0.5 text-[9px] font-bold transition-colors sm:px-2 sm:text-[10px]"
-                  :class="realtimeWindow === window
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-line text-ink hover:bg-line-strong dark:bg-surface-muted dark:text-ink-muted dark:hover:bg-dark-600'"
+                  class="tab px-2 text-xs"
+                  :aria-pressed="realtimeWindow === window"
                   @click="realtimeWindow = window"
                 >
                   {{ window }}

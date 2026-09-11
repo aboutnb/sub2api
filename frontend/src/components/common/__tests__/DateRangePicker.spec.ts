@@ -1,8 +1,11 @@
-import { describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
+import { nextTick, ref } from 'vue'
 
 import DateRangePicker from '../DateRangePicker.vue'
+
+enableAutoUnmount(afterEach)
+afterEach(() => vi.restoreAllMocks())
 
 const messages: Record<string, string> = {
   'dates.today': 'Today',
@@ -34,6 +37,39 @@ const formatLocalDate = (date: Date): string => {
 }
 
 describe('DateRangePicker', () => {
+  it('escapes clipping ancestors, stays within the viewport and returns keyboard focus', async () => {
+    const wrapper = mount(DateRangePicker, {
+      attachTo: document.body,
+      props: { startDate: '2026-09-01', endDate: '2026-09-11' },
+      global: { stubs: { Icon: true } }
+    })
+    const trigger = wrapper.get<HTMLButtonElement>('.date-picker-trigger')
+    vi.spyOn(trigger.element, 'getBoundingClientRect').mockReturnValue({
+      x: 300, y: 600, left: 300, top: 600, right: 360, bottom: 644, width: 60, height: 44,
+      toJSON: () => ({})
+    })
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(375)
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(700)
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(350)
+    await trigger.trigger('click')
+    await nextTick()
+    const popup = document.getElementById(trigger.attributes('aria-controls'))!
+    expect(popup.parentElement).toBe(document.body)
+    expect(popup.style.position).toBe('fixed')
+    expect(Number.parseFloat(popup.style.left)).toBeGreaterThanOrEqual(8)
+    expect(Number.parseFloat(popup.style.left) + Number.parseFloat(popup.style.width)).toBeLessThanOrEqual(367)
+    expect(Number.parseFloat(popup.style.top)).toBeLessThan(600)
+    const controls = popup.querySelectorAll<HTMLElement>('button, input')
+    controls[0].focus()
+    controls[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }))
+    expect(document.activeElement).toBe(controls[controls.length - 1])
+    popup.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await nextTick()
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    await vi.waitFor(() => expect(document.getElementById(popup.id)).toBeNull())
+    expect(document.activeElement).toBe(trigger.element)
+  })
+
   it('uses last 24 hours as the default recognized preset', () => {
     const now = new Date()
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
@@ -45,7 +81,8 @@ describe('DateRangePicker', () => {
       },
       global: {
         stubs: {
-          Icon: true
+          Icon: true,
+          Teleport: true
         }
       }
     })
@@ -64,7 +101,8 @@ describe('DateRangePicker', () => {
       },
       global: {
         stubs: {
-          Icon: true
+          Icon: true,
+          Teleport: true
         }
       }
     })

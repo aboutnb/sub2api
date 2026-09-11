@@ -41,6 +41,36 @@
         <!-- Announcement Bell -->
         <AnnouncementBell v-if="user" />
 
+        <!-- Community Group Link -->
+        <a
+          v-if="communityGroupUrl"
+          :href="communityGroupUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          :aria-label="communityGroupName"
+          :title="communityGroupName"
+          class="group flex h-9 min-w-9 flex-shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium text-ink transition-all duration-200 hover:bg-surface-muted hover:text-ink-strong hover:shadow-sm active:scale-[0.98] dark:text-ink-muted dark:hover:bg-dark-700 dark:hover:text-white sm:w-auto sm:px-2.5"
+        >
+          <img
+            v-if="communityGroupIcon"
+            :src="communityGroupIcon"
+            alt=""
+            class="h-5 w-5 flex-shrink-0 object-contain opacity-75 transition-opacity duration-200 group-hover:opacity-100"
+          />
+          <svg
+            v-else
+            class="h-5 w-5 flex-shrink-0 text-ink-muted transition-colors duration-200 group-hover:text-ink dark:text-ink-muted dark:group-hover:text-gray-200"
+            viewBox="0 0 1024 1024"
+            aria-hidden="true"
+          >
+            <path
+              d="M928 585.344c0-67.328-40.832-125.024-98.592-151.456-4.8-170.752-144.288-310.24-317.408-310.24-173.152 0-312.608 137.056-317.408 310.208C136.864 460.32 96 518.016 96 585.344a166.24 166.24 0 0 0 165.92 165.92h4.8c12.032 0 24.064-12 24.064-24.032v-283.744c0-12.032-12.032-24.032-24.064-24.032h-21.632c9.6-137.056 125.024-247.68 266.912-247.68 141.92 0 257.28 110.624 269.344 250.08h-24.096c-12 0-24 12.032-24 24.032V720c-76.96 84.192-182.784 132.288-295.808 132.288-14.432 0-24.032 9.632-24.032 24.032 0 14.432 9.632 24.032 24.032 24.032 127.488 0 247.68-55.328 331.84-149.088 88.96-4.8 158.72-76.928 158.72-165.92zM240.256 700.736a116.384 116.384 0 0 1-96.16-115.392c0-57.696 40.864-105.792 98.592-115.392v230.816h-2.432z m541.088 0v-230.816c55.328 9.632 98.56 57.728 98.56 115.392 0 57.76-43.232 105.856-98.56 115.424z"
+              fill="currentColor"
+            />
+          </svg>
+          <span class="hidden max-w-28 truncate leading-tight sm:inline">{{ communityGroupName }}</span>
+        </a>
+
         <!-- Subscription Progress (for users with active subscriptions) -->
         <SubscriptionProgressMini
           v-if="user && !authStore.isSimpleMode && userSubscriptionsEnabled"
@@ -89,7 +119,7 @@
                 d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"
               />
             </svg>
-            <span class="header-balance-value max-w-10 truncate text-sm font-semibold tabular-nums text-primary-700 dark:text-primary-300 sm:max-w-20">
+            <span class="header-balance-value max-w-10 truncate text-sm font-semibold leading-tight tabular-nums text-primary-700 dark:text-primary-300 sm:max-w-20">
               {{ formatHeaderMoney(availableBalance) }}
             </span>
           </button>
@@ -122,7 +152,7 @@
             v-if="showRechargeShortcut"
             data-testid="header-recharge-shortcut"
             to="/purchase"
-            class="header-recharge-link flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-r-xl border-l border-primary-200/80 bg-action-soft px-2.5 text-xs font-semibold text-ink-strong transition-colors hover:bg-action hover:text-action-foreground dark:border-primary-700/70"
+            class="header-recharge-link flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-r-xl border-l border-primary-200/80 bg-action-soft px-2.5 text-xs font-semibold leading-tight text-ink-strong transition-colors hover:bg-action hover:text-action-foreground dark:border-primary-700/70"
             :aria-label="rechargeLabel"
             :title="rechargeLabel"
             @click="closeBalanceDetails"
@@ -131,41 +161,12 @@
             <span class="hidden whitespace-nowrap sm:inline">{{ rechargeLabel }}</span>
           </router-link>
         </div>
+        <SupportContact v-if="contactInfo" :contact-info="contactInfo" />
       </div>
 
       <!-- Secondary links may use More below the wide desktop breakpoint. -->
       <div class="header-secondary-actions flex flex-shrink-0 items-center gap-1 sm:gap-3">
         <template v-if="isDesktopHeader">
-
-        <!-- Community Group Link -->
-        <a
-          v-if="communityGroupUrl"
-          :href="communityGroupUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-          :aria-label="communityGroupName"
-          :title="communityGroupName"
-          class="group flex h-9 w-9 flex-shrink-0 items-center justify-center gap-1.5 rounded-lg text-sm font-medium text-ink transition-all duration-200 hover:bg-surface-muted hover:text-ink-strong hover:shadow-sm active:scale-[0.98] dark:text-ink-muted dark:hover:bg-dark-700 dark:hover:text-white sm:w-auto sm:px-2.5"
-        >
-          <img
-            v-if="communityGroupIcon"
-            :src="communityGroupIcon"
-            alt=""
-            class="h-5 w-5 flex-shrink-0 object-contain opacity-75 transition-opacity duration-200 group-hover:opacity-100"
-          />
-          <svg
-            v-else
-            class="h-5 w-5 flex-shrink-0 text-ink-muted transition-colors duration-200 group-hover:text-ink dark:text-ink-muted dark:group-hover:text-gray-200"
-            viewBox="0 0 1024 1024"
-            aria-hidden="true"
-          >
-            <path
-              d="M928 585.344c0-67.328-40.832-125.024-98.592-151.456-4.8-170.752-144.288-310.24-317.408-310.24-173.152 0-312.608 137.056-317.408 310.208C136.864 460.32 96 518.016 96 585.344a166.24 166.24 0 0 0 165.92 165.92h4.8c12.032 0 24.064-12 24.064-24.032v-283.744c0-12.032-12.032-24.032-24.064-24.032h-21.632c9.6-137.056 125.024-247.68 266.912-247.68 141.92 0 257.28 110.624 269.344 250.08h-24.096c-12 0-24 12.032-24 24.032V720c-76.96 84.192-182.784 132.288-295.808 132.288-14.432 0-24.032 9.632-24.032 24.032 0 14.432 9.632 24.032 24.032 24.032 127.488 0 247.68-55.328 331.84-149.088 88.96-4.8 158.72-76.928 158.72-165.92zM240.256 700.736a116.384 116.384 0 0 1-96.16-115.392c0-57.696 40.864-105.792 98.592-115.392v230.816h-2.432z m541.088 0v-230.816c55.328 9.632 98.56 57.728 98.56 115.392 0 57.76-43.232 105.856-98.56 115.424z"
-              fill="currentColor"
-            />
-          </svg>
-          <span class="hidden max-w-28 truncate sm:inline">{{ communityGroupName }}</span>
-        </a>
 
         <!-- Docs Link -->
         <a
@@ -367,20 +368,6 @@
               @keydown="handleMoreKeydown"
             >
               <a
-                v-if="communityGroupUrl"
-                :href="communityGroupUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="dropdown-item min-h-11"
-                @click="closeMore"
-              >
-                <img v-if="communityGroupIcon" :src="communityGroupIcon" alt="" class="h-5 w-5 object-contain" />
-                <Icon v-else name="users" size="sm" />
-                <span class="min-w-0 flex-1 truncate">{{ communityGroupName }}</span>
-                <Icon name="externalLink" size="xs" aria-hidden="true" />
-              </a>
-
-              <a
                 v-if="docUrl"
                 :href="docUrl"
                 target="_blank"
@@ -420,6 +407,7 @@ import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import CheckinShortcut from '@/components/checkin/CheckinShortcut.vue'
+import SupportContact from './SupportContact.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
@@ -466,7 +454,7 @@ const userSubscriptionsEnabled = computed(() => isFeatureFlagEnabled(FeatureFlag
 const checkinEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.checkin))
 const paymentEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.payment))
 const hasSecondaryActions = computed(() => Boolean(
-  communityGroupUrl.value || docUrl.value || (user.value && modelPlazaEnabled.value),
+  docUrl.value || (user.value && modelPlazaEnabled.value),
 ))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
 const availableBalance = computed(() => Number(user.value?.balance || 0))
@@ -724,6 +712,31 @@ onBeforeUnmount(() => {
   z-index: 1;
   outline: 3px solid var(--av-focus);
   outline-offset: 2px;
+}
+
+/* Keep the compact action row visually short while the global header rule
+   preserves the 44px keyboard and touch target. */
+.header-primary-actions {
+  line-height: 1.15;
+}
+
+.header-primary-actions :where(.header-wallet, .header-balance, .header-recharge-link) {
+  min-height: 2.75rem;
+}
+
+/* Desktop keeps the frequent actions compact; coarse pointers retain the
+   44px touch target from the global interaction baseline. */
+@media (pointer: fine) {
+  .header-primary-actions :where(.header-wallet) {
+    height: 2.25rem;
+    min-height: 2.25rem;
+  }
+
+  .header-primary-actions :where(.header-balance, .header-recharge-link),
+  .header-primary-actions :deep(button),
+  .header-primary-actions :deep(a[href]) {
+    min-height: 2.25rem;
+  }
 }
 
 /* At 1024px the desktop sidebar consumes 256px, leaving only 768px for the

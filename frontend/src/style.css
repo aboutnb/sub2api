@@ -41,7 +41,7 @@
     --av-rgb-border-default: 234 223 212;
     --av-rgb-border-strong: 216 201 187;
     /* Control boundaries are deliberately darker than decorative dividers (>= 3:1). */
-    --av-rgb-border-control: 143 121 104;
+    --av-rgb-border-control: 139 141 145;
     --av-rgb-focus: 8 124 116;
     --av-rgb-brand-primary: 8 124 116;
     --av-rgb-brand-primary-soft: 223 248 241;
@@ -114,6 +114,7 @@
     --av-card-shadow: var(--av-shadow-md);
     --av-input-background: var(--av-color-bg-surface);
     --av-input-border: var(--av-color-border-control);
+    --av-button-border: var(--av-color-border-strong);
     --av-input-shadow: inset 0 -2px 0 rgb(23 32 51 / 0.035);
     --av-overlay-background: var(--av-color-bg-surface-elevated);
     --av-overlay-border: var(--av-color-border-strong);
@@ -184,7 +185,7 @@
     --av-rgb-text-inverse: 23 32 51;
     --av-rgb-border-default: 52 64 86;
     --av-rgb-border-strong: 74 86 108;
-    --av-rgb-border-control: 108 125 155;
+    --av-rgb-border-control: 117 129 148;
     --av-rgb-focus: 74 203 187;
     --av-rgb-brand-primary: 47 185 170;
     --av-rgb-brand-primary-soft: 27 57 70;
@@ -262,30 +263,39 @@
   }
 
   :where(a, button, input, select, textarea, [role='button'], [tabindex='0']):focus-visible {
-    /* A solid semantic outline stays >= 3:1 in both themes, even when a
-       component also draws a softer decorative Tailwind ring. */
-    outline: 3px solid var(--av-focus) !important;
-    outline-offset: 2px !important;
+    outline: 2px solid var(--av-focus);
+    outline-offset: 2px;
+  }
+
+  /* Route focus is a reading/keyboard starting point, not a selected control. */
+  [data-route-focus][tabindex='-1']:focus {
+    outline: none;
   }
 
   /*
    * Interaction-size baseline. Utility/component classes may opt into the
-   * 36px dense-table contract, while ordinary controls keep a 44px hit area.
+   * 36px dense-table contract; coarse pointers are promoted to 44px below.
    * Switches retain their compact visual track and expose an expanded hitbox
    * through the generated element below.
    */
   :where(
     button:not([role='switch']):not([data-touch-target='compact-visualization']),
     [role='button'],
-    a[href],
     summary,
     input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='hidden']),
     select,
     textarea
   ) {
-    min-width: 2.75rem;
-    min-height: 2.75rem;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
     touch-action: manipulation;
+  }
+
+  @media (pointer: coarse) {
+    :where(button:not([role='switch']):not([data-touch-target='compact-visualization']), [role='button'], summary) {
+      min-width: 2.75rem;
+      min-height: 2.75rem;
+    }
   }
 
   :where(label:has(input[type='checkbox']), label:has(input[type='radio'])) {
@@ -305,6 +315,13 @@
     height: max(100%, 2.75rem);
     content: '';
     transform: translate(-50%, -50%);
+  }
+
+  /* Legacy switch callsites still use the old utility class while they migrate
+     to Toggle. Keep their outline neutral and light during the transition. */
+  button.relative.inline-flex.rounded-full.border-2.border-transparent {
+    border-width: 1px;
+    border-color: var(--av-color-border-control);
   }
 
   :where(button, [role='button'], a[href]) {
@@ -466,11 +483,11 @@
   /* ============ 按钮样式 ============ */
   .btn {
     @apply inline-flex items-center justify-center gap-2;
-    @apply min-h-11 rounded-xl border-2 px-4 py-2 text-sm font-bold;
+    @apply min-h-11 rounded-xl border px-4 py-2 text-sm font-semibold leading-5;
     @apply cursor-pointer transition-all duration-200 ease-out;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:ring-offset-2;
+    @apply focus-visible:outline-2 focus-visible:outline-offset-2;
     @apply disabled:transform-none disabled:cursor-not-allowed disabled:opacity-50;
-    border-color: var(--av-color-border-control);
+    border-color: var(--av-button-border);
     box-shadow: var(--av-shadow-sm);
   }
 
@@ -485,7 +502,8 @@
   }
 
   .btn-primary {
-    @apply border-ink-strong bg-action text-action-foreground shadow-pixel-sm;
+    @apply bg-action text-action-foreground shadow-pixel-sm;
+    border-color: rgb(var(--av-rgb-brand-accent-strong) / 0.55);
   }
 
   .btn-primary:hover:not(:disabled) {
@@ -581,18 +599,26 @@
   }
 
   .btn-icon {
-    @apply min-h-11 min-w-11 rounded-xl p-2.5;
+    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl p-2.5;
+  }
+
+  .btn-icon.btn-sm {
+    @apply h-9 w-9 min-h-9 min-w-9 p-2;
+  }
+
+  .btn > :where(svg), .btn-icon > :where(svg) {
+    flex-shrink: 0;
   }
 
   /* ============ 输入框样式 ============ */
   .input {
-    @apply min-h-11 w-full rounded-xl border-2 px-4 py-2.5 text-sm;
+    @apply min-h-11 w-full rounded-xl border px-3 py-2 text-sm leading-5;
     @apply bg-surface text-ink-strong placeholder:text-ink-muted;
     @apply transition-all duration-200;
-    @apply focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500/25;
+    @apply focus:border-brand;
     @apply disabled:cursor-not-allowed disabled:bg-surface-muted;
     border-color: var(--av-input-border);
-    box-shadow: inset 0 -2px 0 rgba(23, 32, 51, 0.035);
+    box-shadow: none;
   }
 
   .input:hover:not(:disabled):not(:focus) {
@@ -1039,18 +1065,54 @@
 
   /* ============ 标签页 ============ */
   .tabs {
-    @apply flex gap-1 rounded-xl border-2 border-line bg-surface-muted p-1;
+    @apply flex flex-wrap items-center gap-[0.15rem] rounded-xl border border-line bg-surface-muted p-1;
   }
 
   .tab {
-    @apply inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-4 py-2 text-sm font-medium;
+    @apply inline-flex min-h-9 min-w-9 items-center justify-center gap-1.5 rounded-lg border border-transparent px-3 py-1.5 text-sm font-medium leading-5;
     @apply text-ink;
     @apply transition-all duration-200;
     @apply hover:text-ink-strong;
   }
 
   .tab-active {
-    @apply border border-brand bg-surface text-brand shadow-pixel-sm;
+    @apply border-brand/30 bg-brand-soft text-brand shadow-sm;
+  }
+
+  .tab[aria-pressed='true'], .tab[aria-selected='true'], .tab[aria-checked='true'] {
+    @apply border-brand/30 bg-brand-soft font-semibold text-brand shadow-sm;
+  }
+
+  /* Explicit filter layouts keep condition widths independent of placeholder
+     length; actions get their own row instead of squeezing fields to the left. */
+  .filter-toolbar {
+    @apply flex min-w-0 flex-col gap-4;
+  }
+
+  .filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: 0.75rem;
+    min-width: 0;
+    width: 100%;
+    align-items: end;
+  }
+
+  .filter-grid > * {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .filter-actions {
+    @apply flex flex-wrap items-center justify-end gap-2;
+  }
+
+  @media (pointer: coarse) {
+    .tab, .btn-sm {
+      min-height: 2.75rem;
+      min-width: 2.75rem;
+    }
   }
 
   /* ============ 进度条 ============ */

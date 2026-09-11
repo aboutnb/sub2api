@@ -82,6 +82,7 @@
             :key="strategy.value"
             type="button"
             :class="strategyClass(strategy.value)"
+            :aria-pressed="modelValue.strategy === strategy.value"
             @click="setStrategy(strategy.value)"
           >
             <span :class="['mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md', strategy.tone]">
@@ -323,14 +324,14 @@ const isDisabled = (group: Group) => {
 }
 
 const modeButtonClass = (active: boolean) => [
-  'flex min-h-9 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-45',
-  active ? 'bg-white text-primary-700 shadow-sm dark:bg-line-strong dark:text-primary-300' : 'text-ink hover:text-ink-strong dark:text-ink-muted dark:hover:text-white'
+  'tab disabled:cursor-not-allowed disabled:opacity-45',
+  active ? 'tab-active' : ''
 ]
 
 const strategyClass = (strategy: SmartRouteStrategy) => [
-  'flex min-h-[76px] items-start gap-3 rounded-lg border p-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500',
+  'flex min-h-[76px] items-start gap-3 rounded-lg border p-3 text-left transition-colors',
   props.modelValue.strategy === strategy
-    ? 'border-emerald-400 bg-emerald-50/70 dark:border-emerald-700 dark:bg-emerald-950/20'
+    ? 'border-brand/40 bg-brand-soft'
     : 'border-line bg-white hover:border-line-strong dark:border-line-strong dark:bg-surface dark:hover:border-line-strong',
   strategy === 'custom' ? 'sm:col-span-2' : ''
 ]

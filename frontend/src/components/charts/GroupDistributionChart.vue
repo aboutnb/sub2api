@@ -1,29 +1,25 @@
 <template>
   <div class="card p-4">
-    <div class="mb-4 flex items-center justify-between gap-3">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <h3 class="text-sm font-semibold text-ink-strong dark:text-white">
         {{ t('admin.dashboard.groupDistribution') }}
       </h3>
       <div
         v-if="showMetricToggle"
-        class="inline-flex rounded-lg border border-line bg-surface-muted p-0.5 dark:border-line dark:bg-surface"
+        class="tabs"
       >
         <button
           type="button"
-          class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-          :class="metric === 'tokens'
-            ? 'bg-white text-ink-strong shadow-sm dark:bg-surface-muted dark:text-white'
-            : 'text-ink-muted hover:text-ink dark:text-ink-muted dark:hover:text-gray-200'"
+          class="tab px-2.5 text-xs"
+          :aria-pressed="metric === 'tokens'"
           @click="emit('update:metric', 'tokens')"
         >
           {{ t('admin.dashboard.metricTokens') }}
         </button>
         <button
           type="button"
-          class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-          :class="metric === 'actual_cost'
-            ? 'bg-white text-ink-strong shadow-sm dark:bg-surface-muted dark:text-white'
-            : 'text-ink-muted hover:text-ink dark:text-ink-muted dark:hover:text-gray-200'"
+          class="tab px-2.5 text-xs"
+          :aria-pressed="metric === 'actual_cost'"
           @click="emit('update:metric', 'actual_cost')"
         >
           {{ t('admin.dashboard.metricActualCost') }}

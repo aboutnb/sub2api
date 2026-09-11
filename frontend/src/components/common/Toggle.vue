@@ -4,7 +4,7 @@
     @click="toggle"
     :id="id"
     :disabled="disabled"
-    class="relative inline-flex h-11 w-12 flex-shrink-0 cursor-pointer items-center rounded-xl transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-dark-800"
+    class="relative inline-flex h-11 w-12 flex-shrink-0 cursor-pointer items-center rounded-xl transition-colors duration-200 ease-in-out"
     :class="[
       disabled && 'cursor-not-allowed opacity-50'
     ]"
@@ -16,11 +16,11 @@
   >
     <span
       aria-hidden="true"
-      class="pointer-events-none absolute inset-x-0 top-1/2 h-7 -translate-y-1/2 rounded-lg border-2 border-line-control transition-colors duration-200 ease-in-out"
+      class="pointer-events-none absolute inset-x-0 top-1/2 h-7 -translate-y-1/2 rounded-lg border border-line-control transition-colors duration-200 ease-in-out"
       :class="modelValue ? 'bg-primary-500' : 'bg-line dark:bg-line-strong'"
     />
     <span
-      class="pointer-events-none absolute left-0.5 top-1/2 inline-block h-5 w-5 -translate-y-1/2 transform rounded-md border border-ink-strong bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
+      class="pointer-events-none absolute left-0.5 top-1/2 inline-block h-5 w-5 -translate-y-1/2 transform rounded-md border border-line-control bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
       :class="[modelValue ? 'translate-x-5' : 'translate-x-0']"
     />
   </button>

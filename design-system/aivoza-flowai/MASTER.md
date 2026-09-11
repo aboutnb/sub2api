@@ -1,11 +1,11 @@
 # Aivoza FlowAI UI system
 
-This file is the implementation source of truth for the `sub2api-flowai-theme` branch. The visual reference is `aivoza-home-pixel.html`; product usability and existing business behavior take precedence over decorative styling.
+This file is the implementation source of truth for Aivoza on `main`. Changes enter through feature/fix branches and PRs. The visual reference is `aivoza-home-pixel.html`; product usability and existing business behavior take precedence over decorative styling.
 
 ## Direction
 
 - Warm, friendly SaaS product interface with restrained pixel accents.
-- Pixel character comes from 2px outlines, square details, a subtle 32px grid, and 2–5px offset shadows.
+- Pixel character comes from restrained 1px control borders, 2px focus outlines, square details, a subtle 32px grid, and 2–5px offset shadows.
 - Do not use oversized poster typography, arcade fonts, noisy tiled backgrounds, or heavy animation.
 - Keep dense admin and account workflows readable. Styling must not reduce information capacity or alter behavior.
 - Always use the configured site logo through `resolveBrandLogo`; never replace it with a decorative fake logo.
@@ -19,8 +19,8 @@ This file is the implementation source of truth for the `sub2api-flowai-theme` b
 | Ink | `#172033` | `#f7f5f2` | Main copy and outlines |
 | Muted ink | `#566074` | `#a6a8ad` | Supporting text |
 | Line | `#eadfd4` | `#344056` | Default borders |
-| Control line | `#8f7968` | `#6c7d9b` | Input/button boundaries, at least 3:1 against surfaces |
-| Focus | `#087c74` | `#4acbbb` | Solid 3px keyboard outline, at least 3:1 |
+| Control line | `#8b8d91` | `#758194` | Input boundaries, at least 3:1 against surfaces |
+| Focus | `#087c74` | `#4acbbb` | Solid 2px keyboard outline, at least 3:1 |
 | Teal | `#2fb9aa` | `#4acbbb` | Decorative accent |
 | Teal solid | `#087c74` | `#2fb9aa` | White-text controls and links |
 | Teal soft | `#dff8f1` | teal at 16% | Selected and information states |
@@ -53,8 +53,8 @@ selected states.
 
 ### Buttons
 
-- Default minimum height: 44px; compact table actions may use 36px.
-- 2px ink outline, 10–14px radius, 3px offset shadow.
+- Default minimum height: 44px; compact table actions and segmented controls use 36px on fine pointers and 44px on touch screens.
+- 1px semantic border, 10–14px radius, soft shadow. Reserve pixel shadows for primary actions and brand marks.
 - Primary CTA: coral fill with ink text.
 - Navigation/selected controls: teal solid with white text, or teal soft with dark teal text.
 - Hover movement is at most 1px; active state compresses the offset shadow.
@@ -68,9 +68,9 @@ selected states.
 
 ### Inputs
 
-- Minimum 44px height, 2px border, 10–14px radius.
+- Minimum 44px height, 1px neutral control border, 10–14px radius.
 - Control boundaries and the solid focus outline retain at least 3:1 contrast against their surface.
-- Focus uses a teal border plus an external outline; never depend on color alone for errors.
+- Keyboard focus uses one 2px teal outline without stacked rings. Search within a dropdown uses a 2px inset indicator on the search row. Never depend on color alone for errors.
 - Labels remain visible. Placeholders do not replace labels.
 
 ### Tables
@@ -82,6 +82,10 @@ selected states.
 
 ## Layout
 
+- Filter fields use an adaptive equal-width grid with 12px gaps and a separate wrapping action row. Never give each condition unrelated fixed widths.
+- Date-range popovers render in the body, track scrolling, flip vertically and clamp to the visible viewport.
+- Module selections use a soft teal fill, a fine teal border and a clear pressed/selected state.
+- Contact support remains visible in the header's primary actions at every breakpoint.
 - Supported checks: 375px, 768px, 1024px, 1440px.
 - App header remains 64px; desktop sidebar remains 256px / 72px collapsed.
 - Main content width is capped at 1680px and remains fluid below it.
