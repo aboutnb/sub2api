@@ -3,12 +3,12 @@
     <TablePageLayout>
       <template #filters>
         <!-- Top Toolbar: Left (search + filters) / Right (actions) -->
-        <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="filter-toolbar">
           <!-- Left: Fuzzy user search + filters (wrap to multiple lines) -->
-          <div class="flex flex-1 flex-wrap items-center gap-3">
+          <div class="filter-grid">
             <!-- User Search -->
             <div
-              class="relative w-full sm:w-64"
+              class="relative min-w-0"
               data-filter-user-search
             >
               <Icon
@@ -65,7 +65,7 @@
             </div>
 
             <!-- Filters -->
-            <div class="w-full sm:w-40">
+            <div class="min-w-0">
               <Select
                 v-model="filters.status"
                 :options="statusOptions"
@@ -73,7 +73,7 @@
                 @change="applyFilters"
               />
             </div>
-            <div class="w-full sm:w-48">
+            <div class="min-w-0">
               <Select
                 v-model="filters.group_id"
                 :options="groupOptions"
@@ -81,7 +81,7 @@
                 @change="applyFilters"
               />
             </div>
-            <div class="w-full sm:w-40">
+            <div class="min-w-0">
               <Select
                 v-model="filters.platform"
                 :options="platformFilterOptions"
@@ -92,7 +92,7 @@
           </div>
 
           <!-- Right: Actions -->
-          <div class="ml-auto flex flex-wrap items-center justify-end gap-3">
+          <div class="filter-actions">
             <button
               @click="loadSubscriptions"
               :disabled="loading"

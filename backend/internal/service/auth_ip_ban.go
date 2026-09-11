@@ -24,6 +24,20 @@ const (
 
 var ErrAuthIPBanNotFound = infraerrors.NotFound("AUTH_IP_BAN_NOT_FOUND", "封禁记录不存在或已失效")
 
+// A high, short-lived source limit catches rotated accounts and spoofed UAs.
+// Successful logins must not reset this aggregate counter.
+var authIPSourcePolicy = AuthIPBanPolicy{
+	UACategory: "source", BanScope: AuthIPBanScopeIP, Threshold: 200,
+	Window: 10 * time.Minute, BanFor: 15 * time.Minute,
+	WindowMins: 10, BanMins: 15,
+}
+
+const authIPSourceReason = "auth_source_failure_limit"
+
+func authIPSourceCounterKey(ipAddress string) string {
+	return "auth_ip_ban:source:" + ipAddress
+}
+
 type AuthIPBan struct {
 	ID               int64      `json:"id"`
 	IPAddress        string     `json:"ip_address"`
@@ -159,6 +173,7 @@ func (s *AuthIPBanService) Policies() []AuthIPBanPolicy {
 	for _, category := range order {
 		result = append(result, authIPBanPolicies[category])
 	}
+	result = append(result, authIPSourcePolicy)
 	return result
 }
 
@@ -198,6 +213,15 @@ func (s *AuthIPBanService) RecordFailure(
 	if err != nil {
 		slog.Warn("auth_ip_ban.counter_failed", "ip", ipAddress, "ua_category", category, "error", err)
 		return nil, nil
+	}
+	sourceCount, sourceTTL, sourceErr := s.counter.Increment(ctx, authIPSourceCounterKey(ipAddress), authIPSourcePolicy.Window)
+	if sourceErr != nil {
+		slog.Warn("auth_ip_ban.source_counter_failed", "ip", ipAddress, "error", sourceErr)
+	}
+	if count < int64(policy.Threshold) && sourceErr == nil && sourceCount >= int64(authIPSourcePolicy.Threshold) {
+		policy = authIPSourcePolicy
+		count, ttl = sourceCount, sourceTTL
+		reason = authIPSourceReason
 	}
 	if count < int64(policy.Threshold) {
 		return nil, nil
@@ -279,6 +303,11 @@ func (s *AuthIPBanService) Release(ctx context.Context, id, releasedByUserID int
 		return nil, err
 	}
 	if s.counter != nil && record != nil {
+		if record.Reason == authIPSourceReason {
+			if err := s.counter.Delete(ctx, authIPSourceCounterKey(record.IPAddress)); err != nil {
+				slog.Warn("auth_ip_ban.release_source_counter_failed", "id", id, "error", err)
+			}
+		}
 		category := record.UACategory
 		policy, ok := authIPBanPolicies[category]
 		if ok {
@@ -332,7 +361,7 @@ func normalizePublicAuthIP(raw string) (string, bool) {
 }
 
 func authUserAgentHash(userAgent string) string {
-	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(userAgent))))
+	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(truncateAuthBanText(userAgent, 512)))))
 	return hex.EncodeToString(sum[:])
 }
 

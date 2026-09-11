@@ -22,6 +22,7 @@ export default {
       status: '状态'
     },
     category: {
+      source: '来源累计（跨账号与 UA）',
       browser: '浏览器',
       automation: '自动化脚本',
       empty: '空 UA',
@@ -32,6 +33,8 @@ export default {
       ip_ua: 'IP + UA'
     },
     reason: {
+      auth_source_failure_limit: '同一 IP 高频认证失败（跨账号与 UA 累计）',
+      captcha_verification_failed: '人机验证失败',
       turnstile_token_missing: '缺少站点验证令牌',
       turnstile_verification_failed: '站点验证失败',
       credentials_rejected: '账号或密码校验失败',

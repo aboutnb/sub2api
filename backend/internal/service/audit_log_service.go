@@ -23,8 +23,9 @@ const (
 // 写入端为非阻塞异步批量落库（不拖慢管理请求）；
 // 读取端提供分页查询；清空端点由 handler 层做 TOTP 强校验后调用 ClearAll。
 type AuditLogService struct {
-	repo           AuditLogRepository
-	settingService *SettingService
+	repo                AuditLogRepository
+	settingService      *SettingService
+	registrationCleanup func(context.Context) error
 
 	queue chan *AuditLog
 
@@ -214,6 +215,11 @@ func (s *AuditLogService) runRetentionLoop() {
 func (s *AuditLogService) runRetentionOnce() {
 	ctx, cancel := context.WithTimeout(s.ctx, 10*time.Minute)
 	defer cancel()
+	if s.registrationCleanup != nil {
+		if err := s.registrationCleanup(ctx); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "registration risk retention cleanup failed: %v\n", err)
+		}
+	}
 
 	days := 0
 	if s.settingService != nil {

@@ -211,7 +211,7 @@ func (s *AuthService) applySignupGrant(ctx context.Context, user *User, grant si
 	if fingerprint == "" || s == nil || s.signupRiskGrantStore == nil {
 		return false, ErrServiceUnavailable
 	}
-	allowed, err := s.signupRiskGrantStore.ClaimSignupGrant(ctx, user.ID, fingerprint)
+	allowed, err := s.signupRiskGrantStore.ClaimSignupGrant(withSignupRiskConcurrency(ctx, grant.plan.Concurrency), user.ID, fingerprint)
 	if err != nil {
 		logger.LegacyPrintf("service.auth", "[Auth] signup risk grant claim failed for user %d: %v", user.ID, err)
 		return false, ErrServiceUnavailable
@@ -351,6 +351,9 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	}
 
 	if err := s.createUserAndClaimInvitation(ctx, user, invitationRedeemCode); err != nil {
+		if quota := registrationQuotaError(err); quota != nil {
+			return "", nil, quota
+		}
 		// 优先检查邮箱冲突错误（竞态条件下可能发生）
 		switch {
 		case errors.Is(err, ErrEmailExists):
@@ -366,7 +369,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	}
 	grantAllowed, grantErr := s.applySignupGrant(ctx, user, grant)
 	if grantErr != nil {
-		_ = s.userRepo.Delete(ctx, user.ID)
+		_ = s.userRepo.Delete(WithRegistrationRollback(ctx), user.ID)
 		return "", nil, grantErr
 	}
 	s.postAuthUserBootstrap(ctx, user, "email", true)
@@ -739,6 +742,9 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 			}
 
 			if err := s.userRepo.Create(ctx, newUser); err != nil {
+				if quota := registrationQuotaError(err); quota != nil {
+					return "", nil, quota
+				}
 				if errors.Is(err, ErrEmailExists) {
 					// 并发场景：GetByEmail 与 Create 之间用户被创建。
 					user, err = s.userRepo.GetByEmail(ctx, email)
@@ -754,7 +760,7 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				user = newUser
 				grantAllowed, grantErr := s.applySignupGrant(ctx, user, grant)
 				if grantErr != nil {
-					_ = s.userRepo.Delete(ctx, user.ID)
+					_ = s.userRepo.Delete(WithRegistrationRollback(ctx), user.ID)
 					return "", nil, grantErr
 				}
 				s.postAuthUserBootstrap(ctx, user, signupSource, false)
@@ -904,6 +910,9 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				txCtx := dbent.NewTxContext(ctx, tx)
 
 				if err := s.userRepo.Create(txCtx, newUser); err != nil {
+					if quota := registrationQuotaError(err); quota != nil {
+						return nil, nil, quota
+					}
 					if errors.Is(err, ErrEmailExists) {
 						user, err = s.userRepo.GetByEmail(ctx, email)
 						if err != nil {
@@ -926,7 +935,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					created = true
 					grantAllowed, grantErr := s.applySignupGrant(ctx, user, grant)
 					if grantErr != nil {
-						_ = s.userRepo.Delete(ctx, user.ID)
+						_ = s.userRepo.Delete(WithRegistrationRollback(ctx), user.ID)
 						return nil, nil, grantErr
 					}
 					s.postAuthUserBootstrap(ctx, user, signupSource, false)
@@ -939,6 +948,9 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				}
 			} else {
 				if err := s.userRepo.Create(ctx, newUser); err != nil {
+					if quota := registrationQuotaError(err); quota != nil {
+						return nil, nil, quota
+					}
 					if errors.Is(err, ErrEmailExists) {
 						user, err = s.userRepo.GetByEmail(ctx, email)
 						if err != nil {
@@ -954,7 +966,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					created = true
 					grantAllowed, grantErr := s.applySignupGrant(ctx, user, grant)
 					if grantErr != nil {
-						_ = s.userRepo.Delete(ctx, user.ID)
+						_ = s.userRepo.Delete(WithRegistrationRollback(ctx), user.ID)
 						return nil, nil, grantErr
 					}
 					s.postAuthUserBootstrap(ctx, user, signupSource, false)

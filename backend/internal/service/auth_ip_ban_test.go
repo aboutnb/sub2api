@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -170,4 +172,77 @@ func TestAuthIPBanServiceSkipsNonPublicAddresses(t *testing.T) {
 		require.Nil(t, ban)
 	}
 	require.Empty(t, repo.activations)
+}
+
+func TestAuthIPBanRotatedSourcesAggregateDespiteSuccessfulLogins(t *testing.T) {
+	svc, repo := newAuthIPBanTestService(t)
+	ctx := context.Background()
+	for i := 1; i <= 200; i++ {
+		ua := fmt.Sprintf("Mozilla/5.0 Chrome/%d Safari/537.36", i)
+		target := fmt.Sprintf("user%d@example.com", i)
+		ban, err := svc.RecordFailure(ctx, "203.0.113.9", ua, target, "/api/v1/auth/login", "credentials_rejected")
+		require.NoError(t, err)
+		if i < 200 {
+			require.Nil(t, ban)
+		} else {
+			require.NotNil(t, ban)
+			require.Equal(t, AuthIPBanScopeIP, ban.BanScope)
+		}
+		svc.ClearFailures(ctx, "203.0.113.9", ua, target)
+	}
+	require.Len(t, repo.activations, 1)
+	require.Equal(t, authIPSourceReason, repo.activations[0].Reason)
+	require.Equal(t, 15*time.Minute, repo.activations[0].ExpiresAt.Sub(repo.activations[0].BannedAt))
+	ban, err := svc.RecordFailure(ctx, "203.0.113.10", "Mozilla/5.0 Chrome/1", "user@example.com", "/api/v1/auth/login", "credentials_rejected")
+	require.NoError(t, err)
+	require.Nil(t, ban, "other source must retain its own quota")
+}
+
+func TestAuthIPBanLongUAUsesSameIdentityForRecordAndClear(t *testing.T) {
+	svc, repo := newAuthIPBanTestService(t)
+	ctx := context.Background()
+	ua := "Mozilla/5.0 Chrome/1 " + strings.Repeat("x", 600)
+	for i := 0; i < 19; i++ {
+		_, err := svc.RecordFailure(ctx, "203.0.113.9", ua, "user@example.com", "/api/v1/auth/login", "credentials_rejected")
+		require.NoError(t, err)
+	}
+	svc.ClearFailures(ctx, "203.0.113.9", ua, "user@example.com")
+	ban, err := svc.RecordFailure(ctx, "203.0.113.9", ua, "user@example.com", "/api/v1/auth/login", "credentials_rejected")
+	require.NoError(t, err)
+	require.Nil(t, ban)
+	require.Empty(t, repo.activations)
+	require.Equal(t, authUserAgentHash(ua), authUserAgentHash(truncateAuthBanText(ua, 512)))
+}
+
+func TestAuthIPBanReleaseClearsSourceCounter(t *testing.T) {
+	svc, repo := newAuthIPBanTestService(t)
+	ctx := context.Background()
+	key := authIPSourceCounterKey("203.0.113.9")
+	_, _, err := svc.counter.Increment(ctx, key, authIPSourcePolicy.Window)
+	require.NoError(t, err)
+	repo.released = &AuthIPBan{IPAddress: "203.0.113.9", Reason: authIPSourceReason, UACategory: AuthUserAgentBrowser}
+	_, err = svc.Release(ctx, 1, 1, "reviewed")
+	require.NoError(t, err)
+	count, _, err := svc.counter.Increment(ctx, key, authIPSourcePolicy.Window)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, count)
+}
+
+func TestAuthIPBanSourceLimitDoesNotShortenAutomationBan(t *testing.T) {
+	svc, repo := newAuthIPBanTestService(t)
+	ctx := context.Background()
+	for i := 0; i < 199; i++ {
+		_, _, err := svc.counter.Increment(ctx, authIPSourceCounterKey("203.0.113.9"), authIPSourcePolicy.Window)
+		require.NoError(t, err)
+	}
+	policy := authIPBanPolicies[AuthUserAgentAutomation]
+	key := authIPBanCounterKey("203.0.113.9", authUserAgentHash("curl/8"), "", policy)
+	for i := 0; i < policy.Threshold-1; i++ {
+		_, _, err := svc.counter.Increment(ctx, key, policy.Window)
+		require.NoError(t, err)
+	}
+	_, err := svc.RecordFailure(ctx, "203.0.113.9", "curl/8", "", "/api/v1/auth/login", "credentials_rejected")
+	require.NoError(t, err)
+	require.Len(t, repo.activations, 1)
+	require.Equal(t, 6*time.Hour, repo.activations[0].ExpiresAt.Sub(repo.activations[0].BannedAt))
 }

@@ -2,9 +2,9 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="filter-grid">
           <!-- Left: Search + Filters -->
-          <div class="flex-1 sm:max-w-64">
+          <div class="min-w-0">
             <input
               v-model="searchQuery"
               type="text"
@@ -16,12 +16,12 @@
           <Select
             v-model="filters.status"
             :options="statusFilterOptions"
-            class="w-40"
+            class="min-w-0"
             @change="handleStatusChange"
           />
 
           <!-- Right: Action buttons -->
-          <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
+          <div class="filter-actions col-span-full">
             <button
               @click="loadAnnouncements"
               :disabled="loading"

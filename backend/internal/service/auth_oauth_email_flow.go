@@ -172,6 +172,9 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 	}
 
 	if err := s.createUserWithRegistrationEmailGuard(ctx, user); err != nil {
+		if quota := registrationQuotaError(err); quota != nil {
+			return nil, nil, quota
+		}
 		switch {
 		case errors.Is(err, ErrEmailExists):
 			return nil, nil, ErrEmailExists
@@ -266,6 +269,9 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 	}
 
 	if err := s.createUserWithRegistrationEmailGuard(ctx, user); err != nil {
+		if quota := registrationQuotaError(err); quota != nil {
+			return nil, nil, quota
+		}
 		switch {
 		case errors.Is(err, ErrEmailExists):
 			return nil, nil, ErrEmailExists
@@ -341,10 +347,10 @@ func (s *AuthService) RollbackOAuthEmailAccountCreation(ctx context.Context, use
 	if err := s.restoreOAuthRegistrationInvitation(ctx, invitationCode, userID); err != nil {
 		return err
 	}
-	s.releaseSignupGrant(ctx, userID)
-	if err := s.userRepo.Delete(ctx, userID); err != nil {
+	if err := s.userRepo.Delete(WithRegistrationRollback(ctx), userID); err != nil {
 		return fmt.Errorf("delete created oauth user: %w", err)
 	}
+	s.releaseSignupGrant(ctx, userID)
 	return nil
 }
 

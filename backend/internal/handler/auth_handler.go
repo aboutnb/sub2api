@@ -20,15 +20,16 @@ import (
 
 // AuthHandler handles authentication-related requests
 type AuthHandler struct {
-	cfg                  *config.Config
-	authService          *service.AuthService
-	userService          *service.UserService
-	settingSvc           *service.SettingService
-	promoService         *service.PromoService
-	redeemService        *service.RedeemService
-	totpService          *service.TotpService
-	userAttributeService *service.UserAttributeService
-	redisClient          *redis.Client
+	cfg                    *config.Config
+	authService            *service.AuthService
+	userService            *service.UserService
+	settingSvc             *service.SettingService
+	promoService           *service.PromoService
+	redeemService          *service.RedeemService
+	totpService            *service.TotpService
+	userAttributeService   *service.UserAttributeService
+	redisClient            *redis.Client
+	registrationProtection *service.RegistrationProtectionService
 
 	dingTalkClientInstance *DingTalkClient
 	dingTalkClientMu       sync.Mutex
@@ -202,7 +203,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	// 验证当前启用的验证码（邮箱验证码注册场景避免重复校验一次性票据）
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
 	if err := h.authService.VerifyCaptchaForRegister(c.Request.Context(), proof, h.registrationSecurityClientIP(c), req.VerifyCode); err != nil {
-		response.ErrorFrom(c, err)
+		h.registrationError(c, err)
 		return
 	}
 
@@ -216,7 +217,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		req.AffCode,
 	)
 	if err != nil {
-		response.ErrorFrom(c, err)
+		h.registrationError(c, err)
 		return
 	}
 
@@ -239,7 +240,7 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
 	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, h.registrationSecurityClientIP(c)); err != nil {
-		response.ErrorFrom(c, err)
+		h.registrationError(c, err)
 		return
 	}
 

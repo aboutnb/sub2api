@@ -2,7 +2,7 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <div class="flex flex-wrap-reverse items-start justify-between gap-3">
+        <div class="filter-toolbar">
           <AccountTableFilters
             v-model:searchQuery="params.search"
             :filters="params"

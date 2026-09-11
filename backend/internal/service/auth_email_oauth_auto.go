@@ -191,6 +191,9 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 		SignupSource: providerType,
 	}
 	if err := s.userRepo.Create(ctx, user); err != nil {
+		if quota := registrationQuotaError(err); quota != nil {
+			return nil, quota
+		}
 		if errors.Is(err, ErrEmailExists) {
 			existing, loadErr := s.userRepo.GetByEmail(ctx, email)
 			if loadErr != nil {

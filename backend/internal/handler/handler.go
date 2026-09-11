@@ -44,6 +44,7 @@ type AdminHandlers struct {
 	Compliance             *admin.ComplianceHandler
 	AuditLog               *admin.AuditLogHandler
 	AuthIPBan              *admin.AuthIPBanHandler
+	RegistrationProtection *admin.RegistrationProtectionHandler
 	Checkin                *admin.CheckinHandler
 	EmailBroadcast         *admin.EmailBroadcastHandler
 }

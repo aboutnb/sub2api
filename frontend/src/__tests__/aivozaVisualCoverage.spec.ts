@@ -66,7 +66,7 @@ describe('Aivoza visual coverage', () => {
       .map((path) => `frontend/src/${relative(resolve(frontendRoot, 'src'), path)}`)
       .filter((path) => !ledger.includes(`\`${path}\``))
 
-    expect(sharedOverlays).toHaveLength(70)
+    expect(sharedOverlays).toHaveLength(72)
     expect(undocumented).toEqual([])
   })
 

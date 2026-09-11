@@ -139,6 +139,14 @@ func RegisterAdminRoutes(
 
 		// 登录来源自动封禁
 		registerAuthIPBanRoutes(admin, h)
+		if h.Admin.RegistrationProtection != nil {
+			protection := admin.Group("/registration-protection")
+			protection.GET("/settings", h.Admin.RegistrationProtection.Settings)
+			protection.PUT("/settings", h.Admin.RegistrationProtection.UpdateSettings)
+			protection.GET("/records/:kind", h.Admin.RegistrationProtection.List)
+			protection.POST("/accounts/:id/review", h.Admin.RegistrationProtection.Review)
+			protection.POST("/blocks/:id/release", h.Admin.RegistrationProtection.ReleaseBlock)
+		}
 	}
 }
 

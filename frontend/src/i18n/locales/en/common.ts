@@ -217,6 +217,7 @@ export default {
     contentModeration: 'Content Moderation',
     promptAudit: 'Prompt Audit',
     loginProtection: 'Login Protection',
+    registrationProtection: 'Registration Protection',
     auditLogs: 'Audit Logs',
   },
 

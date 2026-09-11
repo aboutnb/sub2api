@@ -3,9 +3,9 @@
     <TablePageLayout>
       <template #filters>
         <div class="card p-4 sm:p-5">
-          <div class="flex flex-wrap items-end justify-between gap-4">
-            <div class="flex flex-1 flex-wrap items-end gap-3">
-              <div class="w-full sm:min-w-[280px] sm:flex-1">
+          <div class="filter-toolbar">
+            <div class="filter-grid">
+              <div class="min-w-0">
                 <label class="input-label">{{ t('common.search') }}</label>
                 <div class="relative">
                   <Icon name="search" size="md" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
@@ -18,12 +18,12 @@
                   />
                 </div>
               </div>
-              <div class="w-full sm:w-44">
+              <div class="min-w-0">
                 <label class="input-label">{{ t('admin.authIPBan.filters.status') }}</label>
                 <Select v-model="filters.status" :options="statusOptions" @change="search" />
               </div>
             </div>
-            <div class="flex w-full justify-end gap-2 sm:w-auto">
+            <div class="filter-actions">
               <button type="button" class="btn btn-secondary" :disabled="loading" @click="resetFilters">
                 {{ t('common.reset') }}
               </button>

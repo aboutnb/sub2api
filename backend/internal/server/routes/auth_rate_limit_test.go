@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
+
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -63,6 +65,7 @@ func TestAuthRoutesRateLimitFailCloseWhenRedisUnavailable(t *testing.T) {
 		"/api/v1/auth/register",
 		"/api/v1/auth/login",
 		"/api/v1/auth/login/2fa",
+		"/api/v1/auth/logout",
 		"/api/v1/auth/send-verify-code",
 		"/api/v1/auth/oauth/pending/send-verify-code",
 	}
@@ -87,7 +90,9 @@ func TestAuthRoutesPublicAccessGuardProtectsOnlyPublicPOST(t *testing.T) {
 	cfg.Security.PublicAccessGuard.PublishKey = "pub-test-key"
 	cfg.Security.PublicAccessGuard.HeaderName = "x-sub2api-publish-key"
 
-	router := newAuthRoutesTestRouterWithConfig(nil, cfg, servermiddleware.RequirePublicAccessPublishKey(cfg))
+	rdb := redis.NewClient(&redis.Options{Addr: miniredis.RunT(t).Addr()})
+	t.Cleanup(func() { _ = rdb.Close() })
+	router := newAuthRoutesTestRouterWithConfig(rdb, cfg, servermiddleware.RequirePublicAccessPublishKey(cfg))
 
 	getReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/linuxdo/start", nil)
 	getW := httptest.NewRecorder()
@@ -106,4 +111,26 @@ func TestAuthRoutesPublicAccessGuardProtectsOnlyPublicPOST(t *testing.T) {
 	postW = httptest.NewRecorder()
 	router.ServeHTTP(postW, postReq)
 	require.NotEqual(t, http.StatusUnauthorized, postW.Code)
+}
+
+func TestAuthLogoutRateLimitAndWindowRecovery(t *testing.T) {
+	server := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	t.Cleanup(func() { _ = rdb.Close() })
+	router := newAuthRoutesTestRouter(rdb)
+	request := func(ip string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", strings.NewReader(`{}`))
+		req.RemoteAddr = ip + ":12345"
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		return w
+	}
+	for i := 0; i < 30; i++ {
+		require.NotEqual(t, http.StatusTooManyRequests, request("203.0.113.9").Code)
+	}
+	require.Equal(t, http.StatusTooManyRequests, request("203.0.113.9").Code)
+	require.NotEqual(t, http.StatusTooManyRequests, request("203.0.113.10").Code)
+	server.FastForward(time.Minute)
+	require.NotEqual(t, http.StatusTooManyRequests, request("203.0.113.9").Code)
 }

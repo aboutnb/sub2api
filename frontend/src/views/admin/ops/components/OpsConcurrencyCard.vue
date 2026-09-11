@@ -353,10 +353,10 @@ watch(
       <div class="flex items-center gap-2">
         <!-- 用户视图切换按钮 -->
         <button
-          class="flex items-center justify-center rounded-lg px-2 py-1 transition-colors"
-          :class="showByUser
-            ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-            : 'bg-surface-muted text-ink-muted hover:bg-line hover:text-ink dark:bg-surface-muted dark:text-ink-muted dark:hover:bg-dark-600 dark:hover:text-ink-muted'"
+          type="button"
+          class="tab btn-icon btn-sm"
+          :aria-pressed="showByUser"
+          :aria-label="showByUser ? t('admin.ops.concurrency.switchToPlatform') : t('admin.ops.concurrency.switchToUser')"
           :title="showByUser ? t('admin.ops.concurrency.switchToPlatform') : t('admin.ops.concurrency.switchToUser')"
           @click="showByUser = !showByUser"
         >
@@ -366,12 +366,14 @@ watch(
         </button>
         <!-- 刷新按钮 -->
         <button
-          class="flex items-center gap-1 rounded-lg bg-surface-muted px-2 py-1 text-[11px] font-semibold text-ink transition-colors hover:bg-line disabled:cursor-not-allowed disabled:opacity-50 dark:bg-surface-muted dark:text-ink-muted dark:hover:bg-dark-600"
+          type="button"
+          class="btn btn-ghost btn-icon btn-sm"
           :disabled="loading"
+          :aria-label="t('common.refresh')"
           :title="t('common.refresh')"
           @click="loadData"
         >
-          <svg class="h-3 w-3" :class="{ 'animate-spin': loading }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="h-4 w-4" :class="{ 'animate-spin': loading }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>

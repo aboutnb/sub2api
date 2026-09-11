@@ -66,16 +66,14 @@
       </div>
       <!-- 明细区：tab 栏 + 筛选 + 内容收进同一张卡片，消除割裂感 -->
       <div class="card">
-        <div class="flex flex-wrap items-center border-b border-line px-2 dark:border-line sm:px-4">
+        <div class="flex flex-wrap items-center gap-1 border-b border-line p-2 sm:px-4">
           <button
             v-for="tab in detailTabs"
             :key="tab.key"
             type="button"
             data-testid="usage-detail-tab"
-            class="-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-3 text-sm font-medium transition-colors sm:px-4"
-            :class="activeTab === tab.key
-              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-              : 'border-transparent text-ink-muted hover:border-line-strong hover:text-ink dark:text-ink-muted dark:hover:border-line-strong dark:hover:text-gray-200'"
+            class="tab"
+            :aria-pressed="activeTab === tab.key"
             @click="switchTab(tab.key)"
           >
             <Icon :name="tab.icon" size="sm" />

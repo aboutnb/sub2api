@@ -208,7 +208,7 @@ func TestRequireRegistrationChallengeAllowsSharedNetworkAndUserAgent(t *testing.
 	}
 }
 
-func TestRequireRegistrationChallengeLimitsSharedIPAndUserAgentRegistrations(t *testing.T) {
+func TestRequireRegistrationChallengeDoesNotTreatAttemptsAsSuccessfulAccounts(t *testing.T) {
 	handler := newRegistrationChallengeTestHandler()
 	attachRegistrationChallengeRedis(t, handler)
 	ginCtx, _ := newRegistrationChallengeTestContext()
@@ -222,8 +222,7 @@ func TestRequireRegistrationChallengeLimitsSharedIPAndUserAgentRegistrations(t *
 	email := "shared-registration-blocked@example.com"
 	submission := buildRegistrationChallengeSubmissionForTest(t, handler, ginCtx, email, "register", "")
 	err := handler.requireRegistrationChallenge(ginCtx, "register", email, submission)
-	require.Error(t, err)
-	require.Equal(t, "REGISTRATION_TOO_MANY_ATTEMPTS", infraerrors.Reason(err))
+	require.NoError(t, err)
 }
 
 func TestRegistrationChallengeRiskHashesAreHMACAndUseTrustedClientIP(t *testing.T) {

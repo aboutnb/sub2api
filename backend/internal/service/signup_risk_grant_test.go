@@ -23,11 +23,27 @@ func TestSignupRiskIdentityFailsClosedWhenGrantStoreIsMissing(t *testing.T) {
 }
 
 type signupRiskGrantStoreStub struct {
-	allowed bool
+	allowed            bool
+	restoreConcurrency int
 }
 
-func (s *signupRiskGrantStoreStub) ClaimSignupGrant(context.Context, int64, string) (bool, error) {
+func (s *signupRiskGrantStoreStub) ClaimSignupGrant(ctx context.Context, _ int64, _ string) (bool, error) {
+	s.restoreConcurrency = SignupRiskRestoreConcurrency(ctx)
 	return s.allowed, nil
+}
+
+func TestSignupRiskRestrictionPreservesConfiguredConcurrency(t *testing.T) {
+	for _, expected := range []int{-1, 0, 4} {
+		store := &signupRiskGrantStoreStub{}
+		svc := &AuthService{signupRiskGrantStore: store}
+		user := &User{ID: 42, Concurrency: -1}
+		allowed, err := svc.applySignupGrant(WithSignupRiskIdentity(context.Background(), "risk"), user,
+			signupGrantApplication{plan: signupGrantPlan{Concurrency: expected}, deferred: true})
+		require.NoError(t, err)
+		require.False(t, allowed)
+		require.Equal(t, expected, store.restoreConcurrency)
+		require.Equal(t, -1, user.Concurrency)
+	}
 }
 
 func (s *signupRiskGrantStoreStub) SignupGrantAllowed(context.Context, int64) (bool, error) {

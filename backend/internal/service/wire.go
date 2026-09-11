@@ -578,8 +578,9 @@ func ProvideOpsSystemLogSink(opsRepo OpsRepository) *OpsSystemLogSink {
 
 // ProvideAuditLogService 创建操作审计日志服务并启动异步写入与保留期清理协程。
 // 停止逻辑挂在 cmd/server 的 provideCleanup。
-func ProvideAuditLogService(repo AuditLogRepository, settingService *SettingService) *AuditLogService {
+func ProvideAuditLogService(repo AuditLogRepository, settingService *SettingService, registration *RegistrationProtectionService) *AuditLogService {
 	svc := NewAuditLogService(repo, settingService)
+	svc.registrationCleanup = registration.Cleanup
 	svc.Start()
 	return svc
 }
@@ -947,6 +948,7 @@ var ProviderSet = wire.NewSet(
 	ProvideOpsIngressRejectAggregator,
 	ProvideAuditLogService,
 	NewAuthIPBanService,
+	NewRegistrationProtectionService,
 	ProvideOpsMetricsCollector,
 	ProvideOpsAggregationService,
 	ProvideOpsAlertEvaluatorService,

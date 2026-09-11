@@ -54,6 +54,23 @@ func (r *signupRiskGrantRepository) ClaimSignupGrant(ctx context.Context, userID
 		ON CONFLICT (user_id) DO NOTHING`, userID, fingerprint, allowed); err != nil {
 		return false, err
 	}
+	if !allowed {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO registration_risk_accounts
+			(user_id, reason, status, previous_concurrency)
+			VALUES ($1, 'duplicate_signup_identity', 'restricted', $2)
+			ON CONFLICT (user_id) DO UPDATE SET reason=EXCLUDED.reason, status=EXCLUDED.status,
+			previous_concurrency=EXCLUDED.previous_concurrency, updated_at=NOW()
+			WHERE registration_risk_accounts.status='observed' AND registration_risk_accounts.reviewed_at IS NULL`, userID, service.SignupRiskRestoreConcurrency(ctx)); err != nil {
+			return false, err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO registration_risk_events
+			(user_id, ip_hash, identity_hash, ip_address, user_agent, trigger_path, reason, action)
+			SELECT user_id, ip_hash, identity_hash, ip_address, user_agent, trigger_path,
+			'duplicate_signup_identity', 'restricted'
+			FROM registration_source_accounts WHERE user_id = $1`, userID); err != nil {
+			return false, err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return false, err
 	}

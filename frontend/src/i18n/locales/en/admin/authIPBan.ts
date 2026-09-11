@@ -22,6 +22,7 @@ export default {
       status: 'Status'
     },
     category: {
+      source: 'Source total (across accounts and UAs)',
       browser: 'Browser',
       automation: 'Automation',
       empty: 'Empty UA',
@@ -32,6 +33,8 @@ export default {
       ip_ua: 'IP + UA'
     },
     reason: {
+      auth_source_failure_limit: 'Repeated authentication failures from one IP across accounts and UAs',
+      captcha_verification_failed: 'CAPTCHA verification failed',
       turnstile_token_missing: 'Missing site verification token',
       turnstile_verification_failed: 'Site verification failed',
       credentials_rejected: 'Account or password rejected',

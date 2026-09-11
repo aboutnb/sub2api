@@ -3,7 +3,7 @@ import type { PaginatedResponse } from '@/types'
 
 export type AuthIPBanStatus = 'active' | 'expired' | 'released'
 export type AuthIPBanScope = 'ip' | 'ip_ua'
-export type AuthUserAgentCategory = 'browser' | 'automation' | 'empty' | 'other'
+export type AuthUserAgentCategory = 'browser' | 'automation' | 'empty' | 'other' | 'source'
 
 export interface AuthIPBan {
   id: number

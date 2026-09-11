@@ -45,10 +45,33 @@ var (
 
 var registrationRiskCounterScript = redis.NewScript(`
 local current = redis.call('INCR', KEYS[1])
-if current == 1 then
+if current == 1 or redis.call('PTTL', KEYS[1]) < 0 then
   redis.call('PEXPIRE', KEYS[1], ARGV[1])
 end
 return current
+`)
+
+// Check all dimensions before consuming any quota. Rejected attempts must not
+// exhaust unrelated source/email buckets under concurrent traffic.
+var registrationRiskLimitsScript = redis.NewScript(`
+for i,key in ipairs(KEYS) do
+  local count = tonumber(redis.call('GET', key) or '0')
+  if count >= tonumber(ARGV[(i-1)*2+1]) then
+    local ttl = redis.call('PTTL', key)
+    if ttl < 0 then
+      ttl = tonumber(ARGV[(i-1)*2+2])
+      redis.call('PEXPIRE', key, ttl)
+    end
+    return ttl
+  end
+end
+for i,key in ipairs(KEYS) do
+  redis.call('INCR', key)
+  if redis.call('PTTL', key) < 0 then
+    redis.call('PEXPIRE', key, ARGV[(i-1)*2+2])
+  end
+end
+return 0
 `)
 
 type RegistrationChallengeResponse struct {
@@ -117,8 +140,19 @@ func (h *AuthHandler) issueRegistrationChallenge(c *gin.Context) (*RegistrationC
 }
 
 func (h *AuthHandler) requireRegistrationChallenge(c *gin.Context, action, email string, submission *RegistrationChallengeSubmission) error {
+	if err := h.checkRegistrationSource(c); err != nil {
+		return err
+	}
 	payload, err := h.validateRegistrationChallenge(c, action, email, submission)
 	if err != nil {
+		if h.registrationProtection != nil {
+			if h.registrationChallengeFailureIsAbuse(submission) {
+				if riskErr := h.recordRegistrationSourceFailure(c); riskErr != nil {
+					return riskErr
+				}
+			}
+			return err
+		}
 		if riskErr := h.recordRegistrationChallengeFailure(c, action, email, submission); riskErr != nil {
 			return riskErr
 		}
@@ -129,6 +163,11 @@ func (h *AuthHandler) requireRegistrationChallenge(c *gin.Context, action, email
 		return err
 	}
 	if err := h.consumeRegistrationChallenge(c.Request.Context(), payload.ID, action); err != nil {
+		if err == errRegistrationChallengeInvalid {
+			if riskErr := h.recordRegistrationSourceFailure(c); riskErr != nil {
+				return riskErr
+			}
+		}
 		return err
 	}
 	h.attachRegistrationVerificationContext(c, action)
@@ -232,15 +271,24 @@ func (h *AuthHandler) enforceRegistrationRiskLimits(c *gin.Context, action, emai
 			window: registrationIdentityRiskWindow,
 		})
 	}
+	keys := make([]string, 0, len(limits))
+	args := make([]any, 0, len(limits)*2)
+	// Email and OAuth must not provide independent request budgets.
+	budgetAction := "register"
+	if action == "send_verify_code" || action == "oauth_pending_send_verify_code" {
+		budgetAction = "send_verify_code"
+	}
 	for _, limit := range limits {
-		key := registrationRiskKey("limit", action, limit.name, limit.value)
-		count, err := h.incrementRegistrationRiskCounter(c.Request.Context(), key, limit.window)
+		keys = append(keys, registrationRiskKey("limit_v2", budgetAction, limit.name, limit.value))
+		args = append(args, limit.limit, limit.window.Milliseconds())
+	}
+	if len(keys) > 0 {
+		ttl, err := registrationRiskLimitsScript.Run(c.Request.Context(), h.redisClient, keys, args...).Int64()
 		if err != nil {
-			slog.Error("registration risk limit redis error", "action", action, "dimension", limit.name, "error", err)
 			return errRegistrationRiskUnavailable.WithCause(err)
 		}
-		if count > limit.limit {
-			slog.Warn("registration risk limit exceeded", "action", action, "dimension", limit.name, "count", count, "limit", limit.limit)
+		if ttl > 0 {
+			c.Header("Retry-After", fmt.Sprint((ttl+999)/1000))
 			return errRegistrationTooManyAttempts
 		}
 	}
@@ -252,11 +300,11 @@ func (h *AuthHandler) enforceRegistrationRiskLimits(c *gin.Context, action, emai
 func registrationRiskLimitsForAction(action string) (emailLimit int64, ipLimit int64, identityLimit int64) {
 	switch strings.TrimSpace(action) {
 	case "send_verify_code", "oauth_pending_send_verify_code":
-		return 3, 10, 5
+		return 3, 10, 0
 	case "register", "oauth_pending_create_account":
-		return 8, 5, 3
+		return 8, 50, 0
 	default:
-		return 8, 5, 3
+		return 8, 50, 0
 	}
 }
 
@@ -360,6 +408,30 @@ func (h *AuthHandler) AttachSignupRiskIdentity(c *gin.Context) {
 		return
 	}
 	c.Request = c.Request.WithContext(service.WithSignupRiskIdentity(c.Request.Context(), fingerprint))
+	// Resolve settings only when a user is created, so an unavailable settings
+	// store cannot turn this registration guard into an existing-user login ban.
+	if h.settingSvc != nil {
+		source := service.RegistrationSource{
+			IPHash: h.registrationClientIPHash(c), IdentityHash: fingerprint,
+			IPAddress:  h.registrationSecurityClientIP(c),
+			UserAgent:  normalizeRegistrationUserAgent(c.Request.UserAgent()),
+			Path:       c.Request.URL.Path,
+			LoadPolicy: h.settingSvc.GetRegistrationProtectionSettingsCached,
+		}
+		if h.registrationProtection != nil {
+			base := source
+			source.LoadPolicy = func(ctx context.Context) (service.RegistrationProtectionSettings, error) {
+				policy, err := h.settingSvc.GetRegistrationProtectionSettingsCached(ctx)
+				if err != nil {
+					return policy, err
+				}
+				current := base
+				current.Policy = policy
+				return policy, h.registrationProtection.CheckSource(ctx, current)
+			}
+		}
+		c.Request = c.Request.WithContext(service.WithRegistrationSource(c.Request.Context(), source))
+	}
 }
 
 func (h *AuthHandler) signRegistrationChallengePayload(payload registrationChallengeTokenPayload) (string, error) {
