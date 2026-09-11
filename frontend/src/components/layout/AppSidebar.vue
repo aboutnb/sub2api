@@ -850,6 +850,7 @@ const adminNavItems = computed((): NavItem[] => {
       expandOnly: true,
       children: [
         { path: '/admin/auth-ip-bans', label: t('nav.loginProtection'), icon: ShieldIcon },
+        { path: '/admin/registration-protection', label: t('nav.registrationProtection'), icon: ShieldIcon },
         { path: '/admin/audit-logs', label: t('nav.auditLogs'), icon: ShieldIcon, hideInSimpleMode: true },
         { path: '/admin/risk-control', label: t('nav.contentModeration'), icon: ShieldIcon, hideInSimpleMode: true, featureFlag: flagRiskControl },
         { path: '/admin/prompt-audit', label: t('nav.promptAudit'), icon: ShieldIcon, hideInSimpleMode: true, featureFlag: flagRiskControl },

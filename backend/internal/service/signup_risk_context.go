@@ -16,6 +16,23 @@ type SignupRiskGrantStore interface {
 
 type signupRiskIdentityContextKey struct{}
 
+type signupRiskConcurrencyContextKey struct{}
+
+func withSignupRiskConcurrency(ctx context.Context, concurrency int) context.Context {
+	return context.WithValue(ctx, signupRiskConcurrencyContextKey{}, normalizeUserConcurrency(concurrency))
+}
+
+// SignupRiskRestoreConcurrency is the configured pre-restriction value, not
+// the provisional -1 used while signup benefit eligibility is checked.
+func SignupRiskRestoreConcurrency(ctx context.Context) int {
+	if ctx != nil {
+		if value, ok := ctx.Value(signupRiskConcurrencyContextKey{}).(int); ok {
+			return value
+		}
+	}
+	return -1
+}
+
 // WithSignupRiskIdentity attaches a server-derived, non-reversible identity to
 // a registration request. The raw IP and User-Agent are deliberately absent.
 func WithSignupRiskIdentity(ctx context.Context, fingerprint string) context.Context {

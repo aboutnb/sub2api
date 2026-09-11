@@ -50,6 +50,7 @@ func ProvideAdminHandlers(
 	complianceHandler *admin.ComplianceHandler,
 	auditLogHandler *admin.AuditLogHandler,
 	authIPBanHandler *admin.AuthIPBanHandler,
+	registrationProtectionHandler *admin.RegistrationProtectionHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 ) *AdminHandlers {
@@ -93,6 +94,7 @@ func ProvideAdminHandlers(
 		Compliance:             complianceHandler,
 		AuditLog:               auditLogHandler,
 		AuthIPBan:              authIPBanHandler,
+		RegistrationProtection: registrationProtectionHandler,
 		Checkin:                checkinHandler,
 		EmailBroadcast:         emailBroadcastHandler,
 	}
@@ -247,7 +249,7 @@ func ProvideAPIKeyHandler(apiKeyService *service.APIKeyService, smartRouteServic
 // ProviderSet is the Wire provider set for all handlers
 var ProviderSet = wire.NewSet(
 	// Top-level handlers
-	NewAuthHandler,
+	ProvideAuthHandler,
 	NewUserHandler,
 	ProvideAPIKeyHandler,
 	NewUsageHandler,
@@ -306,6 +308,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewComplianceHandler,
 	admin.NewAuditLogHandler,
 	admin.NewAuthIPBanHandler,
+	admin.NewRegistrationProtectionHandler,
 	admin.NewCheckinHandler,
 	admin.NewEmailBroadcastHandler,
 

@@ -412,9 +412,9 @@ func (s *EmailService) VerifyCode(ctx context.Context, email, code string) error
 			slog.Error("failed to update verification attempt count", "email", email, "error", err)
 		}
 		if data.Attempts >= maxVerifyCodeAttempts {
-			return ErrVerifyCodeMaxAttempts
+			return &VerificationFailure{Cause: ErrVerifyCodeMaxAttempts}
 		}
-		return ErrInvalidVerifyCode
+		return &VerificationFailure{Cause: ErrInvalidVerifyCode}
 	}
 
 	// 验证成功，删除验证码

@@ -217,6 +217,7 @@ export default {
     contentModeration: '内容审核',
     promptAudit: '提示词审计',
     loginProtection: '登录防护',
+    registrationProtection: '注册防护',
     auditLogs: '操作日志',
   },
 

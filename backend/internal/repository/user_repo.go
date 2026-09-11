@@ -67,6 +67,14 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 	if userIn == nil {
 		return nil
 	}
+	registrationSource, hasRegistrationSource := service.RegistrationSourceFromContext(ctx)
+	if hasRegistrationSource && registrationSource.LoadPolicy != nil {
+		policy, err := registrationSource.LoadPolicy(ctx)
+		if err != nil {
+			return err
+		}
+		registrationSource.Policy = policy
+	}
 
 	// 统一使用 ent 的事务：保证用户与允许分组的更新原子化，
 	// 并避免基于 *sql.Tx 手动构造 ent client 导致的 ExecQuerier 断言错误。
@@ -98,6 +106,9 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 	}
 
 	lockKeys := []string{normalizedEmailUniquenessLockKey(userIn.Email)}
+	if hasRegistrationSource {
+		lockKeys = append(lockKeys, "registration:ip:"+registrationSource.IPHash, "registration:identity:"+registrationSource.IdentityHash)
+	}
 	if guardEmailAlias {
 		// 别名变体的字面量不同，唯一索引无法兜底；用收件箱身份锁把同一收件箱的并发注册串行化。
 		lockKeys = append(lockKeys, emailAliasUniquenessLockKey(userIn.Email))
@@ -115,6 +126,11 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 		return err
 	}
 	defer releaseEmailLock()
+	if hasRegistrationSource {
+		if err := checkRegistrationSourceQuota(txCtx, txClient, registrationSource); err != nil {
+			return err
+		}
+	}
 
 	if domainLimit != "" {
 		count, err := countUsersByEmailDomainWithClient(txCtx, txClient, domainLimit)
@@ -164,6 +180,11 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 	}
 	if err := ensureEmailAuthIdentityWithClient(txCtx, txClient, created.ID, created.Email, "user_repo_create"); err != nil {
 		return err
+	}
+	if hasRegistrationSource {
+		if err := recordRegistrationSourceAccount(txCtx, txClient, created.ID, registrationSource); err != nil {
+			return err
+		}
 	}
 
 	if ownedTx != nil {
@@ -484,6 +505,15 @@ func (r *userRepository) Delete(ctx context.Context, id int64) error {
 
 // deleteUser 在给定 client（可能是外部事务 client）上删除用户及其身份关联记录，自身不开启/提交事务。
 func (r *userRepository) deleteUser(ctx context.Context, exec *dbent.Client, id int64) error {
+	if service.IsRegistrationRollback(ctx) {
+		// All deletes share the user deletion transaction. A failure must not
+		// release quota or free benefits while leaving the account usable.
+		for _, table := range []string{"registration_source_accounts", "registration_risk_accounts", "signup_risk_accounts"} {
+			if _, err := exec.ExecContext(ctx, "DELETE FROM "+table+" WHERE user_id=$1", id); err != nil {
+				return err
+			}
+		}
+	}
 	identityIDs, err := exec.AuthIdentity.Query().
 		Where(authidentity.UserIDEQ(id)).
 		IDs(ctx)

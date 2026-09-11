@@ -15,6 +15,10 @@
 
 ## 1. 台账目的
 
+### 2026-09-12 注册防护发布
+
+新增注册来源成功配额、验证失败封禁、风险账号审核与后台注册防护页面。默认开启，24 小时同 IP 成功上限 10、同 IP/UA 上限 2；成功计数与用户创建同事务提交。保留风险授权前并发 -1、现有验证码和请求限流，邮件及 OAuth 注册入口统一核验。受保护路径为 registration_protection、registration_source_quota、auth_registration、signup_risk 及对应前端 API/页面和中英文 locale。238 迁移仅新增表和索引，旧镜像可共存，不回退删除表。验证覆盖原子配额集成测试、注册/验证码/封禁单测、前端测试、类型检查及 CI。
+
 FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调度语义、部署方式和
 数据迁移。单纯执行 `git merge upstream/main` 或按文件选择一方，可能会出现以下
 问题：
@@ -402,6 +406,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | `backend/migrations/236_group_model_allowlist_repair.sql` | 旧模型列表字段修复迁移 | 上游 0.2.3 新增；只做兼容性迁移，不删除生产数据 |
 | `backend/migrations/237_add_minimax_platform.sql` | MiniMax 平台支持 | 上游 0.2.3 新增；平台列表和迁移按完整文件名保留 |
 | `backend/migrations/235_subscription_expiration_enabled.sql` | 新增 | 仅在不存在时写入 true，保留既有配置，旧版本忽略此设置；不修改已执行迁移 | 迁移及订阅策略测试 |
+| `backend/migrations/238_registration_protection.sql` | 注册来源、风险事件、封禁及风险账号表 | 新增结构；旧实例兼容，不做逆向删除 |
 <!-- FLOWAI_MIGRATION_LEDGER_END -->
 
 `backend/migrations/001_init.sql` 的内容曾为保留生产 checksum 做兼容性修复（提交
@@ -432,6 +437,9 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+| 2026-09-12 | `4d4419f1b7dbaf2b337c808f0b8300c80083a792` | 处理配额查询 Close 错误及缓存类型异常，测试连接清理显式处理；通过 errcheck | 注册/质量 |
+| 2026-09-12 | `ce3d39a4d9eac521bbb73625d259c3289f0f58a9` | 登记新增注册防护页面，视图覆盖从 90 更新至 91，保留完整性断言 | 测试/主题 |
+| 2026-09-12 | `ac36c2401a3bf6c2bd502fa557bc17ed80740ad8` | 注册防护、原子来源配额和管理页面；包含上次界面快照 | 注册/风控 |
 | 日期 | 提交 | 说明 | 责任域 |
 | --- | --- | --- | --- |
 | 2026-09-11 | `6c56e55eaffb7ebabcc6ba5c40bcdcfbe3e4a6cf` | 统一筛选/控件布局，日期弹层视口定位及焦点恢复，顶部客服与社群入口 | 前端/主题 |
@@ -548,6 +556,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 审阅结论加入标记区。`git merge-base HEAD upstream/main` 变化后，以命令输出为准补齐。
 
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
+| 2026-09-12 | `5eb066016e84f0abfff653a5c4b0fa61d54660fd` | 合并已发布 main，无冲突；保留注册功能和上次界面变更 |
+| 2026-09-11 | `f7518913e4c56f69102d95715fb1ebf0d0f819c5` | PR 3 合并控件布局发布；保留 FlowAI 行为 |
 | 日期 | 合并提交 | 说明 |
 | --- | --- | --- |
 | 2026-09-09 | `fa931c345` | Merge upstream main 0.2.3；完整合入 260 个上游提交，逐项解决 13 个冲突文件；保留 FlowAI 账号优先级 1 最高、-1 并发拒绝、GM/EasyPay、充值赠送、签到/邮件防重、i18n 和预构建部署，适配上游 GroupModelAllowlist、Codex manifest、MiniMax、上游请求 ID 与渠道策略 |

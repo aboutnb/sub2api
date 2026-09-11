@@ -578,7 +578,7 @@ func (h *AuthHandler) SendPendingOAuthVerifyCode(c *gin.Context) {
 
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
 	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, ip.GetClientIP(c)); err != nil {
-		response.ErrorFrom(c, err)
+		h.registrationError(c, err)
 		return
 	}
 
@@ -1774,7 +1774,7 @@ func (h *AuthHandler) createPendingOAuthAccount(c *gin.Context, provider string)
 	}
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
 	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, ip.GetClientIP(c)); err != nil {
-		response.ErrorFrom(c, err)
+		h.registrationError(c, err)
 		return
 	}
 
@@ -1801,7 +1801,7 @@ func (h *AuthHandler) createPendingOAuthAccount(c *gin.Context, provider string)
 			c.JSON(http.StatusOK, buildPendingOAuthSessionStatusPayload(session))
 			return
 		}
-		response.ErrorFrom(c, err)
+		h.registrationError(c, err)
 		return
 	}
 

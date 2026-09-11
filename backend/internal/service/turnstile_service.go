@@ -80,6 +80,11 @@ func (s *TurnstileService) VerifyTokenWithSecret(ctx context.Context, secretKey,
 
 	if !result.Success {
 		logger.LegacyPrintf("service.turnstile", "[Turnstile] Verification failed, error codes: %v", result.ErrorCodes)
+		// timeout-or-duplicate also represents a legitimately expired ticket.
+		// Unknown/configuration/provider errors are not evidence of abuse.
+		if len(result.ErrorCodes) == 1 && result.ErrorCodes[0] == "invalid-input-response" {
+			return &VerificationFailure{Cause: ErrTurnstileVerificationFailed}
+		}
 		return ErrTurnstileVerificationFailed
 	}
 

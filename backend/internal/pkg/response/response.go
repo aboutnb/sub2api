@@ -2,9 +2,11 @@
 package response
 
 import (
+	"errors"
 	"log"
 	"math"
 	"net/http"
+	"strconv"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
@@ -85,6 +87,10 @@ func ErrorFrom(c *gin.Context, err error) bool {
 	}
 
 	statusCode, status := infraerrors.ToHTTP(err)
+	var retryable interface{ RetryAfterSeconds() int }
+	if statusCode == http.StatusTooManyRequests && errors.As(err, &retryable) {
+		c.Header("Retry-After", strconv.Itoa(max(1, retryable.RetryAfterSeconds())))
+	}
 
 	// Log internal errors with full details for debugging
 	if statusCode >= 500 && c.Request != nil {

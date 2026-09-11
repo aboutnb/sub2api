@@ -451,6 +451,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/registration-protection',
+    name: 'AdminRegistrationProtection',
+    component: () => import('@/views/admin/RegistrationProtectionView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Registration Protection',
+      titleKey: 'admin.registrationProtection.title',
+      descriptionKey: 'admin.registrationProtection.description'
+    }
+  },
+  {
     path: '/admin/auth-ip-bans',
     name: 'AdminAuthIPBans',
     component: () => import('@/views/admin/AuthIPBanView.vue'),

@@ -68,10 +68,13 @@ func AuthIPBan(banService *service.AuthIPBanService) gin.HandlerFunc {
 		}
 		// Client-side authentication failures indicate probing or credential errors.
 		// Server failures are deliberately excluded to avoid banning users during outages.
-		if status < 400 || status >= 500 {
+		if status < 400 || status >= 500 || status == http.StatusTooManyRequests || status == http.StatusRequestTimeout {
 			return
 		}
 		reason := c.GetString(authIPBanReasonContextKey)
+		if reason == "login_policy_rejected" {
+			return
+		}
 		if reason == "" {
 			reason = "auth_request_rejected"
 		}

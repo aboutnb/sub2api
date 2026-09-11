@@ -111,3 +111,29 @@ func TestAuthIPBanMiddlewareDoesNotCountServerErrors(t *testing.T) {
 	}
 	require.Zero(t, repo.activations)
 }
+
+func TestAuthIPBanMiddlewareDoesNotEscalateRateLimitsOrTimeouts(t *testing.T) {
+	for _, status := range []int{http.StatusTooManyRequests, http.StatusRequestTimeout} {
+		router, repo := newAuthIPBanMiddlewareRouter(t, status)
+		for attempt := 0; attempt < 25; attempt++ {
+			require.Equal(t, status, performAuthIPBanRequest(router).Code)
+		}
+		require.Zero(t, repo.activations)
+	}
+}
+
+func TestAuthIPBanMiddlewareDoesNotCountLoginPolicyRejections(t *testing.T) {
+	repo := &authIPBanMiddlewareRepo{}
+	counter := &authIPBanMiddlewareCounter{}
+	router := gin.New()
+	require.NoError(t, router.SetTrustedProxies(nil))
+	router.POST("/api/v1/auth/login", AuthIPBan(service.NewAuthIPBanService(repo, counter)), func(c *gin.Context) {
+		SetAuthAttemptFailureReason(c, "login_policy_rejected")
+		c.Status(http.StatusForbidden)
+	})
+	for i := 0; i < 25; i++ {
+		require.Equal(t, http.StatusForbidden, performAuthIPBanRequest(router).Code)
+	}
+	require.Empty(t, counter.counts)
+	require.Zero(t, repo.activations)
+}
