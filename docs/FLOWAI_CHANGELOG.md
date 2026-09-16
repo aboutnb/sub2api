@@ -576,6 +576,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 审阅结论加入标记区。`git merge-base HEAD upstream/main` 变化后，以命令输出为准补齐。
 
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
+| 2026-09-16 | `76f1cec2eae3d7a9d8026026fb011f4cbf24a75a` | 合入上游 v0.2.5；逐块解决 51 个冲突文件，保留 Aivoza 主题、优先级 1 最高、-1 并发拒绝、GM/EasyPay、充值赠送、智能路由、签到/邮件防重、注册防护和滚动发布契约；新增两条 238 迁移按完整文件名登记 |
 | 2026-09-12 | `469d3af9146bb364c043dc7ca0f12a6a8224d468` | 合入 fix/aivoza-controls-release 新客服功能，无冲突；保留注册防护和视图登记 |
 | 2026-09-12 | `081aa696696108b6c59643336350228bf04e2424` | PR 4 合并注册防护及原子配额，保留 FlowAI 契约，238 迁移已上线 |
 | 2026-09-12 | `5eb066016e84f0abfff653a5c4b0fa61d54660fd` | 合并已发布 main，无冲突；保留注册功能和上次界面变更 |
