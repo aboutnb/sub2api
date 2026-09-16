@@ -15,6 +15,19 @@
 
 ## 1. 台账目的
 
+### 2026-09-16 上游 v0.2.5 同步候选
+
+从 Aivoza `main` 基线 `a92d3fc2eb129ad652c876d48f2486fb2fa897b9` 合并
+`upstream/main` `881f3202694c6bc932446931a30c27d9675178b9`（tag `v0.2.5`
+为 `86f93c28e`，主线另有 VERSION 同步）。逐块解决 51 个冲突文件，吸收
+OpenCode Zen/GO、订阅与密钥批量操作、站点计费模式、精度和 WebSocket 修复；
+保留 Aivoza 主题及 i18n、账号优先级 1 最高、-1 并发拒绝、GM/EasyPay、充值
+赠送、智能路由、签到与邮件防重、注册防护、订阅有效期设置及滚动部署契约。
+两条上游 238 迁移与既有 `238_registration_protection.sql` 以完整文件名共存；
+清理空限额行前需确认生产行数并备份。验证为完整前后端测试、lint、类型检查、
+生产构建、严格分支契约、GitHub CI/安全扫描及候选镜像健康检查；正式切换前
+老容器保持服务。
+
 ### 2026-09-12 客服联系方式发布
 
 客服配置沿用 contact_info 字段，支持版本化多项名称、标签、图标、账号和链接；兼容旧纯文本配置。顶部、个人资料和兑换页统一展示，链接仅接受 http/https/mailto/tel。保留注册防护及原有后台配置，版本保持 0.2.4，无数据库迁移。验证使用客服解析与编辑器测试、主题覆盖、完整前端检查和 GitHub CI。
@@ -411,6 +424,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 | `backend/migrations/237_add_minimax_platform.sql` | MiniMax 平台支持 | 上游 0.2.3 新增；平台列表和迁移按完整文件名保留 |
 | `backend/migrations/235_subscription_expiration_enabled.sql` | 新增 | 仅在不存在时写入 true，保留既有配置，旧版本忽略此设置；不修改已执行迁移 | 迁移及订阅策略测试 |
 | `backend/migrations/238_registration_protection.sql` | 注册来源、风险事件、封禁及风险账号表 | 新增结构；旧实例兼容，不做逆向删除 |
+| `backend/migrations/238_opencode_go_platform.sql` | OpenCode GO 平台约束 | 新增平台值，保留 MiniMax；与同编号注册防护迁移按完整文件名分别执行 |
+| `backend/migrations/238_purge_unlimited_user_platform_quotas.sql` | 清理三档限额均为空的记录 | 上线前确认受影响行数并备份；仅删除等价于不限额的无效记录，不改已有额度 |
 <!-- FLOWAI_MIGRATION_LEDGER_END -->
 
 `backend/migrations/001_init.sql` 的内容曾为保留生产 checksum 做兼容性修复（提交

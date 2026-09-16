@@ -22,6 +22,7 @@ import {
   PROVIDER_ZHIPU,
   PROVIDER_DEEPSEEK,
   PROVIDER_MINIMAX,
+  PROVIDER_OPENCODE_GO,
   PROVIDERS,
   STATUS_OPERATIONAL,
   STATUS_DEGRADED,
@@ -117,6 +118,8 @@ export function useChannelMonitorFormat() {
         return 'bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300'
       case PROVIDER_MINIMAX:
         return 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
+      case PROVIDER_OPENCODE_GO:
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'
       default:
         return NEUTRAL_BADGE
     }
@@ -181,6 +184,10 @@ export function useChannelMonitorFormat() {
         return active
           ? 'border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-400'
           : 'border-line bg-white text-ink hover:border-rose-300 hover:text-rose-700 dark:border-line dark:bg-surface dark:text-ink-muted dark:hover:border-rose-500/50'
+      case PROVIDER_OPENCODE_GO:
+        return active
+          ? 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-400'
+          : 'border-line bg-white text-ink hover:border-amber-300 hover:text-amber-700 dark:border-line dark:bg-surface dark:text-ink-muted dark:hover:border-amber-500/50'
       default:
         return active
           ? 'border-line-strong bg-surface-muted text-ink'
@@ -268,6 +275,8 @@ export function providerGradient(provider: string): string {
       return 'bg-teal-100 dark:bg-teal-500/15'
     case PROVIDER_MINIMAX:
       return 'bg-rose-100 dark:bg-rose-500/15'
+    case PROVIDER_OPENCODE_GO:
+      return 'bg-amber-100 dark:bg-amber-500/15'
     default:
       return 'bg-surface-muted'
   }

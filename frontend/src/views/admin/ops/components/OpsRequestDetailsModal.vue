@@ -43,6 +43,14 @@ const pageSize = ref(10)
 
 const close = () => emit('update:modelValue', false)
 
+const showTTFT = computed(() => props.preset.sort === 'ttft_desc')
+const latencyLabel = computed(() => t(showTTFT.value ? 'admin.ops.ttftLabel' : 'admin.ops.requestDetails.table.duration'))
+
+function formatLatency(row: OpsRequestDetail): string {
+  const value = showTTFT.value ? row.first_token_ms : row.duration_ms
+  return typeof value === 'number' ? `${value} ms` : '-'
+}
+
 const rangeLabel = computed(() => {
   const minutes = parseTimeRangeMinutes(props.timeRange)
   if (minutes >= 60) return t('admin.ops.requestDetails.rangeHours', { n: Math.round(minutes / 60) })
@@ -212,7 +220,7 @@ const kindBadgeClass = (kind: string) => {
                       {{ t('admin.ops.requestDetails.table.model') }}
                     </th>
                     <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
-                      {{ t('admin.ops.requestDetails.table.duration') }}
+                      {{ latencyLabel }}
                     </th>
                     <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
                       {{ t('admin.ops.requestDetails.table.status') }}
@@ -242,7 +250,7 @@ const kindBadgeClass = (kind: string) => {
                     {{ row.model || '-' }}
                   </td>
                   <td class="whitespace-nowrap px-4 py-3 text-xs text-ink dark:text-ink-muted">
-                    {{ typeof row.duration_ms === 'number' ? `${row.duration_ms} ms` : '-' }}
+                    {{ formatLatency(row) }}
                   </td>
                   <td class="whitespace-nowrap px-4 py-3 text-xs text-ink dark:text-ink-muted">
                     {{ row.status_code ?? '-' }}

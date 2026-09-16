@@ -366,6 +366,8 @@ type UpdateSettingsRequest struct {
 	UserSubscriptionsEnabled *bool `json:"user_subscriptions_enabled"`
 	// Subscription expiration enforcement; false keeps active subscriptions valid indefinitely.
 	SubscriptionExpirationEnabled *bool `json:"subscription_expiration_enabled"`
+	// Subscription feature switch (user-facing subscription surface; see SettingKeySubscriptionEnabled)
+	SubscriptionEnabled *bool `json:"subscription_enabled"`
 
 	// Model Plaza feature switches + description
 	ModelPlazaEnabled     *bool   `json:"model_plaza_enabled"`
@@ -1982,6 +1984,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.SubscriptionExpirationEnabled
 		}(),
+		SubscriptionEnabled: func() bool {
+			if req.SubscriptionEnabled != nil {
+				return *req.SubscriptionEnabled
+			}
+			return previousSettings.SubscriptionEnabled
+		}(),
 		ModelPlazaEnabled: func() bool {
 			if req.ModelPlazaEnabled != nil {
 				return *req.ModelPlazaEnabled
@@ -2484,6 +2492,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SmartRoutingEnabled:           updatedSettings.SmartRoutingEnabled,
 		UserSubscriptionsEnabled:      updatedSettings.UserSubscriptionsEnabled,
 		SubscriptionExpirationEnabled: updatedSettings.SubscriptionExpirationEnabled,
+		SubscriptionEnabled:           updatedSettings.SubscriptionEnabled,
 
 		ModelPlazaEnabled:       updatedSettings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:   updatedSettings.ModelPlazaRequireAuth,

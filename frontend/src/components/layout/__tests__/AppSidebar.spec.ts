@@ -85,8 +85,8 @@ describe('AppSidebar user subscriptions feature flag', () => {
     expect(componentSource).toContain(
       "{ path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagUserSubscriptions }",
     )
-    expect(componentSource).toContain(
-      'const flagUserSubscriptions = makeSidebarFlag(FeatureFlags.userSubscriptions)',
+    expect(componentSource).toMatch(
+      /const flagUserSubscriptions = \(\) =>\s+isFeatureFlagEnabled\(FeatureFlags\.userSubscriptions\) && isFeatureFlagEnabled\(FeatureFlags\.subscription\)/,
     )
   })
 })
@@ -150,5 +150,23 @@ describe('AppSidebar security audit group', () => {
     expect(componentSource).toContain(
       'children: item.children.filter(child => !child.hideInSimpleMode)',
     )
+  })
+})
+
+describe('AppSidebar subscription feature flag', () => {
+  it('gates the My Subscriptions entry behind the subscription public-settings flag', () => {
+    expect(componentSource).toContain('const flagSubscription = makeSidebarFlag(FeatureFlags.subscription)')
+    expect(componentSource).toMatch(/path: '\/subscriptions'[^\n]*featureFlag: flagUserSubscriptions/)
+  })
+
+  it('also hides the admin Subscription Management entry on recharge-only sites', () => {
+    expect(componentSource).toMatch(/path: '\/admin\/subscriptions'[^\n]*featureFlag: flagSubscription/)
+  })
+
+  it('derives the purchase entry label from the site billing mode', () => {
+    expect(componentSource).toContain("import { resolveSiteBillingMode } from '@/utils/siteBillingMode'")
+    expect(componentSource).toMatch(/case 'recharge_only':\s*return t\('nav\.recharge'\)/)
+    expect(componentSource).toMatch(/case 'subscription_only':\s*return t\('nav\.subscribe'\)/)
+    expect(componentSource).toMatch(/path: '\/purchase'[^\n]*label: purchaseNavLabel\.value/)
   })
 })

@@ -234,6 +234,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyUserSubscriptionsEnabled: "true",
 		// Subscription expiration enforcement (default enabled; opt-out)
 		SettingKeySubscriptionExpirationEnabled: "true",
+		// Subscription feature (default enabled; opt-out)
+		SettingKeySubscriptionEnabled: "true",
 
 		// Model plaza feature (default disabled; opt-in, public unless require_auth)
 		SettingKeyModelPlazaEnabled:       "false",
@@ -860,6 +862,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.UserSubscriptionsEnabled = !isFalseSettingValue(settings[SettingKeyUserSubscriptionsEnabled])
 	// Subscription expiration (default: enabled; fail open for existing installs)
 	result.SubscriptionExpirationEnabled = !isFalseSettingValue(settings[SettingKeySubscriptionExpirationEnabled])
+
+	// Subscription feature (default: enabled; only an explicit false disables)
+	result.SubscriptionEnabled = !isFalseSettingValue(settings[SettingKeySubscriptionEnabled])
 
 	// Model plaza feature (default: disabled; strict true)
 	result.ModelPlazaEnabled = settings[SettingKeyModelPlazaEnabled] == "true"

@@ -193,6 +193,7 @@ by the coverage contract test so new overlays cannot ship unrecorded.
 - `frontend/src/components/admin/payment/AdminOrderDetail.vue`
 - `frontend/src/components/admin/payment/AdminRefundDialog.vue`
 - `frontend/src/components/admin/proxy/ImportDataModal.vue`
+- `frontend/src/components/admin/subscription/BulkSubscriptionActionDialog.vue`
 - `frontend/src/components/admin/usage/UsageCleanupDialog.vue`
 - `frontend/src/components/admin/usage/UsageTable.vue`
 - `frontend/src/components/admin/user/BulkEditUserModal.vue`
@@ -219,6 +220,7 @@ by the coverage contract test so new overlays cannot ship unrecorded.
 - `frontend/src/components/common/DateRangePicker.vue`
 - `frontend/src/components/common/Toast.vue`
 - `frontend/src/components/keys/UseKeyModal.vue`
+- `frontend/src/components/keys/BulkEditKeysModal.vue`
 - `frontend/src/components/layout/AppSidebar.vue`
 - `frontend/src/components/layout/SupportContact.vue`
 - `frontend/src/components/admin/SupportContactsEditor.vue`

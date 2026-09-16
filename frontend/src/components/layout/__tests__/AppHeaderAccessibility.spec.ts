@@ -96,9 +96,9 @@ describe('AppHeader accessibility', () => {
   })
 
   it('does not expose subscription navigation in simple mode', () => {
-    expect(componentSource).toContain('v-if="user && !authStore.isSimpleMode && userSubscriptionsEnabled"')
+    expect(componentSource).toContain('v-if="user && !authStore.isSimpleMode && userSubscriptionsEnabled && subscriptionFeatureEnabled"')
     expect(componentSource).toMatch(
-      /<SubscriptionProgressMini\s+v-if="user && !authStore\.isSimpleMode && userSubscriptionsEnabled"/,
+      /<SubscriptionProgressMini\s+v-if="user && !authStore\.isSimpleMode && userSubscriptionsEnabled && subscriptionFeatureEnabled"/,
     )
   })
 

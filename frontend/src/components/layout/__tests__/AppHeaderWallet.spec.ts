@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
   flags: {
     modelPlaza: false,
     userSubscriptions: true,
+    subscription: true,
     checkin: true,
     payment: true,
   },
@@ -95,10 +96,12 @@ vi.mock('@/utils/featureFlags', () => ({
   FeatureFlags: {
     modelPlaza: 'modelPlaza',
     userSubscriptions: 'userSubscriptions',
+    subscription: 'subscription',
     checkin: 'checkin',
     payment: 'payment',
   },
   isFeatureFlagEnabled: (flag: keyof typeof state.flags) => state.flags[flag],
+  resolveFeatureFlag: (_settings: unknown, flag: keyof typeof state.flags) => state.flags[flag],
 }))
 
 const RouterLinkStub = defineComponent({

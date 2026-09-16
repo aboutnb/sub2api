@@ -414,6 +414,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		SmartRoutingEnabled:           settings.SmartRoutingEnabled,
 		UserSubscriptionsEnabled:      settings.UserSubscriptionsEnabled,
 		SubscriptionExpirationEnabled: settings.SubscriptionExpirationEnabled,
+		SubscriptionEnabled:           settings.SubscriptionEnabled,
 
 		ModelPlazaEnabled:       settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:   settings.ModelPlazaRequireAuth,
