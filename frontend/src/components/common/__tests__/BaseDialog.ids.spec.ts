@@ -1,12 +1,19 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { enableAutoUnmount, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { createI18n } from 'vue-i18n'
 import BaseDialog from '../BaseDialog.vue'
 
 enableAutoUnmount(afterEach)
 
 function openDialog(title: string) {
-  return mount(BaseDialog, { props: { show: true, title }, global: { stubs: { Icon: true } } })
+  return mount(BaseDialog, {
+    props: { show: true, title },
+    global: {
+      stubs: { Icon: true },
+      plugins: [createI18n({ legacy: false, locale: 'en', messages: { en: { common: { close: 'Close' } } } })]
+    }
+  })
 }
 
 describe('dialog accessible titles', () => {

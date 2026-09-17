@@ -36,7 +36,7 @@ describe('user redeem check-in history tags', () => {
   beforeEach(() => {
     getHistory.mockReset()
     getPublicSettings.mockReset()
-    getHistory.mockResolvedValue([
+    getHistory.mockResolvedValue({ items: [
       {
         id: 1,
         code: 'SYS-CHECKIN-1',
@@ -57,7 +57,7 @@ describe('user redeem check-in history tags', () => {
         created_at: '2026-07-30T08:00:00Z',
         checkin_mode: 'normal',
       },
-    ])
+    ], total: 2, page: 1, page_size: 20 })
     getPublicSettings.mockResolvedValue({ contact_info: '' })
   })
 

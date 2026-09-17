@@ -17,7 +17,7 @@ describe('pagination jump input', () => {
     const wrapper = mountPagination()
     const input = wrapper.get('input[type="number"]')
     await input.setValue('3')
-    if (action === 'click') await wrapper.get('.btn').trigger('click')
+    if (action === 'click') await wrapper.findAll('button').find(button => button.text() === 'pagination.jumpAction')!.trigger('click')
     else await input.trigger('keyup', { key: 'Enter' })
     expect(wrapper.emitted('update:page')).toEqual([[3]])
     expect((input.element as HTMLInputElement).value).toBe('')
@@ -26,13 +26,13 @@ describe('pagination jump input', () => {
   it('clamps an entered page to the last page', async () => {
     const wrapper = mountPagination()
     await wrapper.get('input').setValue('99')
-    await wrapper.get('.btn').trigger('click')
+    await wrapper.findAll('button').find(button => button.text() === 'pagination.jumpAction')!.trigger('click')
     expect(wrapper.emitted('update:page')).toEqual([[10]])
   })
 
   it('ignores an empty jump input', async () => {
     const wrapper = mountPagination()
-    await wrapper.get('.btn').trigger('click')
+    await wrapper.findAll('button').find(button => button.text() === 'pagination.jumpAction')!.trigger('click')
     expect(wrapper.emitted('update:page')).toBeUndefined()
   })
 })
