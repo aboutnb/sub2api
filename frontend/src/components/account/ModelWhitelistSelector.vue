@@ -10,16 +10,17 @@
           <span
             v-for="model in modelValue"
             :key="model"
-            class="inline-flex items-center justify-between gap-1 rounded bg-surface-muted px-2 py-1 text-xs text-ink dark:bg-line-strong dark:text-ink-muted"
+            class="inline-flex min-h-0 items-center justify-between gap-1 rounded bg-surface-muted px-2 py-0.5 text-xs leading-5 text-ink dark:bg-line-strong dark:text-ink-muted"
           >
             <span class="flex items-center gap-1 truncate">
               <ModelIcon :model="model" size="14px" />
-              <span class="truncate">{{ model }}</span>
+              <span class="truncate" :title="model">{{ model }}</span>
             </span>
             <button
               type="button"
               @click.stop="removeModel(model)"
-              class="shrink-0 rounded-full hover:bg-line dark:hover:bg-dark-500"
+              :aria-label="`${t('common.remove')} ${model}`"
+              class="model-remove flex h-6 min-h-0 w-6 min-w-0 shrink-0 items-center justify-center rounded hover:bg-line dark:hover:bg-dark-500"
             >
               <Icon name="x" size="xs" class="h-3.5 w-3.5" :stroke-width="2" />
             </button>
@@ -56,7 +57,7 @@
             <button
               type="button"
               data-testid="select-model"
-              class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-sm"
+              class="model-select flex min-h-0 min-w-0 flex-1 items-center gap-2 px-3 py-1.5 text-left text-sm leading-5"
               @click="toggleModel(model.value)"
             >
               <span
@@ -77,7 +78,7 @@
             <button
               type="button"
               data-testid="copy-model-id"
-              class="mr-2 rounded p-1.5 text-ink-muted opacity-70 transition-colors hover:bg-line hover:text-primary-600 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 group-hover:opacity-100 dark:text-ink-muted dark:hover:bg-dark-500 dark:hover:text-primary-400"
+              class="model-remove mr-2 h-7 min-h-0 w-7 min-w-0 rounded p-1.5 text-ink-muted opacity-70 transition-colors hover:bg-line hover:text-primary-600 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 group-hover:opacity-100 dark:text-ink-muted dark:hover:bg-dark-500 dark:hover:text-primary-400"
               :title="`${t('common.copy')} ${model.value}`"
               :aria-label="`${t('common.copy')} ${model.value}`"
               @click="copyModelId(model.value)"
@@ -361,3 +362,15 @@ const clearAll = () => {
 }
 
 </script>
+
+<style scoped>
+@media (pointer: coarse) {
+  .model-remove {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+  .model-select {
+    min-height: 2.75rem;
+  }
+}
+</style>

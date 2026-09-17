@@ -53,8 +53,10 @@
             {{ t('checkin.verificationComplete') }}
           </span>
         </div>
-        <div class="mx-auto w-full max-w-[300px]">
-          <slot name="verification" />
+        <div ref="verificationContainer" class="w-full min-w-0">
+          <div class="w-full" :style="verificationStyle">
+            <slot name="verification" />
+          </div>
         </div>
       </div>
     </div>
@@ -83,7 +85,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useElementSize } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -109,6 +112,16 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+const verificationContainer = ref<HTMLDivElement | null>(null)
+const { width: verificationWidth } = useElementSize(verificationContainer)
+const verificationStyle = computed(() => {
+  // Turnstile flexible widgets require 300px; scale only below that width.
+  if (verificationWidth.value > 0 && verificationWidth.value < 300) {
+    return { width: '300px', zoom: verificationWidth.value / 300 }
+  }
+  return undefined
+})
 
 function formatMultiplier(value: number) {
   const amount = Number(value || 0)

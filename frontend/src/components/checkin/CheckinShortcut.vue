@@ -139,7 +139,7 @@
         v-if="confirmOpen === 'normal' && status?.turnstile_enabled && status.turnstile_site_key"
         ref="normalTurnstileRef"
         :site-key="status.turnstile_site_key"
-        size="compact"
+        size="flexible"
         @verify="handleTurnstileVerify('normal', $event)"
         @expire="handleTurnstileExpire('normal')"
         @error="handleTurnstileError('normal')"

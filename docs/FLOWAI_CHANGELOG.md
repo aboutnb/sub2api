@@ -15,6 +15,22 @@
 
 ## 1. 台账目的
 
+### 2026-09-18 控件与模型密度修复（待发布）
+
+- 创建及编辑账号的“临时不可调度”统一复用创建分组使用的公共 Toggle，保持原有布尔值绑定，不修改调度逻辑。
+- ModelWhitelistSelector 已选模型行高在桌面收紧至 28px，下拉选择项同步收紧；删除按钮保留可访问名称，触屏点击区域至少 44px，长模型名可悬浮查看。
+- 渠道 ModelTagInput 空输入框默认 44px，与标准 Select 等高，不再叠加全局输入最小高度和容器内边距；模型标签紧凑展示，回车添加、删除、粘贴去重逻辑不变。
+- EndpointPopover 在桌面把端点名称、地址、复制和测速放在同一行，说明保留在下一行；窄屏换行，不改变端点配置及复制、测速行为。
+- 受保护路径：frontend/src/components/account/{CreateAccountModal,EditAccountModal,ModelWhitelistSelector}.vue、frontend/src/components/admin/channel/ModelTagInput.vue、frontend/src/components/keys/EndpointPopover.vue。
+- 验证：7 个相关 Vitest 文件共 121 项通过，包含新 ModelTagInput 测试、账号创建编辑及主题契约；ESLint 和 vue-tsc 通过。Playwright 使用真实组件核对 320/375/768/1440/2560px 无横向溢出、模型行高 28px、渠道空输入框 44px、开关状态切换。无后端、支付、迁移或服务器变更。
+
+### 2026-09-17 签到验证码横向自适应（待发布）
+
+- 顶部快捷普通签到由 compact 改为 flexible，与签到页面及幸运签到保持一致。
+- 共享确认弹窗移除验证码区域的 300px 最大宽度，默认铺满内容区；小于 Cloudflare 300px 最小宽度时按可用宽度等比例缩放，窗口变化无需重建验证组件或清空 token。
+- 受保护路径：frontend/src/components/checkin/CheckinShortcut.vue、frontend/src/components/checkin/LuckyCheckinConfirmDialog.vue。仅调整呈现，不涉及签到结算、验证回调、接口或数据库迁移。
+- 验证：4 个相关 Vitest 文件共 29 项通过，修改文件 ESLint、vue-tsc 通过；Playwright 使用模拟 Cloudflare 最小宽度的 iframe，在 280/320/375/445/768/1440/2560px 窗口下验证组件与内容区等宽且无横向溢出。未执行真实验证码或签到请求。
+
 ### 2026-09-17 固定 main 流程与历史版本保留
 
 - 用户确认：普通修改、修复、上游同步及发布直接复用 main 和已有工作区，不再每次创建分支。
