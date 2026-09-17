@@ -19,7 +19,7 @@
 
       <div class="flex flex-col gap-3 border-b border-line pb-4 sm:flex-row sm:items-center dark:border-line">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Select v-model="currentFilter" :options="statusFilters" class="w-full sm:w-40" @change="fetchOrders" />
+          <Select v-model="currentFilter" :options="statusFilters" class="w-full sm:w-40" @change="handlePageChange(1)" />
           <div v-if="invoiceConfig.enabled" class="flex flex-1 items-center gap-2 sm:justify-end">
             <button class="btn btn-secondary flex-1 sm:flex-none" @click="openInvoiceRecords">
               <Icon name="document" size="md" />

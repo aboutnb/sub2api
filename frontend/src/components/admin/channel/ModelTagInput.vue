@@ -25,7 +25,7 @@
         class="h-7 min-h-0 min-w-[120px] max-w-full flex-1 border-none bg-transparent p-0 text-sm leading-5 outline-none placeholder:text-ink-muted dark:text-white"
         :placeholder="models.length === 0 ? placeholder : ''"
         @keydown.enter.prevent="addModel"
-        @keydown.tab.prevent="addModel"
+        @keydown.tab="handleTab"
         @keydown.delete="handleBackspace"
         @paste="handlePaste"
         @blur="addModel"
@@ -65,6 +65,12 @@ function addModel() {
     emit('update:models', [...props.models, val])
   }
   inputValue.value = ''
+}
+
+function handleTab(event: KeyboardEvent) {
+  if (!inputValue.value.trim()) return
+  event.preventDefault()
+  addModel()
 }
 
 function removeModel(idx: number) {
