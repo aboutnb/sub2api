@@ -15,6 +15,40 @@
 
 ## 1. 台账目的
 
+### 2026-09-17 固定 main 流程与历史版本保留
+
+- 用户确认：普通修改、修复、上游同步及发布直接复用 main 和已有工作区，不再每次创建分支。
+- 分支删除必须先查职责、独有提交、PR 与本地工作区，提交清单并取得用户确认。本次 6 个临时分支均已完整进入 main，无独有提交、无待合并 PR；本地工作区不删除。
+- 本次经用户确认后已清理以下 6 个远端分支，删除时核对了完整 SHA 并使用原子推送和引用保护。其提交仍在 main 历史中，可据记录恢复引用；`sub2api-flowai` 和 `sub2api-flowai-theme` 暂留历史参照。
+
+| 分支 | 最后提交 | 已完成职责 |
+| --- | --- | --- |
+| feature/aivoza-theme | 8d9dac698 | 主题整合、蓝绿部署与并发保护 |
+| migrate/aivoza-main | 908e9424a | 主线迁移与 GitHub 镜像门禁 |
+| fix/aivoza-controls-release | 76f3f2594 | 控件布局、筛选、客服入口 |
+| fix/registration-protection-release | f391efeed | 注册保护及来源配额 |
+| fix/support-contacts-release | b14afc5af | 客服配置整合发布 |
+| sync/upstream-v0.2.5 | 9109c6639 | 已上线 v0.2.5 的上游同步 |
+
+- 固定顺序：更新 origin/main、拉取上游、审阅差异和迁移、在 main 合并明确 SHA、登记台账、测试、推送 main、等待同 SHA 的 CI/安全/镜像、Termius 蓝绿发布。
+- CI 失败先诊断再重跑工作流，不用空提交反复触发；纯文档维护不重新替换健康生产应用。
+- 23 只保留当前应用与上一个回滚版本。更早的应用容器排空后优雅停止并移除，再清理无任何容器引用的旧应用镜像；不删除数据卷、备份或依赖服务。
+- 已移除 4 个历史回滚容器：81b5412354e0、14da6bdbec46、0f4b25bca7fe、36ad45263a8e；逐个检查入站 HTTP 连接为 0，使用无限等待的优雅停止，再无强制、无卷删除地移除容器。
+- 已清理 31 个无任何运行或停止容器引用的旧应用镜像，包括旧 sub2api-flowai 的 0.1.178 USDT 镜像。当前 ac1658681f50 和上一版 c4f2525fa369 镜像保留。
+- Docker 镜像占用从 13.28 GB 降至 3.458 GB，减少约 9.822 GB；卷和构建缓存未清理。清理后仅有当前及上一版两个应用容器，两者健康，aivoza.com 与 us.aivoza.com 的 /health 均为 200，依赖服务未重启。
+- 清理前发现 guardian 仍以 http://sub2api:8080 连接最早的历史容器。已在线备份其 SQLite 到 /root/flowai/backups/guardian-before-retention-20260917.sqlite，仅把持久连接地址热更新为 https://aivoza.com；密钥和自动调度关闭状态保持不变，guardian 未重启，旧连接排空后才移除旧应用。
+- guardian 原有管理密钥在旧应用、新应用和正式域名均返回 401；这是清理前已存在的认证异常，本次未更换凭据。主站健康检查、当前及上一版应用健康检查通过。
+
+### 2026-09-17 v0.2.5 已完成发布
+
+- 已发布源码 `9109c663901dd50be6c6cf4d1e0431b7fd8df691`，应用版本 `0.2.5`。
+- GitHub CI #152、Security Scan #162、Aivoza Image #112 均成功。
+- 镜像 `ghcr.io/aboutnb/aivoza-sub2api:sha-9109c663901d`；生产固定 digest `sha256:ac1658681f50ff93d3b7ef1572899eec87d11d98ecc9919eb8a66f12b957a685`。
+- 23 上新容器为 flowai-app，回环端口 3005；上一个版本为 flowai-app-rollback-0708e8bab0dc，端口 3004。下次发布重新检查端口，不照搬本次值。
+- 回滚状态 `/root/flowai/deploy/state/aivoza-v025-9109c663901d.json`；数据与配置备份 `/root/flowai/backups/aivoza-v025-9109c663901d`。
+- 两条上游 238 迁移执行成功，既有注册保护迁移保留；新旧应用健康，依赖启动时间未变化。
+- aivoza.com 和 us.aivoza.com 均返回 0.2.5，切换期间共 60 次健康探测全部 200；登录页 200，未认证用户接口 401。未执行真实付费请求或支付交易。
+
 ### 2026-09-16 上游 v0.2.5 同步候选
 
 从 Aivoza `main` 基线 `a92d3fc2eb129ad652c876d48f2486fb2fa897b9` 合并
@@ -62,11 +96,11 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 
 ## 1.1 每次上游合并的固定流程
 
-1. `git fetch upstream main` 后，记录 `upstream/main` 的完整 hash；从 `main` 创建同步候选分支，然后执行 `make review-flowai-upstream`。若有待合入提交，必须先完成人工
+1. 复用已有 main 工作区，先 fetch origin 并快进同步 origin/main。`git fetch upstream main` 后，记录 `upstream/main` 的完整 hash，然后执行 `make review-flowai-upstream`。若有待合入提交，必须先完成人工
    核对，再用 `FLOWAI_UPSTREAM_REVIEW_ACK=<完整 hash>` 重跑并取得通过结果。
 2. 合并前查看 `git diff --name-status upstream/main...HEAD`，并单独查看上游新增迁移、
    调度代码、i18n 聚合入口、部署 compose 和锁文件。
-3. 只使用 `git merge --no-ff upstream/main`。冲突时按第 6 节矩阵逐项解决，禁止用
+3. 在 main 使用 `git merge --no-ff <已审上游完整SHA>`，并更新 `.github/aivoza-upstream-ref`。冲突时按第 6 节矩阵逐项解决，禁止用
    上游文件整文件覆盖 FlowAI 实现。
 4. 合并完成后，把合并提交 hash、每个冲突区域的保留结论和验证方式写入本台账；新增
    功能提交同时登记行为、受保护路径、测试和迁移影响。
@@ -112,7 +146,21 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 - 控件边框、桌面密度和键盘焦点统一；触摸按钮保持独立尺寸规则。必须保留 design-system/aivoza-flowai 文档及主题、日期和社群回归测试。
 - 验证：完整前端 Vitest、lint、typecheck、生产构建和严格分支契约；正式镜像由 main 的 GitHub CI 与 Security Scan 成功后构建。
 
-## 2. 当前快照
+## 2. 最近一次生产发布快照
+
+| 项目 | 值 |
+| --- | --- |
+| 开发及发布分支 | main |
+| 核对日期 | 2026-09-17（Asia/Shanghai） |
+| 已发布提交 | 9109c663901dd50be6c6cf4d1e0431b7fd8df691 |
+| 已审上游基线 | 881f3202694c6bc932446931a30c27d9675178b9 |
+| 应用版本 | 0.2.5 |
+| 发布镜像 | ghcr.io/aboutnb/aivoza-sub2api:sha-9109c663901d，部署固定 digest |
+| 目标与保留规则 | 23 蓝绿部署，仅当前版本及上一个回滚版本 |
+
+以下 0.2.3 表格及后续旧发布记录保留用于历史追溯，不能用作当前发布指令。
+
+### 2.0 2026-09-09 历史快照
 
 | 项目 | 值 |
 | --- | --- |
@@ -370,10 +418,11 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 ### 4.11 构建与发布
 
-- `.github/workflows/preview-image.yml` 只接受 `sub2api-flowai`，先执行契约检查，再
-  构建 `linux/amd64` 镜像，并同时推送可变分支 tag 和短 SHA 不可变 tag。
-- 23 服务器通过 `deploy/deploy-preview-image.sh` pull 后只重建 `sub2api` 应用服务，
-  等待 `/health`；PostgreSQL、Redis、Mihomo 和 `/app/data` 不得被删除或重置。
+- `.github/workflows/preview-image.yml` 只从通过同 SHA CI 和 Security Scan 的 main
+  构建 linux/amd64 镜像 aivoza-sub2api:sha-<sha12>，服务器固定对应 digest。
+- 23 服务器通过 `deploy/deploy-aivoza-bluegreen.py` prepare/promote 连续服务发布；
+  PostgreSQL、Redis、Mihomo、GM、Caddy 和 /app/data 不得被重建、删除或重置。
+- 验收后仅保留当前及上一个回滚版本，更早的容器排空后清理；旧应用镜像无引用才删除。
 - 服务器不得作为正式发布构建机执行 `docker compose build`、`pnpm build` 或 `go build`。
   回滚只切换已验证的镜像 tag；数据库迁移不能用回滚镜像盲目逆向。
 

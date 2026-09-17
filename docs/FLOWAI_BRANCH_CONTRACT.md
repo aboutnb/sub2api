@@ -18,12 +18,15 @@
 | 引用 | 作用 | 规则 |
 | --- | --- | --- |
 | upstream/main | Wei-Shaw/sub2api 的上游代码 | 可以定期合并；合并前必须审阅差异 |
-| origin/main | Aivoza/FlowAI 发布源 | PR 合入并通过完整 CI 后构建 |
-| feature/*、fix/*、sync/* | 开发和上游同步候选 | 经 PR 审阅合入 main；不直接发布 |
+| origin/main | 唯一日常开发、上游合并和正式发布主线 | 本地审阅、测试后推送；完整 CI 通过后构建 |
+| origin/sub2api-flowai | 原 FlowAI 定制主线 | 仅保留历史参照，不继续开发或发布 |
+| origin/sub2api-flowai-theme | 原始主题及订阅策略实现 | 仅保留历史参照，不继续开发或发布 |
+| 用户明确要求的临时分支 | 特殊隔离工作 | 不是每次修复或发布的默认步骤；清理前单独确认 |
 
 必须遵守以下边界：
 
-1. Aivoza/FlowAI 的发布分支是 main；feature/fix/sync/migrate 分支只作为待审候选。
+1. Aivoza/FlowAI 默认直接复用 main 及其已有工作区；普通修改、修复、上游同步和发布
+   不新建分支或工作区。只有用户明确要求隔离工作时才创建临时分支。
 2. 合并上游使用明确的 upstream/main 合并提交。禁止用
    git checkout upstream/main -- .、整树覆盖或无审阅的 rebase 丢弃本分支提交。
 3. 冲突解决后按“上游新增行为”和“FlowAI 保留行为”逐项归类；不能只看最终能否编译。
@@ -33,9 +36,11 @@
    合并中顺手改变语义。
 6. 每个新增或修改的功能提交都必须在变更台账中登记提交 hash、行为、受保护路径和
    验证方式；合并提交还必须记录冲突结论。没有台账记录的提交不得发布。
+7. 清理分支前先核对职责、独有提交、PR 和本地工作区，列出具体清单并取得用户确认。
+   已确认清单不代表其他分支也可以删除；本地未提交改动和素材始终保留。
 
-当前代码检查基线是已审并合入的上游 0.2.4（`98d86915becae9fe9491a91ffc6defd5235c8d2b`），
-合并提交为 `d9af7dfe5b744b034cc353d43da68b0aade1538d`。上游引用可以暂时前进，但在预审、
+当前代码检查基线是已审并合入的上游 0.2.5（`881f3202694c6bc932446931a30c27d9675178b9`），
+合并提交为 `76f1cec2eae3d7a9d8026026fb011f4cbf24a75a`。上游引用可以暂时前进，但在预审、
 冲突结论和契约检查完成前，不能把新上游当作已同步版本发布。版本号会继续变化，行为契约
 不会因为版本号变化而自动变化。
 
@@ -241,15 +246,17 @@ bd3b7b205 又恢复为 DESC。本分支现再次明确采用“1 最高、数值
 
 ## 6. Aivoza 主线与连续服务发布
 
-- 正式主线为 `main`；feature/fix/sync/migrate 分支通过 PR 合入。旧 sub2api-flowai 与主题分支保留历史，不再作为发布源。
-- 上游已审基线记录在 `.github/aivoza-upstream-ref`，本次为 0.2.4 的 `98d86915becae9fe9491a91ffc6defd5235c8d2b`。同步 PR 先审阅差异/冲突，再更新该文件；CI 不追逐移动中的上游。
+- 日常开发、上游同步和发布统一复用 `main`，不为每次工作创建分支。旧 sub2api-flowai 与主题分支保留历史，不再作为发布源。
+- 上游已审基线记录在 `.github/aivoza-upstream-ref`，当前为 0.2.5 的 `881f3202694c6bc932446931a30c27d9675178b9`。在 main 审阅并合并明确的上游 SHA 后更新该文件；CI 不追逐移动中的上游。
 - CI 与 Security Scan 必须在同一 main SHA 成功，然后 Aivoza Image 构建 linux/amd64 镜像 `ghcr.io/aboutnb/aivoza-sub2api:sha-<sha12>`；生产使用对应 digest。
-- 保留 BUILD_TYPE=source，避免内置上游二进制更新覆盖自定义版。版本文件仍对应上游 0.2.4，Aivoza 发布身份由仓库、镜像名及源码 SHA 确定。
+- 保留 BUILD_TYPE=source，避免内置上游二进制更新覆盖自定义版。版本文件对应已合入的上游版本，Aivoza 发布身份由仓库、镜像名及源码 SHA 确定。
 - 23 的 `/root/flowai/deploy/.env` 和持久化数据目录保持原生产配置。发布前在线备份 PostgreSQL、应用配置及数据，记录镜像和依赖容器启动时间。
 - `deploy/deploy-aivoza-bluegreen.py prepare --image <digest引用> --state <私有状态文件>`：复制当前应用的运行配置，在独立回环端口启动候选；不会停止现服务或切换路由。
 - 必须启用 `AIVOZA_ROLLING_DEPLOY=true`，防止启动时清理旧进程的并发槽位；正常 TTL 清理继续运行。SQL 迁移带 advisory lock；广播领取、支付/签到结算继续使用原事务幂等规则。
 - 候选健康、版本、迁移、关键业务验证完成后执行 promote：验证 Caddy 配置并热加载，仅改应用上游。GM 路由不变；PostgreSQL/Redis/Mihomo/Caddy/GM 容器不重建。
 - 新容器接管 `flowai-app` 名称，旧容器改名保留，记录回切所需 image/digest/config。旧连接排空且无后台任务进行时才可退役旧容器；不以固定短等待强制断开旧请求。
+- 验收后只保留当前应用和上一个回滚版本。依据本次 promoted 状态文件的 new_id/old_id 确定保留对象，不能按镜像日期或名称猜测。更早的回滚容器先核对路由和连接，优雅停止后删除；镜像仅在没有任何容器引用且不属于保留版本时删除，不使用强制删除或全局 prune。
+- 数据库、Redis、GM、Mihomo、Caddy、持久化卷和数据备份不属于历史应用版本清理范围；最近一次可用的回滚状态文件与配置必须保留。
 - rollback 热切回已验证旧容器；不能靠换镜像撤销数据库迁移。禁止修改迁移 checksum 或重置邮件 sent/sending 状态。
 
 ## 6.1 主题与订阅策略

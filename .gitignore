@@ -128,7 +128,7 @@ scripts
 .code-review-state
 #openspec/
 code-reviews/
-AGENTS.md
+# Keep repository workflow instructions versioned.
 backend/cmd/server/server
 deploy/docker-compose.override.yml
 .gocache/

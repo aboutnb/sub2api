@@ -197,7 +197,7 @@ validate_ledger_section() {
 
 governance_path_allowed() {
   case "$1" in
-    .gitignore|Makefile|.github/workflows/preview-image.yml|.github/workflows/release.yml|.github/workflows/backend-ci.yml|.github/aivoza-upstream-ref|tools/check_flowai_branch_contract.sh|tools/review_flowai_upstream.sh|docs/FLOWAI_*.md|deploy/README.md)
+    AGENTS.md|.gitignore|Makefile|.github/workflows/preview-image.yml|.github/workflows/release.yml|.github/workflows/backend-ci.yml|.github/aivoza-upstream-ref|tools/check_flowai_branch_contract.sh|tools/review_flowai_upstream.sh|docs/FLOWAI_*.md|deploy/README.md)
       return 0
       ;;
     *)
@@ -391,6 +391,13 @@ require_text "$RELEASE_CHECKLIST" \
 require_text "$RELEASE_CHECKLIST" \
   'make review-flowai-upstream' \
   'release checklist points to the upstream pre-merge review'
+require_file AGENTS.md 'repository workflow instructions'
+require_text AGENTS.md \
+  'Do not create a branch or worktree' \
+  'routine work reuses main'
+require_text AGENTS.md \
+  'Retain only the current application and one previous rollback version.' \
+  'production retains one rollback version'
 
 # Branch and ancestry are hard gates. GitHub Actions checks out a detached ref,
 # so use GITHUB_REF_NAME there while still rejecting an unrelated local ref.

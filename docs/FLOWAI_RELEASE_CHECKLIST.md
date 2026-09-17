@@ -13,7 +13,8 @@
 ## 1. 发布前冻结和识别
 
 - [ ] 当前工作目录是 /Users/xiaobo/develop/sub2api（或已确认的同一仓库副本）。
-- [ ] 开发位于 feature/*、fix/* 或 sync/*；正式发布源为已通过 PR 和完整 CI 的 main。
+- [ ] 日常修改、修复和上游合并直接复用 main；正式发布源为通过完整 CI 的 main。
+- [ ] 不为每个版本新建分支或工作区。若当前目录有未提交改动，先保存并核对，优先复用已有干净 main 工作区；不重置用户文件。
 - [ ] 已记录发布前的 HEAD、版本号、origin/main 和 upstream/main。
 - [ ] 已确认 .playwright-cli/、data/、本地素材等未跟踪文件的保留/排除清单，未把它们
       顺手加入发布提交。
@@ -22,7 +23,11 @@
 建议命令：
 
 ~~~bash
-git switch -c sync/upstream-<version> origin/main
+git worktree list
+# 在已有 main 工作区执行；没有占用 main 且当前工作树干净时才切换。
+git switch main
+git fetch origin main
+git merge --ff-only origin/main
 git status --short --branch
 git log -1 --oneline --decorate
 git rev-parse HEAD
@@ -42,7 +47,7 @@ grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' backend/cmd/server/VERSION
 - [ ] 已确认上游变更没有覆盖 FlowAI 的调度、并发、i18n、支付、签到、邮件、迁移或部署
       行为；有冲突时已在发布记录中写明保留哪一方及测试证据。
 
-- [ ] 上游引用已更新，但没有切换或修改本地 main。
+- [ ] 已更新上游引用并记录明确 SHA；未审阅的上游代码尚未进入本地 main。
 - [ ] 如果 `upstream/main` 已前进，已完成预审并用完整 SHA 显式确认；未确认时不得合并或发布。
 - [ ] 已查看 git diff upstream/main...HEAD 的文件清单，标出 FlowAI 专属文件。
 - [ ] 已查看上游新增迁移，并确认没有同名文件覆盖或丢失。
@@ -72,8 +77,12 @@ git log --oneline --no-merges $(git merge-base HEAD upstream/main)..HEAD
 确认无误后才允许执行：
 
 ~~~bash
-git merge --no-ff upstream/main -m "merge reviewed upstream into Aivoza candidate"
+git merge --no-ff <reviewed-upstream-full-sha> -m "merge reviewed upstream into Aivoza main"
 ~~~
+
+合并后将该完整 SHA 写入 `.github/aivoza-upstream-ref`，更新台账并完成测试，随后执行
+`git push origin main`。不要再创建同步分支、重复合并同一组代码或用空提交触发 CI；失败时先
+诊断原因，再重新运行对应工作流。纯文档维护不要求替换正在健康运行的生产应用镜像。
 
 若发生冲突，先暂停发布，按功能块解决并重新查看：
 
@@ -178,22 +187,36 @@ docker compose --env-file deploy/.env.preview -f deploy/docker-compose.preview.y
 - [ ] 桌面端 GM checkout 弹窗约为 `625x900` 且居中；小屏会自适应缩小，父页面订单轮询
       和服务端回调同步未受影响。
 
-旧重建命令仅作历史回滚参考（本次禁止使用；连续服务发布采用契约第 6 节的 prepare/promote）：
+23 服务器只执行下面的蓝绿流程。候选端口先检查是否空闲，不能固定复用仍被回滚容器占用的端口：
 
 ~~~bash
 cd /root/flowai/deploy
-docker compose --env-file .env -f docker-compose.preview.yml ps
-docker compose --env-file .env -f docker-compose.preview.yml logs --tail 200 sub2api
-ENV_FILE=.env \
-SUB2API_IMAGE=ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12> \
-SERVICE=sub2api \
-  ./deploy-preview-image.sh
+docker ps --filter name=flowai-app
+python3 deploy-aivoza-bluegreen.py prepare \
+  --image ghcr.io/aboutnb/aivoza-sub2api@sha256:<tested-digest> \
+  --port <free-loopback-port> --state state/aivoza-<sha12>.json
+# 候选健康、版本和迁移检查通过后，开始连续探测，再切换流量。
+python3 deploy-aivoza-bluegreen.py promote --state state/aivoza-<sha12>.json
 curl -fsS https://aivoza.com/health
 curl -fsS https://aivoza.com/api/v1/settings/public
 ~~~
 
 实际域名、目录和端口以服务器 `.env`、Caddy 配置及变更记录为准；不要把密码、
 JWT、TOTP、支付密钥或 SSH 私钥写入本清单。
+
+### 6.1 只保留上一个回滚版本
+
+- [ ] 从本次 promoted 状态文件读取当前 new_id 和上一个 old_id；两者及各自镜像均保留。
+- [ ] 新版健康、版本、迁移及公网探测通过，依赖容器启动时间未变化。
+- [ ] 列出其余 flowai-app-rollback-* 容器，核对它们未被当前代理或其他服务路由使用，且旧连接已排空。
+- [ ] 检查 guardian 等旁路服务的实际连接配置，不能仍指向旧容器的 sub2api 别名；比较清理前后的连通性与认证结果，记录已有异常。
+- [ ] 只对明确列出的旧容器执行优雅停止，再执行 docker rm；不使用 docker rm -f 或 -v。
+- [ ] 只清理本应用的旧镜像，删除前核对全部运行及已停止容器的 Image 引用；当前与上一版本镜像不删除。
+- [ ] 不执行 docker system prune、docker volume prune 或无差别 image prune；数据备份和依赖服务不在清理范围。
+- [ ] 清理后应用容器数量为 2，当前及上一版仍健康，记录释放空间和保留的回滚状态文件。
+
+分支整理是独立操作：先查职责、独有提交、PR 和工作区，提交精确清单并取得用户确认；
+不能因分支已合并就自行扩大清理范围。
 
 ## 7. 回滚和异常处理
 

@@ -52,23 +52,31 @@ See [APPLE_CONTAINER.md](./APPLE_CONTAINER.md) for configuration, upgrades, pers
 
 ## Docker Deployment (Recommended)
 
-### Preview Image Deployment
+### Aivoza Production on Server 23
 
-The `sub2api-flowai` branch publishes `ghcr.io/aboutnb/sub2api` from GitHub
-Actions. Complete `docs/FLOWAI_RELEASE_CHECKLIST.md` and the FlowAI contract
-checks before updating the 23 server. Use an immutable commit tag for every
-release; the mutable branch tag is for inspection only:
+Reuse `main` for development, reviewed upstream merges, and releases. Do not
+create a branch for each change or deployment. The historical `sub2api-flowai`
+branches are not release sources. Follow `docs/FLOWAI_RELEASE_CHECKLIST.md`.
+GitHub builds `ghcr.io/aboutnb/aivoza-sub2api` only after CI and Security Scan
+pass for the same main SHA. Use an immutable commit tag for every
+release and pin its digest on the server:
 
 ```bash
-cd /root/flowai-preview/deploy
-SUB2API_IMAGE=ghcr.io/aboutnb/sub2api:sub2api-flowai-<sha12> \
-  ./deploy-preview-image.sh
+cd /root/flowai/deploy
+python3 deploy-aivoza-bluegreen.py prepare \
+  --image ghcr.io/aboutnb/aivoza-sub2api@sha256:<tested-digest> \
+  --port <free-loopback-port> --state state/aivoza-<sha12>.json
+# Verify candidate health, version, migrations, and public health monitoring.
+python3 deploy-aivoza-bluegreen.py promote --state state/aivoza-<sha12>.json
 ```
 
-The script runs `docker compose pull sub2api`, recreates only the app service,
-and waits for `/health`. It does not build on the server or remove PostgreSQL,
-Redis, Mihomo, or persistent application data. Record the exact SHA tag and
-image digest in the release record for rollback.
+The script starts the candidate beside the serving app and reloads Caddy after
+validation. It does not build on the server or remove PostgreSQL,
+Redis, Mihomo, GM, or persistent application data. Keep only the current app
+and its immediate previous rollback version after validation and connection
+draining. Remove older app containers and unreferenced app images, never data
+volumes or backups. Preserve the rollback state file and both image digests.
+The remaining fresh-install examples are not an update procedure for server 23.
 
 ### Method 1: One-Click Deployment (Recommended)
 
