@@ -1,5 +1,15 @@
 # FlowAI 分支变更台账
 
+### 2026-09-18 23 服务器发布完成
+
+- 已发布源码 `a66b14764ca4dcc796700cb7c5ca7ae008d7532b`，版本保持 0.2.5；包含本次界面修复及已审上游 efe9aab1e 增量。
+- GitHub CI `35251518130`（含单元、集成、lint、前端完整测试/构建及严格契约）、Security Scan `35251518007`、Aivoza Image `35252637169` 均成功且 SHA 一致。
+- 镜像 `ghcr.io/aboutnb/aivoza-sub2api:sha-a66b14764ca4`；生产固定 digest `sha256:748d3873238d0057055ef5e2e132da6d40c921e7a8b6bb9ef1ee1b79b2881187`，amd64 和源码标签核验一致。
+- Termius 蓝绿 prepare/promote 完成，新 flowai-app 在回环端口 3006；上一版 flowai-app-rollback-4263d8d81dca 在 3005，保留 9109c663901d 对应镜像。Caddy 两个应用上游均指向 aivoza-a66b14764ca4:8080，依赖服务启动时间未变化。
+- 切换期间 aivoza.com 与 us.aivoza.com 共 60 次健康探测全部 200；登录页 200、未认证 /api/v1/auth/me 为 401，公网主 JS 为 index-BcmwBKda.js，与本次构建一致。新旧应用健康，启动日志未见迁移/校验和/致命错误。本次无 SQL 迁移，未执行真实支付或付费模型请求。
+- 备份 `/root/flowai/backups/aivoza-20260918`：PostgreSQL custom dump 442 MB 且 TOC 可读取，应用/Mihomo 数据、Redis RDB、.env、Caddyfile 和旧容器元数据。回滚状态 `/root/flowai/deploy/state/aivoza-a66b14764ca4.json` 含敏感配置，不公开输出。
+- 已确认更早回滚容器 0708e8bab0dc 无入站 HTTP 连接，优雅停止并移除；核对所有容器无引用后删除 c4f2525fa369 历史镜像。仅保留当前及上一版，不动数据卷、备份或依赖服务。
+
 ### 2026-09-18 界面修复与上游增量发布候选
 
 - 本地界面修复提交 `81ecaccffffe8ed38902a0271310cf15e6497253`：签到验证码铺满、统一开关、紧凑模型行及 API 端点；保持 0.2.5。
@@ -24,7 +34,7 @@
 
 ## 1. 台账目的
 
-### 2026-09-18 控件与模型密度修复（待发布）
+### 2026-09-18 控件与模型密度修复（已发布）
 
 - 创建及编辑账号的“临时不可调度”统一复用创建分组使用的公共 Toggle，保持原有布尔值绑定，不修改调度逻辑。
 - ModelWhitelistSelector 已选模型行高在桌面收紧至 28px，下拉选择项同步收紧；删除按钮保留可访问名称，触屏点击区域至少 44px，长模型名可悬浮查看。
@@ -33,7 +43,7 @@
 - 受保护路径：frontend/src/components/account/{CreateAccountModal,EditAccountModal,ModelWhitelistSelector}.vue、frontend/src/components/admin/channel/ModelTagInput.vue、frontend/src/components/keys/EndpointPopover.vue。
 - 验证：7 个相关 Vitest 文件共 121 项通过，包含新 ModelTagInput 测试、账号创建编辑及主题契约；ESLint 和 vue-tsc 通过。Playwright 使用真实组件核对 320/375/768/1440/2560px 无横向溢出、模型行高 28px、渠道空输入框 44px、开关状态切换。无后端、支付、迁移或服务器变更。
 
-### 2026-09-17 签到验证码横向自适应（待发布）
+### 2026-09-17 签到验证码横向自适应（已于 2026-09-18 发布）
 
 - 顶部快捷普通签到由 compact 改为 flexible，与签到页面及幸运签到保持一致。
 - 共享确认弹窗移除验证码区域的 300px 最大宽度，默认铺满内容区；小于 Cloudflare 300px 最小宽度时按可用宽度等比例缩放，窗口变化无需重建验证组件或清空 token。
@@ -176,11 +186,11 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 | 项目 | 值 |
 | --- | --- |
 | 开发及发布分支 | main |
-| 核对日期 | 2026-09-17（Asia/Shanghai） |
-| 已发布提交 | 9109c663901dd50be6c6cf4d1e0431b7fd8df691 |
-| 已审上游基线 | 881f3202694c6bc932446931a30c27d9675178b9 |
+| 核对日期 | 2026-09-18（Asia/Shanghai） |
+| 已发布提交 | a66b14764ca4dcc796700cb7c5ca7ae008d7532b |
+| 已审上游基线 | efe9aab1e4ec89a42ba45e8dac20e882c5409a6a |
 | 应用版本 | 0.2.5 |
-| 发布镜像 | ghcr.io/aboutnb/aivoza-sub2api:sha-9109c663901d，部署固定 digest |
+| 发布镜像 | ghcr.io/aboutnb/aivoza-sub2api:sha-a66b14764ca4，部署固定 digest |
 | 目标与保留规则 | 23 蓝绿部署，仅当前版本及上一个回滚版本 |
 
 以下 0.2.3 表格及后续旧发布记录保留用于历史追溯，不能用作当前发布指令。
