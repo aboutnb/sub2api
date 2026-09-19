@@ -1,5 +1,14 @@
 # FlowAI 分支变更台账
 
+### 2026-09-20 v0.2.7 已完成 23 服务器发布
+
+- 已发布源码 `acb2633ad064eba87e8a664afd82ba828801f0ca`；GitHub CI `35454631025`（含 Docker 集成测试）、Security Scan `35454631069`、Aivoza Image `35455222658` 均成功且源码一致。本地后端完整单元测试、前端 2454 测试、lint/构建及严格契约通过。
+- 镜像 `ghcr.io/aboutnb/aivoza-sub2api:sha-acb2633ad064`，生产固定 `sha256:e50e929269dbadf33da95868c790cb76b243c691f9484cbc3ac35c47f66c1b84`；已核验 amd64 和完整源码标签。
+- Termius prepare/promote 蓝绿发布完成，当前 flowai-app 位于回环端口 3007；上一版 `flowai-app-rollback-e11335eb47f2` 保留在 3006。数据库、Redis、GM、Mihomo、Caddy 启动时间未变化。
+- 两个公网域名均返回 0.2.7，切换期间 60 次健康检查全部 200；主站登录 200、两个域名未认证用户接口均 401。us.aivoza.com 原配置仅提供 API，登录页 404 为既有预期。启动日志未匹配到 panic/fatal、迁移失败或校验和错误；未执行真实支付或付费模型请求。
+- 发布前备份 `/root/flowai/backups/aivoza-v027-20260920`：PostgreSQL custom dump 446 MB（TOC 校验通过）、应用/Mihomo 数据、Redis RDB、配置及旧容器元数据。本次无 SQL 迁移变化。回滚状态 `state/aivoza-v027-acb2633ad064.json` 含敏感配置，不公开输出。
+- 确认更早的 4263d8d81dca 容器无入站 HTTP 连接后优雅停止并移除；确认所有容器均无引用后删除 ac1658681f50 历史应用镜像。仅保留当前及上一版，不清理备份或数据卷。
+
 ### 2026-09-20 v0.2.7 发布候选
 
 - 合并已审上游 `1a9d49e16f7a22c432b428fce4af8d731f1fa364`，包括 v0.2.7 标签及其后的版本号同步提交；无 SQL 迁移变化。
@@ -194,11 +203,11 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 | 项目 | 值 |
 | --- | --- |
 | 开发及发布分支 | main |
-| 核对日期 | 2026-09-18（Asia/Shanghai） |
-| 已发布提交 | a66b14764ca4dcc796700cb7c5ca7ae008d7532b |
-| 已审上游基线 | efe9aab1e4ec89a42ba45e8dac20e882c5409a6a |
-| 应用版本 | 0.2.5 |
-| 发布镜像 | ghcr.io/aboutnb/aivoza-sub2api:sha-a66b14764ca4，部署固定 digest |
+| 核对日期 | 2026-09-20（Asia/Shanghai） |
+| 已发布提交 | acb2633ad064eba87e8a664afd82ba828801f0ca |
+| 已审上游基线 | 1a9d49e16f7a22c432b428fce4af8d731f1fa364 |
+| 应用版本 | 0.2.7 |
+| 发布镜像 | ghcr.io/aboutnb/aivoza-sub2api:sha-acb2633ad064，部署固定 digest |
 | 目标与保留规则 | 23 蓝绿部署，仅当前版本及上一个回滚版本 |
 
 以下 0.2.3 表格及后续旧发布记录保留用于历史追溯，不能用作当前发布指令。
