@@ -192,7 +192,7 @@ func imageStudioRequestModel(req *http.Request) (string, error) {
 		if err := copy.ParseMultipartForm(8 << 20); err != nil {
 			return "", err
 		}
-		defer copy.MultipartForm.RemoveAll()
+		defer func() { _ = copy.MultipartForm.RemoveAll() }()
 		if stream := copy.FormValue("stream"); stream != "" {
 			value, err := strconv.ParseBool(stream)
 			if err != nil || value {
