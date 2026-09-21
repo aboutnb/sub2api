@@ -1,5 +1,16 @@
 # FlowAI 分支变更台账
 
+### 2026-09-21 图片工作台代码已发布到 23
+
+- 发布源码 `5d6884aa6f7fa7268909ee0f99253d71d8a2b5ce`，版本保持 0.2.7。GitHub CI `35614245418`、Security Scan `35614245343`、Aivoza Image `35615350414` 均成功；本地 golangci-lint 零问题。
+- 镜像 `ghcr.io/aboutnb/aivoza-sub2api:sha-5d6884aa6f7f`，生产固定 `sha256:2fda538d38c716e72f6341c958b68def63f6da244a7e8853e644f13cbc0556af`；已核验 amd64 和源码标签。
+- Termius 蓝绿 prepare/promote 完成，当前 flowai-app 在 3008，上一版 `flowai-app-rollback-7f5910da3385` 在 3007；Caddy 路由与发布状态匹配，依赖服务启动时间未变化。
+- 239 迁移已登记，规范化 SQL 校验和为 `553fc522dbcc6190fa34a422a08b648b5b49d99be7c9a37d8913c11a530e0ccb`；purpose 默认 standard 和唯一索引均已核实。工作台开关仍为 false，未进行真实生成、支付或计费验收。
+- 公网主站登录、工作台 index 和构建产物均 200；缺失静态资源 404、未登录 bootstrap 401；工作台返回 SAMEORIGIN 与 frame-ancestors self。两个域名版本均为 0.2.7。
+- 本机代理探测 90 次中 83 次 HTTP 200、7 次 TLS/连接失败，不能据此宣称全程探测零失败；切换后从服务器直接连续探测两个公网域名共 30 次全部 200。候选与回滚均健康，启动日志未匹配到迁移失败或致命错误。
+- 备份 `/root/flowai/backups/aivoza-studio-20260921` 包含 447 MB PostgreSQL dump（TOC 已校验）、应用/Mihomo、Redis RDB、配置和旧容器元数据；状态 `state/aivoza-studio-5d6884aa6f7f.json` 包含敏感配置，不公开输出。
+- 更早的 e11335eb47f2 容器连接排空后已优雅移除，无引用的 748d3873238d 镜像已清理；仅保留当前及上一版，不动备份、数据卷和依赖服务。
+
 ### 2026-09-21 本地图片工作台发布候选
 
 - 用户确认将旧工作目录中的新增代码整理到 main 发布，版本保持 0.2.7，不额外合入未经审阅的上游提交。
@@ -212,11 +223,11 @@ FlowAI 分支长期保留了一组与上游 `main` 不同的产品功能、调�
 | 项目 | 值 |
 | --- | --- |
 | 开发及发布分支 | main |
-| 核对日期 | 2026-09-20（Asia/Shanghai） |
-| 已发布提交 | acb2633ad064eba87e8a664afd82ba828801f0ca |
+| 核对日期 | 2026-09-21（Asia/Shanghai） |
+| 已发布提交 | 5d6884aa6f7fa7268909ee0f99253d71d8a2b5ce |
 | 已审上游基线 | 1a9d49e16f7a22c432b428fce4af8d731f1fa364 |
 | 应用版本 | 0.2.7 |
-| 发布镜像 | ghcr.io/aboutnb/aivoza-sub2api:sha-acb2633ad064，部署固定 digest |
+| 发布镜像 | ghcr.io/aboutnb/aivoza-sub2api:sha-5d6884aa6f7f，部署固定 digest |
 | 目标与保留规则 | 23 蓝绿部署，仅当前版本及上一个回滚版本 |
 
 以下 0.2.3 表格及后续旧发布记录保留用于历史追溯，不能用作当前发布指令。
