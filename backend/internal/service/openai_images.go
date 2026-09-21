@@ -227,7 +227,7 @@ func (s *OpenAIGatewayService) ParseOpenAIImagesRequest(c *gin.Context, body []b
 	}
 
 	applyOpenAIImagesDefaults(req)
-	if err := validateOpenAIImagesModel(req.Model); err != nil {
+	if err := validateOpenAIImagesModel(req.Model); err != nil && !isImageStudioRequest(c.Request.Context()) {
 		return nil, err
 	}
 	req.SizeTier = normalizeOpenAIImageSizeTier(req.Size)
@@ -594,7 +594,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	if mapped := strings.TrimSpace(channelMappedModel); mapped != "" {
 		requestModel = mapped
 	}
-	if err := validateOpenAIImagesModel(requestModel); err != nil {
+	if err := validateOpenAIImagesModel(requestModel); err != nil && !isImageStudioRequest(ctx) {
 		return nil, err
 	}
 	upstreamModel := account.GetMappedModel(requestModel)

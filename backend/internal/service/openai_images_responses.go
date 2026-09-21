@@ -1796,6 +1796,9 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	if requestModel == "" {
 		requestModel = "gpt-image-2"
 	}
+	if isImageStudioRequest(ctx) {
+		requestModel = account.GetMappedModel(requestModel)
+	}
 	if err := validateOpenAIImagesModel(requestModel); err != nil {
 		return nil, err
 	}

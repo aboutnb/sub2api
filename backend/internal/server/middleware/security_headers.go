@@ -129,6 +129,19 @@ func SecurityHeaders(cfg config.CSPConfig, getFrameSrcOrigins func() []string) g
 
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "DENY")
+		if strings.HasPrefix(c.Request.URL.Path, "/image-studio-app/") {
+			c.Header("X-Frame-Options", "SAMEORIGIN")
+			parts := strings.Split(finalPolicy, ";")
+			kept := parts[:0]
+			for _, part := range parts {
+				fields := strings.Fields(part)
+				if len(fields) > 0 && fields[0] == "frame-ancestors" {
+					continue
+				}
+				kept = append(kept, part)
+			}
+			finalPolicy = strings.Join(kept, ";") + "; frame-ancestors 'self'"
+		}
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		if isAPIRoutePath(c) {
 			c.Next()

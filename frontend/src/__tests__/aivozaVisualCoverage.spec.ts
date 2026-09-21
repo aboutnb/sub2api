@@ -37,7 +37,7 @@ const sharedOverlays = [...vueFiles(componentsRoot), ...featureSurfaces].filter(
 
 describe('Aivoza visual coverage', () => {
   it('keeps all current view-owned surfaces in the release ledger', () => {
-    expect(views).toHaveLength(91)
+    expect(views).toHaveLength(92)
 
     const undocumented = views
       .map((path) => `frontend/src/views/${relative(viewsRoot, path)}`)
@@ -78,6 +78,7 @@ describe('Aivoza visual coverage', () => {
       'user/ChannelStatusV1View.vue',
       'user/ChannelStatusView.vue',
       'user/DashboardView.vue',
+      'user/ImageStudioView.vue',
     ])
 
     const disconnected = views.flatMap((path) => {

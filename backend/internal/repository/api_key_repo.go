@@ -97,7 +97,7 @@ func (r *apiKeyRepository) GetByID(ctx context.Context, id int64) (*service.APIK
 //   - 适用于删除等只需 key 与用户 ID 的场景
 func (r *apiKeyRepository) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, error) {
 	m, err := r.activeQuery().
-		Where(apikey.IDEQ(id)).
+		Where(apikey.IDEQ(id), apikey.PurposeNEQ(service.ImageStudioKeyPurpose)).
 		Select(apikey.FieldKey, apikey.FieldUserID).
 		Only(ctx)
 	if err != nil {
@@ -136,6 +136,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 			apikey.FieldUserID,
 			apikey.FieldGroupID,
 			apikey.FieldName,
+			apikey.FieldPurpose,
 			apikey.FieldStatus,
 			apikey.FieldIPWhitelist,
 			apikey.FieldIPBlacklist,
@@ -434,7 +435,7 @@ func (r *apiKeyRepository) deleteWithTombstone(ctx context.Context, exec *dbent.
 }
 
 func (r *apiKeyRepository) apiKeyListByUserIDQuery(userID int64, filters service.APIKeyListFilters) *dbent.APIKeyQuery {
-	q := r.activeQuery().Where(apikey.UserIDEQ(userID))
+	q := r.activeQuery().Where(apikey.UserIDEQ(userID), apikey.PurposeNEQ(service.ImageStudioKeyPurpose))
 
 	if filters.Search != "" {
 		q = q.Where(apikey.Or(
@@ -611,7 +612,7 @@ func (r *apiKeyRepository) VerifyOwnership(ctx context.Context, userID int64, ap
 }
 
 func (r *apiKeyRepository) CountByUserID(ctx context.Context, userID int64) (int64, error) {
-	count, err := r.activeQuery().Where(apikey.UserIDEQ(userID)).Count(ctx)
+	count, err := r.activeQuery().Where(apikey.UserIDEQ(userID), apikey.PurposeNEQ(service.ImageStudioKeyPurpose)).Count(ctx)
 	return int64(count), err
 }
 
@@ -687,7 +688,7 @@ func apiKeyListOrder(params pagination.PaginationParams) []func(*entsql.Selector
 
 // SearchAPIKeys searches API keys by user ID and/or keyword (name)
 func (r *apiKeyRepository) SearchAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]service.APIKey, error) {
-	q := r.activeQuery()
+	q := r.activeQuery().Where(apikey.PurposeNEQ(service.ImageStudioKeyPurpose))
 	if userID > 0 {
 		q = q.Where(apikey.UserIDEQ(userID))
 	}
@@ -721,7 +722,7 @@ func (r *apiKeyRepository) ClearGroupIDByGroupID(ctx context.Context, groupID in
 func (r *apiKeyRepository) UpdateGroupIDByUserAndGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (int64, error) {
 	client := clientFromContext(ctx, r.client)
 	n, err := client.APIKey.Update().
-		Where(apikey.UserIDEQ(userID), apikey.GroupIDEQ(oldGroupID), apikey.DeletedAtIsNil()).
+		Where(apikey.UserIDEQ(userID), apikey.GroupIDEQ(oldGroupID), apikey.DeletedAtIsNil(), apikey.PurposeNEQ(service.ImageStudioKeyPurpose)).
 		SetGroupID(newGroupID).
 		Save(ctx)
 	return int64(n), err
@@ -874,6 +875,7 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		return nil
 	}
 	out := &service.APIKey{
+		Purpose:       m.Purpose,
 		ID:            m.ID,
 		UserID:        m.UserID,
 		Key:           m.Key,

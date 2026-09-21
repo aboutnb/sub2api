@@ -72,6 +72,20 @@ func (_u *APIKeyUpdate) SetNillableUserID(v *int64) *APIKeyUpdate {
 	return _u
 }
 
+// SetPurpose sets the "purpose" field.
+func (_u *APIKeyUpdate) SetPurpose(v string) *APIKeyUpdate {
+	_u.mutation.SetPurpose(v)
+	return _u
+}
+
+// SetNillablePurpose sets the "purpose" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillablePurpose(v *string) *APIKeyUpdate {
+	if v != nil {
+		_u.SetPurpose(*v)
+	}
+	return _u
+}
+
 // SetKey sets the "key" field.
 func (_u *APIKeyUpdate) SetKey(v string) *APIKeyUpdate {
 	_u.mutation.SetKey(v)
@@ -545,6 +559,11 @@ func (_u *APIKeyUpdate) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *APIKeyUpdate) check() error {
+	if v, ok := _u.mutation.Purpose(); ok {
+		if err := apikey.PurposeValidator(v); err != nil {
+			return &ValidationError{Name: "purpose", err: fmt.Errorf(`ent: validator failed for field "APIKey.purpose": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Key(); ok {
 		if err := apikey.KeyValidator(v); err != nil {
 			return &ValidationError{Name: "key", err: fmt.Errorf(`ent: validator failed for field "APIKey.key": %w`, err)}
@@ -586,6 +605,9 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(apikey.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Purpose(); ok {
+		_spec.SetField(apikey.FieldPurpose, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Key(); ok {
 		_spec.SetField(apikey.FieldKey, field.TypeString, value)
@@ -855,6 +877,20 @@ func (_u *APIKeyUpdateOne) SetUserID(v int64) *APIKeyUpdateOne {
 func (_u *APIKeyUpdateOne) SetNillableUserID(v *int64) *APIKeyUpdateOne {
 	if v != nil {
 		_u.SetUserID(*v)
+	}
+	return _u
+}
+
+// SetPurpose sets the "purpose" field.
+func (_u *APIKeyUpdateOne) SetPurpose(v string) *APIKeyUpdateOne {
+	_u.mutation.SetPurpose(v)
+	return _u
+}
+
+// SetNillablePurpose sets the "purpose" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillablePurpose(v *string) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetPurpose(*v)
 	}
 	return _u
 }
@@ -1345,6 +1381,11 @@ func (_u *APIKeyUpdateOne) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *APIKeyUpdateOne) check() error {
+	if v, ok := _u.mutation.Purpose(); ok {
+		if err := apikey.PurposeValidator(v); err != nil {
+			return &ValidationError{Name: "purpose", err: fmt.Errorf(`ent: validator failed for field "APIKey.purpose": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Key(); ok {
 		if err := apikey.KeyValidator(v); err != nil {
 			return &ValidationError{Name: "key", err: fmt.Errorf(`ent: validator failed for field "APIKey.key": %w`, err)}
@@ -1403,6 +1444,9 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(apikey.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Purpose(); ok {
+		_spec.SetField(apikey.FieldPurpose, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Key(); ok {
 		_spec.SetField(apikey.FieldKey, field.TypeString, value)

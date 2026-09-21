@@ -41,9 +41,17 @@ RUN --mount=type=cache,id=sub2api-pnpm-store,target=/root/.local/share/pnpm/stor
 # relative imports resolve exactly as they do in a local production build.
 # Copy only the required legal subtree plus the reviewed homepage asset.
 COPY frontend/ ./
+COPY shared/ /app/shared/
 COPY docs/legal/ /app/docs/legal/
 COPY aivoza-home-pixel.html /app/aivoza-home-pixel.html
 RUN pnpm run build
+
+WORKDIR /app/image-studio
+COPY image-studio/package.json image-studio/package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY image-studio/ ./
+COPY shared/ /app/shared/
+RUN npm run build
 
 # -----------------------------------------------------------------------------
 # Stage 2: Backend Builder

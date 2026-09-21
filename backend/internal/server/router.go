@@ -132,6 +132,7 @@ func registerRoutes(
 	// 注册各模块路由
 	routes.RegisterAuthRoutes(v1, h, jwtAuth, auditLog, redisClient, settingService, cfg, publicAccessGuard, authIPBanService, panelRateLimiter)
 	routes.RegisterUserRoutes(v1, h, jwtAuth, auditLog, settingService, panelRateLimiter)
+	routes.RegisterImageStudioRoutes(v1, h, jwtAuth, adminAuth, auditLog, panelRateLimiter, apiKeyAuth, apiKeyGroupResolver, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg)
 	routes.RegisterModelPlazaRoutes(v1, h, optionalJWTAuth, settingService, panelRateLimiter)
 	routes.RegisterAdminRoutes(v1, h, adminAuth, auditLog, stepUpAuth, settingService, panelRateLimiter)
 	routes.RegisterGatewayRoutes(r, h, apiKeyAuth, apiKeyGroupResolver, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg)

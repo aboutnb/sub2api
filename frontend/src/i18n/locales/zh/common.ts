@@ -199,6 +199,7 @@ export default {
     communityGroup: '交流群',
     apiKeys: 'API 密钥',
     batchImage: '批量生图',
+    imageStudio: 'AI 绘图',
     usage: '使用记录',
     redeem: '兑换',
     checkin: '签到中心',

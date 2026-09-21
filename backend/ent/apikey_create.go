@@ -73,6 +73,20 @@ func (_c *APIKeyCreate) SetUserID(v int64) *APIKeyCreate {
 	return _c
 }
 
+// SetPurpose sets the "purpose" field.
+func (_c *APIKeyCreate) SetPurpose(v string) *APIKeyCreate {
+	_c.mutation.SetPurpose(v)
+	return _c
+}
+
+// SetNillablePurpose sets the "purpose" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillablePurpose(v *string) *APIKeyCreate {
+	if v != nil {
+		_c.SetPurpose(*v)
+	}
+	return _c
+}
+
 // SetKey sets the "key" field.
 func (_c *APIKeyCreate) SetKey(v string) *APIKeyCreate {
 	_c.mutation.SetKey(v)
@@ -383,6 +397,10 @@ func (_c *APIKeyCreate) defaults() error {
 		v := apikey.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.Purpose(); !ok {
+		v := apikey.DefaultPurpose
+		_c.mutation.SetPurpose(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := apikey.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -432,6 +450,14 @@ func (_c *APIKeyCreate) check() error {
 	}
 	if _, ok := _c.mutation.UserID(); !ok {
 		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "APIKey.user_id"`)}
+	}
+	if _, ok := _c.mutation.Purpose(); !ok {
+		return &ValidationError{Name: "purpose", err: errors.New(`ent: missing required field "APIKey.purpose"`)}
+	}
+	if v, ok := _c.mutation.Purpose(); ok {
+		if err := apikey.PurposeValidator(v); err != nil {
+			return &ValidationError{Name: "purpose", err: fmt.Errorf(`ent: validator failed for field "APIKey.purpose": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.Key(); !ok {
 		return &ValidationError{Name: "key", err: errors.New(`ent: missing required field "APIKey.key"`)}
@@ -522,6 +548,10 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(apikey.FieldDeletedAt, field.TypeTime, value)
 		_node.DeletedAt = &value
+	}
+	if value, ok := _c.mutation.Purpose(); ok {
+		_spec.SetField(apikey.FieldPurpose, field.TypeString, value)
+		_node.Purpose = value
 	}
 	if value, ok := _c.mutation.Key(); ok {
 		_spec.SetField(apikey.FieldKey, field.TypeString, value)
@@ -736,6 +766,18 @@ func (u *APIKeyUpsert) SetUserID(v int64) *APIKeyUpsert {
 // UpdateUserID sets the "user_id" field to the value that was provided on create.
 func (u *APIKeyUpsert) UpdateUserID() *APIKeyUpsert {
 	u.SetExcluded(apikey.FieldUserID)
+	return u
+}
+
+// SetPurpose sets the "purpose" field.
+func (u *APIKeyUpsert) SetPurpose(v string) *APIKeyUpsert {
+	u.Set(apikey.FieldPurpose, v)
+	return u
+}
+
+// UpdatePurpose sets the "purpose" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdatePurpose() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldPurpose)
 	return u
 }
 
@@ -1154,6 +1196,20 @@ func (u *APIKeyUpsertOne) SetUserID(v int64) *APIKeyUpsertOne {
 func (u *APIKeyUpsertOne) UpdateUserID() *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.UpdateUserID()
+	})
+}
+
+// SetPurpose sets the "purpose" field.
+func (u *APIKeyUpsertOne) SetPurpose(v string) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetPurpose(v)
+	})
+}
+
+// UpdatePurpose sets the "purpose" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdatePurpose() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdatePurpose()
 	})
 }
 
@@ -1792,6 +1848,20 @@ func (u *APIKeyUpsertBulk) SetUserID(v int64) *APIKeyUpsertBulk {
 func (u *APIKeyUpsertBulk) UpdateUserID() *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.UpdateUserID()
+	})
+}
+
+// SetPurpose sets the "purpose" field.
+func (u *APIKeyUpsertBulk) SetPurpose(v string) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetPurpose(v)
+	})
+}
+
+// UpdatePurpose sets the "purpose" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdatePurpose() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdatePurpose()
 	})
 }
 

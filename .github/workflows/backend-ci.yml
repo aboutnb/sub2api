@@ -78,6 +78,12 @@ jobs:
           make test-frontend
           pnpm --dir frontend exec vitest run
           pnpm --dir frontend run build
+      - name: Image studio tests and production build
+        working-directory: image-studio
+        run: |
+          npm ci --ignore-scripts
+          npm test
+          npm run build
 
   golangci-lint:
     runs-on: ubuntu-latest

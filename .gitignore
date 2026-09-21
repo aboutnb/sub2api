@@ -169,3 +169,4 @@ output/
 
 # Python deployment verification caches
 __pycache__/
+.playwright-cli/

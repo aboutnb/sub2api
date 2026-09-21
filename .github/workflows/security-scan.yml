@@ -56,3 +56,8 @@ jobs:
           python tools/check_pnpm_audit_exceptions.py \
             --audit frontend/audit.json \
             --exceptions .github/audit-exceptions.yml
+      - name: Check image studio production dependencies
+        working-directory: image-studio
+        run: |
+          npm ci --ignore-scripts
+          npm audit --omit=dev --audit-level=high

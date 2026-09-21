@@ -7333,6 +7333,8 @@
           </div>
         </div>
 
+        <ImageStudioSettings />
+
         <div class="card">
           <div class="border-b border-line px-6 py-4 dark:border-line">
             <h2 class="text-lg font-semibold text-ink-strong dark:text-white">
@@ -9421,6 +9423,7 @@ import PaymentProviderDialog from "@/components/payment/PaymentProviderDialog.vu
 import GroupBadge from "@/components/common/GroupBadge.vue";
 import GroupOptionItem from "@/components/common/GroupOptionItem.vue";
 import Toggle from "@/components/common/Toggle.vue";
+import ImageStudioSettings from "@/components/admin/ImageStudioSettings.vue";
 import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";

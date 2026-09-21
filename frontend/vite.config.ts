@@ -169,6 +169,11 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: devPort,
       proxy: {
+        '/image-studio-app': {
+          target: env.VITE_IMAGE_STUDIO_DEV_URL || 'http://127.0.0.1:5174',
+          changeOrigin: true,
+          ws: true
+        },
         '/api': {
           target: backendUrl,
           changeOrigin: true

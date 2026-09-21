@@ -81,10 +81,14 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 	if k == nil {
 		return nil
 	}
+	credential := k.Key
+	if k.Purpose == service.ImageStudioKeyPurpose || service.IsImageStudioCredential(credential) {
+		credential = ""
+	}
 	out := &APIKey{
 		ID:                 k.ID,
 		UserID:             k.UserID,
-		Key:                k.Key,
+		Key:                credential,
 		Name:               k.Name,
 		GroupID:            k.GroupID,
 		Status:             k.Status,

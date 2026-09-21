@@ -222,6 +222,7 @@ by the coverage contract test so new overlays cannot ship unrecorded.
 - `frontend/src/components/keys/UseKeyModal.vue`
 - `frontend/src/components/keys/BulkEditKeysModal.vue`
 - `frontend/src/components/layout/AppSidebar.vue`
+- `frontend/src/views/user/ImageStudioView.vue`
 - `frontend/src/components/layout/SupportContact.vue`
 - `frontend/src/components/admin/SupportContactsEditor.vue`
 - `frontend/src/components/payment/PaymentProviderDialog.vue`

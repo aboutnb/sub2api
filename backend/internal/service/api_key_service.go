@@ -397,6 +397,9 @@ func (s *APIKeyService) GenerateKey() (string, error) {
 
 // ValidateCustomKey 验证自定义API Key格式
 func (s *APIKeyService) ValidateCustomKey(key string) error {
+	if IsImageStudioCredential(key) {
+		return ErrAPIKeyInvalidChars
+	}
 	// 检查长度
 	if len(key) < 16 {
 		return ErrAPIKeyTooShort
@@ -693,6 +696,9 @@ func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) 
 	if err != nil {
 		return nil, fmt.Errorf("get api key: %w", err)
 	}
+	if apiKey.Purpose == ImageStudioKeyPurpose {
+		return nil, ErrAPIKeyNotFound
+	}
 	s.compileAPIKeyIPRules(apiKey)
 	if apiKey != nil {
 		apiKey.CurrentConcurrency = s.currentConcurrencyForAPIKey(ctx, apiKey.ID)
@@ -702,6 +708,17 @@ func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) 
 
 // GetByKey 根据Key字符串获取API Key（用于认证）
 func (s *APIKeyService) GetByKey(ctx context.Context, key string) (*APIKey, error) {
+	if IsImageStudioCredential(key) && ctx.Value(imageStudioCredentialContextKey{}) != key {
+		return nil, ErrAPIKeyNotFound
+	}
+	apiKey, err := s.getByKey(ctx, key)
+	if err == nil && apiKey != nil && apiKey.Purpose == ImageStudioKeyPurpose && ctx.Value(imageStudioCredentialContextKey{}) != key {
+		return nil, ErrAPIKeyNotFound
+	}
+	return apiKey, err
+}
+
+func (s *APIKeyService) getByKey(ctx context.Context, key string) (*APIKey, error) {
 	if len(key) == 0 || len(key) > MaxAPIKeyCredentialBytes {
 		return nil, ErrAPIKeyNotFound
 	}
@@ -766,6 +783,9 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 	}
 
 	// 验证所有权
+	if apiKey.Purpose == ImageStudioKeyPurpose {
+		return nil, ErrAPIKeyNotFound
+	}
 	if apiKey.UserID != userID {
 		return nil, ErrInsufficientPerms
 	}
@@ -918,6 +938,9 @@ func (s *APIKeyService) Delete(ctx context.Context, id int64, userID int64) erro
 	key, ownerID, err := s.apiKeyRepo.GetKeyAndOwnerID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("get api key: %w", err)
+	}
+	if IsImageStudioCredential(key) {
+		return ErrAPIKeyNotFound
 	}
 
 	// 验证当前用户是否为该 API Key 的所有者

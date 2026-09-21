@@ -103,6 +103,10 @@ func (s *FrontendServer) Middleware() gin.HandlerFunc {
 		}
 
 		// For index.html or SPA routes, serve with injected settings
+		if strings.HasPrefix(cleanPath, "image-studio-app/") && !s.fileExists(cleanPath) {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
 		if cleanPath == "index.html" || !s.fileExists(cleanPath) {
 			s.serveIndexHTML(c)
 			return
@@ -121,7 +125,7 @@ func (s *FrontendServer) Middleware() gin.HandlerFunc {
 }
 
 func (s *FrontendServer) fileExists(path string) bool {
-	file, err := s.distFS.Open(path)
+	file, err := s.distFS.Open(strings.TrimSuffix(path, "/"))
 	if err != nil {
 		return false
 	}
@@ -330,7 +334,7 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 			cleanPath = "index.html"
 		}
 
-		if file, err := distFS.Open(cleanPath); err == nil {
+		if file, err := distFS.Open(strings.TrimSuffix(cleanPath, "/")); err == nil {
 			_ = file.Close()
 			// Try local override first
 			if tryServeOverrideFile(c, overrideDir, cleanPath) {
@@ -342,6 +346,10 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 			return
 		}
 
+		if strings.HasPrefix(cleanPath, "image-studio-app/") {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
 		serveIndexHTML(c, distFS)
 	}
 }

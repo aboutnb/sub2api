@@ -199,6 +199,7 @@ export default {
     communityGroup: 'Community',
     apiKeys: 'API Keys',
     batchImage: 'Batch Images',
+    imageStudio: 'AI Image Studio',
     usage: 'Usage',
     redeem: 'Redeem',
     checkin: 'Check-in Center',
