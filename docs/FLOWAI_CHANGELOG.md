@@ -1,5 +1,16 @@
 # FlowAI 分支变更台账
 
+### 2026-09-24 v0.2.8 已完成 23 服务器发布
+
+- 发布源码 `6c9a9edb91be6c6fc71eef41bbe46e7685d66e99`；GitHub CI `35963082397`（含集成测试与 lint）、Security Scan `35963082357`、Aivoza Image `35963859072` 均成功且 SHA 一致。本地后端完整 unit、前端 2712 测试、图片工作台 565 测试、两套生产构建及严格契约通过。
+- 镜像 `ghcr.io/aboutnb/aivoza-sub2api:sha-6c9a9edb91be`，生产固定 `sha256:6ef8397aedb4733ad12cfcee106a060342de2940a6c785eb7f9375824301b5ea`；已核验 amd64 与完整源码标签。
+- Termius 蓝绿 prepare/promote 完成，当前 flowai-app 在回环端口 3009，上一版 `flowai-app-rollback-1c0133f0d69a` 在 3008；发布状态、实际镜像及 Caddy 路由一致。PostgreSQL、Redis、GM、Mihomo、Caddy 启动时间均未变化，新旧应用健康。
+- 238b/239/240 三条新增迁移已登记，SHA256 分别为 `420af91eec85bdb60474640612a0f4d069db6ddfb21e6ed702b89713f3599287`、`66feb546785dfa385d8efd268a40276cd8ffdb0cead7026cd79e339a3b69edf1`、`3823bfea5f64feb58f5fcebc341c6877eaefc97834b4cd652c8e83ad08ed78da`，与源码去首尾空白后的校验和一致。启动前再次确认旧分组/渠道倍率命中均为 0；镜像回滚不撤销迁移，蓝绿并存期不调整推理倍率。
+- 两个公网域名均返回 0.2.8；主站登录 200、美国 API 域名登录 404（既有配置）、未认证用户接口均 401。候选工作台入口 200、缺失资源 404、未认证 bootstrap 401，公网工作台入口 200。生产工作台开关实查为 true，本次未修改开关，未执行真实生成或支付。
+- 切换期间 Python urllib 对主域名 30 次均被 Cloudflare 返回 403/1010，美国域名 30 次均为 200；不能宣称全程探测零失败。随后同服务器 curl 对两个公网域名连续 60 次全部 200，主域名源站 HTTPS 直连健康正常，本机另行确认公网版本 0.2.8。未更改 Cloudflare 安全策略。新应用日志未匹配到 panic/fatal、迁移失败或校验和错误。
+- 备份 `/root/flowai/backups/aivoza-v028-20260924` 包含 450 MB PostgreSQL custom dump（TOC 校验通过）、应用/Mihomo 状态、Redis RDB（4437 keys，redis-check-rdb 通过）、配置和旧容器元数据。初次含活跃日志的 tar 返回文件变化提示，随后排除日志重新生成并校验 `app-state.tar.gz`。回滚状态 `state/aivoza-v028-6c9a9edb91be.json` 含敏感配置，不公开输出。
+- 更早的 `7f5910da3385` 容器入站 HTTP 连接为 0 后已无限等待优雅停止并移除，确认无容器引用后删除 `e50e929269db` 旧应用镜像。仅保留当前及上一版，不动备份、数据卷和无关服务。
+
 ### 2026-09-24 v0.2.8 发布候选（尚未部署）
 
 - 从 main `9b6b7259c3d116d784347cd44823f4457c70dc32` 审阅上游 `a3eb7ef302961cba716dc78b39b93b60c467db0e`，237 个新增提交、473 个文件变化。复用现有 main 工作区，原历史工作区未提交修改不纳入本次发布。
