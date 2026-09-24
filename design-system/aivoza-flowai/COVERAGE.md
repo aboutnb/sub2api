@@ -9,6 +9,12 @@ remain usable.
 
 ## Verification matrix
 
+### v0.2.8 surfaces
+
+- `frontend/src/views/admin/affiliates/AffiliateOfflineWithdrawDialog.vue`: offline withdrawal dialog, null order values and idempotent submission.
+- `frontend/src/views/admin/ops/components/LogRetentionSelect.vue`: delegates to the theme-aware Select and input controls.
+- `frontend/src/components/account/OpenAIReferralCell.vue`: referral detail overlay and loading/error states.
+
 | Dimension | Required variants |
 | --- | --- |
 | Theme | Light, dark, initial system preference, persisted explicit preference |

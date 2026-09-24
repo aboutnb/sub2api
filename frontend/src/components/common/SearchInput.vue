@@ -8,7 +8,7 @@
       <input
         :id="inputId"
         :name="name"
-        :value="modelValue"
+        v-model="searchValue"
         type="search"
         class="input w-full pl-10"
         :placeholder="placeholder"
@@ -16,7 +16,6 @@
         :autocomplete="autocomplete"
         :aria-label="ariaLabel || (!label ? placeholder : undefined)"
         :aria-describedby="hint ? hintId : undefined"
-        @input="handleInput"
       />
     </div>
     <p v-if="hint" :id="hintId" class="input-hint mt-1.5">{{ hint }}</p>
@@ -59,10 +58,12 @@ const debouncedEmitSearch = useDebounceFn((value: string) => {
   emit('search', value)
 }, props.debounceMs)
 
-const handleInput = (event: Event) => {
-  if (props.disabled) return
-  const value = (event.target as HTMLInputElement).value
-  emit('update:modelValue', value)
-  debouncedEmitSearch(value)
-}
+const searchValue = computed({
+  get: () => props.modelValue,
+  set: (value: string) => {
+    if (props.disabled) return
+    emit('update:modelValue', value)
+    debouncedEmitSearch(value)
+  }
+})
 </script>

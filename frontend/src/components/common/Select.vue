@@ -87,6 +87,7 @@
             class="select-options"
             ref="optionsListRef"
             role="listbox"
+            tabindex="-1"
             :aria-labelledby="triggerId"
           >
             <div
@@ -361,6 +362,12 @@ const findPrevEnabledIndex = (startIndex: number): number => {
   return -1
 }
 
+watch(filteredOptions, () => {
+  if (!isOpen.value) return
+  focusedIndex.value = findNextEnabledIndex(0)
+  if (focusedIndex.value >= 0) scrollToFocused()
+})
+
 const handleOptionMouseEnter = (option: any, index: number) => {
   if (!isOptionNavigable(option)) return
   focusedIndex.value = index
@@ -412,6 +419,8 @@ watch(isOpen, (open) => {
 
     if (isSearchable.value) {
       nextTick(() => searchInputRef.value?.focus())
+    } else {
+      nextTick(() => optionsListRef.value?.focus())
     }
     // Add scroll listener to update position
     window.addEventListener('scroll', updateTriggerRect, { capture: true, passive: true })

@@ -255,7 +255,7 @@ bd3b7b205 又恢复为 DESC。本分支现再次明确采用“1 最高、数值
 ## 6. Aivoza 主线与连续服务发布
 
 - 日常开发、上游同步和发布统一复用 `main`，不为每次工作创建分支。旧 sub2api-flowai 与主题分支保留历史，不再作为发布源。
-- 上游已审基线记录在 `.github/aivoza-upstream-ref`，当前为 0.2.7 的 `1a9d49e16f7a22c432b428fce4af8d731f1fa364`。在 main 审阅并合并明确的上游 SHA 后更新该文件；CI 不追逐移动中的上游。
+- 上游已审基线记录在 `.github/aivoza-upstream-ref`，当前为 0.2.8 的 `a3eb7ef302961cba716dc78b39b93b60c467db0e`。在 main 审阅并合并明确的上游 SHA 后更新该文件；CI 不追逐移动中的上游。
 - CI 与 Security Scan 必须在同一 main SHA 成功，然后 Aivoza Image 构建 linux/amd64 镜像 `ghcr.io/aboutnb/aivoza-sub2api:sha-<sha12>`；生产使用对应 digest。
 - 保留 BUILD_TYPE=source，避免内置上游二进制更新覆盖自定义版。版本文件对应已合入的上游版本，Aivoza 发布身份由仓库、镜像名及源码 SHA 确定。
 - 23 的 `/root/flowai/deploy/.env` 和持久化数据目录保持原生产配置。发布前在线备份 PostgreSQL、应用配置及数据，记录镜像和依赖容器启动时间。
