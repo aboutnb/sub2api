@@ -627,6 +627,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+| 2026-09-29 | `173eb0aa3034c053972d2590ceb04e1d28f0dea4` | 修复教程组件全角空格和事务 rollback errcheck；保持发布与权限语义 | CI 修复 |
 | 2026-09-29 | `0b7ab5f1cec997440fd851282ab8558c9e3c6e1a` | 教程发布管理、共享客户端配置、工作台提示词优化和跨平台托管路由；初始化事务保护，保留授权/计费及上游修复；新增 240_help_documents 至 254_smart_route_cross_platform，验证见本日候选记录 | 功能整合 |
 | 2026-09-24 | `d75d183871a2d7e08e7a7fe531f395e5dac2a6c9` | 记录 0.2.8 生产镜像、备份、蓝绿切换与验收；无业务代码变更 | 发布记录 |
 | 2026-09-21 | `d2a747d7e7ba24bf9d6ce9e4a4dfee32aa3bdfbc` | 显式忽略 multipart 校验后临时文件清理错误，保持原行为并通过 errcheck | 图片工作台/CI |
