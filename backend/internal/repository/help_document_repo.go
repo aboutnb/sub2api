@@ -79,7 +79,7 @@ func (r *helpDocumentRepository) Mutate(ctx context.Context, id int64, change fu
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	e, err := tx.HelpDocument.Query().Where(helpdocument.IDEQ(id)).ForUpdate().Only(ctx)
 	if err != nil {
 		return nil, helpDocumentError(err)
