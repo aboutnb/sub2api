@@ -1017,6 +1017,30 @@ var (
 			},
 		},
 	}
+	// HelpDocumentsColumns holds the columns for the "help_documents" table.
+	HelpDocumentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "slug", Type: field.TypeString, Unique: true, Size: 160},
+		{Name: "title", Type: field.TypeString, Size: 240},
+		{Name: "category", Type: field.TypeString, Size: 60},
+		{Name: "summary", Type: field.TypeString, Nullable: true, Size: 1000},
+		{Name: "content_markdown", Type: field.TypeString, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "selector_schema", Type: field.TypeJSON, Nullable: true},
+		{Name: "published_snapshot", Type: field.TypeJSON, Nullable: true},
+		{Name: "publication_history", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "draft"},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "published_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_by", Type: field.TypeInt64, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// HelpDocumentsTable holds the schema information for the "help_documents" table.
+	HelpDocumentsTable = &schema.Table{
+		Name:       "help_documents",
+		Columns:    HelpDocumentsColumns,
+		PrimaryKey: []*schema.Column{HelpDocumentsColumns[0]},
+	}
 	// IdempotencyRecordsColumns holds the columns for the "idempotency_records" table.
 	IdempotencyRecordsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -2154,6 +2178,7 @@ var (
 		CompositeModelRoutesTable,
 		ErrorPassthroughRulesTable,
 		GroupsTable,
+		HelpDocumentsTable,
 		IdempotencyRecordsTable,
 		IdentityAdoptionDecisionsTable,
 		InvoiceApplicationsTable,
@@ -2245,6 +2270,9 @@ func init() {
 	}
 	GroupsTable.Annotation = &entsql.Annotation{
 		Table: "groups",
+	}
+	HelpDocumentsTable.Annotation = &entsql.Annotation{
+		Table: "help_documents",
 	}
 	IdempotencyRecordsTable.Annotation = &entsql.Annotation{
 		Table: "idempotency_records",

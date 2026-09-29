@@ -52,7 +52,7 @@ import { showBrowserNotification } from './lib/browserNotification'
 import { IMAGE_FETCH_CORS_HINT } from './lib/imageApiShared'
 import { getFalErrorMessage, getFalQueuedImageResult } from './lib/falAiImageApi'
 import { getCustomQueuedImageResult } from './lib/openaiCompatibleImageApi'
-import { studioStorageNamespace } from './lib/studioBridge'
+import { optimizeStudioPrompt, studioStorageNamespace } from './lib/studioBridge'
 import { validateMaskMatchesImage } from './lib/canvasImage'
 import { orderInputImagesForMask } from './lib/mask'
 import { getChangedParams, normalizeParamsForSettings } from './lib/paramCompatibility'
@@ -1063,7 +1063,10 @@ function genId(): string {
 
 function getPersistableTask(task: TaskRecord): TaskRecord {
   const rawResponsePayload = getPersistableRawResponsePayload(task.rawResponsePayload)
-  return rawResponsePayload === task.rawResponsePayload ? task : { ...task, rawResponsePayload }
+  if (!task.promptOptimizing && rawResponsePayload === task.rawResponsePayload) return task
+  const next: TaskRecord = { ...task, rawResponsePayload }
+  delete next.promptOptimizing
+  return next
 }
 
 function putTask(task: TaskRecord): Promise<IDBValidKey> {
@@ -1142,7 +1145,7 @@ export function taskMatchesFilterStatus(task: TaskRecord, filterStatus: AppState
 export function taskMatchesSearchQuery(task: TaskRecord, query: string) {
   const q = query.trim().toLowerCase()
   if (!q) return true
-  const prompt = (task.prompt || '').toLowerCase()
+  const prompt = [task.prompt, task.originalPrompt, task.promptOptimizerModel, task.promptOptimizerGroup].filter(Boolean).join('\n').toLowerCase()
   const paramStr = JSON.stringify(task.params).toLowerCase()
   const errorStr = [task.error, ...(task.outputErrors ?? []).map((item) => item.error)].filter(Boolean).join('\n').toLowerCase()
   return prompt.includes(q) || paramStr.includes(q) || errorStr.includes(q)
@@ -3554,9 +3557,32 @@ async function executeTask(taskId: string) {
       if (!maskDataUrl) throw new Error('遮罩图片已不存在')
     }
 
-    const requestPrompt = task.transparentOutput && task.transparentPrompt
-      ? task.transparentPrompt
-      : task.prompt
+    let requestPrompt = task.prompt
+    if (activeProfile.id.startsWith('studio:') && !task.promptOptimized && task.sourceMode !== 'agent') {
+      updateTaskInStore(taskId, { promptOptimizing: true })
+      try {
+        const optimization = await optimizeStudioPrompt(activeProfile.id, task.prompt)
+        if (optimization.optimized) {
+          requestPrompt = optimization.prompt
+          updateTaskInStore(taskId, {
+            prompt: optimization.prompt,
+            originalPrompt: task.prompt,
+            promptOptimized: true,
+            promptOptimizerModel: optimization.model,
+            promptOptimizerGroup: optimization.group,
+            promptOptimizing: false,
+          })
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        if (message === 'Aborted') throw err
+        useStore.getState().showToast('提示词优化失败，已使用原始提示词', 'error')
+      } finally {
+        const latest = useStore.getState().tasks.find((item) => item.id === taskId)
+        if (latest?.promptOptimizing) updateTaskInStore(taskId, { promptOptimizing: false })
+      }
+    }
+    if (task.transparentOutput && task.transparentPrompt) requestPrompt = createTransparentOutputMeta(requestPrompt).effectivePrompt
 
     const result = await callImageApi({
       settings: requestSettings,
@@ -3832,6 +3858,10 @@ export async function retryTask(task: TaskRecord) {
   const newTask: TaskRecord = {
     id: taskId,
     prompt: task.prompt,
+    originalPrompt: task.originalPrompt,
+    promptOptimized: task.promptOptimized,
+    promptOptimizerModel: task.promptOptimizerModel,
+    promptOptimizerGroup: task.promptOptimizerGroup,
     params: taskParams,
     apiProvider: activeProfile.provider,
     apiProfileId: activeProfile.id,

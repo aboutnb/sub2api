@@ -193,10 +193,11 @@ export default {
 
   // Navigation
   nav: {
+    helpCenter: 'Guides',
+    helpDocuments: 'Help Documents',
     dashboard: 'Dashboard',
     announcements: 'Announcements',
     emailBroadcasts: 'Email Broadcasts',
-    communityGroup: 'Community',
     apiKeys: 'API Keys',
     batchImage: 'Batch Images',
     imageStudio: 'AI Image Studio',

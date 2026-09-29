@@ -172,6 +172,29 @@
     --av-radius-lg: var(--av-radius-overlay);
     --av-focus: var(--av-color-focus-ring);
     --av-grid: var(--av-color-grid-pattern);
+
+    /* Tutorial mock surfaces. Neutrals follow the site theme; client accents stay local. */
+    --scene-bg: var(--av-color-bg-surface);
+    --scene-fg: var(--av-color-text-strong);
+    --scene-muted: var(--av-color-text-muted);
+    --scene-faint: color-mix(in srgb, var(--av-color-text-muted) 82%, var(--av-color-text-default));
+    --scene-line: var(--av-color-border-strong);
+    --scene-line-soft: var(--av-color-border-default);
+    --scene-panel: var(--av-color-bg-surface-muted);
+    --scene-chip: color-mix(in srgb, var(--av-color-bg-surface-muted) 72%, var(--av-color-border-strong));
+    --scene-input: var(--av-color-bg-surface);
+    --scene-solid: var(--av-color-text-strong);
+    --scene-solid-fg: var(--av-color-bg-surface);
+    --scene-track: var(--av-color-border-control);
+    --scene-shadow: var(--av-shadow-sm);
+    --scene-knob: #ffffff;
+    --scene-accent-soft: #f0fdf4;
+    --scene-accent-fg: #15803d;
+    --scene-info-soft: #eff6ff;
+    --scene-info-fg: #1d4ed8;
+    --scene-warm-soft: #fef3c7;
+    --scene-violet-soft: #ede9fe;
+    --scene-violet-fg: #6d28d9;
   }
 
   :root.dark {
@@ -238,6 +261,13 @@
     --av-chart-series-11-soft: rgb(34 211 238 / 0.16);
     --av-chart-series-12-soft: rgb(192 132 252 / 0.16);
     --av-shadow: #050914;
+    --scene-accent-soft: rgb(22 163 74 / 0.18);
+    --scene-accent-fg: #86efac;
+    --scene-info-soft: rgb(37 99 235 / 0.22);
+    --scene-info-fg: #93c5fd;
+    --scene-warm-soft: rgb(217 119 6 / 0.2);
+    --scene-violet-soft: rgb(139 92 246 / 0.24);
+    --scene-violet-fg: #ddd6fe;
   }
 
   * {
@@ -623,6 +653,15 @@
 
   .input:hover:not(:disabled):not(:focus) {
     border-color: var(--av-color-border-control);
+  }
+
+  select.input {
+    color-scheme: light;
+  }
+
+  .dark select.input,
+  :root.dark select.input {
+    color-scheme: dark;
   }
 
   .dark .input[type='date'],

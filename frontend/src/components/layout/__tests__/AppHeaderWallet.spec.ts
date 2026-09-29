@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   },
   route: {
     name: 'Dashboard',
+    path: '/dashboard',
     params: {},
     meta: { titleKey: 'dashboard.title' },
   },
@@ -23,9 +24,6 @@ const state = vi.hoisted(() => ({
   appStore: {
     mobileOpen: false,
     contactInfo: '',
-    communityGroupName: '',
-    communityGroupIcon: '',
-    communityGroupUrl: '',
     docUrl: '',
     cachedPublicSettings: { custom_menu_items: [] },
     toggleMobileSidebar: vi.fn(),

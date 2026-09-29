@@ -11,6 +11,7 @@ import registrationProtection from './registrationProtection'
 import checkin from './checkin'
 import emailBroadcasts from './emailBroadcasts'
 import plugins from './plugins'
+import helpDocuments from './helpDocuments'
 
 export default {
   ...overview,
@@ -26,4 +27,5 @@ export default {
   ...checkin,
   ...emailBroadcasts,
   ...plugins,
+  ...helpDocuments,
 }

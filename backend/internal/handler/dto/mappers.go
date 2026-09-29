@@ -90,6 +90,7 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 		UserID:             k.UserID,
 		Key:                credential,
 		Name:               k.Name,
+		Purpose:            k.Purpose,
 		GroupID:            k.GroupID,
 		Status:             k.Status,
 		IPWhitelist:        k.IPWhitelist,

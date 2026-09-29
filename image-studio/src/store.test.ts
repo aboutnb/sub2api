@@ -3350,6 +3350,15 @@ describe('agent context for removed outputs', () => {
     expect(taskMatchesFilterStatus(partial, 'error')).toBe(true)
     expect(taskMatchesFilterStatus(partial, 'done')).toBe(true)
     expect(taskMatchesSearchQuery(partial, 'failed to fetch')).toBe(true)
+    expect(taskMatchesSearchQuery(task({
+      prompt: '一只橘色猫咪',
+      originalPrompt: '一只猫',
+      promptOptimizerModel: 'gpt-5.4-mini',
+    }), '一只猫')).toBe(true)
+    expect(taskMatchesSearchQuery(task({
+      prompt: '一只橘色猫咪',
+      promptOptimizerModel: 'gpt-5.4-mini',
+    }), 'gpt-5.4-mini')).toBe(true)
   })
 
   it('clears partial failure markers without deleting successful outputs', async () => {

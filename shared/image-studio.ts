@@ -12,6 +12,21 @@ export interface StudioBootstrap {
     rate_multiplier: number
     models: Array<{ id: string; platform: string; capabilities?: StudioCapabilities }>
   }>
+  prompt_models?: StudioPromptModel[]
+  prompt_route?: {
+    key_id: number
+    name: string
+    channels: number
+    default_model: string
+    default_group: string
+  }
+}
+
+export interface StudioPromptModel {
+  group_id: number
+  group_name: string
+  platform: string
+  model: string
 }
 
 export interface StudioCapabilities {
@@ -38,11 +53,14 @@ export function isStudioRequest(value: unknown): value is StudioRequest {
   if (item.channel !== STUDIO_CHANNEL || typeof item.id !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(item.id)) return false
   if (item.operation === 'bootstrap' || item.operation === 'cancel') return true
   if (item.operation !== 'request' || typeof item.path !== 'string') return false
-  const prefix = /^\/image-studio\/groups\/[1-9]\d*\/images\//
-  if (!prefix.test(item.path)) return false
-  const suffix = item.path.replace(prefix, '')
-  if (item.method === 'GET') return /^tasks\/imgtask_[a-zA-Z0-9_-]+$/.test(suffix) && item.body === undefined
-  if (item.method !== 'POST' || !/^(generations|edits)(\/async)?$/.test(suffix)) return false
+  const group = item.path.match(/^\/image-studio\/groups\/([1-9]\d*)\/(.*)$/)
+  if (!group) return false
+  const suffix = group[2]
+  if (item.method === 'POST' && suffix === 'prompt') return typeof item.body === 'string' && item.body.length <= 20000
+  if (!suffix.startsWith('images/')) return false
+  const imageSuffix = suffix.slice('images/'.length)
+  if (item.method === 'GET') return /^tasks\/imgtask_[a-zA-Z0-9_-]+$/.test(imageSuffix) && item.body === undefined
+  if (item.method !== 'POST' || !/^(generations|edits)(\/async)?$/.test(imageSuffix)) return false
   return typeof item.body === 'string' || (Array.isArray(item.body) && item.body.every((entry) =>
     Array.isArray(entry) && entry.length === 2 && typeof entry[0] === 'string' &&
     (typeof entry[1] === 'string' || entry[1] instanceof Blob)))

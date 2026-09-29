@@ -451,6 +451,9 @@ func (s *APIKeyService) incrementAPIKeyErrorCount(ctx context.Context, userID in
 // 对于订阅类型分组：检查用户是否有有效订阅
 // 对于标准类型分组：使用原有的 AllowedGroups 和 IsExclusive 逻辑
 func (s *APIKeyService) canUserBindGroup(ctx context.Context, user *User, group *Group) bool {
+	if IsImageStudioSmartGroup(group) {
+		return false
+	}
 	// 订阅类型分组：需要有效订阅
 	if group.IsSubscriptionType() {
 		_, err := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, group.ID)
@@ -696,7 +699,7 @@ func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) 
 	if err != nil {
 		return nil, fmt.Errorf("get api key: %w", err)
 	}
-	if apiKey.Purpose == ImageStudioKeyPurpose {
+	if apiKey.Purpose == ImageStudioKeyPurpose && apiKey.GroupID != nil {
 		return nil, ErrAPIKeyNotFound
 	}
 	s.compileAPIKeyIPRules(apiKey)
@@ -783,8 +786,11 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 	}
 
 	// 验证所有权
-	if apiKey.Purpose == ImageStudioKeyPurpose {
+	if apiKey.Purpose == ImageStudioKeyPurpose && apiKey.GroupID != nil {
 		return nil, ErrAPIKeyNotFound
+	}
+	if apiKey.Purpose == ImageStudioKeyPurpose && req.GroupID != nil {
+		return nil, infraerrors.BadRequest("IMAGE_STUDIO_ROUTE_LOCKED", "the image studio route cannot be bound to one group")
 	}
 	if apiKey.UserID != userID {
 		return nil, ErrInsufficientPerms
@@ -1068,6 +1074,9 @@ func (s *APIKeyService) GetAvailableGroups(ctx context.Context, userID int64) ([
 	// 过滤出用户有权限的分组
 	availableGroups := make([]Group, 0)
 	for _, group := range allGroups {
+		if IsImageStudioSmartGroup(&group) {
+			continue
+		}
 		if s.canUserBindGroupInternal(user, &group, subscribedGroupIDs) {
 			availableGroups = append(availableGroups, group)
 		}
@@ -1078,6 +1087,9 @@ func (s *APIKeyService) GetAvailableGroups(ctx context.Context, userID int64) ([
 
 // canUserBindGroupInternal 内部方法，检查用户是否可以绑定分组（使用预加载的订阅数据）
 func (s *APIKeyService) canUserBindGroupInternal(user *User, group *Group, subscribedGroupIDs map[int64]bool) bool {
+	if IsImageStudioSmartGroup(group) {
+		return false
+	}
 	// 订阅类型分组：需要有效订阅
 	if group.IsSubscriptionType() {
 		return subscribedGroupIDs[group.ID]

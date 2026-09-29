@@ -247,6 +247,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/help',
+    name: 'HelpCenter',
+    component: () => import('@/views/user/HelpCenterView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: false, title: 'Help Center', titleKey: 'helpCenter.title' }
+  },
+  {
+    path: '/help/:slug(.*)',
+    name: 'HelpArticle',
+    component: () => import('@/views/user/HelpCenterView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: false, title: 'Help Article', titleKey: 'helpCenter.title' }
+  },
+  {
     path: '/usage',
     name: 'Usage',
     component: () => import('@/views/user/UsageView.vue'),
@@ -591,6 +603,12 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'admin.announcements.title',
       descriptionKey: 'admin.announcements.description'
     }
+  },
+  {
+    path: '/admin/help-docs',
+    name: 'AdminHelpDocuments',
+    component: () => import('@/views/admin/HelpDocumentsView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, title: 'Help Documents', titleKey: 'admin.helpDocuments.title' }
   },
   {
     path: '/admin/email-broadcasts',

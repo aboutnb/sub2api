@@ -41,35 +41,30 @@
         <!-- Announcement Bell -->
         <AnnouncementBell v-if="user" />
 
-        <!-- Community Group Link -->
-        <a
-          v-if="communityGroupUrl"
-          :href="communityGroupUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-          :aria-label="communityGroupName"
-          :title="communityGroupName"
-          class="group flex h-9 min-w-9 flex-shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium text-ink transition-all duration-200 hover:bg-surface-muted hover:text-ink-strong hover:shadow-sm active:scale-[0.98] dark:text-ink-muted dark:hover:bg-dark-700 dark:hover:text-white sm:w-auto sm:px-2.5"
+        <router-link
+          v-if="user"
+          to="/help"
+          data-testid="header-help-center"
+          class="flex h-9 min-h-11 min-w-11 flex-shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium text-ink transition-colors hover:bg-surface-muted hover:text-ink-strong dark:text-ink-muted dark:hover:bg-dark-700 dark:hover:text-white"
+          :class="isHelpActive ? 'bg-surface-muted text-ink-strong dark:bg-dark-700 dark:text-white' : ''"
+          :aria-current="isHelpActive ? 'page' : undefined"
         >
-          <img
-            v-if="communityGroupIcon"
-            :src="communityGroupIcon"
-            alt=""
-            class="h-5 w-5 flex-shrink-0 object-contain opacity-75 transition-opacity duration-200 group-hover:opacity-100"
-          />
           <svg
-            v-else
-            class="h-5 w-5 flex-shrink-0 text-ink-muted transition-colors duration-200 group-hover:text-ink dark:text-ink-muted dark:group-hover:text-gray-200"
-            viewBox="0 0 1024 1024"
+            class="h-4 w-4 flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="1.5"
             aria-hidden="true"
           >
             <path
-              d="M928 585.344c0-67.328-40.832-125.024-98.592-151.456-4.8-170.752-144.288-310.24-317.408-310.24-173.152 0-312.608 137.056-317.408 310.208C136.864 460.32 96 518.016 96 585.344a166.24 166.24 0 0 0 165.92 165.92h4.8c12.032 0 24.064-12 24.064-24.032v-283.744c0-12.032-12.032-24.032-24.064-24.032h-21.632c9.6-137.056 125.024-247.68 266.912-247.68 141.92 0 257.28 110.624 269.344 250.08h-24.096c-12 0-24 12.032-24 24.032V720c-76.96 84.192-182.784 132.288-295.808 132.288-14.432 0-24.032 9.632-24.032 24.032 0 14.432 9.632 24.032 24.032 24.032 127.488 0 247.68-55.328 331.84-149.088 88.96-4.8 158.72-76.928 158.72-165.92zM240.256 700.736a116.384 116.384 0 0 1-96.16-115.392c0-57.696 40.864-105.792 98.592-115.392v230.816h-2.432z m541.088 0v-230.816c55.328 9.632 98.56 57.728 98.56 115.392 0 57.76-43.232 105.856-98.56 115.424z"
-              fill="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"
             />
           </svg>
-          <span class="hidden max-w-28 truncate leading-tight sm:inline">{{ communityGroupName }}</span>
-        </a>
+          <span class="whitespace-nowrap leading-tight">{{ t('nav.helpCenter') }}</span>
+        </router-link>
 
         <!-- Subscription Progress (for users with active subscriptions) -->
         <SubscriptionProgressMini
@@ -400,6 +395,7 @@ const onboardingStore = useOnboardingStore()
 const paymentStore = usePaymentStore()
 
 const user = computed(() => authStore.user)
+const isHelpActive = computed(() => route.path === '/help' || route.path.startsWith('/help/'))
 const dropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const userMenuButtonRef = ref<HTMLButtonElement | null>(null)
@@ -420,12 +416,6 @@ const desktopHeaderMedia = typeof window === 'undefined' || typeof window.matchM
 const isDesktopHeader = ref(desktopHeaderMedia?.matches ?? true)
 const mobileOpen = computed(() => appStore.mobileOpen)
 const contactInfo = computed(() => appStore.contactInfo)
-const communityGroupName = computed(() => appStore.communityGroupName.trim() || t('nav.communityGroup'))
-const communityGroupIcon = computed(() => sanitizeUrl(appStore.communityGroupIcon, {
-  allowRelative: true,
-  allowDataUrl: true
-}))
-const communityGroupUrl = computed(() => sanitizeUrl(appStore.communityGroupUrl))
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const modelPlazaEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza))
 const userSubscriptionsEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.userSubscriptions))

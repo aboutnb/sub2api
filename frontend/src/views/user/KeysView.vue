@@ -117,10 +117,12 @@
 
           <template #cell-key="{ value, row }">
             <div class="flex items-center gap-2">
-              <code class="code text-xs">
+              <span v-if="row.purpose === 'image_studio'" class="text-xs text-ink-muted">{{ t('smartRouting.imageStudioKey') }}</span>
+              <code v-else class="code text-xs">
                 {{ maskApiKey(value) }}
               </code>
               <button
+                v-if="row.purpose !== 'image_studio'"
                 @click="copyToClipboard(value, row.id)"
                 class="rounded-lg p-1 transition-colors hover:bg-surface-muted dark:hover:bg-dark-700"
                 :class="
@@ -144,6 +146,7 @@
           <template #cell-name="{ value, row }">
             <div class="flex items-center gap-1.5">
               <span class="font-medium text-ink-strong dark:text-white">{{ value }}</span>
+              <span v-if="row.purpose === 'image_studio'" class="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ t('smartRouting.imageStudioBadge') }}</span>
               <Icon
                 v-if="row.ip_whitelist?.length > 0 || row.ip_blacklist?.length > 0"
                 name="shield"
@@ -158,12 +161,13 @@
             <button
               v-if="row.routing"
               type="button"
-              class="flex min-h-9 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/25 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+              class="inline-flex max-w-full items-center gap-1.5 rounded-md border border-black/10 bg-white px-2 py-0.5 text-xs font-medium text-ink-strong transition-colors hover:bg-surface-muted dark:border-white/10 dark:bg-surface dark:text-white dark:hover:bg-white/5"
               :title="t('keys.editKey')"
               @click="editKey(row)"
             >
-              <Icon name="sparkles" size="sm" />
-              {{ t('smartRouting.summary', { count: row.routing.candidate_group_ids.length }) }}
+              <Icon name="sparkles" size="xs" class="shrink-0 text-ink-muted" />
+              <span class="truncate">{{ t(row.purpose === 'image_studio' ? 'smartRouting.imageStudioRouteName' : 'smartRouting.smart') }}</span>
+              <span class="shrink-0 rounded bg-black/10 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-ink dark:bg-white/10 dark:text-white">{{ t('smartRouting.groupCount', { count: row.routing.candidate_group_ids.length }) }}</span>
             </button>
             <div v-else class="group/dropdown relative">
               <button
@@ -404,15 +408,26 @@
             <div class="flex items-center gap-1">
               <!-- Use Key Button -->
               <button
+                v-if="row.purpose !== 'image_studio'"
                 @click="openUseKeyModal(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/20 dark:hover:text-green-400"
               >
                 <Icon name="terminal" size="sm" />
                 <span class="text-xs">{{ t('keys.useKey') }}</span>
               </button>
+              <button
+                v-if="row.purpose !== 'image_studio'"
+                type="button"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-cyan-50 hover:text-cyan-600 dark:hover:bg-cyan-900/20 dark:hover:text-cyan-400"
+                :title="t('keys.openHelp')"
+                @click="openHelp(row)"
+              >
+                <Icon name="book" size="sm" />
+                <span class="text-xs">{{ t('keys.openHelp') }}</span>
+              </button>
               <!-- Import to CC Switch Button -->
               <button
-                v-if="!publicSettings?.hide_ccs_import_button"
+                v-if="row.purpose !== 'image_studio' && !publicSettings?.hide_ccs_import_button"
                 @click="importToCcswitch(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
               >
@@ -421,6 +436,7 @@
               </button>
               <!-- Toggle Status Button -->
               <button
+                v-if="row.purpose !== 'image_studio'"
                 @click="toggleKeyStatus(row)"
                 :class="[
                   'flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition-colors',
@@ -443,6 +459,7 @@
               </button>
               <!-- Delete Button -->
               <button
+                v-if="row.purpose !== 'image_studio'"
                 @click="confirmDelete(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
               >
@@ -569,7 +586,7 @@
           </div>
         </div>
 
-        <div v-if="showEditModal">
+        <div v-if="showEditModal && selectedKey?.purpose !== 'image_studio'">
           <label class="input-label">{{ t('keys.statusLabel') }}</label>
           <Select
             v-model="formData.status"
@@ -983,6 +1000,7 @@
       :platform="selectedKey?.group?.platform || null"
       :claude-code-only="selectedKey?.group?.claude_code_only || false"
       :allow-messages-dispatch="selectedKey?.group?.allow_messages_dispatch || false"
+      :group-id="selectedKey?.group?.id"
       @close="closeUseKeyModal"
     />
 
@@ -1106,6 +1124,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useOnboardingStore } from '@/stores/onboarding'
@@ -1154,6 +1173,7 @@ const formatDateTimeLocal = (isoDate: string): string => {
 }
 
 const appStore = useAppStore()
+const router = useRouter()
 const onboardingStore = useOnboardingStore()
 const { copyToClipboard: clipboardCopy } = useClipboard()
 
@@ -1575,6 +1595,11 @@ const loadSmartRoutingStatus = async () => {
 const openUseKeyModal = (key: ApiKey) => {
   selectedKey.value = key
   showUseKeyModal.value = true
+}
+
+const openHelp = (key: ApiKey) => {
+  const client = key.group?.platform === 'openai' ? 'codex' : key.group?.platform === 'gemini' ? 'gemini-cli' : key.group?.platform === 'grok' ? 'grok-cli' : 'claude-code'
+  router.push({ path: '/help/clients/' + client, query: { platform: key.group?.platform || '', group: String(key.group_id || ''), client } })
 }
 
 const closeUseKeyModal = () => {

@@ -25,6 +25,8 @@ func RegisterUserRoutes(
 	// 用户管理面变更类操作入审计（含 TOTP 启用/禁用、step-up 验证、密码修改等安全事件）
 	authenticated.Use(gin.HandlerFunc(auditLog))
 	{
+		authenticated.GET("/help-docs", h.HelpDocument.List)
+		authenticated.GET("/help-docs/*slug", h.HelpDocument.Get)
 		// 用户接口
 		user := authenticated.Group("/user")
 		{
@@ -93,6 +95,7 @@ func RegisterUserRoutes(
 		{
 			groups.GET("/available", h.APIKey.GetAvailableGroups)
 			groups.GET("/rates", h.APIKey.GetUserGroupRates)
+			groups.GET("/:id/help-models", h.APIKey.HelpModels(h.Gateway))
 		}
 
 		// 用户可用渠道（非管理员接口）

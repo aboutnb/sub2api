@@ -19,8 +19,10 @@ describe('useSmartRouteForm', () => {
     form.mode = 'smart'
     form.candidate_group_ids = [1, 2]
     const payload = smartRoutePayload(form)
+    expect(form.cross_platform).toBe(false)
     expect(payload.mode).toBe('smart')
     expect(payload.candidate_group_ids).toEqual([1, 2])
+    expect(payload.cross_platform).toBe(false)
     expect(payload.group_id).toBeUndefined()
   })
 

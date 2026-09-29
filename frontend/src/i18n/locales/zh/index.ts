@@ -8,6 +8,7 @@ import admin from './admin'
 import misc from './misc'
 import checkin from './checkin'
 import smartRouting from './smartRouting'
+import helpCenter from './helpCenter'
 
 export default {
   ...landing,
@@ -20,4 +21,5 @@ export default {
   ...misc,
   ...checkin,
   ...smartRouting,
+  ...helpCenter,
 }

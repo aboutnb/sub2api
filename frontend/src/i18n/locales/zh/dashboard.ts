@@ -66,6 +66,7 @@ export default {
 
   // API Keys
   keys: {
+    openHelp: '使用教程',
     title: 'API 密钥',
     description: '管理您的 API 密钥和访问令牌',
     searchPlaceholder: '搜索名称或Key...',

@@ -22,6 +22,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/compositemodelroute"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/helpdocument"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
 	"github.com/Wei-Shaw/sub2api/ent/invoiceapplication"
@@ -1230,6 +1231,90 @@ func init() {
 	groupDescProfitSafetyBuffer := groupFields[62].Descriptor()
 	// group.DefaultProfitSafetyBuffer holds the default value on creation for the profit_safety_buffer field.
 	group.DefaultProfitSafetyBuffer = groupDescProfitSafetyBuffer.Default.(float64)
+	helpdocumentFields := schema.HelpDocument{}.Fields()
+	_ = helpdocumentFields
+	// helpdocumentDescSlug is the schema descriptor for slug field.
+	helpdocumentDescSlug := helpdocumentFields[0].Descriptor()
+	// helpdocument.SlugValidator is a validator for the "slug" field. It is called by the builders before save.
+	helpdocument.SlugValidator = func() func(string) error {
+		validators := helpdocumentDescSlug.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(slug string) error {
+			for _, fn := range fns {
+				if err := fn(slug); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// helpdocumentDescTitle is the schema descriptor for title field.
+	helpdocumentDescTitle := helpdocumentFields[1].Descriptor()
+	// helpdocument.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	helpdocument.TitleValidator = func() func(string) error {
+		validators := helpdocumentDescTitle.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(title string) error {
+			for _, fn := range fns {
+				if err := fn(title); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// helpdocumentDescCategory is the schema descriptor for category field.
+	helpdocumentDescCategory := helpdocumentFields[2].Descriptor()
+	// helpdocument.CategoryValidator is a validator for the "category" field. It is called by the builders before save.
+	helpdocument.CategoryValidator = func() func(string) error {
+		validators := helpdocumentDescCategory.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(category string) error {
+			for _, fn := range fns {
+				if err := fn(category); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// helpdocumentDescSummary is the schema descriptor for summary field.
+	helpdocumentDescSummary := helpdocumentFields[3].Descriptor()
+	// helpdocument.SummaryValidator is a validator for the "summary" field. It is called by the builders before save.
+	helpdocument.SummaryValidator = helpdocumentDescSummary.Validators[0].(func(string) error)
+	// helpdocumentDescContentMarkdown is the schema descriptor for content_markdown field.
+	helpdocumentDescContentMarkdown := helpdocumentFields[4].Descriptor()
+	// helpdocument.ContentMarkdownValidator is a validator for the "content_markdown" field. It is called by the builders before save.
+	helpdocument.ContentMarkdownValidator = helpdocumentDescContentMarkdown.Validators[0].(func(string) error)
+	// helpdocumentDescStatus is the schema descriptor for status field.
+	helpdocumentDescStatus := helpdocumentFields[8].Descriptor()
+	// helpdocument.DefaultStatus holds the default value on creation for the status field.
+	helpdocument.DefaultStatus = helpdocumentDescStatus.Default.(string)
+	// helpdocument.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	helpdocument.StatusValidator = helpdocumentDescStatus.Validators[0].(func(string) error)
+	// helpdocumentDescVersion is the schema descriptor for version field.
+	helpdocumentDescVersion := helpdocumentFields[9].Descriptor()
+	// helpdocument.DefaultVersion holds the default value on creation for the version field.
+	helpdocument.DefaultVersion = helpdocumentDescVersion.Default.(int)
+	// helpdocumentDescCreatedAt is the schema descriptor for created_at field.
+	helpdocumentDescCreatedAt := helpdocumentFields[12].Descriptor()
+	// helpdocument.DefaultCreatedAt holds the default value on creation for the created_at field.
+	helpdocument.DefaultCreatedAt = helpdocumentDescCreatedAt.Default.(func() time.Time)
+	// helpdocumentDescUpdatedAt is the schema descriptor for updated_at field.
+	helpdocumentDescUpdatedAt := helpdocumentFields[13].Descriptor()
+	// helpdocument.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	helpdocument.DefaultUpdatedAt = helpdocumentDescUpdatedAt.Default.(func() time.Time)
+	// helpdocument.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	helpdocument.UpdateDefaultUpdatedAt = helpdocumentDescUpdatedAt.UpdateDefault.(func() time.Time)
 	idempotencyrecordMixin := schema.IdempotencyRecord{}.Mixin()
 	idempotencyrecordMixinFields0 := idempotencyrecordMixin[0].Fields()
 	_ = idempotencyrecordMixinFields0

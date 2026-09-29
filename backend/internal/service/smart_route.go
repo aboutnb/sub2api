@@ -67,6 +67,9 @@ type SmartRouteInput struct {
 	Strategy          string               `json:"strategy,omitempty"`
 	Weights           *SmartRouteWeights   `json:"weights,omitempty"`
 	RateGuard         *SmartRouteRateGuard `json:"rate_guard,omitempty"`
+	// CrossPlatform lets one key select groups from more than one platform.
+	// Manual routes leave it false and keep the same-platform rule.
+	CrossPlatform bool `json:"cross_platform"`
 }
 
 type SmartRouteConfig struct {
@@ -74,6 +77,8 @@ type SmartRouteConfig struct {
 	Mode              string              `json:"mode"`
 	Platform          string              `json:"platform,omitempty"`
 	SubscriptionType  string              `json:"subscription_type,omitempty"`
+	CrossPlatform     bool                `json:"cross_platform"`
+	PreferPlatform    string              `json:"prefer_platform,omitempty"`
 	CandidateGroupIDs []int64             `json:"candidate_group_ids,omitempty"`
 	Strategy          string              `json:"strategy"`
 	Weights           SmartRouteWeights   `json:"weights"`
@@ -144,6 +149,7 @@ type SmartRouteRepository interface {
 	Get(ctx context.Context, apiKeyID int64) (*SmartRouteConfig, error)
 	GetMany(ctx context.Context, apiKeyIDs []int64) (map[int64]*SmartRouteConfig, error)
 	Replace(ctx context.Context, config *SmartRouteConfig) error
+	Initialize(ctx context.Context, config *SmartRouteConfig) error
 	Delete(ctx context.Context, apiKeyID int64) error
 	GetMetrics(ctx context.Context, groupIDs []int64, model, metric string, start, end time.Time) (map[int64]SmartRouteMetric, error)
 	Invalidate(ctx context.Context, apiKeyID int64)
@@ -303,6 +309,24 @@ func ScoreSmartRouteCandidates(candidates []SmartRouteCandidate, weights SmartRo
 	return candidates
 }
 
+// orderSmartRouteCandidates ranks by score, then moves the preferred platform ahead.
+// Preference does not drop other platforms; they remain as fallbacks.
+func orderSmartRouteCandidates(candidates []SmartRouteCandidate, weights SmartRouteWeights, preferPlatform string) []SmartRouteCandidate {
+	ranked := ScoreSmartRouteCandidates(candidates, weights)
+	if preferPlatform == "" || len(ranked) < 2 {
+		return ranked
+	}
+	sort.SliceStable(ranked, func(i, j int) bool {
+		left := ranked[i].Group != nil && ranked[i].Group.Platform == preferPlatform
+		right := ranked[j].Group != nil && ranked[j].Group.Platform == preferPlatform
+		if left != right {
+			return left
+		}
+		return false
+	})
+	return ranked
+}
+
 func (s *SmartRouteService) Enabled(ctx context.Context) bool {
 	return s != nil && s.settings != nil && s.settings.IsSmartRoutingEnabled(ctx)
 }
@@ -319,6 +343,45 @@ func (s *SmartRouteService) GetConfigs(ctx context.Context, apiKeyIDs []int64) (
 		return map[int64]*SmartRouteConfig{}, nil
 	}
 	return s.repo.GetMany(ctx, apiKeyIDs)
+}
+
+// ImageStudioRouteGroupIDs returns the channels currently saved on the image route.
+func (s *SmartRouteService) ImageStudioRouteGroupIDs(ctx context.Context, apiKeyID int64) ([]int64, error) {
+	if s == nil || s.repo == nil || apiKeyID <= 0 {
+		return nil, nil
+	}
+	config, err := s.repo.Get(ctx, apiKeyID)
+	if err != nil || config == nil {
+		return nil, err
+	}
+	return append([]int64(nil), config.CandidateGroupIDs...), nil
+}
+
+// EnsureImageStudioRoute creates the image-studio route once. Later edits stay intact.
+func (s *SmartRouteService) EnsureImageStudioRoute(ctx context.Context, apiKeyID int64, groups []Group) error {
+	if s == nil || s.repo == nil || apiKeyID <= 0 || len(groups) == 0 {
+		return nil
+	}
+	if len(groups) > SmartRouteMaxCandidates {
+		groups = groups[:SmartRouteMaxCandidates]
+	}
+	weights, _ := SmartRoutePresetWeights(SmartRouteStrategyAuto)
+	ids := make([]int64, len(groups))
+	for i := range groups {
+		ids[i] = groups[i].ID
+	}
+	config := &SmartRouteConfig{
+		APIKeyID: apiKeyID, Mode: SmartRouteModeSmart, Platform: PlatformOpenAI,
+		SubscriptionType: groups[0].SubscriptionType, CrossPlatform: true, PreferPlatform: PlatformOpenAI,
+		CandidateGroupIDs: ids, Strategy: SmartRouteStrategyAuto, Weights: weights,
+		RateGuard: SmartRouteRateGuard{Enabled: false},
+	}
+	if err := s.repo.Initialize(ctx, config); err != nil {
+		return err
+	}
+	s.repo.Invalidate(ctx, apiKeyID)
+	s.invalidateRankings(apiKeyID)
+	return nil
 }
 
 func (s *SmartRouteService) validateSmartGroups(ctx context.Context, userID int64, input SmartRouteInput) (*SmartRouteConfig, error) {
@@ -342,11 +405,11 @@ func (s *SmartRouteService) validateSmartGroups(ctx context.Context, userID int6
 		if platform == "" {
 			platform, subscriptionType = group.Platform, group.SubscriptionType
 		}
-		if group.Platform != platform || group.SubscriptionType != subscriptionType {
-			return nil, ErrSmartRouteInvalid.WithCause(errors.New("candidate groups must use the same platform and billing type"))
+		if group.SubscriptionType != subscriptionType || (!input.CrossPlatform && group.Platform != platform) {
+			return nil, ErrSmartRouteInvalid.WithCause(errors.New("candidate groups must use the same billing type and, unless multi-channel is enabled, the same platform"))
 		}
 	}
-	return &SmartRouteConfig{Mode: SmartRouteModeSmart, Platform: platform, SubscriptionType: subscriptionType, CandidateGroupIDs: append([]int64(nil), input.CandidateGroupIDs...), Strategy: input.Strategy, Weights: *input.Weights, RateGuard: *input.RateGuard}, nil
+	return &SmartRouteConfig{Mode: SmartRouteModeSmart, Platform: platform, SubscriptionType: subscriptionType, CrossPlatform: input.CrossPlatform, CandidateGroupIDs: append([]int64(nil), input.CandidateGroupIDs...), Strategy: input.Strategy, Weights: *input.Weights, RateGuard: *input.RateGuard}, nil
 }
 
 func (s *SmartRouteService) CreateAPIKey(ctx context.Context, userID int64, req CreateAPIKeyRequest, routing *SmartRouteInput) (*APIKey, *SmartRouteConfig, error) {
@@ -362,6 +425,9 @@ func (s *SmartRouteService) CreateAPIKey(ctx context.Context, userID int64, req 
 		req.GroupID = normalized.GroupID
 		key, err := s.apiKeys.Create(ctx, userID, req)
 		return key, nil, err
+	}
+	if normalized.CrossPlatform {
+		return nil, nil, ErrSmartRouteInvalid.WithCause(errors.New("multi-channel routes are created only by image studio"))
 	}
 	if !s.Enabled(ctx) {
 		return nil, nil, ErrSmartRoutingDisabled
@@ -394,13 +460,29 @@ func (s *SmartRouteService) UpdateAPIKey(ctx context.Context, id, userID int64, 
 	var config *SmartRouteConfig
 	var normalized SmartRouteInput
 	var err error
+	existing, err := s.apiKeys.GetByID(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	if existing.UserID != userID {
+		return nil, nil, ErrInsufficientPerms
+	}
+	managed := existing.Purpose == ImageStudioKeyPurpose && existing.GroupID == nil
 	if routing != nil {
 		normalized, err = NormalizeSmartRouteInput(*routing)
 		if err != nil {
 			return nil, nil, err
 		}
+		if managed {
+			if normalized.Mode != SmartRouteModeSmart {
+				return nil, nil, ErrSmartRouteInvalid.WithCause(errors.New("the image studio route stays multi-channel"))
+			}
+			normalized.CrossPlatform = true
+		} else if normalized.CrossPlatform {
+			return nil, nil, ErrSmartRouteInvalid.WithCause(errors.New("multi-channel routes are created only by image studio"))
+		}
 		if normalized.Mode == SmartRouteModeSmart {
-			if !s.Enabled(ctx) {
+			if !managed && !s.Enabled(ctx) {
 				return nil, nil, ErrSmartRoutingDisabled
 			}
 			config, err = s.validateSmartGroups(ctx, userID, normalized)
@@ -408,6 +490,10 @@ func (s *SmartRouteService) UpdateAPIKey(ctx context.Context, id, userID int64, 
 				return nil, nil, err
 			}
 			config.APIKeyID = id
+			if managed {
+				config.CrossPlatform = true
+				config.PreferPlatform = PlatformOpenAI
+			}
 		} else {
 			req.GroupID = normalized.GroupID
 		}
@@ -485,7 +571,7 @@ func (s *SmartRouteService) Resolve(ctx context.Context, apiKey *APIKey, request
 	if request.IsHistoricalBatchImageRead() || request.IsHistoricalImageTaskRead() {
 		return apiKey, config, nil
 	}
-	if !s.Enabled(ctx) {
+	if !s.Enabled(ctx) && apiKey.Purpose != ImageStudioKeyPurpose {
 		return nil, config, ErrSmartRoutingDisabled
 	}
 	if !request.Supported() {
@@ -534,7 +620,10 @@ func (s *SmartRouteService) Resolve(ctx context.Context, apiKey *APIKey, request
 	hadModelSupport := false
 	for position, id := range config.CandidateGroupIDs {
 		group := allowed[id]
-		if group == nil || !group.IsActive() || group.Platform != config.Platform || group.SubscriptionType != config.SubscriptionType || group.Platform == PlatformComposite {
+		if group == nil || !group.IsActive() || group.Platform == PlatformComposite || group.SubscriptionType != config.SubscriptionType {
+			continue
+		}
+		if !config.CrossPlatform && group.Platform != config.Platform {
 			continue
 		}
 		if group.ClaudeCodeOnly && !request.ClaudeCode {
@@ -627,7 +716,7 @@ func (s *SmartRouteService) Resolve(ctx context.Context, apiKey *APIKey, request
 		}
 		return nil, config, ErrSmartRouteUnavailable
 	}
-	ranked := s.snapshotRanking(apiKey.ID, request, epoch, candidates, config.Weights)
+	ranked := s.snapshotRanking(apiKey.ID, request, epoch, candidates, config.Weights, config.PreferPlatform)
 	selected := smartRouteRequestGroup(ranked[0].Group)
 	clone := *apiKey
 	groupID := selected.ID
@@ -636,7 +725,7 @@ func (s *SmartRouteService) Resolve(ctx context.Context, apiKey *APIKey, request
 	return &clone, config, nil
 }
 
-func (s *SmartRouteService) snapshotRanking(apiKeyID int64, request SmartRouteRequest, epoch time.Time, candidates []SmartRouteCandidate, weights SmartRouteWeights) []SmartRouteCandidate {
+func (s *SmartRouteService) snapshotRanking(apiKeyID int64, request SmartRouteRequest, epoch time.Time, candidates []SmartRouteCandidate, weights SmartRouteWeights, preferPlatform string) []SmartRouteCandidate {
 	key := strconv.FormatInt(apiKeyID, 10) + "|" + request.Model + "|" + request.Kind + "|" + strconv.FormatBool(request.Streaming) + "|" + strconv.FormatInt(epoch.Unix(), 10)
 	now := time.Now()
 	s.rankingMu.Lock()
@@ -662,7 +751,7 @@ func (s *SmartRouteService) snapshotRanking(apiKeyID int64, request SmartRouteRe
 	}
 	s.rankingMu.Unlock()
 
-	ranked := ScoreSmartRouteCandidates(candidates, weights)
+	ranked := orderSmartRouteCandidates(candidates, weights, preferPlatform)
 	ids := make([]int64, 0, len(ranked))
 	for i := range ranked {
 		ids = append(ids, ranked[i].Group.ID)

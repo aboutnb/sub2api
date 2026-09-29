@@ -14,7 +14,7 @@ export function setStudioLocale(value: string) {
 
 const english: Record<string, string> = {
   '绘图参数': 'Image parameters',
-  '生图模型': 'Image model', '加载中...': 'Loading...', 'AI 绘图暂未开放': 'Image studio is unavailable',
+  '生图模型': 'Image model', '自动 · OpenAI 优先': 'Auto · OpenAI first', '已创建生图智能路由，可在密钥页修改渠道': 'The image route is ready. Edit its channels from API keys.', '加载中...': 'Loading...', 'AI 绘图暂未开放': 'Image studio is unavailable',
   '当前账号没有可用的生图模型': 'No image models are available for this account',
   '收藏夹': 'Collections', '返回收藏夹': 'Back to collections', '退出收藏夹': 'Exit collections', '管理收藏夹': 'Manage collections',
   '全部': 'All', '已完成': 'Completed', '生成中': 'Generating', '失败': 'Failed', '没有失败记录': 'No failed tasks',
@@ -29,7 +29,7 @@ const english: Record<string, string> = {
   '复用配置': 'Reuse settings', '编辑输出': 'Edit output', '删除任务': 'Delete task', '关闭': 'Close',
   '下载图片': 'Download image', '下载全部': 'Download all', '下载原图': 'Download original', '下载中间步骤图': 'Download intermediate images',
   '下载成功': 'Downloaded', '原图下载成功': 'Original downloaded', '下载失败': 'Download failed',
-  '输入内容': 'Prompt', '参考图': 'Reference images', '参数配置': 'Parameters', '来源': 'Source',
+  '输入内容': 'Prompt', '优化前提示词': 'Original prompt', '优化后提示词': 'Optimized prompt', '优化前': 'Before', '优化后': 'After', '优化模型': 'Optimizer model', '正在优化提示词': 'Optimizing prompt', '复制优化后提示词': 'Copy optimized prompt', '参考图': 'Reference images', '参数配置': 'Parameters', '来源': 'Source',
   '复制提示词': 'Copy prompt', '提示词已复制': 'Prompt copied', '复制参考图': 'Copy reference image', '参考图已复制': 'Reference image copied',
   '复制完整报错': 'Copy error', '完整报错已复制': 'Error copied', '查看原始响应': 'View raw response',
   '复制图片链接': 'Copy image URL', '图片链接已复制': 'Image URL copied', '复制链接': 'Copy URL', '复制': 'Copy', '全部复制': 'Copy all',

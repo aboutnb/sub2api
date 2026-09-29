@@ -29,6 +29,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/compositemodelroute"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/helpdocument"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
 	"github.com/Wei-Shaw/sub2api/ent/invoiceapplication"
@@ -82,6 +83,7 @@ const (
 	TypeCompositeModelRoute           = "CompositeModelRoute"
 	TypeErrorPassthroughRule          = "ErrorPassthroughRule"
 	TypeGroup                         = "Group"
+	TypeHelpDocument                  = "HelpDocument"
 	TypeIdempotencyRecord             = "IdempotencyRecord"
 	TypeIdentityAdoptionDecision      = "IdentityAdoptionDecision"
 	TypeInvoiceApplication            = "InvoiceApplication"
@@ -27853,6 +27855,1238 @@ func (m *GroupMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Group edge %s", name)
+}
+
+// HelpDocumentMutation represents an operation that mutates the HelpDocument nodes in the graph.
+type HelpDocumentMutation struct {
+	config
+	op                        Op
+	typ                       string
+	id                        *int64
+	slug                      *string
+	title                     *string
+	category                  *string
+	summary                   *string
+	content_markdown          *string
+	selector_schema           *map[string]interface{}
+	published_snapshot        **domain.HelpDocumentSnapshot
+	publication_history       *[]domain.HelpDocumentSnapshot
+	appendpublication_history []domain.HelpDocumentSnapshot
+	status                    *string
+	version                   *int
+	addversion                *int
+	published_at              *time.Time
+	updated_by                *int64
+	addupdated_by             *int64
+	created_at                *time.Time
+	updated_at                *time.Time
+	clearedFields             map[string]struct{}
+	done                      bool
+	oldValue                  func(context.Context) (*HelpDocument, error)
+	predicates                []predicate.HelpDocument
+}
+
+var _ ent.Mutation = (*HelpDocumentMutation)(nil)
+
+// helpdocumentOption allows management of the mutation configuration using functional options.
+type helpdocumentOption func(*HelpDocumentMutation)
+
+// newHelpDocumentMutation creates new mutation for the HelpDocument entity.
+func newHelpDocumentMutation(c config, op Op, opts ...helpdocumentOption) *HelpDocumentMutation {
+	m := &HelpDocumentMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeHelpDocument,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withHelpDocumentID sets the ID field of the mutation.
+func withHelpDocumentID(id int64) helpdocumentOption {
+	return func(m *HelpDocumentMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *HelpDocument
+		)
+		m.oldValue = func(ctx context.Context) (*HelpDocument, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().HelpDocument.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withHelpDocument sets the old HelpDocument of the mutation.
+func withHelpDocument(node *HelpDocument) helpdocumentOption {
+	return func(m *HelpDocumentMutation) {
+		m.oldValue = func(context.Context) (*HelpDocument, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m HelpDocumentMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m HelpDocumentMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *HelpDocumentMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *HelpDocumentMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().HelpDocument.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSlug sets the "slug" field.
+func (m *HelpDocumentMutation) SetSlug(s string) {
+	m.slug = &s
+}
+
+// Slug returns the value of the "slug" field in the mutation.
+func (m *HelpDocumentMutation) Slug() (r string, exists bool) {
+	v := m.slug
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSlug returns the old "slug" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldSlug(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSlug is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSlug requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSlug: %w", err)
+	}
+	return oldValue.Slug, nil
+}
+
+// ResetSlug resets all changes to the "slug" field.
+func (m *HelpDocumentMutation) ResetSlug() {
+	m.slug = nil
+}
+
+// SetTitle sets the "title" field.
+func (m *HelpDocumentMutation) SetTitle(s string) {
+	m.title = &s
+}
+
+// Title returns the value of the "title" field in the mutation.
+func (m *HelpDocumentMutation) Title() (r string, exists bool) {
+	v := m.title
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitle returns the old "title" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldTitle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitle: %w", err)
+	}
+	return oldValue.Title, nil
+}
+
+// ResetTitle resets all changes to the "title" field.
+func (m *HelpDocumentMutation) ResetTitle() {
+	m.title = nil
+}
+
+// SetCategory sets the "category" field.
+func (m *HelpDocumentMutation) SetCategory(s string) {
+	m.category = &s
+}
+
+// Category returns the value of the "category" field in the mutation.
+func (m *HelpDocumentMutation) Category() (r string, exists bool) {
+	v := m.category
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCategory returns the old "category" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldCategory(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCategory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCategory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCategory: %w", err)
+	}
+	return oldValue.Category, nil
+}
+
+// ResetCategory resets all changes to the "category" field.
+func (m *HelpDocumentMutation) ResetCategory() {
+	m.category = nil
+}
+
+// SetSummary sets the "summary" field.
+func (m *HelpDocumentMutation) SetSummary(s string) {
+	m.summary = &s
+}
+
+// Summary returns the value of the "summary" field in the mutation.
+func (m *HelpDocumentMutation) Summary() (r string, exists bool) {
+	v := m.summary
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSummary returns the old "summary" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldSummary(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSummary is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSummary requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSummary: %w", err)
+	}
+	return oldValue.Summary, nil
+}
+
+// ClearSummary clears the value of the "summary" field.
+func (m *HelpDocumentMutation) ClearSummary() {
+	m.summary = nil
+	m.clearedFields[helpdocument.FieldSummary] = struct{}{}
+}
+
+// SummaryCleared returns if the "summary" field was cleared in this mutation.
+func (m *HelpDocumentMutation) SummaryCleared() bool {
+	_, ok := m.clearedFields[helpdocument.FieldSummary]
+	return ok
+}
+
+// ResetSummary resets all changes to the "summary" field.
+func (m *HelpDocumentMutation) ResetSummary() {
+	m.summary = nil
+	delete(m.clearedFields, helpdocument.FieldSummary)
+}
+
+// SetContentMarkdown sets the "content_markdown" field.
+func (m *HelpDocumentMutation) SetContentMarkdown(s string) {
+	m.content_markdown = &s
+}
+
+// ContentMarkdown returns the value of the "content_markdown" field in the mutation.
+func (m *HelpDocumentMutation) ContentMarkdown() (r string, exists bool) {
+	v := m.content_markdown
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContentMarkdown returns the old "content_markdown" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldContentMarkdown(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContentMarkdown is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContentMarkdown requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContentMarkdown: %w", err)
+	}
+	return oldValue.ContentMarkdown, nil
+}
+
+// ResetContentMarkdown resets all changes to the "content_markdown" field.
+func (m *HelpDocumentMutation) ResetContentMarkdown() {
+	m.content_markdown = nil
+}
+
+// SetSelectorSchema sets the "selector_schema" field.
+func (m *HelpDocumentMutation) SetSelectorSchema(value map[string]interface{}) {
+	m.selector_schema = &value
+}
+
+// SelectorSchema returns the value of the "selector_schema" field in the mutation.
+func (m *HelpDocumentMutation) SelectorSchema() (r map[string]interface{}, exists bool) {
+	v := m.selector_schema
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSelectorSchema returns the old "selector_schema" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldSelectorSchema(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSelectorSchema is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSelectorSchema requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSelectorSchema: %w", err)
+	}
+	return oldValue.SelectorSchema, nil
+}
+
+// ClearSelectorSchema clears the value of the "selector_schema" field.
+func (m *HelpDocumentMutation) ClearSelectorSchema() {
+	m.selector_schema = nil
+	m.clearedFields[helpdocument.FieldSelectorSchema] = struct{}{}
+}
+
+// SelectorSchemaCleared returns if the "selector_schema" field was cleared in this mutation.
+func (m *HelpDocumentMutation) SelectorSchemaCleared() bool {
+	_, ok := m.clearedFields[helpdocument.FieldSelectorSchema]
+	return ok
+}
+
+// ResetSelectorSchema resets all changes to the "selector_schema" field.
+func (m *HelpDocumentMutation) ResetSelectorSchema() {
+	m.selector_schema = nil
+	delete(m.clearedFields, helpdocument.FieldSelectorSchema)
+}
+
+// SetPublishedSnapshot sets the "published_snapshot" field.
+func (m *HelpDocumentMutation) SetPublishedSnapshot(dds *domain.HelpDocumentSnapshot) {
+	m.published_snapshot = &dds
+}
+
+// PublishedSnapshot returns the value of the "published_snapshot" field in the mutation.
+func (m *HelpDocumentMutation) PublishedSnapshot() (r *domain.HelpDocumentSnapshot, exists bool) {
+	v := m.published_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublishedSnapshot returns the old "published_snapshot" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldPublishedSnapshot(ctx context.Context) (v *domain.HelpDocumentSnapshot, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublishedSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublishedSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublishedSnapshot: %w", err)
+	}
+	return oldValue.PublishedSnapshot, nil
+}
+
+// ClearPublishedSnapshot clears the value of the "published_snapshot" field.
+func (m *HelpDocumentMutation) ClearPublishedSnapshot() {
+	m.published_snapshot = nil
+	m.clearedFields[helpdocument.FieldPublishedSnapshot] = struct{}{}
+}
+
+// PublishedSnapshotCleared returns if the "published_snapshot" field was cleared in this mutation.
+func (m *HelpDocumentMutation) PublishedSnapshotCleared() bool {
+	_, ok := m.clearedFields[helpdocument.FieldPublishedSnapshot]
+	return ok
+}
+
+// ResetPublishedSnapshot resets all changes to the "published_snapshot" field.
+func (m *HelpDocumentMutation) ResetPublishedSnapshot() {
+	m.published_snapshot = nil
+	delete(m.clearedFields, helpdocument.FieldPublishedSnapshot)
+}
+
+// SetPublicationHistory sets the "publication_history" field.
+func (m *HelpDocumentMutation) SetPublicationHistory(dds []domain.HelpDocumentSnapshot) {
+	m.publication_history = &dds
+	m.appendpublication_history = nil
+}
+
+// PublicationHistory returns the value of the "publication_history" field in the mutation.
+func (m *HelpDocumentMutation) PublicationHistory() (r []domain.HelpDocumentSnapshot, exists bool) {
+	v := m.publication_history
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicationHistory returns the old "publication_history" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldPublicationHistory(ctx context.Context) (v []domain.HelpDocumentSnapshot, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicationHistory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicationHistory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicationHistory: %w", err)
+	}
+	return oldValue.PublicationHistory, nil
+}
+
+// AppendPublicationHistory adds dds to the "publication_history" field.
+func (m *HelpDocumentMutation) AppendPublicationHistory(dds []domain.HelpDocumentSnapshot) {
+	m.appendpublication_history = append(m.appendpublication_history, dds...)
+}
+
+// AppendedPublicationHistory returns the list of values that were appended to the "publication_history" field in this mutation.
+func (m *HelpDocumentMutation) AppendedPublicationHistory() ([]domain.HelpDocumentSnapshot, bool) {
+	if len(m.appendpublication_history) == 0 {
+		return nil, false
+	}
+	return m.appendpublication_history, true
+}
+
+// ClearPublicationHistory clears the value of the "publication_history" field.
+func (m *HelpDocumentMutation) ClearPublicationHistory() {
+	m.publication_history = nil
+	m.appendpublication_history = nil
+	m.clearedFields[helpdocument.FieldPublicationHistory] = struct{}{}
+}
+
+// PublicationHistoryCleared returns if the "publication_history" field was cleared in this mutation.
+func (m *HelpDocumentMutation) PublicationHistoryCleared() bool {
+	_, ok := m.clearedFields[helpdocument.FieldPublicationHistory]
+	return ok
+}
+
+// ResetPublicationHistory resets all changes to the "publication_history" field.
+func (m *HelpDocumentMutation) ResetPublicationHistory() {
+	m.publication_history = nil
+	m.appendpublication_history = nil
+	delete(m.clearedFields, helpdocument.FieldPublicationHistory)
+}
+
+// SetStatus sets the "status" field.
+func (m *HelpDocumentMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *HelpDocumentMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *HelpDocumentMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *HelpDocumentMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *HelpDocumentMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *HelpDocumentMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *HelpDocumentMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *HelpDocumentMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetPublishedAt sets the "published_at" field.
+func (m *HelpDocumentMutation) SetPublishedAt(t time.Time) {
+	m.published_at = &t
+}
+
+// PublishedAt returns the value of the "published_at" field in the mutation.
+func (m *HelpDocumentMutation) PublishedAt() (r time.Time, exists bool) {
+	v := m.published_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublishedAt returns the old "published_at" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldPublishedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublishedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublishedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublishedAt: %w", err)
+	}
+	return oldValue.PublishedAt, nil
+}
+
+// ClearPublishedAt clears the value of the "published_at" field.
+func (m *HelpDocumentMutation) ClearPublishedAt() {
+	m.published_at = nil
+	m.clearedFields[helpdocument.FieldPublishedAt] = struct{}{}
+}
+
+// PublishedAtCleared returns if the "published_at" field was cleared in this mutation.
+func (m *HelpDocumentMutation) PublishedAtCleared() bool {
+	_, ok := m.clearedFields[helpdocument.FieldPublishedAt]
+	return ok
+}
+
+// ResetPublishedAt resets all changes to the "published_at" field.
+func (m *HelpDocumentMutation) ResetPublishedAt() {
+	m.published_at = nil
+	delete(m.clearedFields, helpdocument.FieldPublishedAt)
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (m *HelpDocumentMutation) SetUpdatedBy(i int64) {
+	m.updated_by = &i
+	m.addupdated_by = nil
+}
+
+// UpdatedBy returns the value of the "updated_by" field in the mutation.
+func (m *HelpDocumentMutation) UpdatedBy() (r int64, exists bool) {
+	v := m.updated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedBy returns the old "updated_by" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldUpdatedBy(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedBy: %w", err)
+	}
+	return oldValue.UpdatedBy, nil
+}
+
+// AddUpdatedBy adds i to the "updated_by" field.
+func (m *HelpDocumentMutation) AddUpdatedBy(i int64) {
+	if m.addupdated_by != nil {
+		*m.addupdated_by += i
+	} else {
+		m.addupdated_by = &i
+	}
+}
+
+// AddedUpdatedBy returns the value that was added to the "updated_by" field in this mutation.
+func (m *HelpDocumentMutation) AddedUpdatedBy() (r int64, exists bool) {
+	v := m.addupdated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUpdatedBy clears the value of the "updated_by" field.
+func (m *HelpDocumentMutation) ClearUpdatedBy() {
+	m.updated_by = nil
+	m.addupdated_by = nil
+	m.clearedFields[helpdocument.FieldUpdatedBy] = struct{}{}
+}
+
+// UpdatedByCleared returns if the "updated_by" field was cleared in this mutation.
+func (m *HelpDocumentMutation) UpdatedByCleared() bool {
+	_, ok := m.clearedFields[helpdocument.FieldUpdatedBy]
+	return ok
+}
+
+// ResetUpdatedBy resets all changes to the "updated_by" field.
+func (m *HelpDocumentMutation) ResetUpdatedBy() {
+	m.updated_by = nil
+	m.addupdated_by = nil
+	delete(m.clearedFields, helpdocument.FieldUpdatedBy)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *HelpDocumentMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *HelpDocumentMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *HelpDocumentMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *HelpDocumentMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *HelpDocumentMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the HelpDocument entity.
+// If the HelpDocument object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *HelpDocumentMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *HelpDocumentMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the HelpDocumentMutation builder.
+func (m *HelpDocumentMutation) Where(ps ...predicate.HelpDocument) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the HelpDocumentMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *HelpDocumentMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.HelpDocument, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *HelpDocumentMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *HelpDocumentMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (HelpDocument).
+func (m *HelpDocumentMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *HelpDocumentMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.slug != nil {
+		fields = append(fields, helpdocument.FieldSlug)
+	}
+	if m.title != nil {
+		fields = append(fields, helpdocument.FieldTitle)
+	}
+	if m.category != nil {
+		fields = append(fields, helpdocument.FieldCategory)
+	}
+	if m.summary != nil {
+		fields = append(fields, helpdocument.FieldSummary)
+	}
+	if m.content_markdown != nil {
+		fields = append(fields, helpdocument.FieldContentMarkdown)
+	}
+	if m.selector_schema != nil {
+		fields = append(fields, helpdocument.FieldSelectorSchema)
+	}
+	if m.published_snapshot != nil {
+		fields = append(fields, helpdocument.FieldPublishedSnapshot)
+	}
+	if m.publication_history != nil {
+		fields = append(fields, helpdocument.FieldPublicationHistory)
+	}
+	if m.status != nil {
+		fields = append(fields, helpdocument.FieldStatus)
+	}
+	if m.version != nil {
+		fields = append(fields, helpdocument.FieldVersion)
+	}
+	if m.published_at != nil {
+		fields = append(fields, helpdocument.FieldPublishedAt)
+	}
+	if m.updated_by != nil {
+		fields = append(fields, helpdocument.FieldUpdatedBy)
+	}
+	if m.created_at != nil {
+		fields = append(fields, helpdocument.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, helpdocument.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *HelpDocumentMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case helpdocument.FieldSlug:
+		return m.Slug()
+	case helpdocument.FieldTitle:
+		return m.Title()
+	case helpdocument.FieldCategory:
+		return m.Category()
+	case helpdocument.FieldSummary:
+		return m.Summary()
+	case helpdocument.FieldContentMarkdown:
+		return m.ContentMarkdown()
+	case helpdocument.FieldSelectorSchema:
+		return m.SelectorSchema()
+	case helpdocument.FieldPublishedSnapshot:
+		return m.PublishedSnapshot()
+	case helpdocument.FieldPublicationHistory:
+		return m.PublicationHistory()
+	case helpdocument.FieldStatus:
+		return m.Status()
+	case helpdocument.FieldVersion:
+		return m.Version()
+	case helpdocument.FieldPublishedAt:
+		return m.PublishedAt()
+	case helpdocument.FieldUpdatedBy:
+		return m.UpdatedBy()
+	case helpdocument.FieldCreatedAt:
+		return m.CreatedAt()
+	case helpdocument.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *HelpDocumentMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case helpdocument.FieldSlug:
+		return m.OldSlug(ctx)
+	case helpdocument.FieldTitle:
+		return m.OldTitle(ctx)
+	case helpdocument.FieldCategory:
+		return m.OldCategory(ctx)
+	case helpdocument.FieldSummary:
+		return m.OldSummary(ctx)
+	case helpdocument.FieldContentMarkdown:
+		return m.OldContentMarkdown(ctx)
+	case helpdocument.FieldSelectorSchema:
+		return m.OldSelectorSchema(ctx)
+	case helpdocument.FieldPublishedSnapshot:
+		return m.OldPublishedSnapshot(ctx)
+	case helpdocument.FieldPublicationHistory:
+		return m.OldPublicationHistory(ctx)
+	case helpdocument.FieldStatus:
+		return m.OldStatus(ctx)
+	case helpdocument.FieldVersion:
+		return m.OldVersion(ctx)
+	case helpdocument.FieldPublishedAt:
+		return m.OldPublishedAt(ctx)
+	case helpdocument.FieldUpdatedBy:
+		return m.OldUpdatedBy(ctx)
+	case helpdocument.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case helpdocument.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown HelpDocument field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *HelpDocumentMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case helpdocument.FieldSlug:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSlug(v)
+		return nil
+	case helpdocument.FieldTitle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitle(v)
+		return nil
+	case helpdocument.FieldCategory:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCategory(v)
+		return nil
+	case helpdocument.FieldSummary:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSummary(v)
+		return nil
+	case helpdocument.FieldContentMarkdown:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContentMarkdown(v)
+		return nil
+	case helpdocument.FieldSelectorSchema:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSelectorSchema(v)
+		return nil
+	case helpdocument.FieldPublishedSnapshot:
+		v, ok := value.(*domain.HelpDocumentSnapshot)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublishedSnapshot(v)
+		return nil
+	case helpdocument.FieldPublicationHistory:
+		v, ok := value.([]domain.HelpDocumentSnapshot)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicationHistory(v)
+		return nil
+	case helpdocument.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case helpdocument.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case helpdocument.FieldPublishedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublishedAt(v)
+		return nil
+	case helpdocument.FieldUpdatedBy:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedBy(v)
+		return nil
+	case helpdocument.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case helpdocument.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown HelpDocument field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *HelpDocumentMutation) AddedFields() []string {
+	var fields []string
+	if m.addversion != nil {
+		fields = append(fields, helpdocument.FieldVersion)
+	}
+	if m.addupdated_by != nil {
+		fields = append(fields, helpdocument.FieldUpdatedBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *HelpDocumentMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case helpdocument.FieldVersion:
+		return m.AddedVersion()
+	case helpdocument.FieldUpdatedBy:
+		return m.AddedUpdatedBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *HelpDocumentMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case helpdocument.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	case helpdocument.FieldUpdatedBy:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUpdatedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown HelpDocument numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *HelpDocumentMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(helpdocument.FieldSummary) {
+		fields = append(fields, helpdocument.FieldSummary)
+	}
+	if m.FieldCleared(helpdocument.FieldSelectorSchema) {
+		fields = append(fields, helpdocument.FieldSelectorSchema)
+	}
+	if m.FieldCleared(helpdocument.FieldPublishedSnapshot) {
+		fields = append(fields, helpdocument.FieldPublishedSnapshot)
+	}
+	if m.FieldCleared(helpdocument.FieldPublicationHistory) {
+		fields = append(fields, helpdocument.FieldPublicationHistory)
+	}
+	if m.FieldCleared(helpdocument.FieldPublishedAt) {
+		fields = append(fields, helpdocument.FieldPublishedAt)
+	}
+	if m.FieldCleared(helpdocument.FieldUpdatedBy) {
+		fields = append(fields, helpdocument.FieldUpdatedBy)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *HelpDocumentMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *HelpDocumentMutation) ClearField(name string) error {
+	switch name {
+	case helpdocument.FieldSummary:
+		m.ClearSummary()
+		return nil
+	case helpdocument.FieldSelectorSchema:
+		m.ClearSelectorSchema()
+		return nil
+	case helpdocument.FieldPublishedSnapshot:
+		m.ClearPublishedSnapshot()
+		return nil
+	case helpdocument.FieldPublicationHistory:
+		m.ClearPublicationHistory()
+		return nil
+	case helpdocument.FieldPublishedAt:
+		m.ClearPublishedAt()
+		return nil
+	case helpdocument.FieldUpdatedBy:
+		m.ClearUpdatedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown HelpDocument nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *HelpDocumentMutation) ResetField(name string) error {
+	switch name {
+	case helpdocument.FieldSlug:
+		m.ResetSlug()
+		return nil
+	case helpdocument.FieldTitle:
+		m.ResetTitle()
+		return nil
+	case helpdocument.FieldCategory:
+		m.ResetCategory()
+		return nil
+	case helpdocument.FieldSummary:
+		m.ResetSummary()
+		return nil
+	case helpdocument.FieldContentMarkdown:
+		m.ResetContentMarkdown()
+		return nil
+	case helpdocument.FieldSelectorSchema:
+		m.ResetSelectorSchema()
+		return nil
+	case helpdocument.FieldPublishedSnapshot:
+		m.ResetPublishedSnapshot()
+		return nil
+	case helpdocument.FieldPublicationHistory:
+		m.ResetPublicationHistory()
+		return nil
+	case helpdocument.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case helpdocument.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case helpdocument.FieldPublishedAt:
+		m.ResetPublishedAt()
+		return nil
+	case helpdocument.FieldUpdatedBy:
+		m.ResetUpdatedBy()
+		return nil
+	case helpdocument.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case helpdocument.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown HelpDocument field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *HelpDocumentMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *HelpDocumentMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *HelpDocumentMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *HelpDocumentMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *HelpDocumentMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *HelpDocumentMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *HelpDocumentMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown HelpDocument unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *HelpDocumentMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown HelpDocument edge %s", name)
 }
 
 // IdempotencyRecordMutation represents an operation that mutates the IdempotencyRecord nodes in the graph.

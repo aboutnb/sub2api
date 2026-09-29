@@ -128,7 +128,7 @@ func (r *smartRouteRepository) getManyDB(ctx context.Context, apiKeyIDs []int64)
 	out := make(map[int64]*service.SmartRouteConfig)
 	client := clientFromContext(ctx, r.client)
 	rows, err := client.QueryContext(ctx, `
-		SELECT r.api_key_id, r.platform, r.subscription_type, r.strategy,
+		SELECT r.api_key_id, r.platform, r.subscription_type, r.cross_platform, r.prefer_platform, r.strategy,
 		       r.price_weight, r.speed_weight, r.success_weight,
 		       r.rate_guard_enabled, r.max_rate_multiplier, r.max_image_rate_multiplier,
 		       r.updated_at, g.group_id, g.position
@@ -145,16 +145,16 @@ func (r *smartRouteRepository) getManyDB(ctx context.Context, apiKeyIDs []int64)
 		var groupID sql.NullInt64
 		var position sql.NullInt64
 		var maxRate, maxImage sql.NullFloat64
-		var platform, subscriptionType, strategy string
+		var platform, preferPlatform, subscriptionType, strategy string
 		var price, speed, success int
-		var guard bool
+		var guard, crossPlatform bool
 		var updated time.Time
-		if err := rows.Scan(&id, &platform, &subscriptionType, &strategy, &price, &speed, &success, &guard, &maxRate, &maxImage, &updated, &groupID, &position); err != nil {
+		if err := rows.Scan(&id, &platform, &subscriptionType, &crossPlatform, &preferPlatform, &strategy, &price, &speed, &success, &guard, &maxRate, &maxImage, &updated, &groupID, &position); err != nil {
 			return nil, err
 		}
 		cfg := out[id]
 		if cfg == nil {
-			cfg = &service.SmartRouteConfig{APIKeyID: id, Mode: service.SmartRouteModeSmart, Platform: platform, SubscriptionType: subscriptionType, Strategy: strategy, Weights: service.SmartRouteWeights{Price: price, Speed: speed, Success: success}, RateGuard: service.SmartRouteRateGuard{Enabled: guard}, UpdatedAt: updated}
+			cfg = &service.SmartRouteConfig{APIKeyID: id, Mode: service.SmartRouteModeSmart, Platform: platform, SubscriptionType: subscriptionType, CrossPlatform: crossPlatform, PreferPlatform: preferPlatform, Strategy: strategy, Weights: service.SmartRouteWeights{Price: price, Speed: speed, Success: success}, RateGuard: service.SmartRouteRateGuard{Enabled: guard}, UpdatedAt: updated}
 			if maxRate.Valid {
 				v := maxRate.Float64
 				cfg.RateGuard.MaxRateMultiplier = &v
@@ -226,6 +226,34 @@ func (r *smartRouteRepository) Invalidate(ctx context.Context, apiKeyID int64) {
 	}
 }
 
+func (r *smartRouteRepository) Initialize(ctx context.Context, cfg *service.SmartRouteConfig) error {
+	if cfg == nil {
+		return errors.New("nil smart route config")
+	}
+	return r.WithinTransaction(ctx, func(txCtx context.Context) error {
+		client := clientFromContext(txCtx, r.client)
+		result, err := client.ExecContext(txCtx, `UPDATE api_keys SET updated_at = updated_at WHERE id = $1 AND purpose = 'image_studio' AND group_id IS NULL AND deleted_at IS NULL`, cfg.APIKeyID)
+		if err != nil {
+			return err
+		}
+		count, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if count != 1 {
+			return service.ErrAPIKeyNotFound
+		}
+		configs, err := r.getManyDB(txCtx, []int64{cfg.APIKeyID})
+		if err != nil {
+			return err
+		}
+		if configs[cfg.APIKeyID] != nil {
+			return nil
+		}
+		return r.Replace(txCtx, cfg)
+	})
+}
+
 func (r *smartRouteRepository) Replace(ctx context.Context, cfg *service.SmartRouteConfig) error {
 	if cfg == nil {
 		return errors.New("nil smart route config")
@@ -236,17 +264,18 @@ func (r *smartRouteRepository) Replace(ctx context.Context, cfg *service.SmartRo
 	}
 	if _, err := client.ExecContext(ctx, `
 		INSERT INTO api_key_smart_routes (
-			api_key_id, platform, subscription_type, strategy, price_weight, speed_weight,
+			api_key_id, platform, subscription_type, cross_platform, prefer_platform, strategy, price_weight, speed_weight,
 			success_weight, rate_guard_enabled, max_rate_multiplier, max_image_rate_multiplier
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		ON CONFLICT (api_key_id) DO UPDATE SET
 			platform=EXCLUDED.platform, subscription_type=EXCLUDED.subscription_type,
+			cross_platform=EXCLUDED.cross_platform, prefer_platform=EXCLUDED.prefer_platform,
 			strategy=EXCLUDED.strategy, price_weight=EXCLUDED.price_weight,
 			speed_weight=EXCLUDED.speed_weight, success_weight=EXCLUDED.success_weight,
 			rate_guard_enabled=EXCLUDED.rate_guard_enabled,
 			max_rate_multiplier=EXCLUDED.max_rate_multiplier,
 			max_image_rate_multiplier=EXCLUDED.max_image_rate_multiplier, updated_at=NOW()`,
-		cfg.APIKeyID, cfg.Platform, cfg.SubscriptionType, cfg.Strategy, cfg.Weights.Price, cfg.Weights.Speed, cfg.Weights.Success, cfg.RateGuard.Enabled, cfg.RateGuard.MaxRateMultiplier, cfg.RateGuard.MaxImageRateMultiplier); err != nil {
+		cfg.APIKeyID, cfg.Platform, cfg.SubscriptionType, cfg.CrossPlatform, cfg.PreferPlatform, cfg.Strategy, cfg.Weights.Price, cfg.Weights.Speed, cfg.Weights.Success, cfg.RateGuard.Enabled, cfg.RateGuard.MaxRateMultiplier, cfg.RateGuard.MaxImageRateMultiplier); err != nil {
 		return fmt.Errorf("upsert smart route config: %w", err)
 	}
 	if _, err := client.ExecContext(ctx, `DELETE FROM api_key_smart_route_groups WHERE api_key_id = $1`, cfg.APIKeyID); err != nil {

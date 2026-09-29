@@ -435,7 +435,10 @@ func (r *apiKeyRepository) deleteWithTombstone(ctx context.Context, exec *dbent.
 }
 
 func (r *apiKeyRepository) apiKeyListByUserIDQuery(userID int64, filters service.APIKeyListFilters) *dbent.APIKeyQuery {
-	q := r.activeQuery().Where(apikey.UserIDEQ(userID), apikey.PurposeNEQ(service.ImageStudioKeyPurpose))
+	q := r.activeQuery().Where(apikey.UserIDEQ(userID), apikey.Or(
+		apikey.PurposeNEQ(service.ImageStudioKeyPurpose),
+		apikey.And(apikey.PurposeEQ(service.ImageStudioKeyPurpose), apikey.GroupIDIsNil()),
+	))
 
 	if filters.Search != "" {
 		q = q.Where(apikey.Or(

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"net/http/httptest"
@@ -23,4 +24,16 @@ func TestImageStudioFrameHeadersOnlyAllowStudio(t *testing.T) {
 			require.Equal(t, "DENY", result.Header().Get("X-Frame-Options"))
 		}
 	}
+}
+
+func TestImageStudioKeyCannotBypassExclusiveGroupAuthorization(t *testing.T) {
+	groupID := int64(5)
+	group := &service.Group{ID: groupID, Name: service.ImageStudioSmartGroupName, Description: service.ImageStudioSmartGroupDescription, IsExclusive: true, Platform: service.PlatformComposite}
+	key := &service.APIKey{Purpose: service.ImageStudioKeyPurpose, GroupID: &groupID, User: &service.User{ID: 1}, Group: group}
+	require.False(t, validateAPIKeyGroupAllowed(key))
+	key.Purpose = "standard"
+	require.False(t, validateAPIKeyGroupAllowed(key))
+	key.Purpose = service.ImageStudioKeyPurpose
+	key.Group.Description = "普通分组"
+	require.False(t, validateAPIKeyGroupAllowed(key))
 }

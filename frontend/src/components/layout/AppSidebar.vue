@@ -339,6 +339,14 @@ const KeyIcon = {
       ]
     )
 }
+const HelpIcon = {
+  render() {
+    return h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24', 'stroke-width': '1.8', class: 'w-5 h-5' }, [
+      h('circle', { cx: '12', cy: '12', r: '9' }),
+      h('path', { 'stroke-linecap': 'round', d: 'M9.75 9a2.25 2.25 0 1 1 3.56 1.83c-.82.58-1.31 1.03-1.31 2.17m.01 3h.01' })
+    ])
+  }
+}
 
 const BatchImageIcon = {
   render: () =>
@@ -858,6 +866,7 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
     { path: '/admin/plugins', label: t('nav.plugins'), icon: PluginIcon, featureFlag: flagPluginManagement },
     { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
+    { path: '/admin/help-docs', label: t('nav.helpDocuments'), icon: HelpIcon },
     { path: '/admin/email-broadcasts', label: t('nav.emailBroadcasts'), icon: MailIcon },
     { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
     {

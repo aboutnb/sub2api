@@ -21,6 +21,7 @@ export interface SmartRouteInput {
   strategy?: SmartRouteStrategy
   weights?: SmartRouteWeights
   rate_guard: SmartRouteRateGuard
+  cross_platform?: boolean
 }
 
 export interface SmartRouteConfig {
@@ -31,6 +32,7 @@ export interface SmartRouteConfig {
   strategy: SmartRouteStrategy
   weights: SmartRouteWeights
   rate_guard: SmartRouteRateGuard
+  cross_platform?: boolean
   updated_at?: string
 }
 
@@ -41,4 +43,6 @@ export interface SmartRouteFormState {
   strategy: SmartRouteStrategy
   weights: SmartRouteWeights
   rate_guard: SmartRouteRateGuard
+  cross_platform: boolean
+  managed: boolean
 }

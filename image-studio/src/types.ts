@@ -176,6 +176,15 @@ export type TaskStatus = 'running' | 'done' | 'error'
 export interface TaskRecord {
   id: string
   prompt: string
+  /** 自动优化前的用户原始提示词 */
+  originalPrompt?: string
+  promptOptimized?: boolean
+  /** 改写提示词的文本模型 */
+  promptOptimizerModel?: string
+  /** 改写提示词所用分组 */
+  promptOptimizerGroup?: string
+  /** 正在请求提示词优化，只用于生成过程展示，不写入历史 */
+  promptOptimizing?: boolean
   params: TaskParams
   /** 生成时使用的 Provider 类型 */
   apiProvider?: ApiProvider

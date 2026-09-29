@@ -404,9 +404,6 @@ describe('useAppStore', () => {
         site_logo: '/logo.png',
         version: '1.0.0',
         contact_info: 'test@test.com',
-        community_group_name: '技术交流',
-        community_group_icon: 'data:image/svg+xml;base64,PHN2Zz4=',
-        community_group_url: 'https://example.com/community',
         api_base_url: 'https://api.test.com',
         doc_url: 'https://docs.test.com',
       }
@@ -418,9 +415,7 @@ describe('useAppStore', () => {
       expect(store.siteName).toBe('TestSite')
       expect(store.siteLogo).toBe('/logo.png')
       expect(store.siteVersion).toBe('1.0.0')
-      expect(store.communityGroupName).toBe('技术交流')
-      expect(store.communityGroupIcon).toBe('data:image/svg+xml;base64,PHN2Zz4=')
-      expect(store.communityGroupUrl).toBe('https://example.com/community')
+      expect(store.contactInfo).toBe('test@test.com')
       expect(store.publicSettingsLoaded).toBe(true)
     })
 

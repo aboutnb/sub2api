@@ -66,6 +66,7 @@ export default {
 
   // API Keys
   keys: {
+    openHelp: 'Guide',
     title: 'API Keys',
     description: 'Manage your API keys and access tokens',
     searchPlaceholder: 'Search name or key...',

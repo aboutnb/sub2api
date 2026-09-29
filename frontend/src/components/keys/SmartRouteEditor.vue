@@ -1,6 +1,9 @@
 <template>
   <section class="space-y-4" aria-labelledby="smart-route-mode-label">
-    <div>
+    <p v-if="modelValue.managed" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+      {{ t('smartRouting.imageStudioHint') }}
+    </p>
+    <div v-if="!modelValue.managed">
       <label id="smart-route-mode-label" class="input-label">{{ t('smartRouting.mode') }}</label>
       <div class="grid grid-cols-2 rounded-lg bg-surface-muted p-1 dark:bg-surface-muted" role="radiogroup">
         <button
@@ -312,9 +315,9 @@ const disabledReason = (group: Group): string => {
   if (group.platform === 'composite') return t('smartRouting.compositeUnsupported')
   if (group.status !== 'active') return t('smartRouting.groupInactive')
   const anchor = selectedAnchor.value
-  if (anchor && !isSelected(group.id) && (group.platform !== anchor.platform || group.subscription_type !== anchor.subscription_type)) {
-    return t('smartRouting.incompatible')
-  }
+  if (!anchor || isSelected(group.id)) return ''
+  if (group.subscription_type !== anchor.subscription_type) return t('smartRouting.billingIncompatible')
+  if (!props.modelValue.cross_platform && group.platform !== anchor.platform) return t('smartRouting.incompatible')
   return ''
 }
 
@@ -345,9 +348,11 @@ const candidateClass = (group: Group) => [
 ]
 
 const setMode = (mode: SmartRouteMode) => {
+  if (props.modelValue.managed) return
   if (mode === 'smart' && !props.enabled) return
   const next = clone()
   next.mode = mode
+  if (mode === 'single') next.cross_platform = false
   if (mode === 'smart') next.group_id = null
   emit('update:modelValue', next)
 }

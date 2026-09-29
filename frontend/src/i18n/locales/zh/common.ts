@@ -193,10 +193,11 @@ export default {
 
   // Navigation
   nav: {
+    helpCenter: '使用教程',
+    helpDocuments: '帮助文档',
     dashboard: '仪表盘',
     announcements: '公告',
     emailBroadcasts: '邮件群发',
-    communityGroup: '交流群',
     apiKeys: 'API 密钥',
     batchImage: '批量生图',
     imageStudio: 'AI 绘图',

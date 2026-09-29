@@ -285,9 +285,6 @@ export interface PublicSettings {
   site_subtitle: string
   api_base_url: string
   contact_info: string
-  community_group_name?: string
-  community_group_icon?: string
-  community_group_url?: string
   doc_url: string
   home_content: string
   compact_home_enabled: boolean
@@ -790,6 +787,7 @@ export interface ApiKey {
   user_id: number
   key: string
   name: string
+  purpose?: string
   group_id: number | null
   status: 'active' | 'inactive' | 'quota_exhausted' | 'expired'
   ip_whitelist: string[]

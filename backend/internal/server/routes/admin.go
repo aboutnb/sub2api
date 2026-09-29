@@ -48,6 +48,16 @@ func RegisterAdminRoutes(
 
 		// 公告管理
 		registerAnnouncementRoutes(admin, h)
+		help := admin.Group("/help-docs")
+		help.GET("", h.Admin.HelpDocument.List)
+		help.POST("", h.Admin.HelpDocument.Create)
+		help.GET("/:id", h.Admin.HelpDocument.Get)
+		help.PUT("/:id", h.Admin.HelpDocument.Update)
+		help.DELETE("/:id", h.Admin.HelpDocument.Delete)
+		help.POST("/:id/publish", h.Admin.HelpDocument.Publish)
+		help.POST("/:id/preview", h.Admin.HelpDocument.Preview)
+		help.POST("/:id/unpublish", h.Admin.HelpDocument.Unpublish)
+		help.POST("/:id/rollback", h.Admin.HelpDocument.Rollback)
 
 		// OpenAI OAuth
 		registerOpenAIOAuthRoutes(admin, h)

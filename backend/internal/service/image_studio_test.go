@@ -15,19 +15,36 @@ type studioAccountRepo struct {
 	accounts []Account
 }
 
-type studioPrivateKeyRepo struct{ APIKeyRepository }
+type studioPrivateKeyRepo struct {
+	APIKeyRepository
+	key *APIKey
+}
 
-func (studioPrivateKeyRepo) GetByID(context.Context, int64) (*APIKey, error) {
-	return &APIKey{ID: 1, UserID: 1, Purpose: ImageStudioKeyPurpose}, nil
+func (r studioPrivateKeyRepo) GetByID(context.Context, int64) (*APIKey, error) {
+	if r.key != nil {
+		return r.key, nil
+	}
+	groupID := int64(9)
+	return &APIKey{ID: 1, UserID: 1, Purpose: ImageStudioKeyPurpose, GroupID: &groupID}, nil
 }
 
 func TestImageStudioKeyRejectsOrdinaryCRUD(t *testing.T) {
 	ctx := context.Background()
-	keys := &APIKeyService{apiKeyRepo: studioPrivateKeyRepo{}}
-	_, err := keys.GetByID(ctx, 1)
+	groupID := int64(9)
+	hidden := &APIKeyService{apiKeyRepo: studioPrivateKeyRepo{key: &APIKey{ID: 1, UserID: 1, Purpose: ImageStudioKeyPurpose, GroupID: &groupID}}}
+	_, err := hidden.GetByID(ctx, 1)
 	require.ErrorIs(t, err, ErrAPIKeyNotFound)
-	_, err = keys.Update(ctx, 1, 1, UpdateAPIKeyRequest{})
+	_, err = hidden.Update(ctx, 1, 1, UpdateAPIKeyRequest{})
 	require.ErrorIs(t, err, ErrAPIKeyNotFound)
+
+	route := &APIKeyService{apiKeyRepo: studioPrivateKeyRepo{key: &APIKey{ID: 2, UserID: 1, Purpose: ImageStudioKeyPurpose, Name: ImageStudioPromptRouteName}}}
+	got, err := route.GetByID(ctx, 2)
+	require.NoError(t, err)
+	require.Equal(t, ImageStudioPromptRouteName, got.Name)
+	bind := int64(3)
+	_, err = route.Update(ctx, 2, 1, UpdateAPIKeyRequest{GroupID: &bind})
+	require.Error(t, err)
+
 	admin := &adminServiceImpl{apiKeyRepo: studioPrivateKeyRepo{}}
 	_, err = admin.AdminResetAPIKeyRateLimitUsage(ctx, 1)
 	require.ErrorIs(t, err, ErrAPIKeyNotFound)

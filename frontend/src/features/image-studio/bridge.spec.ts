@@ -9,6 +9,8 @@ describe('image studio bridge', () => {
   it('only permits exact image operations', () => {
     const base = { channel: STUDIO_CHANNEL, id: 'test-1', operation: 'request', method: 'POST', body: '{}' }
     expect(isStudioRequest({ ...base, path: '/image-studio/groups/1/images/generations/async' })).toBe(true)
+    expect(isStudioRequest({ ...base, path: '/image-studio/groups/1/prompt', body: '{"prompt":"cat"}' })).toBe(true)
+    expect(isStudioRequest({ ...base, path: '/image-studio/groups/1/prompt', body: { prompt: 'cat' } as never })).toBe(false)
     for (const path of ['/admin/users', 'https://external.test/', '/image-studio/groups/1/images/../responses', '/image-studio/groups/1/images/generations?key=secret']) {
       expect(isStudioRequest({ ...base, path })).toBe(false)
     }

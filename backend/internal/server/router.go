@@ -35,6 +35,7 @@ func SetupRouter(
 	opsService *service.OpsService,
 	settingService *service.SettingService,
 	compositeResolver *service.CompositeRouteResolver,
+	smartRouteService *service.SmartRouteService,
 	cfg *config.Config,
 	redisClient *redis.Client,
 	authIPBanService *service.AuthIPBanService,
@@ -93,7 +94,7 @@ func SetupRouter(
 	}
 
 	// 注册路由
-	registerRoutes(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, apiKeyGroupResolver, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg, redisClient, authIPBanService)
+	registerRoutes(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, apiKeyGroupResolver, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, smartRouteService, cfg, redisClient, authIPBanService)
 
 	return r
 }
@@ -114,6 +115,7 @@ func registerRoutes(
 	opsService *service.OpsService,
 	settingService *service.SettingService,
 	compositeResolver *service.CompositeRouteResolver,
+	smartRouteService *service.SmartRouteService,
 	cfg *config.Config,
 	redisClient *redis.Client,
 	authIPBanService *service.AuthIPBanService,
@@ -132,7 +134,7 @@ func registerRoutes(
 	// 注册各模块路由
 	routes.RegisterAuthRoutes(v1, h, jwtAuth, auditLog, redisClient, settingService, cfg, publicAccessGuard, authIPBanService, panelRateLimiter)
 	routes.RegisterUserRoutes(v1, h, jwtAuth, auditLog, settingService, panelRateLimiter)
-	routes.RegisterImageStudioRoutes(v1, h, jwtAuth, adminAuth, auditLog, panelRateLimiter, apiKeyAuth, apiKeyGroupResolver, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg)
+	routes.RegisterImageStudioRoutes(v1, h, jwtAuth, adminAuth, auditLog, panelRateLimiter, apiKeyAuth, apiKeyGroupResolver, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, smartRouteService, cfg)
 	routes.RegisterModelPlazaRoutes(v1, h, optionalJWTAuth, settingService, panelRateLimiter)
 	routes.RegisterAdminRoutes(v1, h, adminAuth, auditLog, stepUpAuth, settingService, panelRateLimiter)
 	routes.RegisterGatewayRoutes(r, h, apiKeyAuth, apiKeyGroupResolver, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg)

@@ -318,6 +318,7 @@ export default function TaskCard({
   const nDisplay = getParamDisplay(task, 'n')
   const isAgentTask = task.sourceMode === 'agent' || Boolean(task.agentConversationId || task.agentRoundId)
   const showPendingPrompt = isAgentTaskPromptPending(task)
+  const showOptimizedPrompt = Boolean(task.originalPrompt && task.originalPrompt !== task.prompt)
   const showN = !isAgentTask && (task.params.n > 1 || nDisplay.isMismatch)
   const outputErrorCount = task.outputErrors?.length ?? 0
   const outputSuccessCount = task.outputImages?.length ?? 0
@@ -438,7 +439,7 @@ export default function TaskCard({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                 />
               </svg>
-              <span className="text-xs text-gray-400 dark:text-gray-500">{studioText("生成中...")}</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">{studioText(task.promptOptimizing ? "正在优化提示词" : "生成中...")}</span>
             </div>
           )}
           {task.status === 'error' && isFalReconnecting && (
@@ -541,6 +542,22 @@ export default function TaskCard({
                 <p className="text-sm text-gray-700 dark:text-gray-300">{studioText("正在生成……")}</p>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{studioText("输入内容将在响应完成时接收")}</p>
               </div>
+            ) : task.promptOptimizing ? (
+              <div className="leading-relaxed">
+                <p className="text-xs font-medium text-[rgb(var(--av-rgb-brand-primary))]">{studioText("正在优化提示词")}</p>
+                <p className="mt-1 text-sm leading-relaxed text-gray-700 line-clamp-2 dark:text-gray-300">{task.prompt || studioText('(无提示词)')}</p>
+              </div>
+            ) : showOptimizedPrompt ? (
+              <div className="flex h-full flex-col gap-1">
+                <p className="text-sm leading-snug text-gray-700 line-clamp-2 dark:text-gray-300">
+                  <span className="mr-1 text-[11px] font-medium text-[rgb(var(--av-rgb-brand-primary))]">{studioText("优化后")}</span>
+                  {task.prompt}
+                </p>
+                <p className="text-xs leading-snug text-gray-400 line-clamp-1 dark:text-gray-500">
+                  <span className="mr-1 font-medium">{studioText("优化前")}</span>
+                  {task.originalPrompt}
+                </p>
+              </div>
             ) : (
               <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed line-clamp-3">
                 {task.prompt || studioText('(无提示词)')}
@@ -570,6 +587,15 @@ export default function TaskCard({
                 </span>
               )}
               {/* Model */}
+              {showOptimizedPrompt && task.promptOptimizerModel && (
+                <span
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[rgb(var(--av-rgb-brand-primary-soft))] text-[rgb(var(--av-rgb-brand-primary))] text-xs flex-shrink-0"
+                  title={[task.promptOptimizerModel, task.promptOptimizerGroup].filter(Boolean).join(' · ')}
+                >
+                  <span className="flex-shrink-0">{studioText("优化模型")}</span>
+                  <span className="truncate max-w-[8rem]">{task.promptOptimizerModel}</span>
+                </span>
+              )}
               {showModel && (
                 <span
                   className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/[0.04] text-gray-600 dark:text-gray-300 text-xs flex-shrink-0"

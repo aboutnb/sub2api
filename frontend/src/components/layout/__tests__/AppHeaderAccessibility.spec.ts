@@ -10,6 +10,10 @@ const subscriptionSource = readFileSync(
   resolve(dirname(fileURLToPath(import.meta.url)), '../../common/SubscriptionProgressMini.vue'),
   'utf8',
 )
+const sidebarSource = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), '../AppSidebar.vue'),
+  'utf8',
+)
 
 describe('AppHeader accessibility', () => {
   it('connects the mobile menu trigger to the off-canvas sidebar', () => {
@@ -88,6 +92,23 @@ describe('AppHeader accessibility', () => {
     expect(componentSource).not.toContain('mobileAnnouncementRef')
   })
 
+
+  it('shows the guide entry only in the primary row, immediately after announcements', () => {
+    const announcementAt = componentSource.indexOf('<AnnouncementBell v-if="user" />')
+    const guideAt = componentSource.indexOf('data-testid="header-help-center"')
+    const primaryEnd = componentSource.indexOf('data-testid="header-wallet"')
+    const moreStart = componentSource.indexOf('id="app-more-menu"')
+    expect(componentSource.match(/data-testid="header-help-center"/g)).toHaveLength(1)
+    expect(announcementAt).toBeGreaterThan(-1)
+    expect(guideAt).toBeGreaterThan(announcementAt)
+    expect(guideAt).toBeLessThan(primaryEnd)
+    expect(componentSource.slice(moreStart)).not.toContain('header-help-center')
+    expect(componentSource).toContain('to="/help"')
+    expect(componentSource).toContain("t('nav.helpCenter')")
+    expect(componentSource).toContain("route.path === '/help' || route.path.startsWith('/help/')")
+    expect(sidebarSource).not.toContain("path: '/help'")
+    expect(sidebarSource).toContain("path: '/admin/help-docs'")
+  })
   it('truncates long route titles without crowding header actions', () => {
     expect(componentSource).toContain('flex min-w-0 flex-1 items-center')
     expect(componentSource).toContain('hidden min-w-0 max-w-[28rem] lg:block')

@@ -15,6 +15,7 @@ import (
 const ImageStudioKeyPurpose = "image_studio"
 const imageStudioKeyPrefix = "studio-internal-"
 const imageStudioSettingKey = "image_studio_enabled"
+const ImageStudioPromptRouteName = "生图智能路由"
 
 type imageStudioCredentialContextKey struct{}
 
@@ -31,10 +32,15 @@ func isImageStudioRequest(ctx context.Context) bool {
 }
 
 type imageStudioKeyRepository interface {
-	ImageStudioKey(context.Context, int64, int64, string, bool) (*APIKey, error)
+	ImageStudioKey(context.Context, int64, int64, string, string, bool) (*APIKey, error)
+	ImageStudioPromptRouteKey(context.Context, int64, string, string) (*APIKey, error)
 }
 
 func (s *APIKeyService) ImageStudioKey(ctx context.Context, userID, groupID int64, create bool) (*APIKey, error) {
+	return s.imageStudioKey(ctx, userID, groupID, "AI 绘图", create)
+}
+
+func (s *APIKeyService) ImageStudioPromptRouteKey(ctx context.Context, userID int64) (*APIKey, error) {
 	repo, ok := s.apiKeyRepo.(imageStudioKeyRepository)
 	if !ok {
 		return nil, ErrAPIKeyNotFound
@@ -43,7 +49,22 @@ func (s *APIKeyService) ImageStudioKey(ctx context.Context, userID, groupID int6
 	if _, err := rand.Read(bytes); err != nil {
 		return nil, err
 	}
-	return repo.ImageStudioKey(ctx, userID, groupID, imageStudioKeyPrefix+hex.EncodeToString(bytes), create)
+	return repo.ImageStudioPromptRouteKey(ctx, userID, imageStudioKeyPrefix+hex.EncodeToString(bytes), ImageStudioPromptRouteName)
+}
+
+func (s *APIKeyService) imageStudioKey(ctx context.Context, userID, groupID int64, name string, create bool) (*APIKey, error) {
+	repo, ok := s.apiKeyRepo.(imageStudioKeyRepository)
+	if !ok {
+		return nil, ErrAPIKeyNotFound
+	}
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(name) == "" {
+		name = "AI 绘图"
+	}
+	return repo.ImageStudioKey(ctx, userID, groupID, imageStudioKeyPrefix+hex.EncodeToString(bytes), name, create)
 }
 
 func (s *SettingService) ImageStudioEnabled(ctx context.Context) bool {

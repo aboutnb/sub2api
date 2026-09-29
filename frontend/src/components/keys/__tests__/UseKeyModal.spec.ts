@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
+vi.mock('@/api/groups', () => ({ userGroupsAPI: { getHelpModels: vi.fn().mockResolvedValue([]) } }))
 
 const { copyToClipboardMock, saveAsMock } = vi.hoisted(() => ({
   copyToClipboardMock: vi.fn().mockResolvedValue(true),
@@ -24,6 +25,7 @@ vi.mock('file-saver', () => ({
 }))
 
 import UseKeyModal from '../UseKeyModal.vue'
+import { desktopClientFields, type DesktopClientId } from '@/utils/desktopClients'
 
 function readBlobAsText(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -35,6 +37,27 @@ function readBlobAsText(blob: Blob): Promise<string> {
 }
 
 describe('UseKeyModal', () => {
+  it('offers the same desktop fields as help without terminal tabs', async () => {
+    const wrapper = mount(UseKeyModal, {
+      props: { show: true, apiKey: 'test-placeholder-key', baseUrl: 'https://site.example/gateway/v1/', platform: 'openai' },
+      global: { stubs: { BaseDialog: { template: '<div><slot /></div>' }, Icon: { template: '<span />' } } }
+    })
+    const clients: Record<string, DesktopClientId> = {
+      'Cherry Studio': 'cherry-studio',
+      Cursor: 'cursor',
+      Cline: 'cline',
+      'Roo Code': 'roo-code'
+    }
+    for (const [label, client] of Object.entries(clients)) {
+      await wrapper.findAll('button').find(b => b.text().trim() === label)!.trigger('click')
+      await nextTick()
+      expect(wrapper.findAll('pre code').map(c => c.text())).toEqual(
+        desktopClientFields(client, 'https://site.example/gateway/v1/', 'test-placeholder-key', undefined, 'openai').map(file => file.content)
+      )
+      expect(wrapper.find('nav[aria-label="Tabs"]').exists()).toBe(false)
+    }
+    wrapper.unmount()
+  })
   afterEach(() => {
     vi.unstubAllGlobals()
     saveAsMock.mockClear()
@@ -159,7 +182,7 @@ describe('UseKeyModal', () => {
     expect(allCode).toContain('models_base_url = "https://example.com/v1"')
     expect(allCode).toContain('models_list_url = "https://example.com/v1/models"')
     expect(allCode).toContain('xai_api_base_url = "https://example.com/v1"')
-    expect(allCode).toContain('cli_chat_proxy_base_url = "https://example.com/v1"')
+    expect(allCode).not.toMatch(/^cli_chat_proxy_base_url\s*=/m)
     expect(allCode).toContain('preferred_method = "api_key"')
     expect(allCode).toContain('image_description = "grok-4.5"')
     expect(allCode).toContain('auto_compact_threshold_percent = 80')
@@ -309,13 +332,13 @@ describe('UseKeyModal', () => {
     expect(wrapper.text()).toContain('%USERPROFILE%\\.claude\\settings.json')
 
     const copyButton = wrapper.findAll('button').find((button) =>
-      button.text().includes('keys.useKeyModal.copy')
+      button.text().includes('helpCenter.copyConfig')
     )
     expect(copyButton).toBeDefined()
     await copyButton!.trigger('click')
     expect(copyToClipboardMock).toHaveBeenCalledWith(
       expect.stringContaining('ANTHROPIC_AUTH_TOKEN="sk-grok-claude-test"'),
-      'keys.copied'
+      'helpCenter.copied'
     )
   })
 

@@ -234,6 +234,8 @@ export default function DetailModal() {
 
   const isAgentTask = task.sourceMode === 'agent' || Boolean(task.agentConversationId || task.agentRoundId)
   const showPendingPrompt = isAgentTaskPromptPending(task)
+  const showOptimizedPrompt = Boolean(task.originalPrompt && task.originalPrompt !== task.prompt)
+  const optimizerLabel = [task.promptOptimizerModel, task.promptOptimizerGroup].filter(Boolean).join(' · ')
   const isAgentEditTool = task.status === 'done' && String(task.agentToolAction ?? '').toLowerCase() === 'edit'
   const showReferenceSection = allInputImageIds.length > 0 || isAgentEditTool
 
@@ -833,12 +835,12 @@ export default function DetailModal() {
 
           <div data-selectable-text className="flex-1">
             <div className="flex items-center gap-1.5 mb-2">
-              <h3 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">{studioText("输入内容")}</h3>
+              <h3 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">{studioText(showOptimizedPrompt ? "优化后提示词" : "输入内容")}</h3>
               {task.prompt && !showPendingPrompt && (
                 <button
                   onClick={handleCopyPrompt}
                   className="p-1 rounded text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-white/[0.06] transition"
-                  title={studioText("复制提示词")}
+                  title={studioText(showOptimizedPrompt ? "复制优化后提示词" : "复制提示词")}
                 >
                   <CopyIcon className="h-4 w-4" />
                 </button>
@@ -858,15 +860,35 @@ export default function DetailModal() {
                 </span>
               )}
             </div>
+            {task.promptOptimizing && (
+              <p className="mb-2 text-xs font-medium text-[rgb(var(--av-rgb-brand-primary))]">{studioText("正在优化提示词")}</p>
+            )}
             {showPendingPrompt ? (
               <div className="mb-4 leading-relaxed">
                 <p className="text-sm text-gray-700 dark:text-gray-300">{studioText("正在生成……")}</p>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{studioText("输入内容将在响应完成时接收")}</p>
               </div>
             ) : (
-              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap mb-4">
+              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap mb-3">
                 {task.prompt || studioText('(无提示词)')}
               </p>
+            )}
+            {showOptimizedPrompt && optimizerLabel && (
+              <div className="mb-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                <span className="text-gray-400 dark:text-gray-500">{studioText("优化模型")}</span>
+                <span className="max-w-full truncate rounded-full bg-[rgb(var(--av-rgb-brand-primary-soft))] px-2 py-0.5 font-medium text-[rgb(var(--av-rgb-brand-primary))]" title={optimizerLabel}>
+                  {task.promptOptimizerModel || task.promptOptimizerGroup}
+                </span>
+                {task.promptOptimizerModel && task.promptOptimizerGroup && (
+                  <span className="truncate text-gray-400 dark:text-gray-500">{task.promptOptimizerGroup}</span>
+                )}
+              </div>
+            )}
+            {showOptimizedPrompt && (
+              <div className="mb-4 rounded-xl bg-gray-50 px-3 py-2.5 dark:bg-white/[0.03]">
+                <div className="text-[11px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">{studioText("优化前提示词")}</div>
+                <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-gray-500 dark:text-gray-400">{task.originalPrompt}</p>
+              </div>
             )}
             {showRevisedPrompt && currentRevisedPrompt && (
               <div className="mb-4">

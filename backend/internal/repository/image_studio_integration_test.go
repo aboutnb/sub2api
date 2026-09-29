@@ -35,7 +35,7 @@ func TestImageStudioKeyConcurrentCreation(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			key, err := repo.ImageStudioKey(ctx, user.ID, group.ID, fmt.Sprintf("studio-internal-%d-%d", user.ID, i), true)
+			key, err := repo.ImageStudioKey(ctx, user.ID, group.ID, fmt.Sprintf("studio-internal-%d-%d", user.ID, i), "AI 绘图", true)
 			results <- key
 			failures <- err
 		}(i)
@@ -61,9 +61,9 @@ func TestImageStudioKeyConcurrentCreation(t *testing.T) {
 func (s *APIKeyRepoSuite) TestImageStudioKeyIdempotentAndHidden() {
 	user := s.mustCreateUser("studio@test.com")
 	group := s.mustCreateGroup("studio")
-	first, err := s.repo.ImageStudioKey(s.ctx, user.ID, group.ID, "studio-internal-first", true)
+	first, err := s.repo.ImageStudioKey(s.ctx, user.ID, group.ID, "studio-internal-first", "AI 绘图", true)
 	s.Require().NoError(err)
-	second, err := s.repo.ImageStudioKey(s.ctx, user.ID, group.ID, "studio-internal-second", true)
+	second, err := s.repo.ImageStudioKey(s.ctx, user.ID, group.ID, "studio-internal-second", "AI 绘图", true)
 	s.Require().NoError(err)
 	s.Equal(first.ID, second.ID)
 	s.Equal(first.Key, second.Key)
@@ -71,6 +71,47 @@ func (s *APIKeyRepoSuite) TestImageStudioKeyIdempotentAndHidden() {
 	keys, _, err := s.repo.ListByUserID(s.ctx, user.ID, pagination.PaginationParams{Page: 1, PageSize: 10}, service.APIKeyListFilters{})
 	s.Require().NoError(err)
 	s.Empty(keys)
-	_, err = s.repo.ImageStudioKey(s.ctx, user.ID+1000, group.ID, "", false)
+	_, err = s.repo.ImageStudioKey(s.ctx, user.ID+1000, group.ID, "", "AI 绘图", false)
 	s.Require().Error(err)
+}
+
+func TestImageStudioRouteInitializationIsAtomicAndPreservesEdits(t *testing.T) {
+	client := testEntClient(t)
+	ctx := context.Background()
+	user, err := client.User.Create().SetEmail(fmt.Sprintf("studio-route-%d@test.com", time.Now().UnixNano())).SetPasswordHash("hash").Save(ctx)
+	require.NoError(t, err)
+	group, err := client.Group.Create().SetName(fmt.Sprintf("studio-route-%d", user.ID)).Save(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = client.APIKey.Delete().Where(apikey.UserIDEQ(user.ID)).Exec(ctx)
+		_ = client.Group.DeleteOneID(group.ID).Exec(ctx)
+		_ = client.User.DeleteOneID(user.ID).Exec(ctx)
+	})
+	repo := newAPIKeyRepositoryWithSQL(client, integrationDB)
+	key, err := repo.ImageStudioPromptRouteKey(ctx, user.ID, "studio-internal-route", "route")
+	require.NoError(t, err)
+	routes := NewSmartRouteRepository(client, nil)
+	cfg := &service.SmartRouteConfig{APIKeyID: key.ID, Platform: "openai", SubscriptionType: "standard", CrossPlatform: true, PreferPlatform: "openai", Strategy: "auto", Weights: service.SmartRouteWeights{Price: 40, Speed: 30, Success: 30}, CandidateGroupIDs: []int64{group.ID}}
+	var wg sync.WaitGroup
+	errors := make(chan error, 8)
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() { defer wg.Done(); errors <- routes.Initialize(ctx, cfg) }()
+	}
+	wg.Wait()
+	close(errors)
+	for err := range errors {
+		require.NoError(t, err)
+	}
+	loaded, err := routes.Get(ctx, key.ID)
+	require.NoError(t, err)
+	require.Equal(t, []int64{group.ID}, loaded.CandidateGroupIDs)
+	edited := *cfg
+	edited.Strategy = "price"
+	require.NoError(t, routes.WithinTransaction(ctx, func(ctx context.Context) error { return routes.Replace(ctx, &edited) }))
+	require.NoError(t, routes.Initialize(ctx, cfg))
+	routes.Invalidate(ctx, key.ID)
+	loaded, err = routes.Get(ctx, key.ID)
+	require.NoError(t, err)
+	require.Equal(t, "price", loaded.Strategy)
 }

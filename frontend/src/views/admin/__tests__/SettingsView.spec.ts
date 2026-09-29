@@ -386,9 +386,6 @@ const baseSettingsResponse = {
   site_subtitle: "",
   api_base_url: "",
   contact_info: "",
-  community_group_name: "",
-  community_group_icon: "",
-  community_group_url: "",
   doc_url: "",
   home_content: "",
   compact_home_enabled: false,
@@ -1368,7 +1365,7 @@ describe("admin SettingsView payment visible method controls", () => {
     );
   });
 
-  it("submits the configured community group settings", async () => {
+  it("does not expose or submit removed community group settings", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
       community_group_name: "技术交流",
@@ -1379,16 +1376,16 @@ describe("admin SettingsView payment visible method controls", () => {
     const wrapper = mountView();
 
     await flushPromises();
+    expect(wrapper.html()).not.toContain("communityGroup");
+    expect(wrapper.html()).not.toContain("community_group");
+
     await wrapper.find("form").trigger("submit.prevent");
     await flushPromises();
 
-    expect(updateSettings).toHaveBeenCalledWith(
-      expect.objectContaining({
-        community_group_name: "技术交流",
-        community_group_icon: "data:image/svg+xml;base64,PHN2Zz4=",
-        community_group_url: "https://example.com/community",
-      }),
-    );
+    const payload = updateSettings.mock.calls.at(-1)?.[0] ?? {};
+    expect(payload).not.toHaveProperty("community_group_name");
+    expect(payload).not.toHaveProperty("community_group_icon");
+    expect(payload).not.toHaveProperty("community_group_url");
   });
 
   it("submits message cache_control rewrite gateway setting", async () => {

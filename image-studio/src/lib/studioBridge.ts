@@ -1,5 +1,6 @@
 import { STUDIO_CHANNEL, isStudioRequest } from '../../../shared/image-studio'
 import type { StudioBootstrap, StudioRequest } from '../../../shared/image-studio'
+import { parseStudioPromptOptimization } from './promptOptimization'
 import { setStudioLocale } from './studioLocale'
 import { STUDIO_THEME_ROLES, validStudioColor, type StudioThemeTokens } from '../../../shared/image-studio-theme'
 
@@ -73,6 +74,24 @@ export function studioCapabilities(profile: { id: string; model: string }) {
   return bootstrap?.groups.find((group) => group.id === groupID)?.models.find((model) => model.id === profile.model)?.capabilities
 }
 
+export function selectedPromptOptimizer() {
+  const raw = localStorage.getItem(`${studioStorageNamespace()}:prompt-optimizer`) || ''
+  const splitAt = raw.indexOf(':')
+  if (splitAt <= 0) return undefined
+  const groupID = Number(raw.slice(0, splitAt))
+  const model = decodeURIComponent(raw.slice(splitAt + 1))
+  if (!groupID || !model) return undefined
+  return { group_id: groupID, model }
+}
+
+export async function optimizeStudioPrompt(profileID: string, prompt: string, signal?: AbortSignal) {
+  const groupID = Number(/^studio:(\d+):/.exec(profileID)?.[1])
+  if (!groupID || !prompt.trim()) return { prompt, optimized: false }
+  const choice = selectedPromptOptimizer()
+  const result = await rpc({ operation: 'request', method: 'POST', path: `/image-studio/groups/${groupID}/prompt`, body: JSON.stringify({ prompt, ...choice }) }, signal)
+  return parseStudioPromptOptimization(prompt, result.status, result.data)
+}
+
 // API 请求只通过父页面；不会转发自定义域名或客户端凭证。
 export async function studioFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
   if (!bootstrap) return globalThis.fetch(input, init)
@@ -81,7 +100,7 @@ export async function studioFetch(input: string | URL | Request, init?: RequestI
   const body = init?.body instanceof FormData ? [...init.body.entries()] : init?.body
   const request = { channel: STUDIO_CHANNEL, id: 'validation', operation: 'request', path: url.pathname, method: init?.method || 'GET', body }
   if (!isStudioRequest(request)) throw new Error('Unsupported image request')
-  if (request.method === 'POST') {
+  if (request.method === 'POST' && !request.path.endsWith('/prompt')) {
     const model = typeof request.body === 'string' ? JSON.parse(request.body).model : request.body?.find(([name]) => name === 'model')?.[1]
     const groupID = Number(/^\/image-studio\/groups\/(\d+)\//.exec(request.path)?.[1])
     const capabilities = bootstrap.groups.find((group) => group.id === groupID)?.models.find((item) => item.id === model)?.capabilities

@@ -29,19 +29,29 @@ export function createSmartRouteForm(groupId: number | null = null): SmartRouteF
       enabled: true,
       max_rate_multiplier: 1,
       max_image_rate_multiplier: null
-    }
+    },
+    cross_platform: false,
+    managed: false
   }
 }
 
 export function smartRouteFormFromKey(key: ApiKey): SmartRouteFormState {
-  if (!key.routing) return createSmartRouteForm(key.group_id)
+  if (!key.routing) {
+    const form = createSmartRouteForm(key.group_id)
+    form.managed = key.purpose === 'image_studio'
+    form.cross_platform = form.managed
+    if (form.managed) form.mode = 'smart'
+    return form
+  }
   return {
     mode: 'smart',
     group_id: null,
     candidate_group_ids: [...key.routing.candidate_group_ids],
     strategy: key.routing.strategy,
     weights: { ...key.routing.weights },
-    rate_guard: { ...key.routing.rate_guard }
+    rate_guard: { ...key.routing.rate_guard },
+    cross_platform: key.purpose === 'image_studio',
+    managed: key.purpose === 'image_studio'
   }
 }
 
@@ -74,6 +84,7 @@ export function smartRoutePayload(form: SmartRouteFormState): SmartRouteInput {
     candidate_group_ids: [...form.candidate_group_ids],
     strategy: form.strategy,
     weights: form.strategy === 'custom' ? { ...form.weights } : smartRoutePresetWeights(form.strategy),
-    rate_guard: { ...form.rate_guard }
+    rate_guard: { ...form.rate_guard },
+    cross_platform: form.managed
   }
 }

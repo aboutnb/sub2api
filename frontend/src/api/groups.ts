@@ -28,6 +28,11 @@ export async function getUserGroupRates(): Promise<Record<number, number>> {
 }
 
 export const userGroupsAPI = {
+  async getHelpModels(id: number, signal?: AbortSignal): Promise<{ id: string }[]> {
+    const { data } = await apiClient.get(`/groups/${id}/help-models`, { signal })
+    // The gateway returns an OpenAI list, not the normal application envelope.
+    return Array.isArray(data) ? data : data.data || []
+  },
   getAvailable,
   getUserGroupRates
 }

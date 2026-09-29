@@ -86,19 +86,19 @@ func TestSmartRouteSnapshotRankingStableWithinEpoch(t *testing.T) {
 	first := service.snapshotRanking(7, request, epoch, []SmartRouteCandidate{
 		{Group: &Group{ID: 1}, Position: 0, EffectiveMultiplier: 0.5},
 		{Group: &Group{ID: 2}, Position: 1, EffectiveMultiplier: 1},
-	}, weights)
+	}, weights, "")
 	require.Equal(t, int64(1), first[0].Group.ID)
 
 	stable := service.snapshotRanking(7, request, epoch, []SmartRouteCandidate{
 		{Group: &Group{ID: 1}, Position: 0, EffectiveMultiplier: 2},
 		{Group: &Group{ID: 2}, Position: 1, EffectiveMultiplier: 0.25},
-	}, weights)
+	}, weights, "")
 	require.Equal(t, int64(1), stable[0].Group.ID)
 
 	refreshed := service.snapshotRanking(7, request, epoch.Add(SmartRouteSnapshotWindow), []SmartRouteCandidate{
 		{Group: &Group{ID: 1}, Position: 0, EffectiveMultiplier: 2},
 		{Group: &Group{ID: 2}, Position: 1, EffectiveMultiplier: 0.25},
-	}, weights)
+	}, weights, "")
 	require.Equal(t, int64(2), refreshed[0].Group.ID)
 }
 
@@ -141,4 +141,14 @@ func TestSmartRouteRequestGroupDisablesCrossGroupFallback(t *testing.T) {
 	require.Nil(t, requestGroup.FallbackGroupIDOnInvalidRequest)
 	require.Equal(t, &fallbackGroupID, group.FallbackGroupID)
 	require.Equal(t, &fallbackGroupID, group.FallbackGroupIDOnInvalidRequest)
+}
+
+func TestOrderSmartRouteCandidatesPrefersOpenAI(t *testing.T) {
+	candidates := []SmartRouteCandidate{
+		{Group: &Group{ID: 4, Platform: PlatformGemini}, Position: 1, EffectiveMultiplier: 0.2, Metric: SmartRouteMetric{Samples: 0}},
+		{Group: &Group{ID: 3, Platform: PlatformOpenAI}, Position: 0, EffectiveMultiplier: 1, Metric: SmartRouteMetric{Samples: 0}},
+	}
+	ranked := orderSmartRouteCandidates(candidates, SmartRouteWeights{Price: 100}, PlatformOpenAI)
+	require.Equal(t, int64(3), ranked[0].Group.ID)
+	require.Equal(t, int64(4), ranked[1].Group.ID)
 }

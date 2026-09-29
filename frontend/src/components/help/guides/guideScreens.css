@@ -1,0 +1,108 @@
+.settings-preview,
+.client-specific-guide {
+  --client-accent-ink: var(--client-accent, var(--av-color-brand-primary));
+  --client-on-accent: #ffffff;
+}
+:root.dark .settings-preview,
+:root.dark .client-specific-guide {
+  --client-accent-ink: color-mix(in srgb, var(--client-accent, var(--av-color-brand-primary)) 42%, var(--av-color-text-strong));
+}
+.client-specific-guide {
+  container: help-scenes / inline-size;
+  color: var(--scene-fg);
+}
+.client-specific-guide .guide-screen {
+  background: var(--scene-bg);
+  color: var(--scene-fg);
+  border: 1px solid var(--scene-line);
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: .8rem;
+  margin-top: 1rem;
+  min-width: 0;
+  box-shadow: var(--scene-shadow);
+}
+.client-specific-guide .screen-top,
+.client-specific-guide .screen-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--scene-line-soft);
+  flex-wrap: wrap;
+}
+.client-specific-guide .screen-bottom {
+  border: 0;
+  border-top: 1px solid var(--scene-line-soft);
+  justify-content: flex-end;
+  background: var(--scene-panel);
+}
+.client-specific-guide .screen-body { padding: 1.2rem; min-width: 0; }
+.client-specific-guide .illustrated-action {
+  display: inline-block;
+  padding: .45rem .8rem;
+  border: 1px solid var(--client-accent, var(--av-color-brand-primary));
+  border-radius: 6px;
+  color: var(--client-accent-ink, var(--client-accent, var(--av-color-brand-primary)));
+  background: var(--scene-bg);
+}
+.client-specific-guide .illustrated-primary {
+  color: var(--client-on-accent, #fff);
+  background: color-mix(in srgb, var(--client-accent, var(--av-color-brand-primary)) 62%, #111827);
+}
+.client-specific-guide .screen-value {
+  padding: .65rem .8rem;
+  border: 1px solid var(--scene-line);
+  border-radius: 6px;
+  margin: .5rem 0 1rem;
+  overflow-wrap: anywhere;
+  background: var(--scene-input);
+}
+.client-specific-guide .screen-hint { color: var(--scene-muted); font-size: .73rem; line-height: 1.8; margin: .7rem 0; }
+.client-specific-guide .screen-heading { font-size: .95rem; font-weight: 600; }
+.client-specific-guide .screen-columns { display: grid; grid-template-columns: 150px minmax(0, 1fr); }
+.client-specific-guide .screen-nav {
+  padding: 1rem .7rem;
+  background: var(--scene-panel);
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  border-right: 1px solid var(--scene-line-soft);
+}
+.client-specific-guide .screen-nav span { padding: .5rem; border-radius: 6px; }
+.client-specific-guide .screen-nav .current { background: var(--scene-chip); font-weight: 600; }
+.client-specific-guide .inline-model {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .8rem;
+  background: var(--scene-panel);
+  border: 1px solid var(--scene-line);
+  border-radius: 6px;
+}
+.client-specific-guide code { overflow-wrap: anywhere; white-space: pre-wrap; font-size: .75rem; }
+.client-specific-guide .inline-model code { flex: 1; min-width: 0; }
+.client-specific-guide .guide-note {
+  font-size: .78rem;
+  line-height: 1.8;
+  padding: .8rem 1rem;
+  border-left: 2px solid var(--client-accent, var(--av-color-brand-primary));
+  margin: 1rem 0;
+  background: color-mix(in srgb, var(--scene-muted) 8%, transparent);
+}
+.client-specific-guide .field-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.client-specific-guide .st-window,
+.client-specific-guide .tai-window { box-shadow: var(--scene-shadow); }
+@container help-scenes (max-width: 560px) {
+  .client-specific-guide .screen-columns,
+  .client-specific-guide .field-pair { grid-template-columns: minmax(0, 1fr); }
+  .client-specific-guide .screen-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: 0;
+    border-bottom: 1px solid var(--scene-line-soft);
+    font-size: .7rem;
+  }
+  .client-specific-guide .screen-body { padding: 1rem; }
+}
