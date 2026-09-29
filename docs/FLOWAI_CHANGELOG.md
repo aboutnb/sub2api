@@ -537,6 +537,21 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 重复，必须以完整文件名识别，不能因为编号相同而覆盖或删除。
 
 <!-- FLOWAI_MIGRATION_LEDGER_BEGIN -->
+| `backend/migrations/240_help_documents.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/241_help_client_guides.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/242_help_desktop_clients.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/243_help_extended_clients.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/244_help_protocol_specific_guides.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/245_help_channel_protocols.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/246_help_gui_client_guides.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/247_help_translation_client_guides.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/248_help_zcode_window_guide.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/249_help_tavern_clients.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/250_help_tutorial_review.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/251_help_faq_troubleshooting.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/252_help_quick_start.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/253_help_api_probe.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
+| `backend/migrations/254_smart_route_cross_platform.sql` | 托管工作台跨平台路由字段与唯一索引 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
 | `backend/migrations/239_image_studio_keys.sql` | 图片工作台专用密钥 purpose 字段和有效用户/分组唯一索引 | 仅新增，普通密钥默认 standard；回滚应用前关闭工作台，不逆向删除字段或密钥 |
 | 文件 | 功能域 | 发布注意事项 |
 | --- | --- | --- |
