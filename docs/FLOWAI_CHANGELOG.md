@@ -1,6 +1,14 @@
 # FlowAI 分支变更台账
 
-### 2026-09-29 v0.2.10 合并候选（尚未部署）
+### 2026-09-29 v0.2.10 已完成 23 服务器发布
+
+- 发布源码 `b55e31bd98688cdb069227ab7734882176721ddd`，版本 `0.2.10`。GitHub CI `36567062039`、Security Scan `36567061892`、Aivoza Image `36568315666` 均成功且 SHA 一致。
+- 镜像 `ghcr.io/aboutnb/aivoza-sub2api:sha-b55e31bd9868`，生产固定 digest `sha256:3857c4d4ffcb8333b042af3f85ff98eeb5c98db8de20a2379cc8eeaa1f3bb40f`；服务器核验 amd64 与完整源码标签一致。
+- 服务器 23 通过蓝绿 prepare/promote 发布，当前 `flowai-app` 在回环端口 3010，上一版 0.2.8 `flowai-app-rollback-8f0253ae4f4f` 在 3009。旧 0.2.7 回滚容器及未引用镜像已优雅清理；数据卷、备份和依赖服务未动。
+- 发布前备份 `/root/flowai/backups/aivoza-v0210-20260929`：PostgreSQL custom dump 454 MB（TOC 校验通过）、应用/Mihomo 状态、Redis RDB 1.44 MB（4502 keys、redis-check-rdb 通过）、配置和容器元数据。3010 候选健康，启动日志无 panic/fatal/迁移或 checksum 错误。
+- `aivoza.com` 与 `us.aivoza.com` 健康及公开版本均为 `0.2.10`；主站连续 20 次健康探测通过。工作台入口返回 200，未认证 `/api/v1/auth/me` 与工作台 bootstrap 返回 401；未执行真实生图、支付或计费请求。
+
+### 2026-09-29 v0.2.10 合并候选（已部署）
 
 - 本地功能增量：使用教程（客户端配置、模型选择、API 探测示例、Markdown 安全渲染）、后台教程草稿/预览/发布/回滚；生图提示词优化、多渠道智能路由与工作台细节。顶部旧社群入口按本地实现替换为教程，原客服联系方式保留。
 - 采用原工作区 HEAD、本地文件、已发布 main 的三方合并；保留主线注册防护、复合图片模型、端点布局、订阅开关及上游客户端修复。原工作区和 data/、素材不改动。
