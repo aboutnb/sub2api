@@ -1,5 +1,15 @@
 # FlowAI 分支变更台账
 
+### 2026-10-09 v0.2.14 合并候选（尚未部署）
+
+- 复用现有 main 工作区，从 `856a7146a2e66fa855f45ace7a6e67cbc5e3657b` 合并已审上游 `5fc0e486c3f6a8a191b8bd140f39b60457f611cf`（VERSION 0.2.14，包含 v0.2.14 标签后的修复）；上游增量 194 提交、389 文件。历史脏工作区及素材保留。
+- 43 个冲突文件按功能块合并：支付保持 GM/USDT、发票、默认赠送、手续费选项，并接入上游赠送/折扣、活动文案、bonus_amount 返利剔除及 EasyPay 回调安全修复；邮件保留注册上下文与错误分类，吸收原子尝试计数及哈希重置令牌；Ent/Wire 重新生成。
+- 前端保留 Aivoza 主题、弹窗层级与 pending 防关闭、金额布局、教程共享配置和工作台智能路由；补入 TypeSafe/System One、Codex 远程目录与新模型、TPS 和额度展示。测试跟随新平台、协议规则和控件可访问性更新，保留原行为断言。
+- 赠送配置读写统一支持上游范围；缺失保持旧默认，[] 明确关闭。报价一次计算，手续费不参与赠送；新增组合回归测试。密码重置旧格式链接需重新申请，记录在契约与发布核对表。
+- 新增两条上游 241 迁移（支付免费额度、TypeSafe 平台约束），已有迁移均不改写。数据库回滚通过旧镜像兼容新增列，不撤销数据。
+- 本地后端完整 unit、后续支付专项测试、golangci-lint v2.13（0 issues）通过；Vue 408 文件/3046 测试与后续客户端专项 32 测试、React 37 文件/567 测试、前端 lint/类型检查及 Vue→React 生产构建通过。本机 Docker daemon 不可用，集成测试交由 GitHub CI 门禁；生产证据待补齐。
+
+
 ### 2026-09-29 v0.2.10 已完成 23 服务器发布
 
 - 发布源码 `b55e31bd98688cdb069227ab7734882176721ddd`，版本 `0.2.10`。GitHub CI `36567062039`、Security Scan `36567061892`、Aivoza Image `36568315666` 均成功且 SHA 一致。
@@ -546,6 +556,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 重复，必须以完整文件名识别，不能因为编号相同而覆盖或删除。
 
 <!-- FLOWAI_MIGRATION_LEDGER_BEGIN -->
+| `backend/migrations/241_add_payment_order_bonus_amount.sql` | 支付免费额度字段 | 新增文件；旧订单默认 0，旧应用兼容，不逆向删列 |
+| `backend/migrations/241_add_typesafe_platform.sql` | TypeSafe 平台约束 | 新增文件；允许平台集合扩展，旧应用兼容 |
 | `backend/migrations/240_help_documents.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
 | `backend/migrations/241_help_client_guides.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
 | `backend/migrations/242_help_desktop_clients.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
@@ -635,6 +647,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+| 2026-09-29 | `856a7146a2e66fa855f45ace7a6e67cbc5e3657b` | 登记 v0.2.10 服务器发布、镜像与备份；无业务改动 | 发布记录 |
 | 2026-09-29 | `173eb0aa3034c053972d2590ceb04e1d28f0dea4` | 修复教程组件全角空格和事务 rollback errcheck；保持发布与权限语义 | CI 修复 |
 | 2026-09-29 | `0b7ab5f1cec997440fd851282ab8558c9e3c6e1a` | 教程发布管理、共享客户端配置、工作台提示词优化和跨平台托管路由；初始化事务保护，保留授权/计费及上游修复；新增 240_help_documents 至 254_smart_route_cross_platform，验证见本日候选记录 | 功能整合 |
 | 2026-09-24 | `d75d183871a2d7e08e7a7fe531f395e5dac2a6c9` | 记录 0.2.8 生产镜像、备份、蓝绿切换与验收；无业务代码变更 | 发布记录 |

@@ -165,7 +165,19 @@
                 {{ t('keys.useKeyModal.codexModelCatalog.description') }}
               </p>
               <p class="mt-1 truncate font-mono text-xs text-ink dark:text-ink-muted">
-                {{ codexModelCatalogPath }}
+                {{ codexModelCatalogMode === 'remote' ? codexModelCatalogUrl : codexModelCatalogPath }}
+              </p>
+              <select
+                v-model="codexModelCatalogMode"
+                data-testid="codex-model-catalog-mode"
+                :aria-label="t('keys.useKeyModal.codexModelCatalog.mode')"
+                class="input mt-2 text-sm"
+              >
+                <option value="remote" :disabled="codexModelCatalogOversized">{{ t('keys.useKeyModal.codexModelCatalog.remote') }}</option>
+                <option value="file">{{ t('keys.useKeyModal.codexModelCatalog.local') }}</option>
+              </select>
+              <p v-if="codexModelCatalogOversized" class="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                {{ t('keys.useKeyModal.codexModelCatalog.oversized') }}
               </p>
             </div>
             <button
@@ -239,7 +251,7 @@ import { useI18n } from 'vue-i18n'
 import { saveAs } from 'file-saver'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { fetchCodexModelsManifest } from '@/api/codex'
+import { buildCodexModelCatalogUrl, fetchCodexModelsManifest } from '@/api/codex'
 import type { GroupPlatform } from '@/types'
 import { useClientConfiguration, supportedClientIds } from '@/composables/useClientConfiguration'
 import { desktopClientNames, isDesktopClient } from '@/utils/desktopClients'
@@ -296,13 +308,17 @@ type CodexModelManifestState = 'idle' | 'loading' | 'ready' | 'error'
 const codexModelManifestState = ref<CodexModelManifestState>('idle')
 const codexModelManifestContent = ref('')
 const codexModelManifestModelCount = ref(0)
+const codexModelCatalogMode = ref<'remote' | 'file'>('remote')
+const codexModelManifestResponseBytes = ref(0)
+const codexModelCatalogOversized = computed(() => codexModelManifestResponseBytes.value > 1024 * 1024)
+const codexModelCatalogUrl = computed(() => buildCodexModelCatalogUrl(props.baseUrl))
 let codexModelManifestController: AbortController | null = null
 let codexModelManifestRequestID = 0
 
 const showCodexModelCatalog = computed(() =>
   props.show &&
-  props.platform !== 'openai' &&
-  activeClientTab.value === 'codex'
+  (activeClientTab.value === 'codex' ||
+    (props.platform === 'openai' && activeClientTab.value === 'codex-ws'))
 )
 
 const codexManifestContext = computed(() => {
@@ -322,6 +338,8 @@ const defaultClientTab = computed(() => {
       return 'gemini'
     case 'antigravity':
       return 'claude'
+    case 'typesafe':
+      return 'systemone'
     default:
       return 'claude'
   }
@@ -418,7 +436,7 @@ const SparkleIcon = {
 const clientTabs = computed((): TabConfig[] =>
   (props.claudeCodeOnly ? ['claude' as const] : supportedClientIds(props.platform, props.allowMessagesDispatch)).map(id => ({
     id,
-    label: isExtendedClient(id) ? extendedClients[id].name : isDesktopClient(id) ? desktopClientNames[id] : t('keys.useKeyModal.cliTabs.' + ({ claude: 'claudeCode', codex: 'codexCli', 'codex-ws': 'codexCliWs', gemini: 'geminiCli', grok: 'grokCli', opencode: 'opencode' }[id])),
+    label: isExtendedClient(id) ? extendedClients[id].name : isDesktopClient(id) ? desktopClientNames[id] : t('keys.useKeyModal.cliTabs.' + ({ claude: 'claudeCode', codex: 'codexCli', 'codex-ws': 'codexCliWs', gemini: 'geminiCli', grok: 'grokCli', opencode: 'opencode', systemone: 'systemOne' }[id])),
     icon: id === 'gemini' ? SparkleIcon : TerminalIcon
   }))
 )
@@ -490,6 +508,8 @@ const platformDescription = computed(() => {
       return activeClientTab.value === 'codex'
         ? t('keys.useKeyModal.composite.codexDescription')
         : t('keys.useKeyModal.composite.description')
+    case 'typesafe':
+      return t('keys.useKeyModal.typesafe.description')
     default:
       return t('keys.useKeyModal.description')
   }
@@ -547,6 +567,8 @@ const platformNote = computed(() => {
       return activeClientTab.value === 'codex'
         ? t('keys.useKeyModal.composite.codexNote')
         : t('keys.useKeyModal.note')
+    case 'typesafe':
+      return t('keys.useKeyModal.typesafe.note')
     default:
       return t('keys.useKeyModal.note')
   }
@@ -561,6 +583,7 @@ function resetCodexModelManifest() {
   codexModelManifestState.value = 'idle'
   codexModelManifestContent.value = ''
   codexModelManifestModelCount.value = 0
+  codexModelManifestResponseBytes.value = 0
 }
 
 async function loadCodexModelManifest() {
@@ -577,6 +600,8 @@ async function loadCodexModelManifest() {
     if (requestID !== codexModelManifestRequestID) return
     codexModelManifestContent.value = result.content
     codexModelManifestModelCount.value = result.modelCount
+    codexModelManifestResponseBytes.value = result.responseBytes
+    if (codexModelCatalogOversized.value) codexModelCatalogMode.value = 'file'
     codexModelManifestState.value = 'ready'
   } catch (error) {
     const errorName = error && typeof error === 'object' && 'name' in error
@@ -600,7 +625,7 @@ function downloadCodexModelManifest() {
 }
 
 const { currentFiles, codexModelCatalogPath } = useClientConfiguration(
-  { get platform() { return props.platform }, get baseUrl() { return props.baseUrl }, get apiKey() { return props.apiKey }, get allowMessagesDispatch() { return props.allowMessagesDispatch }, get model() { return selectedModel.value || undefined } }, activeTab, activeClientTab, codexAuthMode, codexModelManifestContent, t
+  { get platform() { return props.platform }, get baseUrl() { return props.baseUrl }, get apiKey() { return props.apiKey }, get allowMessagesDispatch() { return props.allowMessagesDispatch }, get model() { return selectedModel.value || undefined } }, activeTab, activeClientTab, codexAuthMode, codexModelManifestContent, t, codexModelCatalogMode
 )
 
 </script>

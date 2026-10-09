@@ -272,3 +272,7 @@ by the coverage contract test so new overlays cannot ship unrecorded.
   `no-store` without an ETag, and each response receives a matching fresh CSP
   nonce. Existing PostgreSQL and Redis container IDs and named volumes remained
   unchanged throughout candidate validation and cutover.
+
+### v0.2.14 新增共享界面
+
+- `frontend/src/components/account/ClaudeResetCreditsCell.vue`：Claude 重置额度单元格与浮层，保留主题和暗色模式。

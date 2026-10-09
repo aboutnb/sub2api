@@ -118,6 +118,9 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	// 规则未命中一律兜底 Chat Completions，只有显式 Responses 才走下方转换链。
 	if account.IsOpenCodeGo() {
 		mapped := resolveOpenCodeGoMappedModel(account, body, defaultMappedModel)
+		if IsOpenCodeUnsupportedModel(mapped) {
+			return nil, writeOpenCodeUnsupportedModelError(c, false, mapped)
+		}
 		proto := openCodeGoNativeProtocol(account, mapped)
 		if proto != APIProtocolResponses {
 			if isResponsesShape {
@@ -205,6 +208,10 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	// derive a stable seed from the final upstream model family.
 	billingModel := resolveOpenAIForwardModel(account, originalModel, defaultMappedModel)
 	upstreamModel := normalizeOpenAIModelForUpstream(account, billingModel)
+	if err := validateGPT61SolCompatRequest(body, upstreamModel); err != nil {
+		writeChatCompletionsError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+		return nil, err
+	}
 
 	promptCacheKey = strings.TrimSpace(promptCacheKey)
 	compatPromptCacheInjected := false

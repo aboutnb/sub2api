@@ -4142,7 +4142,7 @@
                       </tr>
                     </thead>
                     <tbody class="space-y-2">
-                      <tr v-for="p in (['anthropic', 'openai', 'gemini', 'antigravity', 'grok'] as const)" :key="p" class="align-top">
+                      <tr v-for="p in (['anthropic', 'openai', 'gemini', 'antigravity', 'grok', 'typesafe'] as const)" :key="p" class="align-top">
                         <td class="pr-4 py-1">
                           <span class="font-mono text-xs text-ink dark:text-ink-muted">{{ p }}</span>
                         </td>
@@ -4482,7 +4482,7 @@
                             </tr>
                           </thead>
                           <tbody>
-                            <tr v-for="p in (['anthropic', 'openai', 'gemini', 'antigravity', 'grok'] as const)" :key="`${authSource.source}-pq-${p}`" class="align-top">
+                            <tr v-for="p in (['anthropic', 'openai', 'gemini', 'antigravity', 'grok', 'typesafe'] as const)" :key="`${authSource.source}-pq-${p}`" class="align-top">
                               <td class="pr-4 py-1">
                                 <span class="font-mono text-xs text-ink dark:text-ink-muted">{{ p }}</span>
                               </td>
@@ -8428,77 +8428,6 @@
                     </p>
                   </div>
                 </div>
-                <div class="border-t border-line pt-5 dark:border-line" data-testid="recharge-bonus-tiers">
-                  <div class="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 class="text-sm font-semibold text-ink-strong dark:text-white">
-                        {{ t("admin.settings.payment.rechargeBonusTiers") }}
-                      </h3>
-                      <p class="mt-1 text-xs leading-5 text-ink-muted">
-                        {{ t("admin.settings.payment.rechargeBonusTiersHint") }}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      class="btn btn-secondary btn-sm shrink-0"
-                      :disabled="form.payment_recharge_bonus_tiers.length >= 20"
-                      :title="t('admin.settings.payment.addRechargeBonusTier')"
-                      :aria-label="t('admin.settings.payment.addRechargeBonusTier')"
-                      data-testid="add-recharge-bonus-tier"
-                      @click="addRechargeBonusTier"
-                    >
-                      <Icon name="plus" size="sm" />
-                    </button>
-                  </div>
-                  <div v-if="form.payment_recharge_bonus_tiers.length > 0" class="mt-3 divide-y divide-line border-y border-line dark:divide-line dark:border-line">
-                    <div
-                      v-for="(tier, index) in form.payment_recharge_bonus_tiers"
-                      :key="index"
-                      class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-end gap-3 py-3"
-                      data-testid="recharge-bonus-tier"
-                    >
-                      <label class="min-w-0">
-                        <span class="input-label">{{ t("admin.settings.payment.rechargeBonusThreshold") }}</span>
-                        <input
-                          v-model.number="tier.min_amount"
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          class="input"
-                          :aria-label="`${t('admin.settings.payment.rechargeBonusThreshold')} ${index + 1}`"
-                        />
-                      </label>
-                      <label class="min-w-0">
-                        <span class="input-label">{{ t("admin.settings.payment.rechargeBonusPercent") }}</span>
-                        <div class="relative">
-                          <input
-                            v-model.number="tier.bonus_percent"
-                            type="number"
-                            min="0.01"
-                            max="100"
-                            step="0.01"
-                            class="input pr-8"
-                            :aria-label="`${t('admin.settings.payment.rechargeBonusPercent')} ${index + 1}`"
-                          />
-                          <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-ink-muted">%</span>
-                        </div>
-                      </label>
-                      <button
-                        type="button"
-                        class="flex h-9 w-9 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
-                        :title="t('admin.settings.payment.removeRechargeBonusTier')"
-                        :aria-label="t('admin.settings.payment.removeRechargeBonusTier')"
-                        data-testid="remove-recharge-bonus-tier"
-                        @click="removeRechargeBonusTier(index)"
-                      >
-                        <Icon name="trash" size="sm" />
-                      </button>
-                    </div>
-                  </div>
-                  <p v-else class="mt-3 text-xs text-ink-muted">
-                    {{ t("admin.settings.payment.rechargeBonusDisabled") }}
-                  </p>
-                </div>
                 <!-- Row 3: Pending orders + load balance + cancel rate limit (all in one row) -->
                 <div class="flex items-center gap-3 border-t border-line pt-5 dark:border-line">
                   <span class="text-sm font-semibold text-ink-strong dark:text-white">{{ t("admin.settings.payment.sections.orderRules") }}</span>
@@ -8931,6 +8860,13 @@
               </div>
             </section>
           </div>
+          <!-- 充值优惠阶梯（独立卡片，与服务商管理同级） -->
+          <RechargeBonusTierEditor
+            v-if="form.payment_enabled"
+            v-model="form.payment_recharge_bonus_tiers"
+            v-model:mode="form.payment_recharge_bonus_mode"
+            v-model:notice="form.payment_recharge_bonus_notice"
+          />
 
           <!-- Provider Management -->
           <PaymentProviderList
@@ -9523,6 +9459,14 @@ import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
+import RechargeBonusTierEditor from "@/components/admin/settings/RechargeBonusTierEditor.vue";
+import {
+  normalizeRechargeBonusMode,
+  normalizeRechargeBonusTiers,
+  sanitizeRechargeBonusTiersForSubmit,
+  type RechargeBonusMode,
+  type RechargeBonusTierDraft,
+} from "@/utils/rechargeBonus";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import {
@@ -10246,6 +10190,10 @@ type SettingsForm = Omit<
   openai_advanced_scheduler_weight_upstream_cost: string;
   openai_advanced_scheduler_weight_previous_response: string;
   openai_advanced_scheduler_weight_session_sticky: string;
+  // 充值赠送阶梯编辑态：允许留空的行，提交时清洗为 RechargeBonusTier[]
+  payment_recharge_bonus_tiers: RechargeBonusTierDraft[];
+  payment_recharge_bonus_mode: RechargeBonusMode;
+  payment_recharge_bonus_notice: string;
   // 系统全局平台限额 map；form 内始终归一化为全 4 平台对象（模板非空绑定依赖此不变量）
   default_platform_quotas: DefaultPlatformQuotasMap;
   account_scheduling_thresholds: ReturnType<typeof normalizeAccountSchedulingThresholdsMap>;
@@ -10319,6 +10267,8 @@ const form = reactive<SettingsForm>({
   payment_subscription_fee_enabled: true,
   payment_recharge_fee_rate: 0,
   payment_recharge_fee_credited: false,
+  payment_recharge_bonus_mode: "bonus",
+  payment_recharge_bonus_notice: "",
   payment_enabled_types: [],
   payment_help_image_url: "",
   payment_help_text: "",
@@ -11382,18 +11332,6 @@ function removeEndpoint(index: number) {
   form.custom_endpoints.splice(index, 1);
 }
 
-function addRechargeBonusTier() {
-  if (form.payment_recharge_bonus_tiers.length >= 20) return;
-  const last = form.payment_recharge_bonus_tiers.at(-1);
-  form.payment_recharge_bonus_tiers.push({
-    min_amount: Math.round(((Number(last?.min_amount) || 0) + 50) * 100) / 100,
-    bonus_percent: Number(last?.bonus_percent) || 5,
-  });
-}
-
-function removeRechargeBonusTier(index: number) {
-  form.payment_recharge_bonus_tiers.splice(index, 1);
-}
 
 function addLoginAgreementDocument() {
   form.login_agreement_documents.push({
@@ -11616,6 +11554,13 @@ async function loadSettings() {
           }))
         : defaultLoginAgreementDocuments();
     Object.assign(authSourceDefaults, buildAuthSourceDefaultsState(settings));
+    form.payment_recharge_bonus_tiers = normalizeRechargeBonusTiers(
+      settings.payment_recharge_bonus_tiers,
+    );
+    form.payment_recharge_bonus_mode = normalizeRechargeBonusMode(
+      settings.payment_recharge_bonus_mode,
+    );
+    form.payment_recharge_bonus_notice = settings.payment_recharge_bonus_notice || "";
     form.default_platform_quotas = normalizePlatformQuotasMap(settings.default_platform_quotas);
     form.account_scheduling_thresholds = normalizeAccountSchedulingThresholdsMap(
       settings.account_scheduling_thresholds,
@@ -12273,15 +12218,16 @@ async function saveSettings() {
       payment_balance_disabled: form.payment_balance_disabled,
       payment_balance_recharge_multiplier:
         Number(form.payment_balance_recharge_multiplier) || 1,
-      payment_recharge_bonus_tiers: form.payment_recharge_bonus_tiers.map((tier) => ({
-        min_amount: Number(tier.min_amount),
-        bonus_percent: Number(tier.bonus_percent),
-      })),
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,
       payment_subscription_fee_enabled: form.payment_subscription_fee_enabled,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,
       payment_recharge_fee_credited: form.payment_recharge_fee_credited,
+      payment_recharge_bonus_tiers: sanitizeRechargeBonusTiersForSubmit(
+        form.payment_recharge_bonus_tiers,
+      ),
+      payment_recharge_bonus_mode: form.payment_recharge_bonus_mode,
+      payment_recharge_bonus_notice: form.payment_recharge_bonus_notice,
       payment_enabled_types: form.payment_enabled_types,
       payment_load_balance_strategy: form.payment_load_balance_strategy,
       payment_product_name_prefix: form.payment_product_name_prefix,

@@ -88,10 +88,15 @@
                       credited: `$${creditedAmount.toFixed(2)}`,
                     }) }}</span>
                   </div>
+                  <div v-if="renderedBonusNotice" class="mb-4 text-sm" data-testid="recharge-bonus-notice" v-html="renderedBonusNotice" />
                   <AmountInput
                     v-model="amount"
                     :amounts="rechargeQuickAmounts"
                     :amount-badges="quickAmountBadges"
+                    :bonus-tiers="rechargeBonusTiers"
+                    :bonus-mode="rechargeBonusMode"
+                    :multiplier="balanceRechargeMultiplier"
+                    :currency="selectedCurrency"
                     :min="globalMinAmount"
                     :max="globalMaxAmount"
                   />
@@ -135,12 +140,16 @@
                         <dt class="text-ink-muted dark:text-ink-muted">{{ t('payment.paymentAmount') }}</dt>
                         <dd class="font-medium tabular-nums text-ink-strong dark:text-white">{{ formatSelectedPaymentAmount(validAmount) }}</dd>
                       </div>
+                      <div v-if="discountAmount > 0" class="flex justify-between gap-4" data-testid="recharge-discount-row">
+                        <dt>{{ t('payment.rechargeBonus.discountLabelWithPercent', { percent: bonusQuote.percent }) }}</dt>
+                        <dd>-{{ formatSelectedPaymentAmount(discountAmount) }}</dd>
+                      </div>
                       <div v-if="feeRate > 0" class="flex justify-between gap-4">
                         <dt class="text-ink-muted dark:text-ink-muted">{{ t('payment.fee') }} ({{ feeRate }}%)</dt>
                         <dd class="font-medium tabular-nums text-ink-strong dark:text-white">{{ formatSelectedPaymentAmount(feeAmount) }}</dd>
                       </div>
-                      <div v-if="activeRechargeBonusPercent > 0" class="flex justify-between gap-4">
-                        <dt class="text-ink-muted dark:text-ink-muted">{{ t('payment.rechargeBonus', { percent: formatRechargeBonusPercent(activeRechargeBonusPercent) }) }}</dt>
+                      <div v-if="rechargeBonusMode === 'bonus' && activeRechargeBonusPercent > 0" class="flex justify-between gap-4">
+                        <dt class="text-ink-muted dark:text-ink-muted">{{ t('payment.rechargeBonus.amountLabelWithPercent', { percent: formatRechargeBonusPercent(activeRechargeBonusPercent) }) }}</dt>
                         <dd class="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">+${{ bonusCreditedAmount.toFixed(2) }}</dd>
                       </div>
                       <div v-if="showCreditedAmount" class="flex items-center justify-between gap-4 border-t border-line pt-3 dark:border-line">
@@ -367,15 +376,13 @@ import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiErro
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
 import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
+import { normalizeRechargeBonusMode, normalizeRechargeBonusTiers, quoteRechargeBonus } from '@/utils/rechargeBonus'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
 import { METHOD_ORDER, getPaymentPopupFeaturesForMethod } from '@/components/payment/providerConfig'
 import {
-  calculateRechargeBonusCredit,
-  calculateRechargeCreditedAmount,
   formatRechargeBonusPercent,
-  normalizeRechargeBonusTiers,
   resolveRechargeBonusPercent,
 } from '@/components/payment/rechargeBonus'
 import {
@@ -619,12 +626,20 @@ function onPaymentSettled() {
 const checkout = ref<CheckoutInfoResponse>({
   methods: {}, global_min: 0, global_max: 0,
   plans: [], balance_disabled: false, balance_recharge_multiplier: 1, recharge_bonus_tiers: [], subscription_usd_to_cny_rate: 0, subscription_fee_enabled: true, recharge_fee_rate: 0, recharge_fee_credited: false, help_text: '', help_image_url: '', stripe_publishable_key: '',
+  recharge_bonus_mode: 'bonus', recharge_bonus_notice: '',
 })
 
 const rechargeQuickAmounts = [10, 20, 50, 100, 200, 500]
 const renderedHelpText = computed(() => DOMPurify.sanitize(
   marked.parse(checkout.value.help_text || '', { async: false, gfm: true, breaks: false }),
 ))
+
+// 充值赠送活动文案：后台 Markdown 配置，空字符串时金额卡顶部不渲染
+const renderedBonusNotice = computed(() => {
+  const raw = (checkout.value.recharge_bonus_notice || '').trim()
+  if (!raw) return ''
+  return DOMPurify.sanitize(marked.parse(raw, { async: false, gfm: true, breaks: true }))
+})
 
 // 订阅功能开关（public settings 的 subscription_enabled，opt-out）。关闭后购买页只保留充值：
 // 不再渲染「订阅」tab，只剩单个 tab 时顶部切换器也随之隐藏。
@@ -661,7 +676,7 @@ const quickAmountBadges = computed<Record<number, string>>(() => {
   for (const quickAmount of rechargeQuickAmounts) {
     const percent = resolveRechargeBonusPercent(quickAmount, rechargeBonusTiers.value)
     if (percent > 0) {
-      badges[quickAmount] = t('payment.bonusBadge', { percent: formatRechargeBonusPercent(percent) })
+      badges[quickAmount] = rechargeBonusMode.value === 'discount' ? `${formatRechargeBonusPercent(percent)}% OFF` : t('payment.bonusBadge', { percent: formatRechargeBonusPercent(percent) })
     }
   }
   return badges
@@ -671,6 +686,7 @@ const subscriptionUsdToCnyRate = computed(() => {
   const rate = checkout.value.subscription_usd_to_cny_rate
   return Number.isFinite(rate) && rate > 0 ? rate : 0
 })
+const rechargeBonusMode = computed(() => normalizeRechargeBonusMode(checkout.value.recharge_bonus_mode))
 // Adaptive grid: center single card, 2-col for 2 plans, 3-col for 3+
 const planGridClass = computed(() => {
   const n = checkout.value.plans.length
@@ -751,6 +767,16 @@ function formatSelectedSubscriptionPaymentAmount(value: number): string {
   return formatSelectedPaymentAmount(subscriptionPaymentAmountForCurrency(value, selectedCurrency.value))
 }
 
+// 充值优惠：阈值按输入金额命中；赠金模式按到账基数（输入 × 倍率）加赠送，折扣模式按百分比减实付。
+// 与后端 quoteRechargeBonus 一致；渠道限额、手续费、实付都按折后基数（payBaseAmount）计算，提交仍发送输入金额。
+const bonusQuote = computed(() => quoteRechargeBonus(rechargeBonusTiers.value, validAmount.value, {
+  multiplier: balanceRechargeMultiplier.value,
+  mode: rechargeBonusMode.value,
+  currencyDigits: currencyFractionDigits(selectedCurrency.value),
+}))
+const payBaseAmount = computed(() => bonusQuote.value.payBase)
+const discountAmount = computed(() => roundPaymentAmount(validAmount.value - payBaseAmount.value, selectedCurrency.value))
+
 const methodOptions = computed<PaymentMethodOption[]>(() =>
   enabledMethods.value.map((type) => {
     const ml = visibleMethods.value[type]
@@ -758,7 +784,7 @@ const methodOptions = computed<PaymentMethodOption[]>(() =>
       type,
       display_name: ml?.display_name,
       fee_rate: ml?.fee_rate ?? 0,
-      available: ml?.available !== false && amountFitsMethod(validAmount.value, type),
+      available: ml?.available !== false && amountFitsMethod(payBaseAmount.value, type),
     }
   })
 )
@@ -768,29 +794,17 @@ const subscriptionFeeRate = computed(() =>
   checkout.value.subscription_fee_enabled !== false ? feeRate.value : 0
 )
 const feeAmount = computed(() =>
-  feeRate.value > 0 && validAmount.value > 0
-    ? Math.ceil(((validAmount.value * feeRate.value) / 100) * 100) / 100
+  feeRate.value > 0 && payBaseAmount.value > 0
+    ? Math.ceil(((payBaseAmount.value * feeRate.value) / 100) * 100) / 100
     : 0
 )
 const totalAmount = computed(() =>
-  feeRate.value > 0 && validAmount.value > 0
-    ? Math.round((validAmount.value + feeAmount.value) * 100) / 100
-    : validAmount.value
+  feeRate.value > 0 && payBaseAmount.value > 0
+    ? Math.round((payBaseAmount.value + feeAmount.value) * 100) / 100
+    : payBaseAmount.value
 )
-const creditedAmount = computed(() => {
-  return calculateRechargeCreditedAmount(
-    validAmount.value,
-    totalAmount.value,
-    balanceRechargeMultiplier.value,
-    rechargeFeeCredited.value,
-    rechargeBonusTiers.value,
-  )
-})
-const bonusCreditedAmount = computed(() => calculateRechargeBonusCredit(
-  validAmount.value,
-  balanceRechargeMultiplier.value,
-  rechargeBonusTiers.value,
-))
+const creditedAmount = computed(() => Math.round((bonusQuote.value.credited + (rechargeFeeCredited.value ? feeAmount.value * balanceRechargeMultiplier.value : 0)) * 100) / 100)
+const bonusCreditedAmount = computed(() => bonusQuote.value.bonus)
 const showCreditedAmount = computed(() =>
   balanceRechargeMultiplier.value !== 1
     || (rechargeFeeCredited.value && feeRate.value > 0)
@@ -800,21 +814,21 @@ const showCreditedAmount = computed(() =>
 const amountError = computed(() => {
   if (validAmount.value <= 0) return ''
   // No method can handle this amount
-  if (!enabledMethods.value.some((m) => amountFitsMethod(validAmount.value, m))) {
+  if (!enabledMethods.value.some((m) => amountFitsMethod(payBaseAmount.value, m))) {
     return t('payment.amountNoMethod')
   }
   // Selected method can't handle this amount (but others can)
   const ml = selectedLimit.value
   if (ml) {
-    if (ml.single_min > 0 && validAmount.value < ml.single_min) return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(ml.single_min) })
-    if (ml.single_max > 0 && validAmount.value > ml.single_max) return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(ml.single_max) })
+    if (ml.single_min > 0 && payBaseAmount.value < ml.single_min) return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(ml.single_min) })
+    if (ml.single_max > 0 && payBaseAmount.value > ml.single_max) return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(ml.single_max) })
   }
   return ''
 })
 
 const canSubmit = computed(() =>
   validAmount.value > 0
-    && amountFitsMethod(validAmount.value, selectedMethod.value)
+    && amountFitsMethod(payBaseAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
 )
 
@@ -862,7 +876,7 @@ const canSubmitSubscription = computed(() =>
 )
 
 // Auto-switch to first available method when current selection can't handle the amount
-watch(() => [validAmount.value, selectedMethod.value] as const, ([amt, method]) => {
+watch(() => [payBaseAmount.value, selectedMethod.value] as const, ([amt, method]) => {
   if (amt <= 0 || amountFitsMethod(amt, method)) return
   const available = enabledMethods.value.find((m) => amountFitsMethod(amt, m))
   if (available) selectedMethod.value = available

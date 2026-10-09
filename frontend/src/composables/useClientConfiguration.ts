@@ -1,4 +1,5 @@
-import { computed, type Ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
+import { buildCodexModelCatalogUrl } from '@/api/codex'
 import type { GroupPlatform } from '@/types'
 import { desktopClientFields, isDesktopClient, type DesktopClientId } from '@/utils/desktopClients'
 import { extendedClientFiles, extendedClientIds, isExtendedClient, type ExtendedClientId } from '@/utils/extendedClients'
@@ -10,7 +11,7 @@ export interface ClientFileConfig {
   hint?: string
   highlighted?: string
 }
-export type ClientId = 'claude' | 'codex' | 'codex-ws' | 'gemini' | 'grok' | 'opencode' | DesktopClientId | ExtendedClientId
+export type ClientId = 'systemone' | 'claude' | 'codex' | 'codex-ws' | 'gemini' | 'grok' | 'opencode' | DesktopClientId | ExtendedClientId
 export interface ClientConfigurationContext {
   platform: GroupPlatform | null
   baseUrl: string
@@ -22,12 +23,13 @@ export interface ClientConfigurationContext {
 const CODEX_MODEL_CATALOG_CONFIG_PATH = '~/.codex/codex-models.json'
 export function supportedClientIds(platform: GroupPlatform | null, allowMessagesDispatch = false): ClientId[] {
   const cli = supportedCliIds(platform, allowMessagesDispatch)
-  if (!platform) return cli
+  if (!platform || platform === 'typesafe') return cli
   return [...cli, 'cherry-studio', ...(platform === 'openai' ? ['cursor' as const] : []), 'cline', 'roo-code', ...extendedClientIds(platform)]
 }
 function supportedCliIds(platform: GroupPlatform | null, allowMessagesDispatch = false): ClientId[] {
   if (!platform) return []
   switch (platform) {
+    case 'typesafe': return ['systemone']
     case 'openai': return ['codex', 'codex-ws', ...(allowMessagesDispatch ? ['claude' as const] : []), 'opencode']
     case 'gemini': return ['gemini', 'codex', 'opencode']
     case 'antigravity': return ['claude', 'gemini', 'codex', 'opencode']
@@ -42,8 +44,11 @@ export function useClientConfiguration(
   activeClientTab: Ref<string>,
   codexAuthMode: Ref<'legacy' | 'api-key'>,
   codexModelManifestContent: Ref<string>,
-  t: (key: string) => string
+  t: (key: string) => string,
+  codexModelCatalogMode: Ref<'remote' | 'file'> = ref('file')
 ) {
+  const codexLocalCatalogToml = computed(() => codexModelCatalogMode.value === 'file'
+    ? `model_catalog_json = "${CODEX_MODEL_CATALOG_CONFIG_PATH}"\n` : '')
   const codexModelCatalogPath = computed(() => {
     const isWindows = activeTab.value === 'windows'
     const configDir = isWindows ? '%userprofile%\\.codex' : '~/.codex'
@@ -128,6 +133,7 @@ const currentFiles = computed((): ClientFileConfig[] => {
   }
 
   switch (props.platform) {
+    case 'typesafe': return [generateSystemOneCurl(baseRoot, apiKey)]
     case 'openai':
       if (activeClientTab.value === 'claude') {
         // Anthropic clients append /v1/messages themselves.
@@ -181,6 +187,47 @@ const currentFiles = computed((): ClientFileConfig[] => {
       return generateAnthropicFiles(baseUrl, apiKey)
   }
 })
+
+function generateSystemOneCurl(baseUrl: string, apiKey: string): ClientFileConfig {
+  const endpoint = `${baseUrl}/v1/systemone`
+  const payload = `{
+  "model": "jev-latest",
+  "state": "Text to evaluate",
+  "questions": {
+    "safety": {
+      "type": "noul",
+      "instructions": "Evaluate whether the text is unsafe"
+    }
+  }
+}`
+  if (activeTab.value === 'powershell' || activeTab.value === 'windows') {
+    return {
+      path: 'PowerShell',
+      content: `$headers = @{ Authorization = "Bearer ${apiKey}" }
+$body = @'
+${payload}
+'@
+Invoke-RestMethod -Method Post -Uri "${endpoint}" -Headers $headers -ContentType "application/json" -Body $body`
+    }
+  }
+  if (activeTab.value === 'cmd') {
+    const cmdPayload = JSON.stringify(JSON.parse(payload)).replace(/"/g, '\\"')
+    return {
+      path: 'Command Prompt',
+      content: `curl -X POST "${endpoint}" ^
+  -H "Authorization: Bearer ${apiKey}" ^
+  -H "Content-Type: application/json" ^
+  --data "${cmdPayload}"`
+    }
+  }
+  return {
+    path: 'Terminal',
+    content: `curl -X POST "${endpoint}" \\
+  -H "Authorization: Bearer ${apiKey}" \\
+  -H "Content-Type: application/json" \\
+  --data '${payload}'`
+  }
+}
 
 function generateAnthropicFiles(baseUrl: string, apiKey: string): ClientFileConfig[] {
   let path: string
@@ -352,17 +399,17 @@ function generateOpenAIFiles(baseUrl: string, apiKey: string): ClientFileConfig[
 model = "${model}"
 review_model = "${model}"
 ${reasoningEffortLine}disable_response_storage = true
-network_access = "enabled"
+${codexLocalCatalogToml.value}network_access = "enabled"
 windows_wsl_setup_acknowledged = true
 
 [model_providers.OpenAI]
 name = "OpenAI"
 base_url = "${baseUrl}"
-wire_api = "responses"
+${codexModelCatalogMode.value === 'remote' ? `model_catalog_url = "${escapeTomlBasicString(buildCodexModelCatalogUrl(baseUrl))}"\n` : ''}wire_api = "responses"
 ${generateCodexProviderAuthConfig(apiKey)}
 
 [features]
-goals = true`
+${codexModelCatalogMode.value === 'remote' ? 'api_key_model_discovery = true\n' : ''}goals = true`
 
   return buildOpenAICodexFileConfigs(configDir, configContent, apiKey)
 }
@@ -584,8 +631,7 @@ function generateGrokCodexFiles(baseUrl: string, apiKey: string): ClientFileConf
 
 model_provider = "sub2api"
 model = "${model}"
-model_catalog_json = "${escapeTomlBasicString(CODEX_MODEL_CATALOG_CONFIG_PATH)}"
-# Optional:
+${codexLocalCatalogToml.value}# Optional:
 # review_model = "${model}"
 # model_reasoning_effort = "medium"
 # model_context_window = 500000
@@ -596,7 +642,7 @@ model_catalog_json = "${escapeTomlBasicString(CODEX_MODEL_CATALOG_CONFIG_PATH)}"
 [model_providers.sub2api]
 name = "Sub2API Grok"
 base_url = "${baseUrl}"
-# Prefer env_key (variable NAME). Do not combine with experimental_bearer_token.
+${codexModelCatalogMode.value === 'remote' ? `model_catalog_url = "${escapeTomlBasicString(buildCodexModelCatalogUrl(baseUrl))}"\n` : ''}# Prefer env_key (variable NAME). Do not combine with experimental_bearer_token.
 env_key = "SUB2API_API_KEY"
 # Fallback only if you cannot set env (discouraged — keeps secret on disk):
 # experimental_bearer_token = "${apiKey}"
@@ -607,7 +653,7 @@ requires_openai_auth = false
 supports_websockets = false
 
 # Optional:
-# [features]
+${codexModelCatalogMode.value === 'remote' ? '[features]\napi_key_model_discovery = true' : '# [features]'}
 # goals = true`
 
   return [
@@ -653,6 +699,7 @@ function generateRoutedCodexFiles(
     deepseek: 'DeepSeek',
     minimax: 'MiniMax',
     opencode_go: 'OpenCode',
+    typesafe: 'TypeSafe / Jev',
     composite: 'Composite'
   }
   const label = labels[platform]
@@ -665,15 +712,14 @@ model_provider = "sub2api"
 model = "${model}"
 review_model = "${model}"
 disable_response_storage = true
-model_catalog_json = "${escapeTomlBasicString(CODEX_MODEL_CATALOG_CONFIG_PATH)}"
-
+${codexLocalCatalogToml.value}
 [model_providers.sub2api]
 name = "Sub2API ${label}"
 base_url = "${baseUrl}"
-env_key = "SUB2API_API_KEY"
+${codexModelCatalogMode.value === 'remote' ? `model_catalog_url = "${escapeTomlBasicString(buildCodexModelCatalogUrl(baseUrl))}"\n` : ''}env_key = "SUB2API_API_KEY"
 wire_api = "responses"
 requires_openai_auth = false
-supports_websockets = false`
+supports_websockets = false${codexModelCatalogMode.value === 'remote' ? '\n\n[features]\napi_key_model_discovery = true' : ''}`
 
   return [
     { path: isWindows ? 'PowerShell' : 'Terminal', content: envContent },
@@ -700,18 +746,18 @@ function generateOpenAIWsFiles(baseUrl: string, apiKey: string): ClientFileConfi
 model = "${model}"
 review_model = "${model}"
 ${reasoningEffortLine}disable_response_storage = true
-network_access = "enabled"
+${codexLocalCatalogToml.value}network_access = "enabled"
 windows_wsl_setup_acknowledged = true
 
 [model_providers.OpenAI]
 name = "OpenAI"
 base_url = "${baseUrl}"
-wire_api = "responses"
+${codexModelCatalogMode.value === 'remote' ? `model_catalog_url = "${escapeTomlBasicString(buildCodexModelCatalogUrl(baseUrl))}"\n` : ''}wire_api = "responses"
 supports_websockets = true
 ${generateCodexProviderAuthConfig(apiKey)}
 
 [features]
-responses_websockets_v2 = true
+${codexModelCatalogMode.value === 'remote' ? 'api_key_model_discovery = true\n' : ''}responses_websockets_v2 = true
 goals = true`
 
   return buildOpenAICodexFileConfigs(configDir, configContent, apiKey)
@@ -729,6 +775,23 @@ function generateOpenCodeConfig(platform: string, baseUrl: string, apiKey: strin
   const openaiModels = {
     'gpt-6': {
       name: 'GPT-6 (Astra)',
+      limit: {
+        context: 1050000,
+        output: 128000
+      },
+      options: {
+        store: false
+      },
+      variants: {
+        low: {},
+        medium: {},
+        high: {},
+        xhigh: {},
+        max: {}
+      }
+    },
+    'gpt-6.1-sol': {
+      name: 'GPT-6.1 Sol',
       limit: {
         context: 1050000,
         output: 128000
