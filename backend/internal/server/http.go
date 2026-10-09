@@ -113,6 +113,8 @@ func configureTrustedProxies(r *gin.Engine, cfg config.ServerConfig) {
 }
 
 // ProvideHTTPServer 提供 HTTP 服务器
+//
+//nolint:staticcheck // SA1019: x/net compatibility preserves separate H2 and H1 idle timeouts; native Server.IdleTimeout would change H1 behavior.
 func ProvideHTTPServer(cfg *config.Config, router *gin.Engine) *http.Server {
 	httpHandler := http.Handler(router)
 	server := &http.Server{

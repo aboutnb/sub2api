@@ -2,6 +2,10 @@
 
 ### 2026-10-09 v0.2.14 合并候选（尚未部署）
 
+- 恢复后的 Security Scan `37874088635` 拦截了上游自带的 Go/HTTP2 漏洞（如 GO-2026-6617）；前端安全检查成功。按漏洞数据库固定修复版本升级 Go 1.27.2、golang.org/x/net v0.60.0 及其最小依赖集，同步 CI/Release/Docker 构建版本。官方 Alpine 镜像 amd64 可用，本地 govulncheck 可达漏洞为 0；7 条仅位于未调用依赖模块，未新增豁免。后端测试及新同源 GitHub 门禁继续验证。
+
+- Go 1.27.2 导出格式升级要求 x/tools v0.51.0 与 golangci-lint v2.14；上游出站 HTTP/2 健康探测改用标准库 HTTP2Config，协议协商与代理配置回归通过。服务端保留 x/net 兼容层以维持 H1/H2 独立 idle timeout，GOAWAY 旧类型识别保留重试；仅对这两处弃用告警作说明，不豁免漏洞。修补前 GitHub CI `37874088611` 全部成功（含集成测试），修补后须重新验证同源门禁。
+
 - 合并提交 `09ab7ed2ef7d219576c00b1fc8614a1fe2fbfd06`，候选 `79b0c8c37a55ab5e21f13a6e3d1b5250a2363dbd` 与后续治理提交已推送；GitHub API 确认主线一致，但无 Actions run/check suite。最初怀疑上游四个 VERSION 提交含 `[skip ci]`；进一步用 Actions 页面确认真正阻塞为 fork 因 Actions 使用情况被 GitHub 暂停，需维护者重新启用。不能仅靠 workflow API 的 active 状态认定仓库可运行。已通过现有 Chrome 维护者会话恢复，页面明确显示 Actions Enabled；本次治理提交触发恢复后的完整门禁。
 - 23 服务器发布前备份 `/root/flowai/backups/aivoza-v0214-20261009` 已完成：PostgreSQL custom dump 485 MB 且 TOC 校验通过、应用/Mihomo 状态 29 KB、Redis RDB 956 KB 且 redis-check-rdb 通过、配置及旧容器元数据；尚未启动候选或切换流量。
 - 本地嵌入静态资源的 Go 构建通过，pnpm 生产依赖审计例外校验通过。原历史工作区跟踪改动未发现上次发布后更新；保留全部未提交文件，不回抄旧实现。
