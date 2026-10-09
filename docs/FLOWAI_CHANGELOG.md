@@ -655,6 +655,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+| 2026-10-09 | `f3c44168d41b3d8e7be60ac42724b716ae08a7f5` | Go 1.27.2、x/net 0.60.0 安全修复与工具链适配；出站 HTTP2Config 健康探测保留协议/代理行为，服务端独立超时和旧 GOAWAY 重试兼容；govulncheck 零可达漏洞、golangci v2.14 零问题、协议及内存专项通过 | 安全/HTTP2/CI |
 | 2026-09-29 | `856a7146a2e66fa855f45ace7a6e67cbc5e3657b` | 登记 v0.2.10 服务器发布、镜像与备份；无业务改动 | 发布记录 |
 | 2026-09-29 | `173eb0aa3034c053972d2590ceb04e1d28f0dea4` | 修复教程组件全角空格和事务 rollback errcheck；保持发布与权限语义 | CI 修复 |
 | 2026-09-29 | `0b7ab5f1cec997440fd851282ab8558c9e3c6e1a` | 教程发布管理、共享客户端配置、工作台提示词优化和跨平台托管路由；初始化事务保护，保留授权/计费及上游修复；新增 240_help_documents 至 254_smart_route_cross_platform，验证见本日候选记录 | 功能整合 |
