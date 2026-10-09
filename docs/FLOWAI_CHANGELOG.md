@@ -1,6 +1,15 @@
 # FlowAI 分支变更台账
 
-### 2026-10-09 v0.2.14 合并候选（尚未部署）
+### 2026-10-09 v0.2.14 已完成 23 服务器发布
+
+- 发布源码 `ab520b4c5c5dbe336b0f147f1adaa3c3074ba4a8`，版本 0.2.14；同源 GitHub CI `37875387481`（含集成测试）、Security Scan `37875387480`、Aivoza Image `37876158329` 全部成功。安全补丁后的本地完整 Go unit、golangci v2.14、严格契约均通过。
+- 镜像 `ghcr.io/aboutnb/aivoza-sub2api:sha-ab520b4c5c5d`，固定 digest `sha256:ea1f175db7428423b890ca0be2ed2379ccbad8630c28451b32158cbfd0f219d7`；服务器核验 amd64、完整源码标签与发布状态一致。
+- 2026-10-09 03:42:24 UTC 开始 promote，当前 flowai-app 在回环 3011；上一版 0.2.10 `flowai-app-rollback-c8734dbe73a6` 在 3010。Caddy 路由匹配，PostgreSQL、Redis、GM、Mihomo、Caddy 启动时间未变化，Guardian 健康且实际连接域名仍为 aivoza.com。
+- 切换前后服务器 curl 探测覆盖 03:40:38–03:46:10 UTC，两个公网域名各 269 次全部 200。公网版本均为 0.2.14；主站登录/工作台入口 200，美国 API 域名对应页面 404（既有隔离），未认证 auth/me 与 bootstrap 均 401。一次本机代理链路 TLS 连接失败，随后主站直连版本验证成功；不将该本机失败混入服务器连续探测统计。
+- 两条新迁移校验和与源码一致：241_add_payment_order_bonus_amount.sql `18b6a524a9873d3e4a45e6f9bd03b6e69f4384b701825c659817e017f2e8244f`，241_add_typesafe_platform.sql `b6559525bf8d0b5d7c617e7415944f0d1fae8c408e9131ace84139795f66dcd2`。充值赠送档位、手续费及工作台/路由数据库开关未修改；启动及切流后日志无 panic/fatal/迁移错误。未执行真实生图或支付。
+- 完整备份位于 `/root/flowai/backups/aivoza-v0214-20261009`，回滚状态 `state/aivoza-v0214-ab520b4c5c5d.json`。更早 0.2.8 容器入站连接为 0 后优雅停止并移除，无容器引用后删除旧镜像；保留数据卷、备份和无关服务。终端控制中断前只准备候选，恢复后重新启动探测并切流；一次重复排队 prepare 因容器名冲突失败，原 ready 状态经复核完好。
+
+### 2026-10-09 v0.2.14 合并记录（已部署）
 
 - 恢复后的 Security Scan `37874088635` 拦截了上游自带的 Go/HTTP2 漏洞（如 GO-2026-6617）；前端安全检查成功。按漏洞数据库固定修复版本升级 Go 1.27.2、golang.org/x/net v0.60.0 及其最小依赖集，同步 CI/Release/Docker 构建版本。官方 Alpine 镜像 amd64 可用，本地 govulncheck 可达漏洞为 0；7 条仅位于未调用依赖模块，未新增豁免。后端测试及新同源 GitHub 门禁继续验证。
 
