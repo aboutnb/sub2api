@@ -2,7 +2,8 @@
 
 ### 2026-10-09 v0.2.14 合并候选（尚未部署）
 
-- 合并提交 `09ab7ed2ef7d219576c00b1fc8614a1fe2fbfd06`，首轮候选 `79b0c8c37a55ab5e21f13a6e3d1b5250a2363dbd` 已推送；GitHub API 确认主线一致，但无 Actions run/check suite。新增上游四个 VERSION 同步提交含 `[skip ci]`，导致整次 push 检查被跳过。通过本条真实发布证据更新单独推送触发门禁，不创建空提交、不绕过检查。
+- 合并提交 `09ab7ed2ef7d219576c00b1fc8614a1fe2fbfd06`，候选 `79b0c8c37a55ab5e21f13a6e3d1b5250a2363dbd` 与后续治理提交已推送；GitHub API 确认主线一致，但无 Actions run/check suite。最初怀疑上游四个 VERSION 提交含 `[skip ci]`；进一步用 Actions 页面确认真正阻塞为 fork 因 Actions 使用情况被 GitHub 暂停，需维护者重新启用。不能仅靠 workflow API 的 active 状态认定仓库可运行。已通过现有 Chrome 维护者会话恢复，页面明确显示 Actions Enabled；本次治理提交触发恢复后的完整门禁。
+- 23 服务器发布前备份 `/root/flowai/backups/aivoza-v0214-20261009` 已完成：PostgreSQL custom dump 485 MB 且 TOC 校验通过、应用/Mihomo 状态 29 KB、Redis RDB 956 KB 且 redis-check-rdb 通过、配置及旧容器元数据；尚未启动候选或切换流量。
 - 本地嵌入静态资源的 Go 构建通过，pnpm 生产依赖审计例外校验通过。原历史工作区跟踪改动未发现上次发布后更新；保留全部未提交文件，不回抄旧实现。
 
 - 复用现有 main 工作区，从 `856a7146a2e66fa855f45ace7a6e67cbc5e3657b` 合并已审上游 `5fc0e486c3f6a8a191b8bd140f39b60457f611cf`（VERSION 0.2.14，包含 v0.2.14 标签后的修复）；上游增量 194 提交、389 文件。历史脏工作区及素材保留。

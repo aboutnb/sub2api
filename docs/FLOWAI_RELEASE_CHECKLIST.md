@@ -259,4 +259,4 @@ FlowAI 专属变更：
 - 两条 241 上游迁移按完整名登记。重置密码改为哈希令牌后，旧格式链接重新申请，不能启用明文兼容绕过。
 - 切换前启动两个公网域名连续探测，切换后汇总 HTTP 状态；保留唯一上一版回滚并排空更早版本连接。
 
-上游 VERSION 自动同步提交可能含 `[skip ci]`，整次合并 push 会跳过 Actions。应先确认 remote SHA、Actions runs 与 check suites，再通过登记实际合并/验证证据的独立治理提交触发检查；不得创建空重试提交或省略同 SHA 门禁。
+Actions 不启动时，核对 remote SHA、Actions runs/check suites 与登录后的 Actions 页面。workflow API 的 active 状态不能排除仓库级停用。上游 VERSION 提交的 `[skip ci]` 仅作为可能原因排查；先处理页面明确的暂停原因，再通过登记实际合并/验证证据的治理提交触发检查，不创建空重试提交。
