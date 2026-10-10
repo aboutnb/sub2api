@@ -65,4 +65,37 @@ func TestChannelMonitorPlatformCatalogMigration(t *testing.T) {
 	require.NoError(t, tx.QueryRowContext(ctx, `SELECT platforms FROM channel_monitor_v2_config WHERE id=3`).Scan(&raw))
 	require.NoError(t, json.Unmarshal(raw, &platforms))
 	require.Len(t, platforms, 12)
+
+	// The v0.2.15 extension follows the same preservation and idempotency rules.
+	_, err = tx.ExecContext(ctx, `UPDATE channel_monitor_v2_config SET platforms = platforms || '[{"platform":"cline","enabled":false,"models":["private-cline"]}]'::jsonb WHERE id=1`)
+	require.NoError(t, err)
+	sql, err = migrations.FS.ReadFile("256_channel_monitor_v0215_platforms.sql")
+	require.NoError(t, err)
+	_, err = tx.ExecContext(ctx, string(sql))
+	require.NoError(t, err)
+	require.NoError(t, tx.QueryRowContext(ctx, `SELECT platforms, version FROM channel_monitor_v2_config WHERE id=1`).Scan(&raw, &version))
+	require.Equal(t, 9, version)
+	require.NoError(t, json.Unmarshal(raw, &platforms))
+	for _, p := range platforms {
+		if p.Platform == "cline" {
+			require.False(t, p.Enabled)
+			require.Equal(t, []string{"private-cline"}, p.Models)
+		}
+		if p.Platform == "command_code" {
+			require.True(t, p.Enabled)
+		}
+	}
+	_, err = tx.ExecContext(ctx, string(sql))
+	require.NoError(t, err)
+	require.NoError(t, tx.QueryRowContext(ctx, `SELECT platforms, version FROM channel_monitor_v2_config WHERE id=1`).Scan(&repeated, &version))
+	require.JSONEq(t, string(raw), string(repeated))
+	require.Equal(t, 9, version)
+	require.NoError(t, tx.QueryRowContext(ctx, `SELECT platforms, version FROM channel_monitor_v2_config WHERE id=2`).Scan(&raw, &version))
+	require.JSONEq(t, `[]`, string(raw))
+	require.Equal(t, 9, version)
+	_, err = tx.ExecContext(ctx, `INSERT INTO channel_monitor_v2_config (id, version) VALUES (4, 1)`)
+	require.NoError(t, err)
+	require.NoError(t, tx.QueryRowContext(ctx, `SELECT platforms FROM channel_monitor_v2_config WHERE id=4`).Scan(&raw))
+	require.NoError(t, json.Unmarshal(raw, &platforms))
+	require.Len(t, platforms, 14)
 }
