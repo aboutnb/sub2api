@@ -1,18 +1,28 @@
 # FlowAI 分支变更台账
 
-### 2026-10-10 v0.2.15 合并候选（尚未部署）
+### 2026-10-10 v0.2.15 已切流至 23 服务器（Guardian 验收未完成）
+
+- 发布源码 `fa80f638880a57ecb019c3b1a8ab6bda8ee059a1`，线上版本 `0.2.15`；同源 CI `38031782768`、Security Scan `38031782778` 和 Aivoza Image `38032373407` 成功。后端全量单测、前端 414 文件 / 3106 项测试、lint、类型检查及构建通过。
+- 生产固定镜像 `ghcr.io/aboutnb/aivoza-sub2api@sha256:25e2b77ee91d7a16f81a31669ef27ba37950827b523bed76729643513252a6fd`；蓝绿状态 `state/aivoza-v0215-fa80f638880a.json` 为 `promoted`。当前 `flowai-app` 回环端口 3012，上一版 v0.2.14 保留为 `flowai-app-rollback-7dd817f3af17`（3011）。
+- `242_drop_platform_check_constraints.sql`、`255_channel_monitor_platform_catalog.sql`、`255_remove_retired_help_clients.sql`、`256_channel_monitor_v0215_platforms.sql` 均已执行，数据库 checksum 与源码一致。监控配置从 6 扩充至 14 个平台，保留原有开关、模型及范围；后台实际显示 14 个平台选项，公网监控已有 Gemini、DeepSeek 等数据。
+- 候选启动日志无 checksum 错误、migration failed、panic 或 fatal；Caddy 校验成功（仅既存格式告警），PostgreSQL、Redis、GM、Mihomo、Caddy 启动时间未变化。两公网域名健康及版本接口均正常；本地续接验收再次直连确认两域名返回 `status=ok`、版本 `0.2.15`。登录、帮助、监控、生图页面 200，未认证发票接口 401。切换前 26 次服务器探测全部 200；切换后连续探测最终统计尚未取回，不宣称全程零失败。
+- 备份 `/root/flowai/backups/aivoza-v0215-20261010` 内 PostgreSQL、应用数据、Redis 已校验，并保留监控配置快照、探测和发布日志。
+- 续接发现 Guardian 的 `SUB2API_BASE_URL=http://sub2api:8080` 无法解析；其健康状态不能证明上游连通。Guardian 内 `http://flowai-app:8080/health` 实测返回正常，当前应用 IP 为 `172.19.0.11`。以默认用户写入临时 hosts 映射被权限拒绝；后续修复输入没有可靠成功输出，不能视为已修复。应将 Guardian 持久配置指向蓝绿切流后稳定容器名称，并验证上游认证请求，避免仅写临时 IP 或中断当前应用网络。
+- 旧 v0.2.10 `flowai-app-rollback-c8734dbe73a6`（3010）入站连接曾核验为 0，但在 Guardian 路由修复并复核前继续保留；尚未删除其容器或镜像。Termius 输入控制未可靠响应，直接 SSH BatchMode 认证被拒绝，收尾受阻。待恢复控制后结束/统计 `switch-probes.jsonl`、核实 Guardian、优雅清理 v0.2.10 及无引用镜像；保留 v0.2.14 回滚、备份和所有数据卷。
+
+### 2026-10-10 v0.2.15 合并记录（已部署）
 
 - 发布前复核原历史工作目录，发现 10-09 下午及 10-10 新增的发票/教程代码。按文件差异整合：发票实名认证语义 403 且不刷新 Token、保留错误码/request_id、取消固定 20 单限制、先保存申请再税费续付并刷新同一记录；保留主线支付限流、赠送/折扣字段、分页重置与鉴权回归。已付待确认记录不再显示第二次提交表单或收款入口。
 - 教程清理 Read Frog/Roo Code、代码块行高及展示版号 v1；保留酒馆两种分类和现有共享配置。新增完整文件名 `255_remove_retired_help_clients.sql` 只清理两个退役教程，既有同编号监控迁移不动；发布前数据库备份可恢复相关内容。
 - 审阅上游 `3a6fd1c9db07203ca308aaba69e502bc1f35b307`（22 个提交，含 2 个合并；140 文件），吸收平台清单、多协议 profile、Cline/Command Code、模型同步能力控制、Claude 计费/钱包冷却和 OpenAI 搜索历史修复。
 - 11 个冲突文件逐块合并：保留 Aivoza 主题、教程共享客户端配置、Codex 模型发现、路由设置入口和 PostgreSQL 客户端构建；Go 保持 1.27.2、x/tools 0.51.0，接入 validator 直接依赖，lint 使用 v2.14.0。调度优先级、并发、支付/签到/邮件和旧迁移保持原语义。
-- 新增上游 `242_drop_platform_check_constraints.sql`（平台校验转到应用目录）及本地 `256_channel_monitor_v0215_platforms.sql`（追加 Cline/Command Code）；已提交 255 文件不改写。监控设置按动态目录读取，未来平台不会因初始快照遗漏。验证和生产证据待补齐。
+- 新增上游 `242_drop_platform_check_constraints.sql`（平台校验转到应用目录）及本地 `256_channel_monitor_v0215_platforms.sql`（追加 Cline/Command Code）；已提交 255 文件不改写。监控设置按动态目录读取，未来平台不会因初始快照遗漏。验证和生产证据见上方发布记录。
 
-### 2026-10-10 渠道监控平台目录修复（本地，尚未部署）
+### 2026-10-10 渠道监控平台目录修复（已随 v0.2.15 部署）
 
 - 被动监控 V2/V3 的配置仍沿用最早六个平台，导致后续新增平台被后端配置范围排除；新增 `255_channel_monitor_platform_catalog.sql`，补齐 Kimi、Zhipu GLM、DeepSeek、MiniMax、OpenCode、TypeSafe / Jev。只追加缺失项，保留明确关闭的平台、模型列表、全局开关和分组范围；显式空平台列表不自动开启，重复执行不重复追加或增加版本号。新安装默认包含全部 12 个监控维度（含历史 Kiro）。
 - 后台监控设置从共享平台目录补齐可选项，未知自定义平台继续保留；未来缺失项在界面默认关闭，管理员可自行启用。平台名称统一展示；V3 卡片使用平台和分组组合键，修复同一复合分组跨平台时刷新复用错误卡片的问题。
-- 前端监控相关 13 个文件 / 55 项测试、类型检查和改动文件 ESLint 通过；后端监控相关 unit 通过，新增仓储 integration 测试编译通过。PostgreSQL PGlite 实际执行迁移验证通过，覆盖旧配置保留、显式空配置、幂等和新安装默认值。本机 Docker daemon 不可用，完整原生集成测试未执行；尚未推送或发布到 23 服务器。
+- 前端监控相关 13 个文件 / 55 项测试、类型检查和改动文件 ESLint 通过；后端监控相关 unit 通过，新增仓储 integration 测试编译通过。PostgreSQL PGlite 实际执行迁移验证通过，覆盖旧配置保留、显式空配置、幂等和新安装默认值。本机 Docker daemon 不可用，完整原生集成测试未执行；后续已推送并随 v0.2.15 发布到 23 服务器，见上方记录。
 
 ### 2026-10-09 v0.2.14 已完成 23 服务器发布
 
