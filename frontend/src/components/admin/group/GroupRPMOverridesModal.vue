@@ -5,7 +5,7 @@
       <div class="flex flex-wrap items-center gap-3 rounded-lg bg-surface-muted px-4 py-2.5 text-sm dark:bg-surface-muted">
         <span class="inline-flex items-center gap-1.5" :class="platformColorClass">
           <PlatformIcon :platform="group.platform" size="sm" />
-          {{ t('admin.groups.platforms.' + group.platform) }}
+          {{ t('admin.groups.platforms.' + group.platform, platformLabel(group.platform)) }}
         </span>
         <span class="text-ink-muted">|</span>
         <span class="font-medium text-ink-strong dark:text-white">{{ group.name }}</span>
@@ -216,6 +216,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
+import { platformLabel } from '@/utils/platformColors'
 
 interface LocalEntry extends GroupRPMOverrideEntry {}
 

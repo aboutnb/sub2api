@@ -1,5 +1,11 @@
 # FlowAI 分支变更台账
 
+### 2026-10-10 v0.2.15 合并候选（尚未部署）
+
+- 审阅上游 `3a6fd1c9db07203ca308aaba69e502bc1f35b307`（22 个提交，含 2 个合并；140 文件），吸收平台清单、多协议 profile、Cline/Command Code、模型同步能力控制、Claude 计费/钱包冷却和 OpenAI 搜索历史修复。
+- 11 个冲突文件逐块合并：保留 Aivoza 主题、教程共享客户端配置、Codex 模型发现、路由设置入口和 PostgreSQL 客户端构建；Go 保持 1.27.2、x/tools 0.51.0，接入 validator 直接依赖，lint 使用 v2.14.0。调度优先级、并发、支付/签到/邮件和旧迁移保持原语义。
+- 新增上游 `242_drop_platform_check_constraints.sql`（平台校验转到应用目录）及本地 `256_channel_monitor_v0215_platforms.sql`（追加 Cline/Command Code）；已提交 255 文件不改写。监控设置按动态目录读取，未来平台不会因初始快照遗漏。验证和生产证据待补齐。
+
 ### 2026-10-10 渠道监控平台目录修复（本地，尚未部署）
 
 - 被动监控 V2/V3 的配置仍沿用最早六个平台，导致后续新增平台被后端配置范围排除；新增 `255_channel_monitor_platform_catalog.sql`，补齐 Kimi、Zhipu GLM、DeepSeek、MiniMax、OpenCode、TypeSafe / Jev。只追加缺失项，保留明确关闭的平台、模型列表、全局开关和分组范围；显式空平台列表不自动开启，重复执行不重复追加或增加版本号。新安装默认包含全部 12 个监控维度（含历史 Kiro）。
@@ -579,6 +585,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 重复，必须以完整文件名识别，不能因为编号相同而覆盖或删除。
 
 <!-- FLOWAI_MIGRATION_LEDGER_BEGIN -->
+| `backend/migrations/242_drop_platform_check_constraints.sql` | 上游平台约束转应用校验 | 新增；配额和复合路由平台由应用/Ent 目录验证，监控主动探测约束不动；回滚不逆向恢复旧白名单 |
+| `backend/migrations/256_channel_monitor_v0215_platforms.sql` | v0.2.15 被动监控 Cline/Command Code | 新增；仅追加缺失项，保留禁用/模型/分组/空配置，默认 14 维度；不改 255 |
 | `backend/migrations/255_channel_monitor_platform_catalog.sql` | 被动监控新增平台目录补齐 | 只追加六个缺失平台并更新版本；保留禁用状态、模型、分组及显式空列表，幂等；旧迁移不改写 |
 | `backend/migrations/241_add_payment_order_bonus_amount.sql` | 支付免费额度字段 | 新增文件；旧订单默认 0，旧应用兼容，不逆向删列 |
 | `backend/migrations/241_add_typesafe_platform.sql` | TypeSafe 平台约束 | 新增文件；允许平台集合扩展，旧应用兼容 |

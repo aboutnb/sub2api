@@ -1,6 +1,6 @@
 FROM postgres:18-alpine AS pg-client
 
-FROM golang:1.27.0-alpine
+FROM golang:1.27.2-alpine
 
 WORKDIR /app
 
