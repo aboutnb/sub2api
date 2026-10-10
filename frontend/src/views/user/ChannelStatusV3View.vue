@@ -31,7 +31,7 @@
       <div v-else class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         <ChannelMonitorV3Card
           v-for="row in rows"
-          :key="row.group_id ?? `${row.platform}:${row.group_name ?? ''}`"
+          :key="`${row.platform}:${row.group_id ?? row.group_name ?? ''}`"
           :row="row"
           :user-rate-multiplier="getUserRateMultiplier(row.group_id)"
           :countdown-seconds="countdownSeconds"

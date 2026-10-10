@@ -282,6 +282,7 @@ import {
 } from '@/api/channelMonitorV2'
 import { adminAPI } from '@/api/admin'
 import type { AdminGroup } from '@/types'
+import { completeMonitorPlatforms, monitorPlatformLabel as platformLabel } from '@/constants/monitorPlatforms'
 
 const { t, te } = useI18n()
 const appStore = useAppStore()
@@ -384,28 +385,11 @@ function categoryLabel(category: string) {
   return te(key) ? t(key) : category
 }
 
-function platformLabel(value: string) {
-  return (
-    {
-      anthropic: 'Claude',
-      openai: 'OpenAI',
-      grok: 'Grok',
-      kiro: 'Kiro',
-      gemini: 'Gemini',
-      antigravity: 'Antigravity',
-      kimi: 'Kimi',
-      zhipu: 'Zhipu GLM',
-      deepseek: 'DeepSeek',
-      minimax: 'MiniMax',
-      composite: 'Composite',
-    } as Record<string, string>
-  )[value] || value
-}
-
 function normalizeConfig(value: MonitorConfig): MonitorConfig {
   const ignored = value.ignored_error_categories
   return {
     ...value,
+    platforms: completeMonitorPlatforms(value.platforms),
     health_thresholds: { ...defaultThresholds, ...(value.health_thresholds || {}) },
     // Preserve explicit empty arrays from the server (operator cleared all).
     ignored_error_categories: [
