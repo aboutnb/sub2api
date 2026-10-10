@@ -82,7 +82,7 @@
             <div v-else-if="activeDocument.category === 'faq'" class="faq-list"><details v-for="(section, index) in sections" :key="index" :open="index === 0"><summary>{{ section.title || activeDocument.title }}</summary><HelpMarkdown :content="section.markdown" :show-toc="false" /></details></div>
             <template v-else-if="activeDocument.category === 'api'"><HelpApiProbe :groups="groups" :base-url="baseUrl" /><HelpMarkdown :content="activeDocument.content_markdown" :show-toc="false" /></template>
             <HelpMarkdown v-else :content="activeDocument.content_markdown" :show-toc="false" />
-            <footer class="article-footer"><span v-if="activeDocument.published_at">{{ t('helpCenter.updatedAt') }} {{ new Date(activeDocument.updated_at).toLocaleDateString() }}</span><span>v{{ activeDocument.version }}</span><RouterLink to="/keys">{{ t('helpCenter.openKeys') }} ↗</RouterLink></footer>
+            <footer class="article-footer"><span v-if="activeDocument.published_at">{{ t('helpCenter.updatedAt') }} {{ new Date(activeDocument.updated_at).toLocaleDateString() }}</span><span>v1</span><RouterLink to="/keys">{{ t('helpCenter.openKeys') }} ↗</RouterLink></footer>
           </main>
           <aside class="reading-toc"><h2>{{ t('helpCenter.onThisPage') }}</h2><template v-if="isClientArticle"><a href="#guide-key">01 · {{ t('helpCenter.stepKey') }}</a><a v-for="(section, index) in sections" :key="index" :href="'#guide-' + index">{{ String(index + 2).padStart(2, '0') }} · {{ section.title }}</a><a v-if="!sections.some(s => isConfiguration(s.title))" href="#guide-config">{{ t('helpCenter.generatedConfig') }}</a></template><template v-else-if="activeDocument.category !== 'faq'"><a v-for="heading in articleHeadings" :key="heading.id" :href="'#' + heading.id">{{ heading.text }}</a></template><p>{{ t('helpCenter.helpHint') }}</p></aside>
         </div>
@@ -243,7 +243,7 @@ function changeOS(system: string) { os.value = system; shell.value = system === 
 async function load() {
   loading.value = true; error.value = ''
   try {
-    documents.value = await helpDocs.list()
+    documents.value = (await helpDocs.list()).filter(doc => !['read-frog', 'roo-code'].includes(doc.category))
     groups.value = (await userGroupsAPI.getAvailable()).filter(g => g.status === 'active')
     await appStore.fetchPublicSettings()
     restoreSelection()

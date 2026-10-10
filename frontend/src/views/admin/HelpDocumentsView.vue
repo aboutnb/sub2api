@@ -9,7 +9,7 @@
       <p v-if="loading">{{ t('common.loading') }}</p>
       <div v-else class="space-y-3">
         <article v-for="item in items" :key="item.id" class="card flex flex-wrap items-center justify-between gap-4 p-4">
-          <div><h2 class="font-semibold">{{ item.title }}</h2><p class="text-xs text-ink-muted">{{ item.slug }} · {{ item.category }} · v{{ item.version }}</p></div>
+          <div><h2 class="font-semibold">{{ item.title }}</h2><p class="text-xs text-ink-muted">{{ item.slug }} · {{ item.category }} · v1</p></div>
           <div class="flex flex-wrap items-center gap-2">
             <span class="badge" :class="item.status === 'published' ? 'badge-success' : 'badge-gray'">{{ t('admin.helpDocuments.' + item.status) }}</span>
             <button type="button" class="btn btn-secondary btn-sm" :disabled="busy" @click="edit(item)">{{ t('common.edit') }}</button>
@@ -61,7 +61,7 @@ import HelpMarkdown from '@/components/help/HelpMarkdown.vue'
 import { apiClient } from '@/api/client'
 import type { HelpDocument } from '@/api/helpDocs'
 const { t } = useI18n()
-const categories = ['quick-start', 'claude-code', 'codex', 'opencode', 'gemini-cli', 'grok-cli', 'cherry-studio', 'cursor', 'cline', 'roo-code', 'dsh', 'pi', 'openclaw', 'hermes', 'workbuddy', 'zcode', 'trae', 'read-frog', 'kiss-translator', 'immersive-translate', 'sillytavern', 'tavernai', 'api', 'faq']
+const categories = ['quick-start', 'claude-code', 'codex', 'opencode', 'gemini-cli', 'grok-cli', 'cherry-studio', 'cursor', 'cline', 'dsh', 'pi', 'openclaw', 'hermes', 'workbuddy', 'zcode', 'trae', 'kiss-translator', 'immersive-translate', 'sillytavern', 'tavernai', 'api', 'faq']
 const items = ref<HelpDocument[]>([])
 const loading = ref(false)
 const busy = ref(false)

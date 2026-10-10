@@ -15,6 +15,8 @@ const {
   applyInvoice,
   abandonInvoiceDraft,
   getInvoices,
+  getInvoiceTaxPayments,
+  checkSavedInvoiceTaxPayment,
   showError,
   showSuccess,
 } = vi.hoisted(() => ({
@@ -27,6 +29,8 @@ const {
   applyInvoice: vi.fn(),
   abandonInvoiceDraft: vi.fn(),
   getInvoices: vi.fn(),
+  getInvoiceTaxPayments: vi.fn(),
+  checkSavedInvoiceTaxPayment: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
 }))
@@ -42,6 +46,8 @@ vi.mock('@/api/payment', () => ({
     applyInvoice,
     abandonInvoiceDraft,
     getInvoices,
+    getInvoiceTaxPayments,
+    checkSavedInvoiceTaxPayment,
     cancelOrder: vi.fn(),
     requestRefund: vi.fn(),
     cancelInvoice: vi.fn(),
@@ -207,7 +213,7 @@ describe('UserOrdersView invoice workflow', () => {
     expect(wrapper.find('[data-order-id="101"] [data-test="invoice-order-status"]').exists()).toBe(true)
   })
 
-  it('requires confirmed tax reconciliation before submitting buyer data', async () => {
+  it('retains the legacy pay-first draft reconciliation flow', async () => {
     getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 20, fee_payer: 'user_choice' } })
     validateInvoiceOrders.mockResolvedValue({
       data: {
@@ -290,6 +296,52 @@ describe('UserOrdersView invoice workflow', () => {
     }))
     expect(showSuccess).toHaveBeenCalledWith('payment.invoice.applicationSubmitted')
     expect(getMyOrders).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([false, true])('saves before tax checkout and preserves unpaid records when checkout fails: %s', async (checkoutFails) => {
+    getInvoiceConfig.mockResolvedValue({ data: { enabled: true, supports_tax_payment: true, max_orders: 0, fee_payer: 'customer' } })
+    validateInvoiceOrders.mockResolvedValue({ data: {
+      draft_id: 9, order_ids: [101], need_pay_tax: true, tax_order_nos: [],
+      validation: { totalAmount: '102.00', invoiceAmount: '108.12', currency: 'CNY', taxAmount: '6.12', taxDueAmount: '6.12' },
+    } })
+    const application = { id: 33, external_id: 'INV-33', order_ids: [101], order_nos: ['ORDER-101'], need_pay_tax: true,
+      tax_order_nos: [], status: 'awaiting_tax_payment', total_amount: '108.12', tax_amount: '6.12', currency: 'CNY' }
+    applyInvoice.mockResolvedValue({ data: application })
+    getInvoices.mockResolvedValue({ data: { items: [application], total: 1 } })
+    const checkout = { application, taxPaidAmount: '0.00', taxDueAmount: '6.12',
+      taxPayments: { wxpay: { taxOrderNo: 'TAX-33', payUrl: 'https://pay.example.test/33' } } }
+    getInvoiceTaxPayments.mockReset()
+    if (checkoutFails) getInvoiceTaxPayments.mockRejectedValue(new Error('checkout unavailable'))
+    else getInvoiceTaxPayments.mockResolvedValue({ data: checkout })
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-order-id="101"] button').trigger('click')
+    await wrapper.findAll('button').find(button => button.text() === 'common.next')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-test="invoice-tax-step"]').exists()).toBe(false)
+    await wrapper.get('#invoice-title').setValue('Example Technology Ltd.')
+    await wrapper.get('#invoice-taxpayer-id').setValue('91310000677833266F')
+    await wrapper.get('#invoice-email').setValue('invoice@example.test')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(applyInvoice).toHaveBeenCalledTimes(1)
+    expect(getInvoiceTaxPayments).toHaveBeenCalledWith(33)
+    expect(wrapper.get('[data-test="invoice-record-cards"]').text()).toContain('INV-33')
+    expect(showSuccess).toHaveBeenCalledWith('payment.invoice.applicationSaved')
+    getInvoiceTaxPayments.mockResolvedValue({ data: checkout })
+    await wrapper.findAll('button').find(button => button.text().includes('payment.invoice.continuePayment'))!.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-test="invoice-tax-step"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="invoice-buyer-form"]').exists()).toBe(false)
+    // A saved record with no remaining tax must never reveal a second submit form or checkout links.
+    getInvoiceTaxPayments.mockResolvedValue({ data: { ...checkout, taxDueAmount: '0.00' } })
+    await wrapper.findAll('button').find(button => button.text().includes('payment.invoice.continuePayment'))!.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-test="invoice-buyer-form"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="invoice-tax-payment-option"]').exists()).toBe(false)
+    expect(applyInvoice).toHaveBeenCalledTimes(1)
+    expect(validateInvoiceOrders).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
   })
 
   it('renders invoice records in mobile cards and a desktop table', async () => {

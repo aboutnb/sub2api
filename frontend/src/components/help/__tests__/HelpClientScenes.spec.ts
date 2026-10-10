@@ -61,7 +61,8 @@ describe('Client-specific tutorial scenes', () => {
   it('shows distinct provider, editor, translation and workspace layouts', () => {
     expect(render('cherry-studio', 'openai').find('.cherry-add').exists()).toBe(true)
     expect(render('cursor', 'openai').text()).toContain('API Keys')
-    expect(render('read-frog', 'openai').text()).toContain('Test Connection')
+    expect(clientGuideComponents['read-frog']).toBeUndefined()
+    expect(clientGuideComponents['roo-code']).toBeUndefined()
     expect(render('kiss-translator', 'openai').find('.translation-page').exists()).toBe(true)
     expect(render('workbuddy', 'openai').find('.wb-account .is-current').exists()).toBe(true)
     expect(render('workbuddy', 'openai').find('.wb-models aside .current').exists()).toBe(true)
@@ -133,25 +134,16 @@ describe('Client-specific tutorial scenes', () => {
   })
   it('gives each supported GUI client its own component and distinct step sequence', () => {
     const components = Object.values(clientGuideComponents)
-    expect(new Set(components).size).toBe(13)
+    expect(new Set(components).size).toBe(11)
     const sequences = Object.keys(clientGuideComponents).map(client => {
       const wrapper = render(client, 'openai')
       const steps = wrapper.findAll('[data-step]').map(step => step.attributes('data-step'))
       wrapper.unmount()
       return steps.join(',')
     })
-    expect(new Set(sequences).size).toBe(13)
+    expect(new Set(sequences).size).toBe(11)
   })
-  it('matches the live Read Frog, Kiss, Immersive and WorkBuddy screens', () => {
-    const frog = render('read-frog', 'openai')
-    expect(frog.text()).toContain('Enter the name of the custom model')
-    expect(frog.text()).toContain('Feature Providers')
-    expect(frog.text()).toContain('Advanced Options')
-    expect(frog.text()).toContain('Test Connection')
-    expect(frog.find('[data-step="page-translate"]').exists()).toBe(true)
-    expect(frog.find('[data-step="feature-provider"]').exists()).toBe(false)
-    frog.unmount()
-
+  it('matches the live Kiss, Immersive and WorkBuddy screens', () => {
     const kiss = render('kiss-translator', 'anthropic')
     expect(kiss.text()).toContain('Sort Order')
     expect(kiss.text()).toContain('20480')
@@ -186,7 +178,7 @@ describe('Client-specific tutorial scenes', () => {
     wrapper.unmount()
   })
   it('switches provider, endpoint and model together across native and OpenAI channels', async () => {
-    for (const client of ['cherry-studio', 'read-frog', 'kiss-translator', 'immersive-translate']) {
+    for (const client of ['cherry-studio', 'kiss-translator', 'immersive-translate']) {
       const wrapper = render(client, 'anthropic')
       expect(wrapper.text()).toMatch(/Anthropic|Claude/)
       await wrapper.setProps({ fields: fieldsFor(client, 'openai', 'openai-model') })

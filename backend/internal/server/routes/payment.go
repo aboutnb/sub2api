@@ -60,6 +60,8 @@ func RegisterPaymentRoutes(
 			invoices.POST("/drafts/:id/apply", paymentHandler.ApplyInvoice)
 			invoices.POST("/drafts/:id/abandon", paymentHandler.AbandonInvoiceDraft)
 			invoices.GET("", paymentHandler.ListInvoices)
+			invoices.POST("/:id/tax-payments", paymentHandler.GetInvoiceTaxPayments)
+			invoices.POST("/:id/tax-status", paymentHandler.CheckInvoiceTaxPayment)
 			invoices.POST("/:id/cancel", paymentHandler.CancelInvoice)
 			invoices.GET("/:id/pdf", paymentHandler.DownloadInvoicePDF)
 		}

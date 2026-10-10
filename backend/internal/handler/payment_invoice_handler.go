@@ -11,7 +11,7 @@ import (
 )
 
 type validateInvoiceOrdersRequest struct {
-	OrderIDs   []int64 `json:"order_ids" binding:"required,min=1,max=20"`
+	OrderIDs   []int64 `json:"order_ids" binding:"required,min=1"`
 	NeedPayTax bool    `json:"need_pay_tax"`
 }
 
@@ -99,6 +99,23 @@ func (h *PaymentHandler) CheckInvoiceTaxPayment(c *gin.Context) {
 		return
 	}
 	result, err := h.invoiceService.CheckTaxPayment(c.Request.Context(), subject.UserID, draftID, req.TaxOrderNo)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *PaymentHandler) GetInvoiceTaxPayments(c *gin.Context) {
+	subject, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+	applicationID, ok := parseInvoiceID(c)
+	if !ok {
+		return
+	}
+	result, err := h.invoiceService.GetTaxPayments(c.Request.Context(), subject.UserID, applicationID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

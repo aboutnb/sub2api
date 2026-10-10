@@ -134,6 +134,7 @@ export type InvoiceOrderStatus =
   | 'failed'
   | 'submitting'
   | 'submission_unknown'
+  | 'awaiting_tax_payment'
   | 'pending'
   | 'approved'
   | 'completed'
@@ -179,6 +180,7 @@ export interface InvoiceTaxStatus {
 }
 
 export type InvoiceStatus =
+  | 'awaiting_tax_payment'
   | 'pending'
   | 'approved'
   | 'rejected'
@@ -204,6 +206,16 @@ export interface InvoiceApplication {
   error_code?: string
   created_at: string
   updated_at: string
+  tax_amount?: string
+  tax_paid_amount?: string
+  tax_due_amount?: string
+}
+
+export interface InvoiceTaxCheckout {
+  application: InvoiceApplication
+  taxPaidAmount: string
+  taxDueAmount: string
+  taxPayments?: Record<string, InvoiceTaxPayment>
 }
 
 export interface InvoiceApplyRequest {

@@ -500,6 +500,36 @@ describe('API Client', () => {
       )
     })
 
+    it('保留开票实名认证错误码和请求编号', async () => {
+      const adapter = vi.fn().mockRejectedValue({
+        response: {
+          status: 503,
+          data: {
+            code: 503,
+            message: 'invoice service request failed',
+            reason: 'IDENTITY_VERIFICATION_REQUIRED',
+            metadata: { request_id: 'req-owner-verification' },
+          },
+        },
+        config: {
+          url: '/payment/invoices/validate',
+          headers: {},
+        },
+        code: 'ERR_BAD_RESPONSE',
+        message: 'Request failed with status code 503',
+      })
+      apiClient.defaults.adapter = adapter
+
+      await expect(apiClient.post('/payment/invoices/validate')).rejects.toEqual(
+        expect.objectContaining({
+          status: 503,
+          reason: 'IDENTITY_VERIFICATION_REQUIRED',
+          message: 'invoice service request failed',
+          metadata: { request_id: 'req-owner-verification' },
+        })
+      )
+    })
+
     it('部署与运营合规未确认时广播事件且保留登录态', async () => {
       localStorage.setItem('auth_token', 'admin-token')
       const listener = vi.fn()

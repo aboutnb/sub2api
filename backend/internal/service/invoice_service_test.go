@@ -457,6 +457,32 @@ func TestInvoicePublicErrorRedactsMessageAndNormalizesSuccessStatus(t *testing.T
 	}
 }
 
+func TestInvoicePublicErrorPreservesIdentityVerificationRequired(t *testing.T) {
+	t.Parallel()
+
+	publicErr := invoicePublicError(&invoiceUpstreamError{
+		StatusCode: http.StatusServiceUnavailable,
+		Code:       "IDENTITY_VERIFICATION_REQUIRED",
+		Message:    "application owner identity details must stay private",
+		RequestID:  "req-owner-verification",
+	})
+	if got := infraerrors.Code(publicErr); got != http.StatusForbidden {
+		t.Fatalf("public status = %d, want %d", got, http.StatusForbidden)
+	}
+	if got := infraerrors.Reason(publicErr); got != "IDENTITY_VERIFICATION_REQUIRED" {
+		t.Fatalf("public reason = %q", got)
+	}
+	if got := infraerrors.Message(publicErr); got != "invoice service request failed" {
+		t.Fatalf("public message = %q", got)
+	}
+	if got := infraerrors.FromError(publicErr).Metadata["request_id"]; got != "req-owner-verification" {
+		t.Fatalf("request ID = %q", got)
+	}
+	if strings.Contains(publicErr.Error(), "identity details") {
+		t.Fatalf("upstream identity details leaked in public error: %v", publicErr)
+	}
+}
+
 func TestInvoicePublicErrorPreservesTaxConflictCodes(t *testing.T) {
 	t.Parallel()
 
@@ -704,6 +730,9 @@ func TestInvoiceServiceEndToEndBothTaxModes(t *testing.T) {
 			orderNos := mapStringSlice(payload, "orderNos")
 			if len(orderNos) != 1 {
 				t.Fatalf("validation orderNos = %#v", orderNos)
+			}
+			if payload["createTaxPayments"] != false {
+				t.Errorf("validation must defer tax checkout creation: %#v", payload)
 			}
 			switch orderNos[0] {
 			case "ORDER-NO-TAX":
@@ -963,6 +992,99 @@ func TestInvoiceListRecoversUnknownSubmissionByOrderSet(t *testing.T) {
 	}
 }
 
+func TestInvoiceSaveFirstTaxApplicationResumesSameRecord(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:invoice-save-first?mode=memory&cache=shared&_fk=1")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		t.Fatalf("enable sqlite foreign keys: %v", err)
+	}
+	client := enttest.NewClient(t, enttest.WithOptions(dbent.Driver(entsql.OpenDB(dialect.SQLite, db))))
+	ctx := context.Background()
+	user, err := client.User.Create().SetEmail("save-first@example.test").SetPasswordHash("test-hash").Save(ctx)
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	order := createInvoiceE2EOrder(t, ctx, client, user, "ORDER-SAVE-FIRST")
+	var checkoutCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/oauth/token":
+			writeInvoiceTestJSON(t, w, http.StatusOK, map[string]any{"access_token": "save-first-token", "expires_in": 900})
+		case "/api/v1/invoice-orders/validate":
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode validation: %v", err)
+			}
+			if payload["createTaxPayments"] != false {
+				t.Errorf("expected createTaxPayments=false: %#v", payload)
+			}
+			writeInvoiceTestEnvelope(t, w, http.StatusOK, map[string]any{
+				"totalAmount": "100.00", "currency": "CNY", "taxAmount": "6.00", "taxPaidAmount": "0.00", "taxDueAmount": "6.00",
+			})
+		case "/api/v1/invoices":
+			if r.Method != http.MethodPost {
+				http.NotFound(w, r)
+				return
+			}
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode application: %v", err)
+			}
+			if payload["needPayTax"] != true {
+				t.Errorf("expected needPayTax=true: %#v", payload)
+			}
+			writeInvoiceTestEnvelope(t, w, http.StatusCreated, map[string]any{
+				"id": "APP-SAVE-FIRST", "status": "awaiting_tax_payment", "totalAmount": "100.00", "currency": "CNY",
+				"taxAmount": "6.00", "taxPaidAmount": "0.00", "taxDueAmount": "6.00",
+			})
+		case "/api/v1/invoices/APP-SAVE-FIRST/tax-payments":
+			call := checkoutCalls.Add(1)
+			if call == 1 {
+				writeInvoiceTestEnvelope(t, w, http.StatusOK, map[string]any{
+					"application":   map[string]any{"id": "APP-SAVE-FIRST", "status": "awaiting_tax_payment"},
+					"taxPaidAmount": "0.00", "taxDueAmount": "6.00",
+					"taxPayments": map[string]any{"alipay": map[string]any{"taxOrderNo": "INV-TAX-SAVE-FIRST", "payUrl": "https://cashier.example.test/save-first"}},
+				})
+				return
+			}
+			writeInvoiceTestEnvelope(t, w, http.StatusOK, map[string]any{
+				"application":   map[string]any{"id": "APP-SAVE-FIRST", "status": "pending"},
+				"taxPaidAmount": "6.00", "taxDueAmount": "0.00",
+			})
+		case "/api/v1/invoice-tax-payments/status":
+			writeInvoiceTestEnvelope(t, w, http.StatusOK, map[string]any{"paid": true})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	service := newInvoiceHTTPTestService(server)
+	service.entClient = client
+
+	draft, err := service.ValidateOrders(ctx, user.ID, []int64{order.ID}, true)
+	if err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	application, err := service.Apply(ctx, user.ID, draft.DraftID, invoiceE2EBuyer())
+	if err != nil || application.Status != invoiceStatusAwaitingTax || application.ExternalID != "APP-SAVE-FIRST" {
+		t.Fatalf("save application: application=%#v err=%v", application, err)
+	}
+	checkout, err := service.GetTaxPayments(ctx, user.ID, application.ID)
+	if err != nil || checkout.TaxDueAmount != "6.00" || len(checkout.TaxPayments) != 1 {
+		t.Fatalf("get tax payments: checkout=%#v err=%v", checkout, err)
+	}
+	status, err := service.CheckTaxPayment(ctx, user.ID, application.ID, "INV-TAX-SAVE-FIRST")
+	if err != nil || !status.Paid || !status.Ready {
+		t.Fatalf("reconcile saved application: status=%#v err=%v", status, err)
+	}
+	if got := checkoutCalls.Load(); got != 2 {
+		t.Fatalf("checkout calls=%d, want initial plus refresh", got)
+	}
+}
+
 func TestNormalizeInvoiceOrderIDs(t *testing.T) {
 	t.Parallel()
 
@@ -970,7 +1092,7 @@ func TestNormalizeInvoiceOrderIDs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normalize order IDs: %v", err)
 	}
-	if got := []int64{2, 5, 9}; len(ids) != len(got) || ids[0] != got[0] || ids[1] != got[1] || ids[2] != got[2] {
+	if got := []int64{9, 2, 5}; len(ids) != len(got) || ids[0] != got[0] || ids[1] != got[1] || ids[2] != got[2] {
 		t.Fatalf("normalized IDs = %#v", ids)
 	}
 	if _, err := normalizeInvoiceOrderIDs([]int64{1, 1}); infraerrors.Reason(err) != "INVOICE_DUPLICATE_ORDER" {

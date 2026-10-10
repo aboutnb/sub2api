@@ -99,11 +99,13 @@
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex items-center justify-between gap-3 text-sm font-semibold text-gray-950 dark:text-white">
-              {{ t('payment.invoice.selectedCount', { count: selectedInvoiceOrderIds.size, max: invoiceConfig.max_orders }) }}
-              <span class="text-xs tabular-nums text-primary-700 dark:text-primary-300">{{ Math.round((selectedInvoiceOrderIds.size / invoiceConfig.max_orders) * 100) }}%</span>
+              {{ invoiceConfig.max_orders > 0
+                ? t('payment.invoice.selectedCount', { count: selectedInvoiceOrderIds.size, max: invoiceConfig.max_orders })
+                : t('payment.invoice.selectedCountUnlimited', { count: selectedInvoiceOrderIds.size }) }}
+              <span v-if="invoiceConfig.max_orders > 0" class="text-xs tabular-nums text-primary-700 dark:text-primary-300">{{ Math.round((selectedInvoiceOrderIds.size / invoiceConfig.max_orders) * 100) }}%</span>
             </div>
             <div class="mt-2 h-1 overflow-hidden bg-primary-100 dark:bg-primary-900">
-              <div class="h-full bg-primary-600 transition-[width]" :style="{ width: `${(selectedInvoiceOrderIds.size / invoiceConfig.max_orders) * 100}%` }" />
+              <div class="h-full bg-primary-600 transition-[width]" :style="{ width: invoiceConfig.max_orders > 0 ? `${(selectedInvoiceOrderIds.size / invoiceConfig.max_orders) * 100}%` : '100%' }" />
             </div>
           </div>
           <div class="grid grid-cols-2 gap-2 sm:flex">
@@ -139,7 +141,7 @@
                 type="checkbox"
                 class="h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
                 :checked="selectedInvoiceOrderIds.has(row.id)"
-                :disabled="!!row.invoice_status || (!selectedInvoiceOrderIds.has(row.id) && selectedInvoiceOrderIds.size >= invoiceConfig.max_orders)"
+                :disabled="!!row.invoice_status || (!selectedInvoiceOrderIds.has(row.id) && invoiceConfig.max_orders > 0 && selectedInvoiceOrderIds.size >= invoiceConfig.max_orders)"
                 @change="toggleInvoiceOrder(row.id)"
               />
               <span>{{ t('payment.invoice.selectOrder') }}</span>
@@ -263,7 +265,7 @@
         </div>
 
         <section
-          v-if="invoiceDraft.need_pay_tax && !invoiceReady"
+          v-if="invoiceCheckout || (invoiceDraft.need_pay_tax && invoiceValidation.taxPayments && !invoiceReady)"
           data-test="invoice-tax-step"
           class="overflow-hidden rounded-lg border border-line bg-white dark:border-line dark:bg-dark-850"
         >
@@ -277,18 +279,18 @@
                   <div class="flex flex-wrap items-center gap-2">
                     <h4 class="text-sm font-semibold text-gray-950 dark:text-white">{{ t('payment.invoice.payTaxTitle') }}</h4>
                     <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-                      {{ t('payment.invoice.taxPending') }}
+                      {{ t(invoiceReady ? 'payment.invoice.taxReconciliationPending' : 'payment.invoice.taxPending') }}
                     </span>
                   </div>
                   <p class="mt-1 text-sm leading-6 text-ink-muted dark:text-ink-muted">
-                    {{ t('payment.invoice.payTaxNotice', {
+                    {{ t(invoiceCheckout ? 'payment.invoice.savedTaxNotice' : 'payment.invoice.payTaxNotice', {
                       fee: `${invoiceCurrency} ${invoiceValidation.taxAmount || '--'}`,
                     }) }}
                   </p>
                 </div>
               </div>
 
-              <div class="mt-5">
+              <div v-if="!invoiceReady" class="mt-5">
                 <p class="mb-2 text-xs font-medium text-ink-muted dark:text-ink-muted">{{ t('payment.paymentMethod') }}</p>
                 <div class="grid gap-2 sm:grid-cols-2">
                   <button
@@ -464,7 +466,16 @@
                   <div class="mt-1 text-xs text-ink-muted dark:text-ink-muted">{{ formatDate(application.created_at) }}</div>
                 </div>
               </div>
-              <div v-if="application.status === 'completed' || application.status === 'pending' || application.status === 'approved'" class="mt-4 flex justify-end border-t border-line pt-3 dark:border-line">
+              <div v-if="application.status === 'completed' || application.status === 'awaiting_tax_payment' || application.status === 'pending' || application.status === 'approved'" class="mt-4 flex justify-end border-t border-line pt-3 dark:border-line">
+                <button
+                  v-if="application.status === 'awaiting_tax_payment'"
+                  class="btn btn-primary btn-sm"
+                  :disabled="invoiceActionId === application.id"
+                  @click="continueInvoicePayment(application)"
+                >
+                  <Icon name="creditCard" size="sm" />
+                  <span>{{ t('payment.invoice.continuePayment') }}</span>
+                </button>
                 <button
                   v-if="application.status === 'completed'"
                   class="btn btn-secondary btn-sm"
@@ -512,6 +523,15 @@
                 <td class="px-3 py-3">
                   <div class="flex justify-end gap-2">
                     <button
+                      v-if="application.status === 'awaiting_tax_payment'"
+                      class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/30"
+                      :disabled="invoiceActionId === application.id"
+                      @click="continueInvoicePayment(application)"
+                    >
+                      <Icon name="creditCard" size="sm" />
+                      <span>{{ t('payment.invoice.continuePayment') }}</span>
+                    </button>
+                    <button
                       v-if="application.status === 'completed'"
                       class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/30"
                       :disabled="invoiceActionId === application.id"
@@ -521,7 +541,7 @@
                       <span>{{ t('payment.invoice.downloadPdf') }}</span>
                     </button>
                     <button
-                      v-if="application.status === 'pending' || application.status === 'approved'"
+                      v-if="application.status === 'awaiting_tax_payment' || application.status === 'pending' || application.status === 'approved'"
                       class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
                       :disabled="invoiceActionId === application.id"
                       @click="cancelInvoiceApplication(application)"
@@ -561,6 +581,7 @@ import type {
   InvoiceApplyRequest,
   InvoiceApplication,
   InvoiceStatus,
+  InvoiceTaxCheckout,
 } from '@/types/payment'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Pagination from '@/components/common/Pagination.vue'
@@ -588,7 +609,7 @@ const pagination = reactive({ page: 1, page_size: 20, total: 0 })
 const invoiceConfig = reactive<InvoiceConfig>({
   enabled: false,
   supports_tax_payment: false,
-  max_orders: 20,
+  max_orders: 0,
   fee_payer: 'customer',
 })
 const invoiceSelectionMode = ref(false)
@@ -597,6 +618,7 @@ const invoiceNeedPayTax = ref(false)
 const invoiceBusy = ref(false)
 const invoiceDialogOpen = ref(false)
 const invoiceDraft = ref<InvoiceDraft | null>(null)
+const invoiceCheckout = ref<InvoiceTaxCheckout | null>(null)
 const selectedTaxOrderNo = ref('')
 const invoiceRecordsOpen = ref(false)
 const invoiceRecordsLoading = ref(false)
@@ -639,7 +661,7 @@ const invoiceReady = computed(() => {
   return invoiceValidation.value.taxDueAmount === '0.00'
 })
 const invoiceTaxPayments = computed<InvoiceTaxPaymentOption[]>(() => {
-  const options = Object.entries(invoiceValidation.value.taxPayments || {})
+  const options = Object.entries(invoiceCheckout.value?.taxPayments || invoiceValidation.value.taxPayments || {})
     .map(([channel, payment]) => ({ channel, taxOrderNo: payment.taxOrderNo, payUrl: payment.payUrl }))
     .filter(payment => payment.taxOrderNo && payment.payUrl)
   if (options.length > 0) return options
@@ -780,7 +802,7 @@ function toggleInvoiceOrder(orderId: number) {
   const selected = new Set(selectedInvoiceOrderIds.value)
   if (selected.has(orderId)) {
     selected.delete(orderId)
-  } else if (selected.size < invoiceConfig.max_orders) {
+  } else if (invoiceConfig.max_orders <= 0 || selected.size < invoiceConfig.max_orders) {
     selected.add(orderId)
   }
   selectedInvoiceOrderIds.value = selected
@@ -791,6 +813,7 @@ function cancelInvoiceSelection() {
   selectedInvoiceOrderIds.value = new Set()
   invoiceNeedPayTax.value = configuredInvoiceNeedPayTax.value
   invoiceDraft.value = null
+  invoiceCheckout.value = null
   selectedTaxOrderNo.value = ''
 }
 
@@ -800,6 +823,7 @@ async function validateInvoiceSelection() {
   try {
     const res = await paymentAPI.validateInvoiceOrders([...selectedInvoiceOrderIds.value], invoiceNeedPayTax.value)
     invoiceDraft.value = res.data
+    invoiceCheckout.value = null
     selectedTaxOrderNo.value = ''
     invoiceDialogOpen.value = true
   } catch (err: unknown) {
@@ -858,12 +882,29 @@ function openInvoiceTaxPayment(paymentOption: InvoiceTaxPaymentOption) {
 async function checkInvoiceTaxPayment() {
   if (!invoiceDraft.value || !selectedTaxOrderNo.value) return
   invoiceBusy.value = true
+  const savedApplication = Boolean(invoiceCheckout.value)
   try {
-    const res = await paymentAPI.checkInvoiceTaxPayment(invoiceDraft.value.draft_id, selectedTaxOrderNo.value)
+    const res = invoiceCheckout.value
+      ? await paymentAPI.checkSavedInvoiceTaxPayment(invoiceDraft.value.draft_id, selectedTaxOrderNo.value)
+      : await paymentAPI.checkInvoiceTaxPayment(invoiceDraft.value.draft_id, selectedTaxOrderNo.value)
     invoiceDraft.value = {
       ...invoiceDraft.value,
       validation: res.data.validation || invoiceDraft.value.validation,
       tax_order_nos: res.data.tax_order_nos,
+    }
+    if (invoiceCheckout.value) {
+      const checkout = await paymentAPI.getInvoiceTaxPayments(invoiceDraft.value.draft_id)
+      invoiceCheckout.value = checkout.data
+      invoiceDraft.value = {
+        ...invoiceDraft.value,
+        validation: {
+          ...invoiceDraft.value.validation,
+          taxPaidAmount: checkout.data.taxPaidAmount,
+          taxDueAmount: checkout.data.taxDueAmount,
+          taxAmount: checkout.data.application?.tax_amount,
+          invoiceAmount: checkout.data.application?.total_amount || invoiceDraft.value.validation.invoiceAmount,
+        },
+      }
     }
     if (!res.data.paid) {
       appStore.showError(t('payment.invoice.taxPaymentNotConfirmed'))
@@ -872,6 +913,13 @@ async function checkInvoiceTaxPayment() {
       appStore.showError(t('payment.invoice.taxReconciliationPending'))
     } else {
       appStore.showSuccess(t('payment.invoice.taxPaymentConfirmed'))
+      if (savedApplication) {
+        invoiceDialogOpen.value = false
+        cancelInvoiceSelection()
+        resetInvoiceForm()
+        await fetchOrders()
+        if (invoiceRecordsOpen.value) await fetchInvoiceRecords()
+      }
     }
   } catch (err: unknown) {
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('payment.invoice.taxCheckFailed')))
@@ -881,21 +929,37 @@ async function checkInvoiceTaxPayment() {
 }
 
 async function submitInvoiceApplication() {
-  if (!invoiceDraft.value || !invoiceReady.value || !invoiceFormValid.value) return
+  if (!invoiceDraft.value || !invoiceFormValid.value) return
   invoiceBusy.value = true
   try {
-    await paymentAPI.applyInvoice(invoiceDraft.value.draft_id, {
+    const res = await paymentAPI.applyInvoice(invoiceDraft.value.draft_id, {
       ...invoiceForm,
       title: invoiceForm.title.trim(),
       taxpayer_id: invoiceForm.taxpayer_id.trim(),
       recipient_email: invoiceForm.recipient_email.trim(),
     })
-    appStore.showSuccess(t('payment.invoice.applicationSubmitted'))
-    invoiceDialogOpen.value = false
-    cancelInvoiceSelection()
-    resetInvoiceForm()
-    await fetchOrders()
-    if (invoiceRecordsOpen.value) await fetchInvoiceRecords()
+    if (res.data.status === 'awaiting_tax_payment') {
+      try {
+        await paymentAPI.getInvoiceTaxPayments(res.data.id)
+      } catch (checkoutError: unknown) {
+        appStore.showError(extractI18nErrorMessage(checkoutError, t, 'payment.errors', t('payment.invoice.taxCheckFailed')))
+      }
+      appStore.showSuccess(t('payment.invoice.applicationSaved'))
+      invoiceDialogOpen.value = false
+      cancelInvoiceSelection()
+      resetInvoiceForm()
+      invoiceRecordsOpen.value = true
+      invoiceRecordPage.value = 1
+      await fetchOrders()
+      await fetchInvoiceRecords()
+    } else {
+      appStore.showSuccess(t('payment.invoice.applicationSubmitted'))
+      invoiceDialogOpen.value = false
+      cancelInvoiceSelection()
+      resetInvoiceForm()
+      await fetchOrders()
+      if (invoiceRecordsOpen.value) await fetchInvoiceRecords()
+    }
   } catch (err: unknown) {
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('payment.invoice.submitFailed')))
   } finally {
@@ -957,6 +1021,34 @@ async function cancelInvoiceApplication(application: InvoiceApplication) {
   }
 }
 
+async function continueInvoicePayment(application: InvoiceApplication) {
+  invoiceActionId.value = application.id
+  try {
+    const res = await paymentAPI.getInvoiceTaxPayments(application.id)
+    selectedTaxOrderNo.value = ''
+    invoiceCheckout.value = res.data
+    invoiceDraft.value = {
+      draft_id: application.id,
+      order_ids: application.order_ids,
+      need_pay_tax: true,
+      tax_order_nos: application.tax_order_nos || [],
+      validation: {
+        totalAmount: application.total_amount,
+        invoiceAmount: application.total_amount,
+        currency: application.currency,
+        taxAmount: application.tax_amount,
+        taxPaidAmount: res.data.taxPaidAmount,
+        taxDueAmount: res.data.taxDueAmount,
+      },
+    }
+    invoiceDialogOpen.value = true
+  } catch (err: unknown) {
+    appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('payment.invoice.taxCheckFailed')))
+  } finally {
+    invoiceActionId.value = null
+  }
+}
+
 async function downloadInvoice(application: InvoiceApplication) {
   invoiceActionId.value = application.id
   try {
@@ -980,7 +1072,8 @@ function invoiceStatusClass(status: InvoiceStatus): string {
   if (status === 'completed') return 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300'
   if (status === 'rejected' || status === 'failed') return 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300'
   if (status === 'canceled') return 'bg-surface-muted text-ink dark:bg-surface-muted dark:text-ink-muted'
-  if (status === 'approved') return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+  if (status === 'approved' || status === 'pending') return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+  if (status === 'awaiting_tax_payment') return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
   if (status === 'submission_unknown') return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
   return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300'
 }
@@ -993,6 +1086,7 @@ function invoiceOrderStatusClass(status: NonNullable<PaymentOrder['invoice_statu
   if (status === 'completed') return 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300'
   if (status === 'failed') return 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300'
   if (status === 'draft') return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+  if (status === 'awaiting_tax_payment') return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
   return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
 }
 

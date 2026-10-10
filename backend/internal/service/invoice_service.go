@@ -27,17 +27,17 @@ import (
 )
 
 const (
-	invoiceScope            = "invoice.apply"
-	invoiceMaxOrders        = 20
-	invoiceJSONBodyLimit    = 1 << 20
-	invoicePDFBodyLimit     = 32 << 20
-	invoiceRemotePageSize   = 100
-	invoiceRemoteMaxPages   = 20
-	invoiceTaxPollAttempts  = 3
-	invoiceStatusDraft      = "draft"
-	invoiceStatusAbandoned  = "abandoned"
-	invoiceStatusSubmitting = "submitting"
-	invoiceStatusUnknown    = "submission_unknown"
+	invoiceScope             = "invoice.apply"
+	invoiceJSONBodyLimit     = 1 << 20
+	invoicePDFBodyLimit      = 32 << 20
+	invoiceRemotePageSize    = 100
+	invoiceRemoteMaxPages    = 20
+	invoiceTaxPollAttempts   = 3
+	invoiceStatusDraft       = "draft"
+	invoiceStatusAbandoned   = "abandoned"
+	invoiceStatusSubmitting  = "submitting"
+	invoiceStatusUnknown     = "submission_unknown"
+	invoiceStatusAwaitingTax = "awaiting_tax_payment"
 )
 
 var invoiceClaimingStatuses = []string{
@@ -45,6 +45,7 @@ var invoiceClaimingStatuses = []string{
 	"failed",
 	invoiceStatusSubmitting,
 	invoiceStatusUnknown,
+	invoiceStatusAwaitingTax,
 	"pending",
 	"approved",
 	"completed",
@@ -69,6 +70,18 @@ type InvoiceConfigResponse struct {
 	SupportsTaxPayment bool   `json:"supports_tax_payment"`
 	MaxOrders          int    `json:"max_orders"`
 	FeePayer           string `json:"fee_payer"`
+}
+
+type InvoiceTaxCheckoutResponse struct {
+	Application   *InvoiceApplicationResponse  `json:"application"`
+	TaxPaidAmount string                       `json:"taxPaidAmount"`
+	TaxDueAmount  string                       `json:"taxDueAmount"`
+	TaxPayments   map[string]InvoiceTaxPayment `json:"taxPayments,omitempty"`
+}
+
+type InvoiceTaxPayment struct {
+	TaxOrderNo string `json:"taxOrderNo"`
+	PayURL     string `json:"payUrl"`
 }
 
 type InvoiceDraftResponse struct {
@@ -109,6 +122,9 @@ type InvoiceApplicationResponse struct {
 	RecipientEmail string    `json:"recipient_email,omitempty"`
 	TotalAmount    string    `json:"total_amount"`
 	Currency       string    `json:"currency"`
+	TaxAmount      string    `json:"tax_amount,omitempty"`
+	TaxPaidAmount  string    `json:"tax_paid_amount,omitempty"`
+	TaxDueAmount   string    `json:"tax_due_amount,omitempty"`
 	RequestID      string    `json:"request_id,omitempty"`
 	ErrorCode      string    `json:"error_code,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
@@ -221,8 +237,9 @@ func (s *InvoiceService) Config(ctx context.Context) (InvoiceConfigResponse, err
 	return InvoiceConfigResponse{
 		Enabled:            invoiceConfigEnabled(cfg),
 		SupportsTaxPayment: true,
-		MaxOrders:          invoiceMaxOrders,
-		FeePayer:           feePayer,
+		// Zero communicates that the current upstream contract has no fixed cap.
+		MaxOrders: 0,
+		FeePayer:  feePayer,
 	}, nil
 }
 
@@ -330,6 +347,32 @@ func (s *InvoiceService) CheckTaxPayment(ctx context.Context, userID, draftID in
 	if err != nil {
 		return nil, err
 	}
+	// Save-first applications are reconciled against the same remote record.
+	// Their source orders are already claimed, so do not validate or submit a
+	// second application after the payment callback.
+	if draft.ExternalID != nil && *draft.ExternalID != "" && draft.Status == invoiceStatusAwaitingTax {
+		taxOrderNo = strings.TrimSpace(taxOrderNo)
+		if !containsString(draft.TaxOrderNos, taxOrderNo) {
+			return nil, infraerrors.BadRequest("INVOICE_INVALID_TAX_ORDERS", "tax order does not belong to this invoice application")
+		}
+		_, paid, err := s.pollRemoteTaxPaymentStatus(ctx, taxOrderNo)
+		if err != nil {
+			return nil, invoicePublicError(err)
+		}
+		if !paid {
+			return &InvoiceTaxStatusResponse{Paid: false, Ready: false, TaxOrderNos: append([]string(nil), draft.TaxOrderNos...)}, nil
+		}
+		checkout, err := s.GetTaxPayments(ctx, userID, draftID)
+		if err != nil {
+			return nil, err
+		}
+		ready := checkout.TaxDueAmount == "0.00" || checkout.Application.Status == "pending"
+		return &InvoiceTaxStatusResponse{
+			Paid: true, Ready: ready,
+			Validation:  invoiceApplicationValidation(checkout.Application),
+			TaxOrderNos: append([]string(nil), draft.TaxOrderNos...),
+		}, nil
+	}
 	if !draft.NeedPayTax || draft.Status != invoiceStatusDraft {
 		return nil, infraerrors.BadRequest("INVOICE_TAX_PAYMENT_NOT_REQUIRED", "invoice tax payment is not required")
 	}
@@ -390,21 +433,10 @@ func (s *InvoiceService) Apply(ctx context.Context, userID, draftID int64, input
 		return nil, err
 	}
 
-	validation, err := s.validateRemoteOrders(ctx, draft.OrderNos, draft.NeedPayTax, draft.TaxOrderNos)
-	if err != nil {
-		return nil, invoicePublicError(err)
-	}
-	if draft.NeedPayTax && mapString(validation, "taxDueAmount") != "0.00" {
-		return nil, infraerrors.Conflict("INVOICE_TAX_ORDER_REQUIRED", "invoice tax payment has not been fully reconciled")
-	}
-
 	draft, err = draft.Update().
 		SetStatus(invoiceStatusSubmitting).
 		SetTitle(input.Title).
 		SetRecipientEmail(input.RecipientEmail).
-		SetValidationSnapshot(validation).
-		SetTotalAmount(invoiceAmount(validation)).
-		SetCurrency(defaultString(mapString(validation, "currency"), draft.Currency)).
 		ClearErrorCode().ClearErrorMessage().ClearRequestID().
 		Save(ctx)
 	if err != nil {
@@ -424,7 +456,11 @@ func (s *InvoiceService) Apply(ctx context.Context, userID, draftID int64, input
 	setNonEmpty(payload, "buyerBankAccount", input.BuyerBankAccount)
 	if draft.NeedPayTax {
 		payload["needPayTax"] = true
-		payload["taxOrderNos"] = draft.TaxOrderNos
+		// New applications are saved before checkout. Keep genuine legacy paid
+		// orders when resuming an old draft, but never manufacture a tax order.
+		if len(draft.TaxOrderNos) > 0 {
+			payload["taxOrderNos"] = draft.TaxOrderNos
+		}
 	}
 
 	remote, err := s.createRemoteApplication(ctx, payload)
@@ -452,9 +488,18 @@ func (s *InvoiceService) Apply(ctx context.Context, userID, draftID int64, input
 		return nil, infraerrors.ServiceUnavailable("INVOICE_INVALID_RESPONSE", "invoice service returned an invalid response")
 	}
 	status := defaultString(strings.ToLower(mapString(remote, "status")), "pending")
+	validation := cloneInvoiceMap(draft.ValidationSnapshot)
+	for _, key := range []string{"totalAmount", "currency", "taxAmount", "taxPaidAmount", "taxDueAmount"} {
+		if value, ok := remote[key]; ok {
+			validation[key] = value
+		}
+	}
 	draft, err = draft.Update().
 		SetExternalID(externalID).
 		SetStatus(status).
+		SetValidationSnapshot(validation).
+		SetTotalAmount(defaultString(mapString(validation, "invoiceAmount"), defaultString(mapString(validation, "totalAmount"), draft.TotalAmount))).
+		SetCurrency(defaultString(mapString(validation, "currency"), draft.Currency)).
 		SetExternalSnapshot(remote).
 		ClearErrorCode().ClearErrorMessage().ClearRequestID().
 		Save(ctx)
@@ -462,6 +507,75 @@ func (s *InvoiceService) Apply(ctx context.Context, userID, draftID int64, input
 		return nil, fmt.Errorf("save invoice application result: %w", err)
 	}
 	return invoiceApplicationResponse(draft), nil
+}
+
+// GetTaxPayments creates or reuses the tax checkout for a saved application.
+// The source orders are already claimed by the application and are never
+// revalidated or submitted a second time after payment.
+func (s *InvoiceService) GetTaxPayments(ctx context.Context, userID, applicationID int64) (*InvoiceTaxCheckoutResponse, error) {
+	if err := s.requireConfigured(ctx); err != nil {
+		return nil, err
+	}
+	application, err := s.getOwnedApplication(ctx, userID, applicationID)
+	if err != nil {
+		return nil, err
+	}
+	if application.ExternalID == nil || *application.ExternalID == "" {
+		return nil, infraerrors.Conflict("INVOICE_TAX_PAYMENT_NOT_READY", "invoice application has not been saved remotely")
+	}
+	if !application.NeedPayTax || (application.Status != invoiceStatusAwaitingTax && application.Status != "pending") {
+		return nil, infraerrors.Conflict("INVOICE_TAX_PAYMENT_NOT_REQUIRED", "invoice tax payment is not required")
+	}
+	path := "/api/v1/invoices/" + url.PathEscape(*application.ExternalID) + "/tax-payments"
+	var result struct {
+		Application   map[string]any               `json:"application"`
+		TaxPaidAmount string                       `json:"taxPaidAmount"`
+		TaxDueAmount  string                       `json:"taxDueAmount"`
+		TaxPayments   map[string]InvoiceTaxPayment `json:"taxPayments"`
+	}
+	if err := s.doJSON(ctx, http.MethodPost, path, nil, &result); err != nil {
+		return nil, invoicePublicError(err)
+	}
+	status := strings.ToLower(mapString(result.Application, "status"))
+	if status == "" {
+		status = application.Status
+	}
+	validation := cloneInvoiceMap(application.ValidationSnapshot)
+	for _, key := range []string{"taxAmount", "taxPaidAmount", "taxDueAmount", "totalAmount", "currency"} {
+		if value, ok := result.Application[key]; ok {
+			validation[key] = value
+		}
+	}
+	if result.TaxPaidAmount != "" {
+		validation["taxPaidAmount"] = result.TaxPaidAmount
+	}
+	if result.TaxDueAmount != "" {
+		validation["taxDueAmount"] = result.TaxDueAmount
+	}
+	taxOrderNos := append([]string(nil), application.TaxOrderNos...)
+	for _, payment := range result.TaxPayments {
+		if payment.TaxOrderNo != "" {
+			taxOrderNos = appendUniqueString(taxOrderNos, payment.TaxOrderNo)
+		}
+	}
+	update := application.Update().SetStatus(status).SetExternalSnapshot(result.Application).
+		SetValidationSnapshot(validation).SetTaxOrderNos(taxOrderNos)
+	if id := mapIdentifier(result.Application, "id"); id != "" && (application.ExternalID == nil || *application.ExternalID == "") {
+		update.SetExternalID(id)
+	}
+	if _, err := update.Save(ctx); err != nil {
+		return nil, fmt.Errorf("save invoice tax checkout state: %w", err)
+	}
+	updated, err := s.getOwnedApplication(ctx, userID, applicationID)
+	if err != nil {
+		return nil, err
+	}
+	return &InvoiceTaxCheckoutResponse{
+		Application:   invoiceApplicationResponse(updated),
+		TaxPaidAmount: result.TaxPaidAmount,
+		TaxDueAmount:  result.TaxDueAmount,
+		TaxPayments:   result.TaxPayments,
+	}, nil
 }
 
 func (s *InvoiceService) ListApplications(ctx context.Context, userID int64, page, pageSize int) ([]InvoiceApplicationResponse, int, error) {
@@ -510,7 +624,7 @@ func (s *InvoiceService) Cancel(ctx context.Context, userID, applicationID int64
 	if application.ExternalID == nil || *application.ExternalID == "" {
 		return nil, infraerrors.Conflict("INVOICE_CANNOT_CANCEL", "invoice application has no confirmed remote record")
 	}
-	if application.Status != "pending" && application.Status != "approved" {
+	if application.Status != invoiceStatusAwaitingTax && application.Status != "pending" && application.Status != "approved" {
 		return nil, infraerrors.Conflict("INVOICE_CANNOT_CANCEL", "invoice application cannot be canceled in its current status")
 	}
 	remote, err := s.cancelRemoteApplication(ctx, *application.ExternalID)
@@ -658,7 +772,7 @@ func (s *InvoiceService) currentDraft(ctx context.Context, userID int64) (*dbent
 }
 
 func (s *InvoiceService) validateRemoteOrders(ctx context.Context, orderNos []string, needPayTax bool, taxOrderNos []string) (map[string]any, error) {
-	payload := map[string]any{"orderNos": orderNos}
+	payload := map[string]any{"orderNos": orderNos, "createTaxPayments": false}
 	if needPayTax {
 		payload["needPayTax"] = true
 		if len(taxOrderNos) > 0 {
@@ -1097,7 +1211,7 @@ func decodeInvoiceErrorBody(statusCode int, body []byte) error {
 }
 
 func isInvoiceAuthFailure(status int, upstream *invoiceUpstreamError) bool {
-	if status == http.StatusUnauthorized || status == http.StatusForbidden {
+	if status == http.StatusUnauthorized {
 		return true
 	}
 	if upstream == nil {
@@ -1118,6 +1232,8 @@ func invoicePublicError(err error) error {
 	}
 	status := upstream.StatusCode
 	switch {
+	case upstream.Code == "IDENTITY_VERIFICATION_REQUIRED":
+		status = http.StatusForbidden
 	case strings.HasPrefix(upstream.Code, "OAUTH_") || strings.HasPrefix(upstream.Code, "AUTH_"):
 		status = http.StatusServiceUnavailable
 	case status == http.StatusTooManyRequests:
@@ -1137,8 +1253,8 @@ func invoicePublicError(err error) error {
 }
 
 func normalizeInvoiceOrderIDs(orderIDs []int64) ([]int64, error) {
-	if len(orderIDs) == 0 || len(orderIDs) > invoiceMaxOrders {
-		return nil, infraerrors.BadRequest("INVOICE_INVALID_ORDERS", "select between 1 and 20 orders")
+	if len(orderIDs) == 0 {
+		return nil, infraerrors.BadRequest("INVOICE_INVALID_ORDERS", "select at least one order")
 	}
 	seen := make(map[int64]struct{}, len(orderIDs))
 	result := make([]int64, 0, len(orderIDs))
@@ -1152,7 +1268,6 @@ func normalizeInvoiceOrderIDs(orderIDs []int64) ([]int64, error) {
 		seen[id] = struct{}{}
 		result = append(result, id)
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
 	return result, nil
 }
 
@@ -1221,14 +1336,37 @@ func invoiceDraftResponse(draft *dbent.InvoiceApplication) *InvoiceDraftResponse
 }
 
 func invoiceApplicationResponse(application *dbent.InvoiceApplication) *InvoiceApplicationResponse {
+	validation := application.ValidationSnapshot
 	return &InvoiceApplicationResponse{
 		ID: application.ID, ExternalID: invoiceStringValue(application.ExternalID),
 		OrderIDs: append([]int64(nil), application.OrderIds...), OrderNos: append([]string(nil), application.OrderNos...),
 		NeedPayTax: application.NeedPayTax, TaxOrderNos: append([]string(nil), application.TaxOrderNos...),
 		Status: application.Status, Title: invoiceStringValue(application.Title), RecipientEmail: invoiceStringValue(application.RecipientEmail),
 		TotalAmount: application.TotalAmount, Currency: application.Currency, RequestID: invoiceStringValue(application.RequestID),
+		TaxAmount: mapString(validation, "taxAmount"), TaxPaidAmount: mapString(validation, "taxPaidAmount"), TaxDueAmount: mapString(validation, "taxDueAmount"),
 		ErrorCode: invoiceStringValue(application.ErrorCode), CreatedAt: application.CreatedAt, UpdatedAt: application.UpdatedAt,
 	}
+}
+
+func invoiceApplicationValidation(application *InvoiceApplicationResponse) map[string]any {
+	if application == nil {
+		return nil
+	}
+	return map[string]any{
+		"totalAmount":   application.TotalAmount,
+		"currency":      application.Currency,
+		"taxAmount":     application.TaxAmount,
+		"taxPaidAmount": application.TaxPaidAmount,
+		"taxDueAmount":  application.TaxDueAmount,
+	}
+}
+
+func cloneInvoiceMap(values map[string]any) map[string]any {
+	result := make(map[string]any, len(values))
+	for key, value := range values {
+		result[key] = value
+	}
+	return result
 }
 
 func taxOrderBelongsToValidation(validation map[string]any, taxOrderNo string) bool {

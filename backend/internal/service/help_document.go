@@ -102,7 +102,7 @@ func ValidateHelpDocument(d *HelpDocument) error {
 		return ErrHelpDocumentInvalid
 	}
 	switch d.Category {
-	case "quick-start", "claude-code", "codex", "opencode", "gemini-cli", "grok-cli", "cherry-studio", "cursor", "cline", "roo-code", "dsh", "pi", "openclaw", "hermes", "workbuddy", "zcode", "trae", "read-frog", "kiss-translator", "immersive-translate", "sillytavern", "tavernai", "api", "faq":
+	case "quick-start", "claude-code", "codex", "opencode", "gemini-cli", "grok-cli", "cherry-studio", "cursor", "cline", "dsh", "pi", "openclaw", "hermes", "workbuddy", "zcode", "trae", "kiss-translator", "immersive-translate", "sillytavern", "tavernai", "api", "faq":
 	default:
 		return ErrHelpDocumentInvalid
 	}

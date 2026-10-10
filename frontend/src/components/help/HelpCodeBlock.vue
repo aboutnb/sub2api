@@ -78,7 +78,7 @@ pre {
   background: var(--gh-bg);
   color: var(--gh-fg);
   font-size: 12px;
-  line-height: 20px;
+  line-height: 1.5;
   tab-size: 2;
 }
 code { font-family: inherit; }
@@ -132,5 +132,5 @@ code { font-family: inherit; }
   font-weight: var(--shiki-dark-font-weight);
   text-decoration: var(--shiki-dark-text-decoration);
 }
-.help-code pre.shiki .line { display: block; min-height: 20px; }
+.help-code pre.shiki .line { display: inline; }
 </style>

@@ -38,6 +38,24 @@ async function page(url: string) {
 
 describe('Help center guided setup', () => {
 
+  it('hides retired tutorials and displays v1 regardless of the editing revision', async () => {
+    const docs = await mocks.list()
+    mocks.list.mockResolvedValue([
+      ...docs.map((doc: Record<string, unknown>) => ({ ...doc, version: 19 })),
+      ...['read-frog', 'roo-code'].map(category => ({ id: category, slug: 'clients/' + category, category, title: category, summary: '', content_markdown: 'Retired', selector_schema: {} }))
+    ])
+    const { wrapper } = await page('/help')
+    expect(wrapper.get('.article-footer').text()).toContain('v1')
+    expect(wrapper.get('.article-footer').text()).not.toContain('v19')
+    expect(wrapper.text()).not.toContain('read-frog')
+    expect(wrapper.text()).not.toContain('roo-code')
+    wrapper.unmount()
+    const retired = await page('/help/clients/read-frog')
+    expect(retired.wrapper.text()).toContain('helpCenter.empty')
+    expect(retired.wrapper.find('.settings-preview').exists()).toBe(false)
+    retired.wrapper.unmount()
+  })
+
   it('shows the API probe for every active group and hides client controls', async () => {
     const docs = await mocks.list()
     mocks.list.mockResolvedValue([...docs, { id: 80, slug: 'api', category: 'api', title: 'API', summary: 'probe', content_markdown: '## 怎么用\nSelect a group' }])

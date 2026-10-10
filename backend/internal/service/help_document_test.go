@@ -136,10 +136,17 @@ func TestHelpDocumentValidationAndStaleSave(t *testing.T) {
 }
 
 func TestHelpDesktopClientCategories(t *testing.T) {
-	for _, category := range []string{"cherry-studio", "cursor", "cline", "roo-code"} {
+	for _, category := range []string{"cherry-studio", "cursor", "cline"} {
 		t.Run(category, func(t *testing.T) {
 			d := &HelpDocument{Slug: "clients/" + category, Title: category, Category: category, ContentMarkdown: "## Configuration\nUse the default endpoint"}
 			require.NoError(t, ValidateHelpDocument(d))
 		})
+	}
+}
+
+func TestRetiredHelpClientCategories(t *testing.T) {
+	for _, category := range []string{"read-frog", "roo-code"} {
+		d := &HelpDocument{Slug: "clients/" + category, Title: category, Category: category, ContentMarkdown: "Configuration"}
+		require.ErrorIs(t, ValidateHelpDocument(d), ErrHelpDocumentInvalid)
 	}
 }

@@ -15,6 +15,7 @@ import type {
   InvoiceConfig,
   InvoiceDraft,
   InvoiceTaxStatus,
+  InvoiceTaxCheckout,
   InvoiceApplication,
   InvoiceApplyRequest,
 } from '@/types/payment'
@@ -127,6 +128,18 @@ export const paymentAPI = {
   /** Release an unfinished draft only when it has no invoice-fee checkout. */
   abandonInvoiceDraft(draftId: number) {
     return apiClient.post(`/payment/invoices/drafts/${draftId}/abandon`)
+  },
+
+  /** Create or reuse checkout for a saved application. */
+  getInvoiceTaxPayments(id: number) {
+    return apiClient.post<InvoiceTaxCheckout>(`/payment/invoices/${id}/tax-payments`)
+  },
+
+  /** Confirm one tax checkout attached to a saved application. */
+  checkSavedInvoiceTaxPayment(id: number, taxOrderNo: string) {
+    return apiClient.post<InvoiceTaxStatus>(`/payment/invoices/${id}/tax-status`, {
+      tax_order_no: taxOrderNo,
+    })
   },
 
   /** List the current user's locally-owned invoice applications. */
