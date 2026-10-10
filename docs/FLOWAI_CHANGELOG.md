@@ -1,5 +1,11 @@
 # FlowAI 分支变更台账
 
+### 2026-10-10 渠道监控平台目录修复（本地，尚未部署）
+
+- 被动监控 V2/V3 的配置仍沿用最早六个平台，导致后续新增平台被后端配置范围排除；新增 `255_channel_monitor_platform_catalog.sql`，补齐 Kimi、Zhipu GLM、DeepSeek、MiniMax、OpenCode、TypeSafe / Jev。只追加缺失项，保留明确关闭的平台、模型列表、全局开关和分组范围；显式空平台列表不自动开启，重复执行不重复追加或增加版本号。新安装默认包含全部 12 个监控维度（含历史 Kiro）。
+- 后台监控设置从共享平台目录补齐可选项，未知自定义平台继续保留；未来缺失项在界面默认关闭，管理员可自行启用。平台名称统一展示；V3 卡片使用平台和分组组合键，修复同一复合分组跨平台时刷新复用错误卡片的问题。
+- 前端监控相关 13 个文件 / 55 项测试、类型检查和改动文件 ESLint 通过；后端监控相关 unit 通过，新增仓储 integration 测试编译通过。PostgreSQL PGlite 实际执行迁移验证通过，覆盖旧配置保留、显式空配置、幂等和新安装默认值。本机 Docker daemon 不可用，完整原生集成测试未执行；尚未推送或发布到 23 服务器。
+
 ### 2026-10-09 v0.2.14 已完成 23 服务器发布
 
 - 发布源码 `ab520b4c5c5dbe336b0f147f1adaa3c3074ba4a8`，版本 0.2.14；同源 GitHub CI `37875387481`（含集成测试）、Security Scan `37875387480`、Aivoza Image `37876158329` 全部成功。安全补丁后的本地完整 Go unit、golangci v2.14、严格契约均通过。
@@ -573,6 +579,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 重复，必须以完整文件名识别，不能因为编号相同而覆盖或删除。
 
 <!-- FLOWAI_MIGRATION_LEDGER_BEGIN -->
+| `backend/migrations/255_channel_monitor_platform_catalog.sql` | 被动监控新增平台目录补齐 | 只追加六个缺失平台并更新版本；保留禁用状态、模型、分组及显式空列表，幂等；旧迁移不改写 |
 | `backend/migrations/241_add_payment_order_bonus_amount.sql` | 支付免费额度字段 | 新增文件；旧订单默认 0，旧应用兼容，不逆向删列 |
 | `backend/migrations/241_add_typesafe_platform.sql` | TypeSafe 平台约束 | 新增文件；允许平台集合扩展，旧应用兼容 |
 | `backend/migrations/240_help_documents.sql` | 教程表或内置教程种子增量 | 新增文件；保留已有同编号迁移，发布前备份，不逆向删除 |
@@ -664,6 +671,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+| 2026-10-10 | `9ca791252b453f8fa7d793880e776333a2f8c2fc` | 被动监控平台目录补齐、后台完整开关及 V3 跨平台分组卡片键；保留禁用/模型/分组/空配置；55 项前端监控测试、后端监控 unit、类型/lint 和 PostgreSQL SQL 验证通过 | 渠道监控 |
 | 2026-10-09 | `f3c44168d41b3d8e7be60ac42724b716ae08a7f5` | Go 1.27.2、x/net 0.60.0 安全修复与工具链适配；出站 HTTP2Config 健康探测保留协议/代理行为，服务端独立超时和旧 GOAWAY 重试兼容；govulncheck 零可达漏洞、golangci v2.14 零问题、协议及内存专项通过 | 安全/HTTP2/CI |
 | 2026-09-29 | `856a7146a2e66fa855f45ace7a6e67cbc5e3657b` | 登记 v0.2.10 服务器发布、镜像与备份；无业务改动 | 发布记录 |
 | 2026-09-29 | `173eb0aa3034c053972d2590ceb04e1d28f0dea4` | 修复教程组件全角空格和事务 rollback errcheck；保持发布与权限语义 | CI 修复 |
