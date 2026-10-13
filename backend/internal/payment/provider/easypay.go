@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"sort"
@@ -314,6 +315,10 @@ func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 		Status      *int    `json:"status"`
 		Money       *string `json:"money"`
 		TradeNo     *string `json:"trade_no"`
+		OrderID     *string `json:"out_trade_no"`
+		Type        *string `json:"type"`
+		PID         *string `json:"pid"`
+		BlockTxID   *string `json:"block_transaction_id"`
 	}
 	var resp struct {
 		Code        int              `json:"code"`
@@ -322,6 +327,12 @@ func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 		Status      *int             `json:"status"`
 		Money       *string          `json:"money"`
 		TradeNo     *string          `json:"trade_no"`
+		OrderID     *string          `json:"out_trade_no"`
+		Type        *string          `json:"type"`
+		PID         *string          `json:"pid"`
+		BlockTxID   *string          `json:"block_transaction_id"`
+		Sign        string           `json:"sign"`
+		SignType    string           `json:"sign_type"`
 		Data        easyPayQueryData `json:"data"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
@@ -358,14 +369,152 @@ func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 	} else if resp.Data.TradeNo != nil && *resp.Data.TradeNo != "" {
 		responseTradeNo = *resp.Data.TradeNo
 	}
+	responseOrderID := ""
+	if resp.OrderID != nil {
+		responseOrderID = strings.TrimSpace(*resp.OrderID)
+	} else if resp.Data.OrderID != nil {
+		responseOrderID = strings.TrimSpace(*resp.Data.OrderID)
+	}
+	responseType := ""
+	if resp.Type != nil {
+		responseType = strings.TrimSpace(*resp.Type)
+	} else if resp.Data.Type != nil {
+		responseType = strings.TrimSpace(*resp.Data.Type)
+	}
+	responsePID := ""
+	if resp.PID != nil {
+		responsePID = strings.TrimSpace(*resp.PID)
+	} else if resp.Data.PID != nil {
+		responsePID = strings.TrimSpace(*resp.Data.PID)
+	}
+	blockTxID := ""
+	if resp.BlockTxID != nil {
+		blockTxID = strings.TrimSpace(*resp.BlockTxID)
+	} else if resp.Data.BlockTxID != nil {
+		blockTxID = strings.TrimSpace(*resp.Data.BlockTxID)
+	}
 
 	amount, _ := strconv.ParseFloat(money, 64)
+	metadata := e.MerchantIdentityMetadata()
+	if metadata == nil {
+		metadata = map[string]string{}
+	}
+	metadata["query_pid"] = responsePID
+	metadata["block_transaction_id"] = blockTxID
+	if responseType != "" {
+		metadata["upstream_payment_type"] = responseType
+		if callbackType, typeErr := e.callbackPaymentType(responseType); typeErr == nil {
+			metadata["payment_type"] = callbackType
+		}
+	}
+	if e.verifySignedQueryResponse(resp.Code, resp.Msg, responsePID, responseOrderID, responseTradeNo, responseType, money, resp.TradeStatus, resp.Status, blockTxID, resp.SignType, resp.Sign) {
+		metadata["query_signature_verified"] = "true"
+	}
 	return &payment.QueryOrderResponse{
 		TradeNo:  responseTradeNo,
+		OrderID:  responseOrderID,
 		Status:   status,
 		Amount:   amount,
-		Metadata: e.MerchantIdentityMetadata(),
+		Metadata: metadata,
 	}, nil
+}
+
+func (e *EasyPay) verifySignedQueryResponse(code int, msg, pid, orderID, tradeNo, paymentType, money string, tradeStatus *string, status *int, blockTxID, signType, signature string) bool {
+	if !strings.EqualFold(strings.TrimSpace(signType), signTypeMD5) || strings.TrimSpace(signature) == "" {
+		return false
+	}
+	params := map[string]string{
+		"code":                 strconv.Itoa(code),
+		"msg":                  msg,
+		"pid":                  pid,
+		"out_trade_no":         orderID,
+		"trade_no":             tradeNo,
+		"type":                 paymentType,
+		"money":                money,
+		"block_transaction_id": blockTxID,
+		"sign_type":            signType,
+		"sign":                 signature,
+	}
+	if tradeStatus != nil {
+		params["trade_status"] = *tradeStatus
+	}
+	if status != nil {
+		params["status"] = strconv.Itoa(*status)
+	}
+	return easyPayVerifySign(params, e.config["pkey"], signature)
+}
+
+// ConfirmNotification treats a USDT callback only as a wake-up signal. The
+// authoritative payment evidence comes from the signed upstream query response.
+func (e *EasyPay) ConfirmNotification(ctx context.Context, notification *payment.PaymentNotification) (*payment.PaymentNotification, error) {
+	if notification == nil {
+		return nil, fmt.Errorf("easypay confirm: notification is nil")
+	}
+	if !e.requiresUSDTNotificationConfirmation(notification) {
+		return notification, nil
+	}
+
+	queried, err := e.QueryOrder(ctx, strings.TrimSpace(notification.OrderID))
+	if err != nil {
+		return nil, fmt.Errorf("easypay confirm query: %w", err)
+	}
+	if queried == nil || queried.Status != payment.ProviderStatusPaid {
+		return nil, fmt.Errorf("easypay confirm: upstream order is not paid")
+	}
+	if queried.OrderID == "" || queried.OrderID != strings.TrimSpace(notification.OrderID) {
+		return nil, fmt.Errorf("easypay confirm: order id mismatch")
+	}
+	if strings.TrimSpace(queried.TradeNo) == "" || queried.TradeNo != strings.TrimSpace(notification.TradeNo) {
+		return nil, fmt.Errorf("easypay confirm: trade number mismatch")
+	}
+	if !isFinitePositiveAmount(queried.Amount) || math.Abs(queried.Amount-notification.Amount) > 0.00005 {
+		return nil, fmt.Errorf("easypay confirm: callback amount mismatch")
+	}
+	if queried.Metadata["query_signature_verified"] != "true" {
+		return nil, fmt.Errorf("easypay confirm: unsigned query response")
+	}
+	if queried.Metadata["query_pid"] == "" || queried.Metadata["query_pid"] != strings.TrimSpace(e.config["pid"]) {
+		return nil, fmt.Errorf("easypay confirm: merchant pid mismatch")
+	}
+	if queried.Metadata["payment_type"] == "" || queried.Metadata["payment_type"] != notification.Metadata["payment_type"] {
+		return nil, fmt.Errorf("easypay confirm: payment type mismatch")
+	}
+	if !validUSDTTransactionID(queried.Metadata["block_transaction_id"]) {
+		return nil, fmt.Errorf("easypay confirm: invalid chain transaction id")
+	}
+
+	confirmed := *notification
+	confirmed.TradeNo = queried.TradeNo
+	confirmed.OrderID = queried.OrderID
+	confirmed.Amount = queried.Amount
+	confirmed.Status = payment.ProviderStatusSuccess
+	confirmed.Metadata = queried.Metadata
+	return &confirmed, nil
+}
+
+func (e *EasyPay) requiresUSDTNotificationConfirmation(notification *payment.PaymentNotification) bool {
+	if notification == nil {
+		return false
+	}
+	paymentType := strings.TrimSpace(notification.Metadata["payment_type"])
+	upstreamType := strings.ToLower(strings.TrimSpace(e.upstreamPaymentType(paymentType)))
+	return strings.HasPrefix(upstreamType, "usdt.") || strings.HasPrefix(strings.ToLower(paymentType), "usdt_")
+}
+
+func isFinitePositiveAmount(amount float64) bool {
+	return amount > 0 && !math.IsNaN(amount) && !math.IsInf(amount, 0)
+}
+
+func validUSDTTransactionID(value string) bool {
+	value = strings.TrimSpace(value)
+	if strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
+		value = value[2:]
+	}
+	if len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
 }
 
 func (e *EasyPay) VerifyNotification(_ context.Context, rawBody string, _ map[string]string) (*payment.PaymentNotification, error) {
