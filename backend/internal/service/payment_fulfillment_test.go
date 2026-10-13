@@ -634,6 +634,34 @@ func TestValidateProviderNotificationMetadataRejectsEasyPaySnapshotMismatch(t *t
 	assert.ErrorContains(t, err, "easypay pid mismatch")
 }
 
+func TestValidateProviderNotificationMetadataRejectsEasyPayPaymentTypeMismatch(t *testing.T) {
+	t.Parallel()
+
+	order := &dbent.PaymentOrder{
+		PaymentType: payment.PaymentType("usdt_bep20"),
+		ProviderSnapshot: map[string]any{
+			"schema_version": 2,
+			"merchant_id":    "pid-expected",
+		},
+	}
+
+	err := validateProviderNotificationMetadata(order, payment.TypeEasyPay, map[string]string{
+		"pid":          "pid-expected",
+		"payment_type": "usdt_trc20",
+	})
+	assert.ErrorContains(t, err, "easypay payment type mismatch")
+}
+
+func TestValidateProviderNotificationMetadataRejectsEasyPayPaymentTypeMismatchForLegacyOrder(t *testing.T) {
+	t.Parallel()
+
+	order := &dbent.PaymentOrder{PaymentType: payment.PaymentType("usdt_bep20")}
+	err := validateProviderNotificationMetadata(order, payment.TypeEasyPay, map[string]string{
+		"payment_type": "usdt_trc20",
+	})
+	assert.ErrorContains(t, err, "easypay payment type mismatch")
+}
+
 func TestValidateProviderNotificationMetadataRejectsAirwallexSnapshotMismatch(t *testing.T) {
 	t.Parallel()
 

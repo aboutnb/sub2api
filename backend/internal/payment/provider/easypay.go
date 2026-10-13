@@ -375,16 +375,31 @@ func (e *EasyPay) VerifyNotification(_ context.Context, rawBody string, _ map[st
 	}
 	// url.ParseQuery already decodes values — no additional decode needed.
 	params := make(map[string]string)
-	for k := range values {
+	for k, items := range values {
 		if !easyPayNotifyAllowedParams[k] {
 			return nil, fmt.Errorf("unexpected notify param: %s", k)
 		}
-		params[k] = values.Get(k)
+		if len(items) != 1 {
+			return nil, fmt.Errorf("duplicate notify param: %s", k)
+		}
+		params[k] = items[0]
+	}
+	for _, key := range easyPayNotifyRequiredParams {
+		if strings.TrimSpace(params[key]) == "" {
+			return nil, fmt.Errorf("missing notify param: %s", key)
+		}
+	}
+	if !strings.EqualFold(params["sign_type"], signTypeMD5) {
+		return nil, fmt.Errorf("unsupported sign_type: %s", params["sign_type"])
+	}
+	if !hmac.Equal([]byte(strings.TrimSpace(params["pid"])), []byte(strings.TrimSpace(e.config["pid"]))) {
+		return nil, fmt.Errorf("merchant pid mismatch")
+	}
+	callbackPaymentType, err := e.callbackPaymentType(params["type"])
+	if err != nil {
+		return nil, err
 	}
 	sign := params["sign"]
-	if sign == "" {
-		return nil, fmt.Errorf("missing sign")
-	}
 	if !easyPayVerifySign(params, e.config["pkey"], sign) {
 		return nil, fmt.Errorf("invalid signature")
 	}
@@ -392,7 +407,10 @@ func (e *EasyPay) VerifyNotification(_ context.Context, rawBody string, _ map[st
 	if params["trade_status"] == tradeStatusSuccess {
 		status = payment.ProviderStatusSuccess
 	}
-	amount, _ := strconv.ParseFloat(params["money"], 64)
+	amount, err := strconv.ParseFloat(params["money"], 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid notify amount: %w", err)
+	}
 
 	metadata := e.MerchantIdentityMetadata()
 	if pid := strings.TrimSpace(params["pid"]); pid != "" {
@@ -401,10 +419,34 @@ func (e *EasyPay) VerifyNotification(_ context.Context, rawBody string, _ map[st
 		}
 		metadata["pid"] = pid
 	}
+	metadata["payment_type"] = callbackPaymentType
 	return &payment.PaymentNotification{
 		TradeNo: params["trade_no"], OrderID: params["out_trade_no"],
 		Amount: amount, Status: status, RawData: rawBody, Metadata: metadata,
 	}, nil
+}
+
+func (e *EasyPay) callbackPaymentType(upstreamType string) (string, error) {
+	upstreamType = strings.TrimSpace(upstreamType)
+	switch upstreamType {
+	case payment.TypeAlipay, payment.TypeWxpay:
+		return upstreamType, nil
+	}
+
+	matched := ""
+	for _, method := range e.customMethods() {
+		if method.UpstreamType != upstreamType {
+			continue
+		}
+		if matched != "" && matched != method.Type {
+			return "", fmt.Errorf("ambiguous notify payment type: %s", upstreamType)
+		}
+		matched = method.Type
+	}
+	if matched == "" {
+		return "", fmt.Errorf("unsupported notify payment type: %s", upstreamType)
+	}
+	return matched, nil
 }
 
 func (e *EasyPay) Refund(ctx context.Context, req payment.RefundRequest) (*payment.RefundResponse, error) {
@@ -626,4 +668,15 @@ var easyPayNotifyAllowedParams = map[string]bool{
 	"param":        true,
 	"sign":         true,
 	"sign_type":    true,
+}
+
+var easyPayNotifyRequiredParams = []string{
+	"pid",
+	"trade_no",
+	"out_trade_no",
+	"type",
+	"money",
+	"trade_status",
+	"sign",
+	"sign_type",
 }

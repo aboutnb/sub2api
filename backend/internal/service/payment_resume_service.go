@@ -244,6 +244,9 @@ func CanonicalizeReturnURL(raw string, srcHost string, srcURL string) (string, e
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return "", infraerrors.BadRequest("INVALID_RETURN_URL", "return_url must use http or https")
 	}
+	if parsed.User != nil {
+		return "", infraerrors.BadRequest("INVALID_RETURN_URL", "return_url must not contain user information")
+	}
 	parsed.Fragment = ""
 	// Client-supplied query parameters are dropped: buildPaymentReturnURL adds
 	// its own signed set, and user-controlled pairs such as
