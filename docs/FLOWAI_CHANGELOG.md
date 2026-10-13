@@ -11,10 +11,13 @@
   触发 GM 重试；支付宝/微信 EasyPay 回调保持原路径。
 - 配套 GMPay 提交 `20f52b07afbccfcca4b8c6a0ae10f34ec641faf8` 在 `gm-epusdt` 分支新增受 PID/密钥、IP 白名单和订单所属 API Key 保护的只读
   `/payments/epay/v1/order/create-transaction/api.php`，完整响应使用商户密钥签名。发布顺序固定为
-  GM 先、Sub2API 后；当前尚未构建镜像、部署或执行真实链上支付。
+  GM 先、Sub2API 后。GitHub Actions `docker-gm-epusdt` run `38441514491` 已成功构建
+  `gm-epusdt-sha-20f52b0`，多架构镜像 digest 为
+  `sha256:4c92dfc419f220e8bf53fae28a0907e5d4207deefe3aee421b2c50b2636a5cd2`；当前尚未部署或执行真实链上支付。
 - 本地已通过 GMPay 全仓 Go 测试、Sub2API 全仓 Go 测试、完整 unit service/handler/provider、
   漏洞碰撞、主动确认成功和九类不一致拒绝、RMB 旁路、待支付状态与审计专项测试；FlowAI
-  契约检查通过。GitHub CI、镜像构建和生产验证待补齐。
+  严格契约检查以 0 failure/0 warning 通过。GMPay 镜像构建已通过，Sub2API GitHub CI、镜像构建
+  和两端生产验证待补齐。
 
 ### 2026-10-10 v0.2.15 合并候选（尚未部署）
 
