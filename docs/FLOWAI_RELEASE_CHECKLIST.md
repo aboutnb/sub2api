@@ -130,6 +130,8 @@ make check-flowai-contract-strict
 - [ ] Docker Compose 配置渲染通过，环境变量没有把生产密钥写入仓库。
 - [ ] 若涉及上游协议或支付回调，已做真实配置下的连通性/回调状态核对；没有把 HTTP
       200、钱包存在或浏览器跳转当作链上结算证据。
+- [ ] GM 签名查单端点已先于 Sub2API 上线；使用待支付/不存在订单的非破坏性查询确认不会
+      入账，并验证成功证据必须同时绑定 PID、订单号、GM 流水、类型、金额和链上哈希。
 - [ ] GM 保持精确金额匹配、最小精度递增和严格 `chain_tokens.min_amount`；不存在
       `system.usdt_underpayment_tolerance`、固定网络费或少到账补偿逻辑。
 - [ ] 充值赠送默认档位为 50 赠 5%、100 赠 10%，后台可增删配置且空数组可关闭；快捷
@@ -182,6 +184,9 @@ docker compose --env-file deploy/.env.preview -f deploy/docker-compose.preview.y
       重建 `flowai-app` 或复用 BEpusdt 数据目录。
 - [ ] 启用 GM/EasyPay USDT 前，`/payments/gmpay/v1/config` 返回非空
       `supported_assets`，钱包、RPC/监听和回调 smoke test 均有证据；为空时保持前台方式禁用。
+- [ ] `/payments/epay/v1/order/create-transaction/api.php` 已返回业务响应而非 404；Sub2API 对
+      未支付或查单失败回调返回 503、订单仍为 `PENDING` 且有 `PAYMENT_UPSTREAM_CONFIRMATION_FAILED`
+      审计，真实链上成功订单才返回 EasyPay `success`。
 - [ ] `/api/v1/payment/limits` 中 USDT 方式的 `single_min` 与后台
       `payment_usdt_min_amount` 一致（默认 50），低于下限的直接创建订单请求也被后端拒绝。
 - [ ] 桌面端 GM checkout 弹窗约为 `625x900` 且居中；小屏会自适应缩小，父页面订单轮询
