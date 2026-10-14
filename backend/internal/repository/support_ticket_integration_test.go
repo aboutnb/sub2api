@@ -68,6 +68,15 @@ func ticketIntegrationUser(t *testing.T, emailPrefix string) int64 {
 	t.Helper()
 	user, err := integrationEntClient.User.Create().SetEmail(fmt.Sprintf("%s-%d@example.test", emailPrefix, time.Now().UnixNano())).SetPasswordHash("test").SetRole(service.RoleUser).SetStatus(service.StatusActive).Save(context.Background())
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, err := integrationDB.ExecContext(ctx, "DELETE FROM support_ticket_messages WHERE author_id=$1 OR ticket_id IN (SELECT id FROM support_tickets WHERE user_id=$1)", user.ID)
+		require.NoError(t, err)
+		_, err = integrationDB.ExecContext(ctx, "DELETE FROM support_tickets WHERE user_id=$1", user.ID)
+		require.NoError(t, err)
+		_, err = integrationDB.ExecContext(ctx, "DELETE FROM users WHERE id=$1", user.ID)
+		require.NoError(t, err)
+	})
 	return user.ID
 }
 
