@@ -62,12 +62,6 @@ function button(wrapper: Awaited<ReturnType<typeof panel>>, key: string) {
   return wrapper.findAll('button').find((item) => item.text() === 'channelMonitorV2.settings.' + key)!
 }
 
-async function add(wrapper: Awaited<ReturnType<typeof panel>>, platform: string) {
-  wrapper.findComponent(Select).vm.$emit('update:modelValue', platform)
-  await flushPromises()
-  await button(wrapper, 'addPlatform').trigger('click')
-}
-
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.groups.mockResolvedValue([])
@@ -75,79 +69,32 @@ beforeEach(() => {
 })
 
 describe('MonitorSettingsPanel platform configuration', () => {
-  it('adds a missing provider and saves its models without changing existing settings', async () => {
-    const original = config()
-    const wrapper = await panel(original)
-    expect(button(wrapper, 'save').attributes('disabled')).toBeDefined()
-    expect(wrapper.findComponent(Select).props('options')).not.toContainEqual(expect.objectContaining({ value: 'openai' }))
-
-    await wrapper.findComponent(Select).find('button').trigger('click')
-    const option = wrapper.findAll('[role="option"]').find((item) => item.text() === 'DeepSeek')!
-    await option.trigger('click')
-    await button(wrapper, 'addPlatform').trigger('click')
-    expect(button(wrapper, 'addPlatform').attributes('disabled')).toBeDefined()
-    expect(wrapper.findComponent(Select).props('options')).not.toContainEqual(
-      expect.objectContaining({ value: 'deepseek' })
-    )
-    const models = wrapper.findAll('input[type="text"]').at(-1)!
-    await models.setValue(' deepseek-chat, deepseek-reasoner, deepseek-chat ')
-    await button(wrapper, 'save').trigger('click')
-    await flushPromises()
-
-    expect(mocks.updateConfig).toHaveBeenCalledWith({
-      ...original,
-      platforms: [...original.platforms, {
-        platform: 'deepseek', enabled: true, models: ['deepseek-chat', 'deepseek-reasoner'],
-      }],
-    })
-    expect(button(wrapper, 'save').attributes('disabled')).toBeDefined()
-    expect(original.platforms).toHaveLength(2)
-
-    const persisted = mocks.updateConfig.mock.results[0].value
-    wrapper.unmount()
-    const reloaded = await panel(await persisted)
-    expect((reloaded.findAll('input[type="text"]').at(-1)!.element as HTMLInputElement).value).toBe('deepseek-chat, deepseek-reasoner')
-    expect(reloaded.findComponent(Select).props('options')).not.toContainEqual(
-      expect.objectContaining({ value: 'deepseek' })
-    )
-    reloaded.unmount()
-  })
-
-  it('can start with no configured platforms and rejects duplicate additions', async () => {
-    const wrapper = await panel({ ...config(), platforms: [] })
-    expect(button(wrapper, 'addPlatform').attributes('disabled')).toBeDefined()
-    await add(wrapper, 'kimi')
-    await add(wrapper, 'kimi')
-    await button(wrapper, 'save').trigger('click')
-    await flushPromises()
-    expect(mocks.updateConfig.mock.calls[0][0].platforms).toEqual([
-      { platform: 'kimi', enabled: true, models: [] },
-    ])
-    wrapper.unmount()
-  })
-
-  it('restores the server config and available options when saving fails', async () => {
-    const wrapper = await panel()
-    mocks.updateConfig.mockRejectedValueOnce(new Error('save failed'))
-    await add(wrapper, 'minimax')
-    await button(wrapper, 'save').trigger('click')
-    await flushPromises()
-    expect(mocks.showError).toHaveBeenCalledOnce()
-    expect(wrapper.findComponent(Select).props('options')).toContainEqual(
-      expect.objectContaining({ value: 'minimax' })
-    )
-    expect(wrapper.findAll('input[type="text"]')).toHaveLength(2)
-    expect(button(wrapper, 'save').attributes('disabled')).toBeDefined()
-    wrapper.unmount()
-  })
-
-  it('hides the add control after every supported platform is configured', async () => {
-    const wrapper = await panel({
-      ...config(),
-      platforms: CONCRETE_PLATFORM_OPTIONS.map(({ value }) => ({ platform: value, enabled: true, models: [] })),
-    })
+  it('shows the complete catalog disabled by default and preserves existing settings', async () => {
+    const original = config(), wrapper = await panel(original)
     expect(wrapper.findComponent(Select).exists()).toBe(false)
-    expect(button(wrapper, 'addPlatform')).toBeUndefined()
+    const inputs = wrapper.findAll('input[type="text"]')
+    expect(inputs.length).toBeGreaterThanOrEqual(CONCRETE_PLATFORM_OPTIONS.length)
+    await inputs[0].setValue('gpt-new, gpt-new'); await inputs[0].trigger('change')
+    await button(wrapper, 'save').trigger('click'); await flushPromises()
+    const saved = mocks.updateConfig.mock.calls[0][0] as MonitorConfig
+    expect(saved.platforms[0]).toEqual({platform:'openai',enabled:false,models:['gpt-new']})
+    expect(saved.platforms[1]).toEqual(original.platforms[1])
+    expect(saved.platforms.filter(p => !original.platforms.some(item => item.platform === p.platform)).every(p => !p.enabled && p.models.length === 0)).toBe(true)
+    expect(saved.group_ids).toEqual([42]); expect(original.platforms).toHaveLength(2)
     wrapper.unmount()
+  })
+  it('offers all providers disabled for an explicitly empty config', async () => {
+    const wrapper = await panel({...config(), platforms:[]})
+    expect(wrapper.findAll('input[type="text"]')).toHaveLength(CONCRETE_PLATFORM_OPTIONS.length + 1)
+    expect(button(wrapper, 'save').attributes('disabled')).toBeDefined(); wrapper.unmount()
+  })
+  it('restores server configuration when saving fails', async () => {
+    const wrapper = await panel(); mocks.updateConfig.mockRejectedValueOnce(new Error('save failed'))
+    const input = wrapper.findAll('input[type="text"]')[0]
+    await input.setValue('changed-model'); await input.trigger('change')
+    await button(wrapper, 'save').trigger('click'); await flushPromises()
+    expect(mocks.showError).toHaveBeenCalledOnce()
+    expect((wrapper.findAll('input[type="text"]')[0].element as HTMLInputElement).value).toBe('gpt-4')
+    expect(button(wrapper, 'save').attributes('disabled')).toBeDefined(); wrapper.unmount()
   })
 })

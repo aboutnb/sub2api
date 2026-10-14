@@ -9,6 +9,13 @@ remain usable.
 
 ## Verification matrix
 
+### v0.2.16 support tickets
+
+- `frontend/src/views/user/TicketsView.vue`: theme-aware TicketsPage; creation, replies, closed/read-only state, keyboard and mobile conversation verified in support ticket smoke report.
+- `frontend/src/views/admin/TicketsView.vue`: theme-aware administrator queue and reply/status actions.
+- `frontend/src/components/tickets/TicketsPage.vue`: shared CSS theme variables; loading, empty, error, long text and plain-text rendering.
+
+
 ### v0.2.8 surfaces
 
 - `frontend/src/views/user/HelpCenterView.vue`: published tutorials using theme variables, selector states and API probes.

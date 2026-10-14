@@ -223,7 +223,7 @@ function accountLabel(row: OpsRequestDetail): string {
           </div>
 
           <div v-else class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line dark:border-dark-700">
-            <div class="min-h-0 flex-1 overflow-auto">
+            <div class="min-h-0 max-w-full flex-1 overflow-auto overscroll-contain" role="region" :aria-label="t('admin.ops.requestDetails.title')" tabindex="0">
               <div v-if="!isDesktopViewport" class="divide-y divide-line dark:divide-dark-800">
                 <div v-for="(row, idx) in items" :key="idx" class="space-y-2 p-4">
                   <div class="flex flex-wrap items-center gap-2">
@@ -261,7 +261,8 @@ function accountLabel(row: OpsRequestDetail): string {
                   </button>
                 </div>
               </div>
-              <table v-else class="min-w-full divide-y divide-line dark:divide-dark-700">
+              <table v-else class="w-full min-w-[1100px] divide-y divide-line dark:divide-line">
+                <caption class="sr-only">{{ t('admin.ops.requestDetails.title') }}</caption>
                 <thead class="sticky top-0 z-10 bg-surface-muted dark:bg-dark-900">
                 <tr>
                   <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">

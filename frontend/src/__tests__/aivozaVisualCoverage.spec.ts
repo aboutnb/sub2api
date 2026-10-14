@@ -37,7 +37,7 @@ const sharedOverlays = [...vueFiles(componentsRoot), ...featureSurfaces].filter(
 
 describe('Aivoza visual coverage', () => {
   it('keeps all current view-owned surfaces in the release ledger', () => {
-    expect(views).toHaveLength(96)
+    expect(views).toHaveLength(98)
 
     const undocumented = views
       .map((path) => `frontend/src/views/${relative(viewsRoot, path)}`)
@@ -81,6 +81,8 @@ describe('Aivoza visual coverage', () => {
       'user/ImageStudioView.vue',
       'user/HelpCenterView.vue',
       'admin/HelpDocumentsView.vue',
+      'admin/TicketsView.vue',
+      'user/TicketsView.vue',
       'admin/ops/components/LogRetentionSelect.vue',
     ])
 
