@@ -358,7 +358,7 @@ func newEasyPayGMQueryServer(t *testing.T, fields map[string]string, corruptSign
 			t.Errorf("unexpected query form: %v", r.PostForm)
 		}
 
-		response := make(map[string]interface{}, len(fields)+2)
+		response := make(map[string]any, len(fields)+2)
 		for key, value := range fields {
 			switch key {
 			case "code", "status":
