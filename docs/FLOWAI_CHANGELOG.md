@@ -713,6 +713,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+| 2026-10-14 | `92ed23164b716dc19015519dbc3addb74fafb6eb` | 支付查单测试使用 any 满足仓库 gofmt rewrite 规则；同版本 golangci-lint 全仓 0 issues，provider unit 通过 | 支付安全 CI |
 | 2026-10-14 | `910c44bc2af2250760ee24fbc13dd8e6147f01eb` | EasyPay USDT 回调通过同一 provider 实例主动查单；签名、PID、订单号、GM 流水、类型、金额、支付状态和链上哈希全部匹配后才入账；失败保持 PENDING、写审计并返回 503；RMB EasyPay 保持原路径 | GM/EasyPay USDT 回调安全 |
 | 2026-10-14 | `9d9e982f62ef395c8248fd21f56bf83ac21a173d` | 修复 EasyPay 创建签名重组为成功回调：拒绝未知/重复/缺失字段、错误 PID/签名类型/支付类型，绑定订单支付方式并拒绝 return_url userinfo 注入；真实攻击载荷回归通过 | EasyPay 回调防重放 |
 | 2026-10-10 | `e13f039def8150f4c0f5d9b2cb9ed272bded612e` | 整合上次发布后的发票实名认证/先保存后税费续付、移除固定单数上限与最新教程调整；保留支付限流、赠送与主线分页/鉴权/酒馆；新增 255 退役教程迁移；89 项相关前端回归及后端发票/教程 unit 通过 | 最新本地代码/发票/教程 |
