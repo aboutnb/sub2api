@@ -1,5 +1,10 @@
 # FlowAI 分支变更台账
 
+### 2026-10-14 v0.2.16 与站内工单发布候选
+
+- 已审并合入上游 `9c2cca9e627291bc719bada3d57de23b625a4180`，219 文件，新增 4 条迁移。保留工单、教程、生图智能路由、主题和支付回调主动确认；Ent/Wire 生成保留全部定制 provider。
+- 8 个冲突逐块处理，接入分组多语言、Vertex API Key、Gemini 缓存与运营账号名。API key 带路由的返回也执行请求语言本地化。生产完整验证与部署证据待补齐。
+
 ### 2026-10-14 站内工单安全冒烟与本地加固（未发布生产）
 
 - 工单采用 JWT 与管理员中间件、按用户隔离、参数化查询、事务锁及最多 10 个未关闭工单；工单正文与主题以纯文本显示。
@@ -628,6 +633,14 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 <!-- FLOWAI_MIGRATION_LEDGER_BEGIN -->
 
+| `backend/migrations/245_gemini_cached_contents_mutation_lease.sql` | v0.2.16 上游分组译文/显式缓存 | 新增完整文件名，既有同编号迁移不改写；生产备份后执行 |
+
+| `backend/migrations/244_gemini_cached_contents_channel_usage.sql` | v0.2.16 上游分组译文/显式缓存 | 新增完整文件名，既有同编号迁移不改写；生产备份后执行 |
+
+| `backend/migrations/243_gemini_cached_contents.sql` | v0.2.16 上游分组译文/显式缓存 | 新增完整文件名，既有同编号迁移不改写；生产备份后执行 |
+
+| `backend/migrations/242_group_i18n.sql` | v0.2.16 上游分组译文/显式缓存 | 新增完整文件名，既有同编号迁移不改写；生产备份后执行 |
+
 | `backend/migrations/256_add_support_tickets.sql` | 站内工单与消息表 | 新增完整文件名，保留其他同编号迁移；外键、索引和作者约束 |
 | `backend/migrations/255_remove_retired_help_clients.sql` | 清理 Read Frog/Roo Code 教程 | 新增；删除两类教程及对应 slug，发布前备份，可从备份恢复；不改历史种子与同编号监控迁移 |
 | `backend/migrations/242_drop_platform_check_constraints.sql` | 上游平台约束转应用校验 | 新增；配额和复合路由平台由应用/Ent 目录验证，监控主动探测约束不动；回滚不逆向恢复旧白名单 |
@@ -724,6 +737,59 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+
+| 2026-10-14 | `9c2cca9e627291bc719bada3d57de23b625a4180` | 已审上游 v0.2.16：chore: update sponsors；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `4d9ac3e482106d2da3a39fe3e546d8d6801f1cc1` | 已审上游 v0.2.16：chore: sync VERSION to 0.2.16 [skip ci]；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `b669dc6daf1a9909b02ecf1f9cb692d88875e086` | 已审上游 v0.2.16：test(frontend): 将模型白名单回归用例纳入 CI；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `c4bdc484753acc95f9a775854af303146389286c` | 已审上游 v0.2.16：fix(haiku): 修正采样边界、默认模型配置与 lint；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `26f70c6a873bbeed126f1944068a7eb183c89f16` | 已审上游 v0.2.16：fix(gateway): wire Claude Haiku 5.5 into Responses bridge；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `cfbbfd6b3b41bbdeee748e25d8aa3de866b811c7` | 已审上游 v0.2.16：fix(antigravity): isolate image model rate limits；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `43a3c197cb7663582ad1b6b21c761b84776193c9` | 已审上游 v0.2.16：fix(gemini): 显式缓存恢复流程区分账号已删除与暂不支持缓存，上游必已过期后作废意图；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `2023c290e1bbfa63e3f05bdddeeae1f264b8e637` | 已审上游 v0.2.16：fix(account): 计数、Bedrock 与重试耗尽入口把上游模型交给错误处理；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `492c63059980ea5797cc2c34ba642ffee9a56aee` | 已审上游 v0.2.16：fix(gemini): satisfy test lint；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `ba2a71733272b75e948c28a6fb41ffa506a40edc` | 已审上游 v0.2.16：fix(gemini): preserve images from tool results；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `8b74741efe35a42c67bbb35b821af9a12aca2c24` | 已审上游 v0.2.16：fix(groups): 广场 Vary 保留 Origin，分组译文语言代码统一大小写；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `fc82e831026a15eaf609cc1f7cd4d4a3690e5cad` | 已审上游 v0.2.16：fix(account): 显式模型级 401 规则在网关故障转移入口生效；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `26b31a83e4190a3b38bce112fc597defbfb9515b` | 已审上游 v0.2.16：fix(gemini): 显式缓存修改串行化、失败回滚，确定金额费用按 Key / 订阅预留；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `43768680d38ccdbd8fffc2cb91d3c1fc778a61c6` | 已审上游 v0.2.16：fix(billing): 取消 GPT-6.1 Sol 订阅长上下文附加费；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `07185812655ec2e0740ca76882879c0b9ae5ee0a` | 已审上游 v0.2.16：fix(codex): raise GPT-6.1 Sol generated context default to 500k；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `daebb7a80c720763a01e5cef8799c030aed0b058` | 已审上游 v0.2.16：fix(gemini): 模型列表与模型详情接口支持 Agent Platform (Vertex) 账号；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `4426593e9d7dc38a009f28da038ac2906a57c17e` | 已审上游 v0.2.16：fix(gemini): 3.6 Flash 兜底价改为官方优惠价；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `f0ee427f0ad2f7eab6ab8f095ba05041af3a48f8` | 已审上游 v0.2.16：feat(gemini): 显式缓存存储价内置官方价并按 Pro / Flash 系列兜底；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `05d7946af84228589e5a6a8d8b6bc08d686ba778` | 已审上游 v0.2.16：fix(gemini): 显式缓存错误透传收窄到上游网关账号，延长沿用创建时计费口径；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `c9e4b267b6fac1f00060eab983e606f7a2b2d4fc` | 已审上游 v0.2.16：fix(account): 同步上游模型失败时显示后端返回的错误原因；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `6f9b02f12c3d414ed324460a0e82d7793a471f72` | 已审上游 v0.2.16：feat(gemini): Vertex 服务账号支持同步上游模型列表；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `1c68f9996df8e0bd7933d94d4ca826bc3dc570c7` | 已审上游 v0.2.16：feat(gemini): 适配 AI Studio AQ. 格式 Key；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `2588675ce7c0fa13189379489cc4edabe48f6fcd` | 已审上游 v0.2.16：fix(gemini): 第三方上游 API Key 与 Vertex 不再套用 AI Studio 等级和模拟配额；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `81e6ec5346c645fa03d794495198e32e4b910598` | 已审上游 v0.2.16：feat(gemini): Vertex 账号支持 API Key 认证；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `64331a97921bd5a43e7b54ba6a517476c985e8e5` | 已审上游 v0.2.16：ui(gemini): Vertex 显示名改为 Agent Platform (Vertex)；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `3abd64658297f5ec47ad09120a0a26d6081d42de` | 已审上游 v0.2.16：fix(ops): Gemini 原生路由的网关本地错误按错误类型归类；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `d5a802f84a6ae3405bee2a6e0160675785abf237` | 已审上游 v0.2.16：feat(gemini): 支持显式上下文缓存（AI Studio / Vertex / 自建网关上游）；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `3bfd40f5afd820ff7fae32f3f26c75fe3e0dd504` | 已审上游 v0.2.16：fix(gemini): 引用缓存不存在的 403 不再停用账号并换号；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `0f189af8de8374cca7ddd4095a39135fe4725814` | 已审上游 v0.2.16：fix(groups): ignore stale RPM override loads；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `ce6242fca1ef84da4855a92cd80117028b3a99c0` | 已审上游 v0.2.16：fix(quota): recognize international coding endpoints；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `66b7ce08e710ec5f9c5206c292ffcf3972fbe8cc` | 已审上游 v0.2.16：fix(frontend): show full account group names；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `29b2d721f46bddf5dc2555aad4adc063e0181d3b` | 已审上游 v0.2.16：test(web): use shipped SVG asset in embedded frontend tests；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `5753552b958084a7695fec7dfd923e30304ee108` | 已审上游 v0.2.16：fix(gemini): preserve authorization URL error messages；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `8e3d75b57b59b6bf8e9e695af27dab70ac360109` | 已审上游 v0.2.16：fix(monitor): refresh cached availability on automatic reload；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `bd2f53b855b79c6c20f9dee2187c78fa4ab7158c` | 已审上游 v0.2.16：fix(groups): reject nonpositive rate multiplier edits；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `d01628975d9f4d2d3ac9f9792df1bc5946a87061` | 已审上游 v0.2.16：fix(select): preserve keyboard input during IME composition；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `2bfc49477c0860058d2ff27d8ca40b0c3a1ca31c` | 已审上游 v0.2.16：fix(ops): initialize custom time ranges in local time；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `9a51333101a849bb948abf94c5ed53682e373edd` | 已审上游 v0.2.16：feat(groups): 分组名称与描述支持多语言；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `d56f5e787976c8b2a7bd471b9a3c30b0ccee50c1` | 已审上游 v0.2.16：feat(gateway): adapt Claude Haiku 5.5；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `ba280b3d5ea4d71e2f15fdb56ce60c4a05f422c1` | 已审上游 v0.2.16：feat(ops): show account names in request details table；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `daa79157491f25939b502f5c040eb11768a46e30` | 已审上游 v0.2.16：fix(deps): update SheetJS past expired security exceptions；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `63800c50d462efc6436e96b9dd46ae8f98a054bc` | 已审上游 v0.2.16：fix(gateway): guard structured-input fallback against unsafe retries；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `f7f1112cdab09e9bee982d77ae253d5d20a56e73` | 已审上游 v0.2.16：fix(deps): update Vue and source map security patches；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `c15d858eca81b269c41ba3bc161f923b179a860c` | 已审上游 v0.2.16：fix(gateway): preserve Responses semantics in chat fallback；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `a46249aac5611fca71fb0d955ad19be7602aca71` | 已审上游 v0.2.16：test(account): 补充临时不可调度作用范围单元测试；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `5a25507dcbb33fc40e3ef0659af210f206229a31` | 已审上游 v0.2.16：feat(account): 临时不可调度规则新增作用范围 scope 选项；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `983cf297da59e3be23b5e3f2c4eded945b53f408` | 已审上游 v0.2.16：fix(gateway): retry rejected structured input through chat endpoint；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `69d6d106fd365d8ed23b5a1c82eb3a968acc1454` | 已审上游 v0.2.16：fix(monitor): allow adding missing platforms in v2 settings；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `c4224045dc5cbf16f40c7b31aeb639aa0e211101` | 已审上游 v0.2.16：fix(payment): calculate QR countdowns from elapsed time；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `27de27ac6496e647c59866d9ba57de61ac356771` | 已审上游 v0.2.16：fix(risk-control): remove deleted groups from moderation scope；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `a56720855cf0c3ca38aea6da2a24c73e57ec1342` | 已审上游 v0.2.16：fix(ui): refresh countdown when tab becomes visible；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
+| 2026-10-14 | `f48866958b1ddcda57dab6844b6a3ade7783bc2d` | 已审上游 v0.2.16：fix(openai): only inject the Codex image generation bridge for OpenAI accounts；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
 
 | 2026-10-14 | `68ebc5b1235ba937df54703f5538d93ce24901e8` | 站内工单用户隔离、管理员队列、事务并发边界、严格 JSON、独立 Redis 限流和顶部导航；本地安全冒烟报告见 SUPPORT_TICKETS_SECURITY_SMOKE.md | 工单/导航 |
 | 2026-10-14 | `92ed23164b716dc19015519dbc3addb74fafb6eb` | 支付查单测试使用 any 满足仓库 gofmt rewrite 规则；同版本 golangci-lint 全仓 0 issues，provider unit 通过 | 支付安全 CI |
@@ -863,6 +929,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 审阅结论加入标记区。`git merge-base HEAD upstream/main` 变化后，以命令输出为准补齐。
 
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
+
+| 2026-10-14 | `1905ee5ce3359087262204b653430b935a7565c3` | 合并已审上游 9c2cca9e6 v0.2.16；8 个冲突保留智能路由、错误清洗、主题及拖拽 JSON，并接入分组本地化、Vertex API Key、运营账号名称；Ent/Wire 重新生成 |
 
 | 2026-10-14 | `4c969884663455fddf57270a5d0b46700239feea` | 工单主线合入远端支付回调主动查单修复；仅台账追加冲突，保留双方记录 |
 | 2026-10-14 | `5e6e51570088647627cc7339ce9f2f65f7867cc9` | 合入当前 Aivoza `origin/main` 的 v0.2.15 生产治理记录；仅 `FLOWAI_CHANGELOG.md` 冲突，保留既有部署/Guardian 证据并追加 GMPay 已部署、Sub2API 待发布状态，支付业务代码无冲突 | 支付安全候选/主线同步 |
