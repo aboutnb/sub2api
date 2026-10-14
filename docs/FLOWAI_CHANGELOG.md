@@ -738,6 +738,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
 
+| 2026-10-14 | `8ac38996b738dfa2263c01fe4a58bf44c17e110e` | 工单主题覆盖登记、运营移动卡片与桌面键盘滚动区并存；监控测试验证动态目录默认关闭、配置保留及失败恢复，含 Kiro 维度 | 工单/监控/运营主题回归 |
+
 | 2026-10-14 | `9c2cca9e627291bc719bada3d57de23b625a4180` | 已审上游 v0.2.16：chore: update sponsors；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
 | 2026-10-14 | `4d9ac3e482106d2da3a39fe3e546d8d6801f1cc1` | 已审上游 v0.2.16：chore: sync VERSION to 0.2.16 [skip ci]；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
 | 2026-10-14 | `b669dc6daf1a9909b02ecf1f9cb692d88875e086` | 已审上游 v0.2.16：test(frontend): 将模型白名单回归用例纳入 CI；随 1905ee5ce 合并并跑完整回归 | 上游同步 |
