@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useMediaQuery } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Pagination from '@/components/common/Pagination.vue'
@@ -7,6 +8,7 @@ import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores'
 import { opsAPI, type OpsRequestDetailsParams, type OpsRequestDetail } from '@/api/admin/ops'
 import { parseTimeRangeMinutes, formatDateTime } from '../utils/opsFormatters'
+import { getAccountNameMap } from '../utils/accountNameMap'
 
 export interface OpsRequestDetailsPreset {
   title: string
@@ -35,11 +37,13 @@ const { t } = useI18n()
 const appStore = useAppStore()
 const { copyToClipboard } = useClipboard()
 
+const isDesktopViewport = useMediaQuery('(min-width: 768px)')
 const loading = ref(false)
 const items = ref<OpsRequestDetail[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
+const accountNameById = ref<Map<number, string>>(new Map())
 
 const close = () => emit('update:modelValue', false)
 
@@ -89,6 +93,7 @@ const fetchData = async () => {
     const res = await opsAPI.listRequestDetails(params)
     items.value = res.items || []
     total.value = res.total || 0
+    refreshAccountNames()
   } catch (e: any) {
     console.error('[OpsRequestDetailsModal] Failed to fetch request details', e)
     appStore.showError(e?.message || t('admin.ops.requestDetails.failedToLoad'))
@@ -155,6 +160,27 @@ const kindBadgeClass = (kind: string) => {
   if (kind === 'error') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
   return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
 }
+
+// 明细行只带 account_id；账号名来自 lite 账号列表映射，缺项时强制刷新一次缓存（新建账号场景）。
+async function refreshAccountNames() {
+  const ids = items.value
+    .map(row => row.account_id)
+    .filter((id): id is number => typeof id === 'number' && id > 0)
+  if (ids.length === 0) return
+  try {
+    let map = await getAccountNameMap()
+    if (ids.some(id => !map.has(id))) map = await getAccountNameMap(true)
+    accountNameById.value = map
+  } catch (e) {
+    console.warn('[OpsRequestDetailsModal] Failed to load account names', e)
+  }
+}
+
+function accountLabel(row: OpsRequestDetail): string {
+  const id = row.account_id
+  if (typeof id !== 'number' || id <= 0) return '-'
+  return accountNameById.value.get(id) || `#${id}`
+}
 </script>
 
 <template>
@@ -196,45 +222,79 @@ const kindBadgeClass = (kind: string) => {
             <div class="mt-1 text-xs text-ink-muted">{{ t('admin.ops.requestDetails.emptyHint') }}</div>
           </div>
 
-          <div v-else class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line dark:border-line">
-            <div
-              class="min-h-0 max-w-full flex-1 overflow-auto overscroll-contain"
-              role="region"
-              :aria-label="t('admin.ops.requestDetails.title')"
-              tabindex="0"
-            >
-              <table class="w-full min-w-[980px] divide-y divide-line dark:divide-line">
-                <caption class="sr-only">{{ t('admin.ops.requestDetails.title') }}</caption>
-                <thead class="sticky top-0 z-10 bg-surface-muted dark:bg-canvas">
-                  <tr>
-                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
-                      {{ t('admin.ops.requestDetails.table.time') }}
-                    </th>
-                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
-                      {{ t('admin.ops.requestDetails.table.kind') }}
-                    </th>
-                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
-                      {{ t('admin.ops.requestDetails.table.platform') }}
-                    </th>
-                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
-                      {{ t('admin.ops.requestDetails.table.model') }}
-                    </th>
-                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
-                      {{ latencyLabel }}
-                    </th>
-                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
-                      {{ t('admin.ops.requestDetails.table.status') }}
-                    </th>
-                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
-                      {{ t('admin.ops.requestDetails.table.requestId') }}
-                    </th>
-                    <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
-                      {{ t('admin.ops.requestDetails.table.actions') }}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-line bg-white dark:divide-line dark:bg-surface">
-                  <tr v-for="(row, idx) in items" :key="idx" class="hover:bg-surface-muted dark:hover:bg-dark-700/50">
+          <div v-else class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line dark:border-dark-700">
+            <div class="min-h-0 flex-1 overflow-auto">
+              <div v-if="!isDesktopViewport" class="divide-y divide-line dark:divide-dark-800">
+                <div v-for="(row, idx) in items" :key="idx" class="space-y-2 p-4">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="rounded-full px-2 py-1 text-[10px] font-bold" :class="kindBadgeClass(row.kind)">
+                      {{ row.kind === 'error' ? t('admin.ops.requestDetails.kind.error') : t('admin.ops.requestDetails.kind.success') }}
+                    </span>
+                    <span class="text-xs font-medium text-ink-strong dark:text-ink">{{ (row.platform || 'unknown').toUpperCase() }}</span>
+                    <span class="ml-auto text-[11px] text-ink-muted dark:text-ink-muted">{{ formatDateTime(row.created_at) }}</span>
+                  </div>
+                  <div class="break-all text-xs text-ink dark:text-ink-muted">{{ row.model || '-' }}</div>
+                  <div v-if="typeof row.account_id === 'number' && row.account_id > 0" class="break-all text-xs text-ink-muted dark:text-ink-muted" :title="accountLabel(row)">
+                    {{ t('admin.ops.requestDetails.table.account') }}: {{ accountLabel(row) }}
+                  </div>
+                  <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink dark:text-ink-muted">
+                    <span>{{ latencyLabel }}: {{ formatLatency(row) }}</span>
+                    <span>{{ row.status_code ?? '-' }}</span>
+                  </div>
+                  <div v-if="row.request_id" class="flex items-center gap-2">
+                    <span class="min-w-0 flex-1 truncate font-mono text-[11px] text-ink-strong dark:text-ink" :title="row.request_id">
+                      {{ row.request_id }}
+                    </span>
+                    <button
+                      class="shrink-0 rounded-md bg-gray-100 px-2 py-1 text-[10px] font-bold text-ink hover:bg-gray-200 dark:bg-dark-700 dark:text-ink-muted dark:hover:bg-dark-600"
+                      @click="handleCopyRequestId(row.request_id)"
+                    >
+                      {{ t('admin.ops.requestDetails.copy') }}
+                    </button>
+                  </div>
+                  <button
+                    v-if="row.kind === 'error' && row.error_id"
+                    class="w-full rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
+                    @click="openErrorDetail(row.error_id)"
+                  >
+                    {{ t('admin.ops.requestDetails.viewError') }}
+                  </button>
+                </div>
+              </div>
+              <table v-else class="min-w-full divide-y divide-line dark:divide-dark-700">
+                <thead class="sticky top-0 z-10 bg-surface-muted dark:bg-dark-900">
+                <tr>
+                  <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
+                    {{ t('admin.ops.requestDetails.table.time') }}
+                  </th>
+                  <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
+                    {{ t('admin.ops.requestDetails.table.kind') }}
+                  </th>
+                  <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
+                    {{ t('admin.ops.requestDetails.table.platform') }}
+                  </th>
+                  <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
+                    {{ t('admin.ops.requestDetails.table.model') }}
+                  </th>
+                  <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
+                    {{ t('admin.ops.requestDetails.table.account') }}
+                  </th>
+                  <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
+                    {{ latencyLabel }}
+                  </th>
+                  <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
+                    {{ t('admin.ops.requestDetails.table.status') }}
+                  </th>
+                  <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
+                    {{ t('admin.ops.requestDetails.table.requestId') }}
+                  </th>
+                  <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-ink-muted">
+                    {{ t('admin.ops.requestDetails.table.actions') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-line bg-white dark:divide-dark-700 dark:bg-surface">
+                <tr v-for="(row, idx) in items" :key="idx" class="hover:bg-surface-muted dark:hover:bg-dark-700/50">
                   <td class="whitespace-nowrap px-4 py-3 text-xs text-ink dark:text-ink-muted">
                     {{ formatDateTime(row.created_at) }}
                   </td>
@@ -248,6 +308,9 @@ const kindBadgeClass = (kind: string) => {
                   </td>
                   <td class="max-w-[240px] truncate px-4 py-3 text-xs text-ink dark:text-ink-muted" :title="row.model || ''">
                     {{ row.model || '-' }}
+                  </td>
+                  <td class="max-w-[180px] truncate px-4 py-3 text-xs text-ink dark:text-ink-muted" :title="accountLabel(row)">
+                    {{ accountLabel(row) }}
                   </td>
                   <td class="whitespace-nowrap px-4 py-3 text-xs text-ink dark:text-ink-muted">
                     {{ formatLatency(row) }}

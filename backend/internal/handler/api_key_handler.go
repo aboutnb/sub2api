@@ -73,8 +73,8 @@ type UpdateAPIKeyRequest struct {
 	Routing             *service.SmartRouteInput `json:"routing"`
 }
 
-func (h *APIKeyHandler) withRouting(ctx context.Context, key *service.APIKey, config *service.SmartRouteConfig) (*dto.APIKey, error) {
-	out := dto.APIKeyFromService(key)
+func (h *APIKeyHandler) withRouting(ctx context.Context, key *service.APIKey, config *service.SmartRouteConfig, language string) (*dto.APIKey, error) {
+	out := dto.APIKeyFromService(key).Localized(language)
 	if out == nil || h.smartRouteService == nil {
 		return out, nil
 	}
@@ -180,7 +180,7 @@ func (h *APIKeyHandler) List(c *gin.Context) {
 		configs = loaded
 	}
 	for i := range keys {
-		mapped := dto.APIKeyFromService(&keys[i])
+		mapped := dto.APIKeyFromService(&keys[i]).Localized(c.GetHeader("Accept-Language"))
 		mapped.Routing = configs[keys[i].ID]
 		out = append(out, *mapped)
 	}
@@ -214,12 +214,12 @@ func (h *APIKeyHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	out, routingErr := h.withRouting(c.Request.Context(), key, nil)
+	out, routingErr := h.withRouting(c.Request.Context(), key, nil, c.GetHeader("Accept-Language"))
 	if routingErr != nil {
 		response.ErrorFrom(c, routingErr)
 		return
 	}
-	response.Success(c, out)
+	response.Success(c, out.Localized(c.GetHeader("Accept-Language")))
 }
 
 // Create handles creating a new API key
@@ -278,11 +278,11 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 		if err != nil {
 			return nil, err
 		}
-		out, routingErr := h.withRouting(ctx, key, routing)
+		out, routingErr := h.withRouting(ctx, key, routing, c.GetHeader("Accept-Language"))
 		if routingErr != nil {
 			return nil, routingErr
 		}
-		return out, nil
+		return out.Localized(c.GetHeader("Accept-Language")), nil
 	})
 }
 
@@ -369,12 +369,12 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 		return
 	}
 
-	out, routingErr := h.withRouting(c.Request.Context(), key, routing)
+	out, routingErr := h.withRouting(c.Request.Context(), key, routing, c.GetHeader("Accept-Language"))
 	if routingErr != nil {
 		response.ErrorFrom(c, routingErr)
 		return
 	}
-	response.Success(c, out)
+	response.Success(c, out.Localized(c.GetHeader("Accept-Language")))
 }
 
 // GetSmartRoutingStatus exposes the rollout switch to the API key form.
@@ -425,7 +425,7 @@ func (h *APIKeyHandler) GetAvailableGroups(c *gin.Context) {
 
 	out := make([]dto.Group, 0, len(groups))
 	for i := range groups {
-		out = append(out, *dto.GroupFromService(&groups[i]))
+		out = append(out, *dto.GroupFromService(&groups[i]).Localized(c.GetHeader("Accept-Language")))
 	}
 	response.Success(c, out)
 }
