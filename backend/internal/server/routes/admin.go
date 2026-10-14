@@ -48,6 +48,7 @@ func RegisterAdminRoutes(
 
 		// 公告管理
 		registerAnnouncementRoutes(admin, h)
+		registerSupportTicketRoutes(admin, h, panelRateLimiter)
 		help := admin.Group("/help-docs")
 		help.GET("", h.Admin.HelpDocument.List)
 		help.POST("", h.Admin.HelpDocument.Create)
@@ -509,6 +510,14 @@ func registerAnnouncementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		announcements.DELETE("/:id", h.Admin.Announcement.Delete)
 		announcements.GET("/:id/read-status", h.Admin.Announcement.ListReadStatus)
 	}
+}
+
+func registerSupportTicketRoutes(admin *gin.RouterGroup, h *handler.Handlers, panelRateLimiter *middleware.PanelRateLimiter) {
+	tickets := admin.Group("/tickets")
+	tickets.GET("", h.Admin.SupportTicket.List)
+	tickets.GET("/:id", h.Admin.SupportTicket.Get)
+	tickets.POST("/:id/messages", panelRateLimiter.TicketWrite(false), h.Admin.SupportTicket.Reply)
+	tickets.PUT("/:id/status", h.Admin.SupportTicket.UpdateStatus)
 }
 
 func registerOpenAIOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {

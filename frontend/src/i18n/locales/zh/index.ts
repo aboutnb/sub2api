@@ -9,6 +9,7 @@ import misc from './misc'
 import checkin from './checkin'
 import smartRouting from './smartRouting'
 import helpCenter from './helpCenter'
+import supportTickets from './supportTickets'
 
 export default {
   ...landing,
@@ -22,4 +23,5 @@ export default {
   ...checkin,
   ...smartRouting,
   ...helpCenter,
+  ...supportTickets,
 }

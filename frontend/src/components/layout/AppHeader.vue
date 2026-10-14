@@ -66,6 +66,20 @@
           <span class="whitespace-nowrap leading-tight">{{ t('nav.helpCenter') }}</span>
         </router-link>
 
+        <router-link
+          v-if="user"
+          to="/tickets"
+          data-testid="header-ticket-support"
+          class="flex h-9 min-h-11 min-w-11 flex-shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium text-ink transition-colors hover:bg-surface-muted hover:text-ink-strong dark:text-ink-muted dark:hover:bg-dark-700 dark:hover:text-white"
+          :class="isTicketsActive ? 'bg-surface-muted text-ink-strong dark:bg-dark-700 dark:text-white' : ''"
+          :aria-current="isTicketsActive ? 'page' : undefined"
+          :aria-label="t('nav.tickets')"
+          :title="t('nav.tickets')"
+        >
+          <Icon name="chat" size="sm" aria-hidden="true" />
+          <span class="whitespace-nowrap leading-tight">{{ t('nav.tickets') }}</span>
+        </router-link>
+
         <!-- Subscription Progress (for users with active subscriptions) -->
         <SubscriptionProgressMini
           v-if="user && !authStore.isSimpleMode && userSubscriptionsEnabled && subscriptionFeatureEnabled"
@@ -156,7 +170,6 @@
             <span class="hidden whitespace-nowrap sm:inline">{{ rechargeLabel }}</span>
           </router-link>
         </div>
-        <SupportContact v-if="contactInfo" :contact-info="contactInfo" />
       </div>
 
       <!-- Secondary links may use More below the wide desktop breakpoint. -->
@@ -250,6 +263,18 @@
                   <Icon name="key" size="sm" />
                   {{ t('nav.apiKeys') }}
                 </router-link>
+
+                <button
+                  v-if="contactInfo"
+                  type="button"
+                  class="dropdown-item min-h-11 w-full"
+                  data-testid="header-contact"
+                  aria-haspopup="dialog"
+                  @click="openSupportContact"
+                >
+                  <Icon name="chat" size="sm" aria-hidden="true" />
+                  {{ t('common.contactSupport') }}
+                </button>
 
                 <a
                   v-if="authStore.isAdmin"
@@ -365,6 +390,7 @@
           </transition>
         </div>
       </div>
+    <SupportContact v-if="user && contactInfo" v-model:show="supportContactOpen" hide-trigger :contact-info="contactInfo" />
   </header>
 </template>
 
@@ -396,6 +422,8 @@ const paymentStore = usePaymentStore()
 
 const user = computed(() => authStore.user)
 const isHelpActive = computed(() => route.path === '/help' || route.path.startsWith('/help/'))
+const isTicketsActive = computed(() => route.path === '/tickets' || route.path.startsWith('/tickets/'))
+const supportContactOpen = ref(false)
 const dropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const userMenuButtonRef = ref<HTMLButtonElement | null>(null)
@@ -521,6 +549,13 @@ function closeDropdown(restoreFocus: boolean | Event = false) {
   if (restoreFocus === true) {
     requestAnimationFrame(() => userMenuButtonRef.value?.focus())
   }
+}
+
+function openSupportContact() {
+  closeDropdown()
+  // The menu entry disappears on close; the avatar owns dialog focus restoration.
+  userMenuButtonRef.value?.focus()
+  supportContactOpen.value = true
 }
 
 const OVERFLOW_FOCUSABLE_SELECTOR = [

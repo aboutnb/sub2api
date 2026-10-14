@@ -1,39 +1,5 @@
 <template>
-  <div v-if="entryVisible" ref="rootRef" class="relative shrink-0">
-    <div
-      v-if="quickActionAvailable && !status?.checked_in_today"
-      data-testid="checkin-shortcut-actions"
-      class="hidden items-center gap-1.5 2xl:flex"
-    >
-      <button
-        v-if="status?.normal_enabled"
-        type="button"
-        data-testid="quick-checkin-normal"
-        class="flex h-8 items-center gap-1.5 rounded-xl bg-amber-50 px-3 text-sm font-semibold leading-tight text-amber-700 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
-        :disabled="submitting"
-        :aria-label="t('checkin.normal')"
-        :title="t('checkin.normal')"
-        @click.stop="requestCheckin('normal')"
-      >
-        <Icon :name="submittingMode === 'normal' ? 'refresh' : 'checkCircle'" size="sm" :class="{ 'animate-spin': submittingMode === 'normal' }" />
-        <span>{{ submittingMode === 'normal' ? t('checkin.submitting') : t('checkin.normal') }}</span>
-      </button>
-
-      <button
-        v-if="status?.lucky_enabled"
-        type="button"
-        data-testid="quick-checkin-lucky"
-        class="flex h-8 items-center gap-1.5 rounded-xl bg-violet-50 px-3 text-sm font-semibold leading-tight text-violet-700 transition-colors hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-violet-900/20 dark:text-violet-300 dark:hover:bg-violet-900/30"
-        :disabled="submitting"
-        :aria-label="t('checkin.lucky')"
-        :title="t('checkin.lucky')"
-        @click.stop="requestCheckin('lucky')"
-      >
-        <Icon :name="submittingMode === 'lucky' ? 'refresh' : 'sparkles'" size="sm" :class="{ 'animate-spin': submittingMode === 'lucky' }" />
-        <span>{{ submittingMode === 'lucky' ? t('checkin.submitting') : t('checkin.lucky') }}</span>
-      </button>
-    </div>
-
+  <div v-if="entryVisible" ref="rootRef" class="relative shrink-0" @keydown.esc="closeMenu">
     <button
       type="button"
       data-testid="checkin-shortcut"
@@ -41,7 +7,7 @@
       :class="status?.checked_in_today
         ? 'flex bg-emerald-50 text-emerald-700 hover:bg-emerald-100 focus-visible:ring-emerald-400/50 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/30'
         : quickActionAvailable
-          ? 'flex bg-amber-50 text-amber-700 hover:bg-amber-100 focus-visible:ring-amber-400/50 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30 2xl:hidden'
+          ? 'flex bg-amber-50 text-amber-700 hover:bg-amber-100 focus-visible:ring-amber-400/50 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30'
           : 'flex bg-primary-50 text-primary-700 hover:bg-primary-100 focus-visible:ring-primary-400/50 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30'"
       :disabled="submitting"
       :aria-label="shortcutLabel"
@@ -56,7 +22,7 @@
         size="sm"
         :class="{ 'animate-spin': submitting }"
       />
-      <span class="hidden sm:inline">{{ shortcutLabel }}</span>
+      <span class="whitespace-nowrap">{{ shortcutLabel }}</span>
       <Icon
         v-if="!submitting && !status?.checked_in_today"
         name="chevronDown"
@@ -73,7 +39,6 @@
         role="menu"
         class="checkin-shortcut-popover absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-lg border border-line bg-white py-1 shadow-xl dark:border-line dark:bg-surface"
         @click.stop
-        @keydown.esc="closeMenu"
       >
         <div v-if="status?.normal_enabled">
           <button
@@ -201,7 +166,7 @@ const quickActionAvailable = computed(() => Boolean(
 const shortcutLabel = computed(() => {
   if (submitting.value) return t('checkin.submitting')
   if (status.value?.checked_in_today) return t('checkin.checkedToday')
-  return quickActionAvailable.value ? t('checkin.quickAction') : t('nav.checkin')
+  return t('checkin.quickAction')
 })
 
 function closeMenu() {

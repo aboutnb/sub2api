@@ -56,6 +56,45 @@ func (p *PanelRateLimiter) Heavy() gin.HandlerFunc {
 	return p.userScoped("heavy", func(s service.PanelRateLimitSettings) int { return s.HeavyRPM })
 }
 
+// TicketWrite bounds persistent ticket growth, even when global panel throttling
+// is disabled. Both windows are per authenticated user, across all their tickets.
+// A Redis outage suspends writes; reads remain available.
+func (p *PanelRateLimiter) TicketWrite(create bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		subject, ok := GetAuthSubjectFromContext(c)
+		if !ok || subject.UserID <= 0 {
+			AbortWithError(c, http.StatusUnauthorized, "UNAUTHORIZED", "Authorization required")
+			return
+		}
+		if p == nil || p.limiter == nil {
+			AbortWithError(c, http.StatusServiceUnavailable, "TICKET_WRITE_UNAVAILABLE", "Ticket writes are temporarily unavailable")
+			return
+		}
+		scope, minuteLimit, hourLimit := "reply", 20, 120
+		if create {
+			scope, minuteLimit, hourLimit = "create", 5, 20
+		}
+		for _, bucket := range []struct {
+			name   string
+			limit  int
+			window time.Duration
+		}{{"minute", minuteLimit, time.Minute}, {"hour", hourLimit, time.Hour}} {
+			key := "ticket:" + scope + ":" + bucket.name + ":user:" + strconv.FormatInt(subject.UserID, 10)
+			result, err := p.limiter.Allow(c.Request.Context(), key, bucket.limit, bucket.window)
+			if err != nil {
+				slog.Warn("ticket write rate limit unavailable", "scope", scope, "error", err)
+				AbortWithError(c, http.StatusServiceUnavailable, "TICKET_WRITE_UNAVAILABLE", "Ticket writes are temporarily unavailable")
+				return
+			}
+			if !result.Allowed {
+				abortPanelRateLimited(c, result.RetryAfter)
+				return
+			}
+		}
+		c.Next()
+	}
+}
+
 func (p *PanelRateLimiter) userScoped(scope string, limitOf func(service.PanelRateLimitSettings) int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if p == nil || p.limiter == nil || p.settingService == nil {

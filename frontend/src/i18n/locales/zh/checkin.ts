@@ -5,7 +5,7 @@ export default {
     currentBalance: '当前余额',
     notCheckedToday: '未签到',
     checkedToday: '已签到',
-    quickAction: '快捷签到',
+    quickAction: '签到',
     submitting: '签到中',
     openPage: '签到详情',
     normal: '普通签到',

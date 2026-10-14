@@ -1,8 +1,10 @@
 import { defineComponent, nextTick } from 'vue'
+import { createPinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AppHeader from '../AppHeader.vue'
+import SupportContact from '../SupportContact.vue'
 
 const state = vi.hoisted(() => ({
   flags: {
@@ -74,6 +76,8 @@ vi.mock('vue-i18n', async (importOriginal) => {
         'common.frozenBalance': '冻结金额',
         'common.totalBalance': '总余额',
         'payment.tabTopUp': '充值',
+        'nav.tickets': '工单支持',
+        'common.contactSupport': '联系客服',
       })[key] ?? key,
     }),
   }
@@ -122,6 +126,7 @@ const RouterLinkStub = defineComponent({
 })
 
 const childStubs = {
+  Transition: true,
   AnnouncementBell: defineComponent({ template: '<span data-testid="announcement-stub" />' }),
   SubscriptionProgressMini: defineComponent({ template: '<span data-testid="subscription-stub" />' }),
   CheckinShortcut: defineComponent({ template: '<span data-testid="checkin-stub" />' }),
@@ -135,12 +140,14 @@ let wrapper: VueWrapper | null = null
 function mountHeader() {
   wrapper = mount(AppHeader, {
     attachTo: document.body,
-    global: { stubs: childStubs },
+    global: { plugins: [createPinia()], stubs: childStubs },
   })
   return wrapper
 }
 
 beforeEach(() => {
+  state.appStore.contactInfo = ''
+  state.route.path = '/dashboard'
   state.flags.modelPlaza = false
   state.flags.userSubscriptions = true
   state.flags.checkin = true
@@ -262,5 +269,56 @@ describe('AppHeader wallet and recharge control', () => {
     expect(mounted.find('#header-balance-details').exists()).toBe(false)
     expect(trigger.attributes('aria-expanded')).toBe('false')
     expect(document.activeElement).toBe(trigger.element)
+  })
+})
+
+
+describe('AppHeader support navigation', () => {
+  it('preserves the standalone contact trigger on profile and redemption pages', async () => {
+    wrapper = mount(SupportContact, {
+      props: { contactInfo: 'support@example.test' },
+      attachTo: document.body,
+      global: { plugins: [createPinia()], stubs: childStubs },
+    })
+    await wrapper.get('[data-testid="header-contact"]').trigger('click')
+    await flushPromises()
+    expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('support@example.test')
+  })
+
+  it('keeps ticket support in the primary row with an active route label', () => {
+    state.route.path = '/tickets'
+    const mounted = mountHeader()
+    const link = mounted.get('[data-testid="header-ticket-support"]')
+
+    expect(link.attributes('href')).toBe('/tickets')
+    expect(link.attributes('aria-current')).toBe('page')
+    expect(link.attributes('aria-label')).toBe('工单支持')
+    expect(mounted.get('[data-testid="header-primary-actions"]').element.contains(link.element)).toBe(true)
+  })
+
+  it.each([false, true])('opens contact support from the avatar menu and restores focus (admin=%s)', async (admin) => {
+    state.authStore.isAdmin = admin
+    state.appStore.contactInfo = 'support@example.test'
+    const mounted = mountHeader()
+    const avatar = mounted.get('#app-user-menu-trigger')
+
+    expect(mounted.find('[data-testid="header-contact"]').exists()).toBe(false)
+    await avatar.trigger('click')
+    const menu = mounted.get('#app-user-menu')
+    const items = menu.findAll('a, button')
+    const keysAt = items.findIndex(item => item.attributes('href') === '/keys')
+    expect(items[keysAt + 1].attributes('data-testid')).toBe('header-contact')
+
+    await mounted.get('[data-testid="header-contact"]').trigger('click')
+    await flushPromises()
+    expect(mounted.find('#app-user-menu').exists()).toBe(false)
+    const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')
+    expect(dialog?.textContent).toContain('support@example.test')
+    expect(dialog?.contains(document.activeElement)).toBe(true)
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+    expect(document.activeElement).toBe(avatar.element)
   })
 })

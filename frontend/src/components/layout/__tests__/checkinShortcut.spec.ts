@@ -117,6 +117,17 @@ function latestFromBody<T extends Element>(selector: string) {
 }
 
 describe('check-in header shortcut', () => {
+  it('closes the menu with Escape while focus remains on its trigger', async () => {
+    getStatus.mockResolvedValue(status)
+    const wrapper = mountShortcut()
+    await flushPromises()
+    const trigger = wrapper.get('[data-testid="checkin-shortcut"]')
+    await trigger.trigger('click')
+    expect(wrapper.find('[data-testid="checkin-shortcut-menu"]').exists()).toBe(true)
+    await trigger.trigger('keydown', { key: 'Escape' })
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    await vi.waitFor(() => expect(wrapper.find('[data-testid="checkin-shortcut-menu"]').exists()).toBe(false))
+  })
   beforeEach(() => {
     for (const fn of [getStatus, checkIn, refreshUser, fetchPublicSettings, showSuccess, showError, push]) fn.mockReset()
     authStore.user = { id: 1, role: 'admin', username: 'admin', email: 'admin@example.com', balance: 10 }
@@ -142,21 +153,22 @@ describe('check-in header shortcut', () => {
     expect(headerSource).toContain('<CheckinShortcut v-if="user && !authStore.isSimpleMode && checkinEnabled" />')
   })
 
-  it('shows quick check-in for an eligible administrator', async () => {
+  it('offers both check-in modes through one header entry at every breakpoint', async () => {
     const wrapper = mountShortcut()
     await flushPromises()
 
     expect(wrapper.get('[data-testid="checkin-shortcut"]').text()).toContain('checkin.quickAction')
-    expect(wrapper.get('[data-testid="checkin-shortcut-actions"]').classes()).toContain('2xl:flex')
-    expect(wrapper.get('[data-testid="quick-checkin-normal"]').text()).toContain('checkin.normal')
-    expect(wrapper.get('[data-testid="quick-checkin-lucky"]').text()).toContain('checkin.lucky')
+    expect(wrapper.find('[data-testid="checkin-shortcut-actions"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
+    expect(wrapper.get('[data-testid="quick-checkin-menu-normal"]').text()).toContain('checkin.normal')
+    expect(wrapper.get('[data-testid="quick-checkin-menu-lucky"]').text()).toContain('checkin.lucky')
   })
 
   it('uses the compact borderless header treatment in every state', async () => {
     const wrapper = mountShortcut()
     await flushPromises()
 
-    for (const testId of ['quick-checkin-normal', 'quick-checkin-lucky', 'checkin-shortcut']) {
+    for (const testId of ['checkin-shortcut']) {
       const classes = wrapper.get(`[data-testid="${testId}"]`).classes()
       expect(classes).toContain('h-8')
       expect(classes).toContain('rounded-xl')
@@ -183,7 +195,7 @@ describe('check-in header shortcut', () => {
     await flushPromises()
 
     await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
-    await wrapper.get(`[data-testid="quick-checkin-${mode}"]`).trigger('click')
+    await wrapper.get(`[data-testid="quick-checkin-menu-${mode}"]`).trigger('click')
     expect(checkIn).not.toHaveBeenCalled()
     latestFromBody<HTMLButtonElement>(`[data-testid="confirm-${mode}-checkin"]`)?.click()
     await flushPromises()
@@ -209,14 +221,15 @@ describe('check-in header shortcut', () => {
     const wrapper = mountShortcut()
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="quick-checkin-normal"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="quick-checkin-lucky"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
+    expect(wrapper.find('[data-testid="quick-checkin-menu-normal"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="quick-checkin-menu-lucky"]').exists()).toBe(false)
 
     window.dispatchEvent(new Event('focus'))
     await flushPromises()
 
     const fallback = wrapper.get('[data-testid="checkin-shortcut"]')
-    expect(fallback.text()).toContain('nav.checkin')
+    expect(fallback.text()).toContain('checkin.quickAction')
     expect(fallback.attributes('aria-haspopup')).toBeUndefined()
     await fallback.trigger('click')
     expect(push).toHaveBeenCalledWith('/checkin')
@@ -229,7 +242,7 @@ describe('check-in header shortcut', () => {
     await flushPromises()
 
     await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
-    const normal = wrapper.get('[data-testid="quick-checkin-normal"]')
+    const normal = wrapper.get('[data-testid="quick-checkin-menu-normal"]')
     await normal.trigger('click')
     await flushPromises()
     const confirm = latestFromBody<HTMLButtonElement>('[data-testid="confirm-normal-checkin"]')
@@ -249,7 +262,7 @@ describe('check-in header shortcut', () => {
     await flushPromises()
 
     await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
-    await wrapper.get('[data-testid="quick-checkin-normal"]').trigger('click')
+    await wrapper.get('[data-testid="quick-checkin-menu-normal"]').trigger('click')
     await flushPromises()
     wrapper.getComponent(LuckyCheckinConfirmDialog).vm.$emit('confirm')
     await flushPromises()
@@ -278,7 +291,7 @@ describe('check-in header shortcut', () => {
     await flushPromises()
 
     await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
-    await wrapper.get('[data-testid="quick-checkin-normal"]').trigger('click')
+    await wrapper.get('[data-testid="quick-checkin-menu-normal"]').trigger('click')
     await flushPromises()
     wrapper.getComponent(LuckyCheckinConfirmDialog).vm.$emit('confirm')
     await flushPromises()
@@ -324,7 +337,8 @@ describe('check-in header shortcut', () => {
     const wrapper = mountShortcut()
     await flushPromises()
 
-    await wrapper.get('[data-testid="quick-checkin-lucky"]').trigger('click')
+    await wrapper.get('[data-testid="checkin-shortcut"]').trigger('click')
+    await wrapper.get('[data-testid="quick-checkin-menu-lucky"]').trigger('click')
     await flushPromises()
 
     const verification = latestFromBody<HTMLElement>('[data-testid="lucky-checkin-verification"]')

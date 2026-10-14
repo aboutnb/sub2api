@@ -5,7 +5,7 @@ export default {
     currentBalance: 'Current balance',
     notCheckedToday: 'Not checked in',
     checkedToday: 'Checked in',
-    quickAction: 'Quick check-in',
+    quickAction: 'Check-in',
     submitting: 'Checking in',
     openPage: 'Check-in details',
     normal: 'Normal check-in',

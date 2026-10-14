@@ -65,6 +65,7 @@
                 :aria-label="sidebarCollapsed ? item.label : undefined"
                 :aria-expanded="!sidebarCollapsed && isGroupExpanded(item)"
                 :aria-controls="groupPanelId(item.path)"
+                :id="item.path === '/admin/redemption' ? 'sidebar-wallet' : undefined"
                 :aria-disabled="sidebarCollapsed ? 'true' : undefined"
                 :tabindex="sidebarCollapsed ? -1 : undefined"
                 @click="handleGroupClick(item)"
@@ -114,9 +115,7 @@
                   ? 'sidebar-channel-manage'
                   : item.path === '/admin/groups'
                     ? 'sidebar-group-manage'
-                    : item.path === '/admin/redeem'
-                      ? 'sidebar-wallet'
-                      : undefined
+                    : undefined
               "
               @click="handleMenuItemClick(item.path)"
             >
@@ -774,7 +773,6 @@ const purchaseNavLabel = computed(() => {
   }
 })
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
-const flagCheckin = makeSidebarFlag(FeatureFlags.checkin)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
 const flagPluginManagement = makeSidebarFlag(FeatureFlags.pluginManagement)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
@@ -802,7 +800,6 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/purchase', label: purchaseNavLabel.value, icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
-    { path: '/checkin', label: t('nav.checkin'), icon: CheckinCenterIcon, hideInSimpleMode: true, featureFlag: flagCheckin },
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
@@ -865,7 +862,8 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
     { path: '/admin/plugins', label: t('nav.plugins'), icon: PluginIcon, featureFlag: flagPluginManagement },
-    { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
+    { path: '/admin/announcements', label: t('nav.announcementManagement'), icon: BellIcon },
+    { path: '/admin/tickets', label: t('nav.ticketManagement'), icon: TicketIcon },
     { path: '/admin/help-docs', label: t('nav.helpDocuments'), icon: HelpIcon },
     { path: '/admin/email-broadcasts', label: t('nav.emailBroadcasts'), icon: MailIcon },
     { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
@@ -882,8 +880,17 @@ const adminNavItems = computed((): NavItem[] => {
         { path: '/admin/prompt-audit', label: t('nav.promptAudit'), icon: ShieldIcon, hideInSimpleMode: true, featureFlag: flagRiskControl },
       ],
     },
-    { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
-    { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
+    {
+      path: '/admin/redemption',
+      label: t('nav.redemptionManagement'),
+      icon: TicketIcon,
+      hideInSimpleMode: true,
+      expandOnly: true,
+      children: [
+        { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon },
+        { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon },
+      ],
+    },
     { path: '/admin/checkin', label: t('admin.checkin.title'), icon: CheckinCenterIcon, hideInSimpleMode: true },
     {
       path: '/admin/affiliates',

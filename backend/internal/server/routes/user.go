@@ -128,6 +128,15 @@ func RegisterUserRoutes(
 			announcements.POST("/:id/read", h.Announcement.MarkRead)
 		}
 
+		tickets := authenticated.Group("/tickets")
+		{
+			tickets.GET("", h.SupportTicket.List)
+			tickets.POST("", panelRateLimiter.TicketWrite(true), h.SupportTicket.Create)
+			tickets.GET("/:id", h.SupportTicket.Get)
+			tickets.POST("/:id/messages", panelRateLimiter.TicketWrite(false), h.SupportTicket.Reply)
+			tickets.POST("/:id/close", h.SupportTicket.Close)
+		}
+
 		// 卡密兑换
 		redeem := authenticated.Group("/redeem")
 		{
