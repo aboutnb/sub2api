@@ -2,8 +2,11 @@
 
 ### 2026-10-14 v0.2.16 与站内工单发布候选
 
+- 23 服务器当前支付补丁源码 `4daabff0855a9b9a9d261fe46dfad56cc1214c8b`（版本 0.2.15）。Guardian 旧 hosts 把 sub2api 指向旧 v0.2.15 IP；已备份其元数据后，使用相同镜像/权限/端口/数据卷重建，只修改 BASE_URL 为 `http://flowai-app:8080`。Guardian 健康、DNS 与上游版本读取通过；旧 Guardian 停止保留。配置备份 `/root/flowai/backups/guardian-v0216-20261014`。
+- 发布前备份 `/root/flowai/backups/aivoza-v0216-20261014`：PostgreSQL custom dump 515292958 字节并通过 TOC 校验，应用数据 29607 字节并通过 tar 校验，Redis RDB 1061114 字节并通过 redis-check-rdb；配置/容器/依赖启动时间已保存。持续写入日志单独保留在原目录，不纳入数据归档。
+
 - 已审并合入上游 `9c2cca9e627291bc719bada3d57de23b625a4180`，219 文件，新增 4 条迁移。保留工单、教程、生图智能路由、主题和支付回调主动确认；Ent/Wire 生成保留全部定制 provider。
-- 8 个冲突逐块处理，接入分组多语言、Vertex API Key、Gemini 缓存与运营账号名。API key 带路由的返回也执行请求语言本地化。生产完整验证与部署证据待补齐。
+- 8 个冲突逐块处理，接入分组多语言、Vertex API Key、Gemini 缓存与运营账号名。API key 带路由的返回也执行请求语言本地化。本地后端全量 unit、Vue 427 文件/3201 项测试、React 37 文件/567 项测试、前端 lint/typecheck 及两套构建通过。生产完整验证与部署证据待补齐。
 
 ### 2026-10-14 站内工单安全冒烟与本地加固（未发布生产）
 

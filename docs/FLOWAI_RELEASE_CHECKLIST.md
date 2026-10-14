@@ -271,3 +271,9 @@ FlowAI 专属变更：
 - 切换前启动两个公网域名连续探测，切换后汇总 HTTP 状态；保留唯一上一版回滚并排空更早版本连接。
 
 Actions 不启动时，核对 remote SHA、Actions runs/check suites 与登录后的 Actions 页面。workflow API 的 active 状态不能排除仓库级停用。上游 VERSION 提交的 `[skip ci]` 仅作为可能原因排查；先处理页面明确的暂停原因，再通过登记实际合并/验证证据的治理提交触发检查，不创建空重试提交。
+
+## 内部依赖蓝绿验收
+
+- Guardian 的 SUB2API_BASE_URL 使用稳定 Docker 名称 flowai-app，禁止绑定旧容器 IP 或版本别名。
+- 切流后从 Guardian 容器读取上游健康和公开版本，核对 DNS IP 与当前 flowai-app；自身 healthz 成功不代表上游连通。
+- 清理旧容器前再次核对入站连接和所有依赖目标；不移除数据卷。
