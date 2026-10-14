@@ -627,6 +627,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 重复，必须以完整文件名识别，不能因为编号相同而覆盖或删除。
 
 <!-- FLOWAI_MIGRATION_LEDGER_BEGIN -->
+
+| `backend/migrations/256_add_support_tickets.sql` | 站内工单与消息表 | 新增完整文件名，保留其他同编号迁移；外键、索引和作者约束 |
 | `backend/migrations/255_remove_retired_help_clients.sql` | 清理 Read Frog/Roo Code 教程 | 新增；删除两类教程及对应 slug，发布前备份，可从备份恢复；不改历史种子与同编号监控迁移 |
 | `backend/migrations/242_drop_platform_check_constraints.sql` | 上游平台约束转应用校验 | 新增；配额和复合路由平台由应用/Ent 目录验证，监控主动探测约束不动；回滚不逆向恢复旧白名单 |
 | `backend/migrations/256_channel_monitor_v0215_platforms.sql` | v0.2.15 被动监控 Cline/Command Code | 新增；仅追加缺失项，保留禁用/模型/分组/空配置，默认 14 维度；不改 255 |
@@ -722,6 +724,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+
+| 2026-10-14 | `68ebc5b1235ba937df54703f5538d93ce24901e8` | 站内工单用户隔离、管理员队列、事务并发边界、严格 JSON、独立 Redis 限流和顶部导航；本地安全冒烟报告见 SUPPORT_TICKETS_SECURITY_SMOKE.md | 工单/导航 |
 | 2026-10-14 | `92ed23164b716dc19015519dbc3addb74fafb6eb` | 支付查单测试使用 any 满足仓库 gofmt rewrite 规则；同版本 golangci-lint 全仓 0 issues，provider unit 通过 | 支付安全 CI |
 | 2026-10-14 | `910c44bc2af2250760ee24fbc13dd8e6147f01eb` | EasyPay USDT 回调通过同一 provider 实例主动查单；签名、PID、订单号、GM 流水、类型、金额、支付状态和链上哈希全部匹配后才入账；失败保持 PENDING、写审计并返回 503；RMB EasyPay 保持原路径 | GM/EasyPay USDT 回调安全 |
 | 2026-10-14 | `9d9e982f62ef395c8248fd21f56bf83ac21a173d` | 修复 EasyPay 创建签名重组为成功回调：拒绝未知/重复/缺失字段、错误 PID/签名类型/支付类型，绑定订单支付方式并拒绝 return_url userinfo 注入；真实攻击载荷回归通过 | EasyPay 回调防重放 |
@@ -859,6 +863,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 审阅结论加入标记区。`git merge-base HEAD upstream/main` 变化后，以命令输出为准补齐。
 
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
+
+| 2026-10-14 | `4c969884663455fddf57270a5d0b46700239feea` | 工单主线合入远端支付回调主动查单修复；仅台账追加冲突，保留双方记录 |
 | 2026-10-14 | `5e6e51570088647627cc7339ce9f2f65f7867cc9` | 合入当前 Aivoza `origin/main` 的 v0.2.15 生产治理记录；仅 `FLOWAI_CHANGELOG.md` 冲突，保留既有部署/Guardian 证据并追加 GMPay 已部署、Sub2API 待发布状态，支付业务代码无冲突 | 支付安全候选/主线同步 |
 | 2026-10-10 | `5481cb33749398679c91cf4a4e8c000e505af2eb` | 合并已审上游 3a6fd1c9d v0.2.15；11 个冲突逐块保留主题、教程共享配置、模型发现、设置路由和较新工具链；接入平台目录及两新平台，新增 242/256 迁移；审阅结论见本日候选 | 上游同步/渠道监控 |
 | 2026-10-09 | `09ab7ed2ef7d219576c00b1fc8614a1fe2fbfd06` | 合并上游 5fc0e486c3 v0.2.14；43 个冲突文件逐块保留 Aivoza 支付/邮件/主题/教程/工作台，统一优惠报价与校验，吸收安全修复、TypeSafe 和模型目录；两条增量迁移、测试结果及冲突结论见本日候选记录 | 上游同步 |
