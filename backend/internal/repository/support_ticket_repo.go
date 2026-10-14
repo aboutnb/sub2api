@@ -44,7 +44,7 @@ func (r *supportTicketRepository) LockUser(ctx context.Context, id int64) error 
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return err
@@ -63,7 +63,7 @@ func (r *supportTicketRepository) CountOpenByUser(ctx context.Context, userID in
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		return 0, rows.Err()
 	}
@@ -93,7 +93,7 @@ func (r *supportTicketRepository) get(ctx context.Context, id int64, lock bool) 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return nil, err
@@ -119,7 +119,7 @@ func (r *supportTicketRepository) TicketOwnerID(ctx context.Context, id int64) (
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return 0, err
@@ -140,7 +140,7 @@ func (r *supportTicketRepository) InsertTicket(ctx context.Context, t *service.S
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return err
@@ -159,7 +159,7 @@ func (r *supportTicketRepository) AddMessage(ctx context.Context, m *service.Sup
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return err
@@ -246,7 +246,7 @@ func (r *supportTicketRepository) List(ctx context.Context, params pagination.Pa
 	if err != nil {
 		return nil, nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	items := make([]service.SupportTicket, 0)
 	for rows.Next() {
 		ticket, err := scanSupportTicket(rows)
@@ -266,7 +266,7 @@ func (r *supportTicketRepository) CountMessages(ctx context.Context, id int64) (
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var count int
 	if !rows.Next() {
 		return 0, rows.Err()
@@ -282,7 +282,7 @@ func (r *supportTicketRepository) ListMessages(ctx context.Context, id int64) ([
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	items := make([]service.SupportTicketMessage, 0)
 	for rows.Next() {
 		var m service.SupportTicketMessage
