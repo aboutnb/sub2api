@@ -28,6 +28,11 @@ import (
 // misconfigured to point at us, or when our orders table has been wiped).
 var ErrOrderNotFound = errors.New("payment order not found")
 
+// ErrPaymentNotificationUnconfirmed keeps the local order pending and tells
+// webhook handlers to return a retryable response when active upstream
+// verification could not prove the payment.
+var ErrPaymentNotificationUnconfirmed = errors.New("payment notification not confirmed by upstream")
+
 const paymentFulfillmentLeaseDuration = 5 * time.Minute
 
 type paymentFulfillmentLease struct {
@@ -37,6 +42,20 @@ type paymentFulfillmentLease struct {
 // --- Payment Notification & Fulfillment ---
 
 func (s *PaymentService) HandlePaymentNotification(ctx context.Context, n *payment.PaymentNotification, pk string) error {
+	return s.handlePaymentNotification(ctx, n, pk, nil)
+}
+
+// HandlePaymentNotificationWithProvider uses the exact provider instance that
+// verified the webhook, allowing high-risk channels to query upstream before
+// any local order state or balance is changed.
+func (s *PaymentService) HandlePaymentNotificationWithProvider(ctx context.Context, n *payment.PaymentNotification, pk string, prov payment.Provider) error {
+	return s.handlePaymentNotification(ctx, n, pk, prov)
+}
+
+func (s *PaymentService) handlePaymentNotification(ctx context.Context, n *payment.PaymentNotification, pk string, prov payment.Provider) error {
+	if n == nil {
+		return fmt.Errorf("payment notification is nil")
+	}
 	if n.Status != payment.NotificationStatusSuccess {
 		return nil
 	}
@@ -46,12 +65,34 @@ func (s *PaymentService) HandlePaymentNotification(ctx context.Context, n *payme
 		// Fallback only for true legacy "sub2_N" DB-ID payloads when the
 		// current out_trade_no lookup genuinely did not find an order.
 		if oid, ok := parseLegacyPaymentOrderID(n.OrderID, err); ok {
-			return s.confirmPayment(ctx, oid, n.TradeNo, n.Amount, pk, n.Metadata)
-		}
-		if dbent.IsNotFound(err) {
+			order, err = s.entClient.PaymentOrder.Get(ctx, oid)
+			if err != nil {
+				return fmt.Errorf("lookup legacy order %d: %w", oid, err)
+			}
+		} else if dbent.IsNotFound(err) {
 			return fmt.Errorf("%w: out_trade_no=%s", ErrOrderNotFound, n.OrderID)
+		} else {
+			return fmt.Errorf("lookup order failed for out_trade_no %s: %w", n.OrderID, err)
 		}
-		return fmt.Errorf("lookup order failed for out_trade_no %s: %w", n.OrderID, err)
+	}
+
+	if confirmer, ok := prov.(payment.NotificationConfirmationProvider); ok {
+		confirmed, confirmErr := confirmer.ConfirmNotification(ctx, n)
+		if confirmErr != nil {
+			s.writeAuditLog(ctx, order.ID, "PAYMENT_UPSTREAM_CONFIRMATION_FAILED", pk, map[string]any{
+				"tradeNo": n.TradeNo,
+				"reason":  confirmErr.Error(),
+			})
+			return fmt.Errorf("%w: %v", ErrPaymentNotificationUnconfirmed, confirmErr)
+		}
+		if confirmed == nil || confirmed.OrderID != n.OrderID {
+			s.writeAuditLog(ctx, order.ID, "PAYMENT_UPSTREAM_CONFIRMATION_FAILED", pk, map[string]any{
+				"tradeNo": n.TradeNo,
+				"reason":  "provider returned mismatched confirmation",
+			})
+			return fmt.Errorf("%w: provider returned mismatched confirmation", ErrPaymentNotificationUnconfirmed)
+		}
+		n = confirmed
 	}
 	return s.confirmPayment(ctx, order.ID, n.TradeNo, n.Amount, pk, n.Metadata)
 }

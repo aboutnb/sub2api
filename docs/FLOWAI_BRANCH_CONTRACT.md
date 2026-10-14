@@ -138,6 +138,13 @@ bd3b7b205 又恢复为 DESC。本分支现再次明确采用“1 最高、数值
 - Sub2API 通过现有 EasyPay provider registry 接入 GM。自定义支付方式必须显式映射 GM
   selector，例如前台 `usdt_trc20` 映射上游
   `usdt.tron`；回调继续使用 /api/v1/payment/webhook/easypay。
+- EasyPay USDT 成功回调只作为查单触发信号，不能直接把本地订单改为已支付。Sub2API 必须
+  使用原订单绑定的 provider 实例同步查询 GM，并核对响应签名、PID、商户订单号、GM 交易号、
+  支付类型、法币金额、成功状态和 64 位链上交易哈希；任一字段缺失或不一致时订单保持
+  `PENDING`、写入审计并返回可重试响应。支付宝和微信 EasyPay 方式不受此 USDT 规则影响。
+- GM 必须先提供 `/payments/epay/v1/order/create-transaction/api.php` 签名查单接口，再发布依赖
+  主动确认的 Sub2API 镜像；反向顺序会使所有正常 USDT 回调暂时返回 503。查单接口必须验证
+  PID/密钥、IP 白名单、参数唯一性和订单所属 API Key，且不得在失败响应中泄露订单详情。
 - Sub2API 的 `USDT_MIN_RECHARGE_AMOUNT` 默认是 50，`0` 表示关闭 USDT 专属下限。
   用户可见 method limits 和创建订单后端必须同时执行该限制，不能只依赖前端禁用状态。
 - GM checkout 桌面弹窗首选尺寸固定为 `625x900`，仍需根据可用屏幕空间缩小并居中；

@@ -125,6 +125,15 @@ func TestCanonicalizeReturnURLRejectsExternalHost(t *testing.T) {
 	}
 }
 
+func TestCanonicalizeReturnURLRejectsUserInfoParameterSmuggling(t *testing.T) {
+	t.Parallel()
+
+	raw := "https://&out_trade_no=sub2_target&trade_no=forged&trade_status=TRADE_SUCCESS&type=@example.com/payment/result"
+	if _, err := CanonicalizeReturnURL(raw, "example.com", ""); err == nil {
+		t.Fatal("CanonicalizeReturnURL accepted user information in return_url")
+	}
+}
+
 func TestCanonicalizeReturnURLAllowsConfiguredFrontendHost(t *testing.T) {
 	t.Parallel()
 

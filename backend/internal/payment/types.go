@@ -161,10 +161,17 @@ type CreatePaymentResponse struct {
 // QueryOrderResponse describes the payment status from the upstream provider.
 type QueryOrderResponse struct {
 	TradeNo  string
+	OrderID  string
 	Status   string  // "pending", "paid", "failed", "refunded"
 	Amount   float64 // 按服务商返回币种解释的金额
 	PaidAt   string  // RFC3339 timestamp or empty
 	Metadata map[string]string
+}
+
+// NotificationConfirmationProvider actively confirms a signed webhook against
+// the provider's order API before local fulfillment is allowed to begin.
+type NotificationConfirmationProvider interface {
+	ConfirmNotification(context.Context, *PaymentNotification) (*PaymentNotification, error)
 }
 
 // PaymentNotification is the parsed result of a webhook/notify callback.

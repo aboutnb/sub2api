@@ -130,13 +130,22 @@ func validateProviderSnapshotMetadata(order *dbent.PaymentOrder, providerKey str
 	if order == nil || len(metadata) == 0 {
 		return nil
 	}
+	providerKey = strings.TrimSpace(providerKey)
+	if providerKey == payment.TypeEasyPay {
+		if actual := strings.TrimSpace(metadata["payment_type"]); actual != "" {
+			expected := strings.TrimSpace(order.PaymentType)
+			if expected == "" || !strings.EqualFold(expected, actual) {
+				return fmt.Errorf("easypay payment type mismatch: expected %s, got %s", expected, actual)
+			}
+		}
+	}
 
 	snapshot := psOrderProviderSnapshot(order)
 	if snapshot == nil {
 		return nil
 	}
 
-	switch strings.TrimSpace(providerKey) {
+	switch providerKey {
 	case payment.TypeWxpay:
 		if expected := strings.TrimSpace(snapshot.MerchantAppID); expected != "" {
 			actual := strings.TrimSpace(metadata["appid"])

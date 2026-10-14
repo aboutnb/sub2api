@@ -23,6 +23,18 @@ type paymentFulfillmentTestProvider struct {
 	supportedTypes []payment.PaymentType
 }
 
+type paymentFulfillmentConfirmingProvider struct {
+	paymentFulfillmentTestProvider
+	confirmErr error
+}
+
+func (p paymentFulfillmentConfirmingProvider) ConfirmNotification(_ context.Context, notification *payment.PaymentNotification) (*payment.PaymentNotification, error) {
+	if p.confirmErr != nil {
+		return nil, p.confirmErr
+	}
+	return notification, nil
+}
+
 type paymentFulfillmentRedeemCacheStub struct {
 	count          int
 	getCalls       int
@@ -634,6 +646,34 @@ func TestValidateProviderNotificationMetadataRejectsEasyPaySnapshotMismatch(t *t
 	assert.ErrorContains(t, err, "easypay pid mismatch")
 }
 
+func TestValidateProviderNotificationMetadataRejectsEasyPayPaymentTypeMismatch(t *testing.T) {
+	t.Parallel()
+
+	order := &dbent.PaymentOrder{
+		PaymentType: payment.PaymentType("usdt_bep20"),
+		ProviderSnapshot: map[string]any{
+			"schema_version": 2,
+			"merchant_id":    "pid-expected",
+		},
+	}
+
+	err := validateProviderNotificationMetadata(order, payment.TypeEasyPay, map[string]string{
+		"pid":          "pid-expected",
+		"payment_type": "usdt_trc20",
+	})
+	assert.ErrorContains(t, err, "easypay payment type mismatch")
+}
+
+func TestValidateProviderNotificationMetadataRejectsEasyPayPaymentTypeMismatchForLegacyOrder(t *testing.T) {
+	t.Parallel()
+
+	order := &dbent.PaymentOrder{PaymentType: payment.PaymentType("usdt_bep20")}
+	err := validateProviderNotificationMetadata(order, payment.TypeEasyPay, map[string]string{
+		"payment_type": "usdt_trc20",
+	})
+	assert.ErrorContains(t, err, "easypay payment type mismatch")
+}
+
 func TestValidateProviderNotificationMetadataRejectsAirwallexSnapshotMismatch(t *testing.T) {
 	t.Parallel()
 
@@ -963,6 +1003,40 @@ func TestPaymentNotificationRejectsAmountMismatchBeforeFulfillment(t *testing.T)
 	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
 	require.NoError(t, err)
 	require.Equal(t, OrderStatusPending, reloaded.Status)
+}
+
+func TestPaymentNotificationConfirmationFailureKeepsOrderPendingAndAudits(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	order := createPaymentFulfillmentSubscriptionOrder(t, ctx, client, OrderStatusPending, time.Now())
+	originalTradeNo := order.PaymentTradeNo
+	svc := &PaymentService{entClient: client}
+	provider := paymentFulfillmentConfirmingProvider{
+		paymentFulfillmentTestProvider: paymentFulfillmentTestProvider{key: payment.TypeEasyPay},
+		confirmErr:                     errors.New("upstream order not found"),
+	}
+
+	err := svc.HandlePaymentNotificationWithProvider(ctx, &payment.PaymentNotification{
+		TradeNo: "forged-trade",
+		OrderID: order.OutTradeNo,
+		Amount:  order.PayAmount,
+		Status:  payment.NotificationStatusSuccess,
+	}, payment.TypeEasyPay, provider)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrPaymentNotificationUnconfirmed)
+
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusPending, reloaded.Status)
+	require.Equal(t, originalTradeNo, reloaded.PaymentTradeNo)
+
+	audits, err := client.PaymentAuditLog.Query().Where(
+		paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)),
+		paymentauditlog.ActionEQ("PAYMENT_UPSTREAM_CONFIRMATION_FAILED"),
+	).All(ctx)
+	require.NoError(t, err)
+	require.Len(t, audits, 1)
+	require.Contains(t, audits[0].Detail, "upstream order not found")
 }
 
 func TestExecuteBalanceFulfillmentRejectsCodeUsedByAnotherUser(t *testing.T) {

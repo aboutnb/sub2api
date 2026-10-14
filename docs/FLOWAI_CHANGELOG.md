@@ -9,6 +9,27 @@
 - 独立本地数据库及真实账号完成 133 项 API 检查、47 项浏览器断言，后端目标包及 race、6 项 PostgreSQL 集成测试、80 项前端测试、typecheck、ESLint、go vet 通过；具体范围、证据与限制见 [工单安全冒烟报告](SUPPORT_TICKETS_SECURITY_SMOKE.md)。
 - 本地镜像 `sub2api-local:ticket-security-20261014` 已更新并通过健康、配置与数据计数核验。源码保留未提交状态；未执行线上攻击测试或生产发布。
 
+### 2026-10-14 EasyPay USDT 回调主动确认修复（GMPay 已部署，Sub2API 尚未部署）
+
+- 复盘订单 `sub2_20261013lGNRzAmc` 确认线上无对应 GM 订单或链上收款，攻击者利用 EasyPay
+  创建请求与回调规范串相同的缺陷复用签名。第一层修复已拒绝未知/重复/缺失字段、错误 PID、
+  非 MD5 类型、未配置支付类型及 `return_url` userinfo 注入，并把回调支付类型绑定到本地订单。
+- 第二层将 USDT 回调降级为触发信号：使用验证回调的同一 provider 实例主动查询 GM，只有响应
+  签名、PID、`out_trade_no`、`trade_no`、支付类型、金额、成功状态和链上交易哈希全部匹配才入账。
+  查单失败或不一致保持 `PENDING`，追加 `PAYMENT_UPSTREAM_CONFIRMATION_FAILED` 审计并返回 503
+  触发 GM 重试；支付宝/微信 EasyPay 回调保持原路径。
+- 配套 GMPay 提交 `20f52b07afbccfcca4b8c6a0ae10f34ec641faf8` 在 `gm-epusdt` 分支新增受 PID/密钥、IP 白名单和订单所属 API Key 保护的只读
+  `/payments/epay/v1/order/create-transaction/api.php`，完整响应使用商户密钥签名。发布顺序固定为
+  GM 先、Sub2API 后。GitHub Actions `docker-gm-epusdt` run `38441514491` 已成功构建
+  `gm-epusdt-sha-20f52b0`，多架构镜像 digest 为
+  `sha256:4c92dfc419f220e8bf53fae28a0907e5d4207deefe3aee421b2c50b2636a5cd2`。23 服务器的独立
+  `flowai-gm` 已固定到该 digest 且健康，查单端点对非法凭据返回 HTTP 200 的安全失败响应；
+  `flowai-app`、Caddy、PostgreSQL、Redis 未重建且保持健康。当前尚未执行真实链上支付。
+- 本地已通过 GMPay 全仓 Go 测试、Sub2API 全仓 Go 测试、完整 unit service/handler/provider、
+  漏洞碰撞、主动确认成功和九类不一致拒绝、RMB 旁路、待支付状态与审计专项测试；FlowAI
+  严格契约检查以 0 failure/0 warning 通过。GMPay 镜像构建已通过，Sub2API GitHub CI、镜像构建
+  和两端生产验证待补齐。
+
 ### 2026-10-10 v0.2.15 已切流至 23 服务器（Guardian 验收未完成）
 
 - 发布源码 `fa80f638880a57ecb019c3b1a8ab6bda8ee059a1`，线上版本 `0.2.15`；同源 CI `38031782768`、Security Scan `38031782778` 和 Aivoza Image `38032373407` 成功。后端全量单测、前端 414 文件 / 3106 项测试、lint、类型检查及构建通过。
@@ -701,6 +722,9 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+| 2026-10-14 | `92ed23164b716dc19015519dbc3addb74fafb6eb` | 支付查单测试使用 any 满足仓库 gofmt rewrite 规则；同版本 golangci-lint 全仓 0 issues，provider unit 通过 | 支付安全 CI |
+| 2026-10-14 | `910c44bc2af2250760ee24fbc13dd8e6147f01eb` | EasyPay USDT 回调通过同一 provider 实例主动查单；签名、PID、订单号、GM 流水、类型、金额、支付状态和链上哈希全部匹配后才入账；失败保持 PENDING、写审计并返回 503；RMB EasyPay 保持原路径 | GM/EasyPay USDT 回调安全 |
+| 2026-10-14 | `9d9e982f62ef395c8248fd21f56bf83ac21a173d` | 修复 EasyPay 创建签名重组为成功回调：拒绝未知/重复/缺失字段、错误 PID/签名类型/支付类型，绑定订单支付方式并拒绝 return_url userinfo 注入；真实攻击载荷回归通过 | EasyPay 回调防重放 |
 | 2026-10-10 | `e13f039def8150f4c0f5d9b2cb9ed272bded612e` | 整合上次发布后的发票实名认证/先保存后税费续付、移除固定单数上限与最新教程调整；保留支付限流、赠送与主线分页/鉴权/酒馆；新增 255 退役教程迁移；89 项相关前端回归及后端发票/教程 unit 通过 | 最新本地代码/发票/教程 |
 | 2026-10-10 | `de64c5d652adbb3b1b61e4e6444242ee1c933f0b` | 验证 256 迁移的禁用平台/模型/空范围保留、幂等与 14 维度默认值；账号筛选测试等待延迟重载并卸载组件，避免测试结束后遗留请求；专项 6 测试通过，集成测试编译通过 | 发布回归测试 |
 | 2026-10-10 | `9ca791252b453f8fa7d793880e776333a2f8c2fc` | 被动监控平台目录补齐、后台完整开关及 V3 跨平台分组卡片键；保留禁用/模型/分组/空配置；55 项前端监控测试、后端监控 unit、类型/lint 和 PostgreSQL SQL 验证通过 | 渠道监控 |
@@ -835,6 +859,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 审阅结论加入标记区。`git merge-base HEAD upstream/main` 变化后，以命令输出为准补齐。
 
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
+| 2026-10-14 | `5e6e51570088647627cc7339ce9f2f65f7867cc9` | 合入当前 Aivoza `origin/main` 的 v0.2.15 生产治理记录；仅 `FLOWAI_CHANGELOG.md` 冲突，保留既有部署/Guardian 证据并追加 GMPay 已部署、Sub2API 待发布状态，支付业务代码无冲突 | 支付安全候选/主线同步 |
 | 2026-10-10 | `5481cb33749398679c91cf4a4e8c000e505af2eb` | 合并已审上游 3a6fd1c9d v0.2.15；11 个冲突逐块保留主题、教程共享配置、模型发现、设置路由和较新工具链；接入平台目录及两新平台，新增 242/256 迁移；审阅结论见本日候选 | 上游同步/渠道监控 |
 | 2026-10-09 | `09ab7ed2ef7d219576c00b1fc8614a1fe2fbfd06` | 合并上游 5fc0e486c3 v0.2.14；43 个冲突文件逐块保留 Aivoza 支付/邮件/主题/教程/工作台，统一优惠报价与校验，吸收安全修复、TypeSafe 和模型目录；两条增量迁移、测试结果及冲突结论见本日候选记录 | 上游同步 |
 | 2026-09-29 | `2bc658f4e2ecee46b7766047f3891870570e56c3` | 合并已审上游 0.2.10，五处冲突逐块保留定制服务与主题；无新增上游迁移，客户端配置验证通过 | 上游同步 |
