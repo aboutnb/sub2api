@@ -1,21 +1,25 @@
 # FlowAI 分支变更台账
 
-### 2026-10-14 v0.2.16 与站内工单发布候选
+### 2026-10-14 v0.2.16 与站内工单已发布至 23 服务器
 
-- 23 服务器当前支付补丁源码 `4daabff0855a9b9a9d261fe46dfad56cc1214c8b`（版本 0.2.15）。Guardian 旧 hosts 把 sub2api 指向旧 v0.2.15 IP；已备份其元数据后，使用相同镜像/权限/端口/数据卷重建，只修改 BASE_URL 为 `http://flowai-app:8080`。Guardian 健康、DNS 与上游版本读取通过；旧 Guardian 停止保留。配置备份 `/root/flowai/backups/guardian-v0216-20261014`。
+- 发布源码 `61579cd85606882feacec8198c3db8597f858742`，版本 `0.2.16`；固定 GitHub 镜像 `ghcr.io/aboutnb/aivoza-sub2api@sha256:b1145eb844046ce21753227762b7c0de9baf0f39019360ad60ebe45d92f4341d`。CI `38567146664`（含完整集成）、Security Scan `38567146685`、Aivoza Image `38568371535` 均成功。工单集成测试清理顺序已修复，安全扫描依赖下载错误诊断后重跑成功。
+- 蓝绿 prepare/promote 完成，当前 `flowai-app`（3014），发布状态 `/root/flowai/deploy/state/aivoza-v0216-61579cd85606.json` 为 promoted；Caddy 路由新版本并热加载成功。上一版支付补丁 v0.2.15（`4daabff0855a9b9a9d261fe46dfad56cc1214c8b`）保留为 `flowai-app-rollback-5f6b13d3ec6f`（3013）。三个更早版本连接排空后优雅停止并删除，只删除无容器引用的对应镜像；数据卷、备份与无关服务保留。
+- 两域名 `aivoza.com` / `us.aivoza.com` 健康与公开版本检查通过；切流连续探测 1902 次、失败 0（切流前 1628，切流后 274；每域名 951），证据 `probe-summary.json` / `switch-probes.jsonl` 位于下述备份目录。工单、管理员工单、教程、图片工作台与监控页面 curl 均 200；未认证的用户/管理员工单 API 均 401。未在生产创建真实工单或执行攻击测试。
+- 5 条新增迁移（242_group_i18n、243/244/245_gemini_cached_contents 系列、256_add_support_tickets）已应用，并按应用 TrimSpace 后 SHA256 规则逐条核对数据库 checksum；证据 `migration-checksums.txt`。应用源码 label、发布状态、依赖启动时间核验一致，最终应用/数据库/Redis 健康，应用日志未检出 panic/fatal/迁移失败/checksum mismatch。
+- Guardian 旧 hosts 指向旧应用 IP；备份元数据后使用同镜像/权限/端口/数据卷重建，仅修改 BASE_URL 为 `http://flowai-app:8080`。健康、DNS 与上游 0.2.16 版本读取通过；旧停止容器已删除，配置备份 `/root/flowai/backups/guardian-v0216-20261014` 保留。原持久监控连接 enabled=false，保存的管理密钥返回 401 Invalid admin API key；保留禁用状态，未修改凭据或声称管理员认证通过。
 - 发布前备份 `/root/flowai/backups/aivoza-v0216-20261014`：PostgreSQL custom dump 515292958 字节并通过 TOC 校验，应用数据 29607 字节并通过 tar 校验，Redis RDB 1061114 字节并通过 redis-check-rdb；配置/容器/依赖启动时间已保存。持续写入日志单独保留在原目录，不纳入数据归档。
 
 - 已审并合入上游 `9c2cca9e627291bc719bada3d57de23b625a4180`，219 文件，新增 4 条迁移。保留工单、教程、生图智能路由、主题和支付回调主动确认；Ent/Wire 生成保留全部定制 provider。
-- 8 个冲突逐块处理，接入分组多语言、Vertex API Key、Gemini 缓存与运营账号名。API key 带路由的返回也执行请求语言本地化。本地后端全量 unit、Vue 427 文件/3201 项测试、React 37 文件/567 项测试、前端 lint/typecheck 及两套构建通过。生产完整验证与部署证据待补齐。
+- 8 个冲突逐块处理，接入分组多语言、Vertex API Key、Gemini 缓存与运营账号名。API key 带路由的返回也执行请求语言本地化。本地后端全量 unit、Vue 427 文件/3201 项测试、React 37 文件/567 项测试、前端 lint/typecheck 及两套构建通过。全仓 PostgreSQL 集成、golangci-lint v2.14（0 issues）、严格契约（0 failure/0 warning）也通过；生产部署证据见上文。
 
-### 2026-10-14 站内工单安全冒烟与本地加固（未发布生产）
+### 2026-10-14 站内工单安全冒烟与本地加固（随本次 v0.2.16 发布）
 
 - 工单采用 JWT 与管理员中间件、按用户隔离、参数化查询、事务锁及最多 10 个未关闭工单；工单正文与主题以纯文本显示。
 - 本地实测后修复非法空字符及极大分页触发 500、超大无关 JSON 字段可被接受的问题。工单 JSON 写请求上限 64 KiB，拒绝未知字段、非法 UTF-8 和尾随 JSON；查询限制每页 100 条、页码 1000000、搜索 200 字符。
 - 工单独立按用户限流：创建 5 次/分钟、20 次/小时，回复 20 次/分钟、120 次/小时；不受全局面板限流开关或管理员豁免影响。Redis 不可用时暂停工单创建/回复、保留读取；每工单最多 200 条消息，以事务内锁和计数保护并发边界。
 - 修复顶部签到菜单焦点在触发按钮时 Esc 无法关闭的问题。新增错误文案保持中英文一致。
 - 独立本地数据库及真实账号完成 133 项 API 检查、47 项浏览器断言，后端目标包及 race、6 项 PostgreSQL 集成测试、80 项前端测试、typecheck、ESLint、go vet 通过；具体范围、证据与限制见 [工单安全冒烟报告](SUPPORT_TICKETS_SECURITY_SMOKE.md)。
-- 本地镜像 `sub2api-local:ticket-security-20261014` 已更新并通过健康、配置与数据计数核验。源码保留未提交状态；未执行线上攻击测试或生产发布。
+- 本地镜像 `sub2api-local:ticket-security-20261014` 已更新并通过健康、配置与数据计数核验。该记录原为本地验收；源码现已合入 main 并随上述 v0.2.16 发布，未执行线上攻击测试。
 
 ### 2026-10-14 EasyPay USDT 回调主动确认修复（GMPay 已部署，Sub2API 尚未部署）
 
