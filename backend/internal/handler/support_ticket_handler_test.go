@@ -101,5 +101,7 @@ func TestSupportTicketHandlerValidationAndMetadata(t *testing.T) {
 	code, payload := supportTicketRequest(t, h.Create, 1, "POST", "/tickets", `{"subject":"Help","body":"Body","category":"other"}`, "")
 	require.Equal(t, 409, code)
 	require.Equal(t, "TICKET_OPEN_LIMIT", payload["reason"])
-	require.Equal(t, "10", payload["metadata"].(map[string]any)["max"])
+	metadata, ok := payload["metadata"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "10", metadata["max"])
 }
