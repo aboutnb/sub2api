@@ -181,6 +181,9 @@ func extractOutTradeNo(rawBody, providerKey string) string {
 	return ""
 }
 
+// verifyNotificationWithProviders returns the provider instance that verified
+// the notification so later steps (upstream confirmation) use the same
+// merchant configuration.
 func verifyNotificationWithProviders(ctx context.Context, providers []payment.Provider, rawBody string, headers map[string]string) (payment.Provider, *payment.PaymentNotification, error) {
 	var lastErr error
 	for _, provider := range providers {

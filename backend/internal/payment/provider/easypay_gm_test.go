@@ -303,12 +303,19 @@ func TestEasyPayRejectsUSDTNotificationWhenOrderQueryDoesNotMatch(t *testing.T) 
 	}
 }
 
-func TestEasyPayDoesNotQueryForRMBNotification(t *testing.T) {
+func TestEasyPayQueriesForRMBNotification(t *testing.T) {
 	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("out_trade_no") != "sub2_rmb_1" {
+			t.Error("RMB confirmation must query the notified order")
+		}
+		_, _ = w.Write([]byte(`{"code":1,"out_trade_no":"sub2_rmb_1","trade_no":"rmb-trade-1","money":"100.00","status":1}`))
+	}))
+	defer server.Close()
 	provider, err := NewEasyPay("rmb", map[string]string{
 		"pid":       "1000",
 		"pkey":      "gm-secret",
-		"apiBase":   "https://unreachable.invalid",
+		"apiBase":   server.URL,
 		"notifyUrl": "https://flowai.example.com/api/v1/payment/webhook/easypay",
 		"returnUrl": "https://flowai.example.com/payment/result",
 	})
@@ -325,7 +332,7 @@ func TestEasyPayDoesNotQueryForRMBNotification(t *testing.T) {
 		t.Fatalf("ConfirmNotification returned error for RMB callback: %v", err)
 	}
 	if confirmed != notification {
-		t.Fatal("RMB callback should pass through without an upstream USDT query")
+		t.Fatal("RMB confirmation should preserve the verified notification")
 	}
 }
 
