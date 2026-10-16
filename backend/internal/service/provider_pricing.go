@@ -18,7 +18,6 @@ const (
 	providerPricingDefaultUnit   = "per_1m_tokens"
 	providerPricingSiteName      = "aivoza"
 	providerPricingSiteDomain    = "aivoza.com"
-	providerPricingUSDToCNY      = 7.5
 	ProviderPricingCacheTTL      = 30 * time.Minute
 )
 
@@ -262,9 +261,20 @@ func (s *ProviderPricingService) buildModelRow(ctx context.Context, group *Group
 		GroupName: group.Name,
 		Enabled:   candidate.enabled && group.Status == StatusActive,
 	}
-	if !candidate.enabled && candidate.pricing != nil {
-		if configuredRow, ok := providerPricingRowFromChannelPricing(row, candidate.pricing, group); ok {
-			return configuredRow, true
+	pricing := candidate.pricing
+	if groupPricing := matchGroupModelPricing(group, candidate.name); groupPricing != nil {
+		pricing = groupPricing
+	}
+	if pricing != nil {
+		switch pricing.BillingMode {
+		case BillingModeImage, BillingModePerRequest:
+			resolved := &ResolvedPricing{Mode: pricing.BillingMode, RequestTiers: pricing.Intervals}
+			if pricing.PerRequestPrice != nil {
+				resolved.DefaultPerRequestPrice = *pricing.PerRequestPrice
+			}
+			return s.buildPerCallRow(row, group, resolved)
+		case BillingModeVideo:
+			return ProviderPricingModel{}, false
 		}
 	}
 
@@ -275,7 +285,7 @@ func (s *ProviderPricingService) buildModelRow(ctx context.Context, group *Group
 		resolved = s.resolver.Resolve(ctx, PricingInput{Model: candidate.name, GroupID: &groupID, Group: group})
 	}
 	if resolved == nil {
-		return providerPricingRowFromChannelPricing(row, candidate.pricing, group)
+		resolved = &ResolvedPricing{Mode: BillingModeToken}
 	}
 
 	mode := resolved.Mode
@@ -284,7 +294,10 @@ func (s *ProviderPricingService) buildModelRow(ctx context.Context, group *Group
 	}
 	switch mode {
 	case BillingModeToken:
-		return s.buildTokenRow(ctx, row, group, candidate.name, candidate.platform, resolved)
+		if tokenRow, ok := s.buildTokenRow(ctx, row, group, candidate.name, candidate.platform, resolved); ok {
+			return tokenRow, true
+		}
+		return providerPricingRowFromChannelPricing(row, pricing, group)
 	case BillingModeImage, BillingModePerRequest:
 		return s.buildPerCallRow(row, group, resolved)
 	case BillingModeVideo:
@@ -296,7 +309,17 @@ func (s *ProviderPricingService) buildModelRow(ctx context.Context, group *Group
 
 func (s *ProviderPricingService) buildTokenRow(ctx context.Context, row ProviderPricingModel, group *Group, model, platform string, resolved *ResolvedPricing) (ProviderPricingModel, bool) {
 	var input, output, cacheWrite, cacheWrite1h, cacheRead *float64
-	if s.billingService != nil && s.resolver != nil {
+	base := resolved.BasePricing
+	official := false
+	if s.billingService != nil {
+		if catalogPrice, err := s.billingService.GetModelPricing(model); err == nil && catalogPrice != nil && catalogPrice.InputPricePerToken > 0 {
+			base = catalogPrice
+			official = true
+		}
+	}
+	// Official catalog rates are base prices; group/channel overrides and time
+	// policies are only fallback sources for models absent from the catalog.
+	if !official && s.billingService != nil && s.resolver != nil {
 		schedule, err := s.billingService.ResolveContextPricingSchedule(ctx, s.resolver, ContextPricingScheduleInput{Model: model, Group: group, Platform: platform})
 		if err == nil && schedule != nil {
 			for i := range schedule.Tiers {
@@ -308,8 +331,7 @@ func (s *ProviderPricingService) buildTokenRow(ctx context.Context, row Provider
 			}
 		}
 	}
-	if input == nil && resolved.BasePricing != nil {
-		base := resolved.BasePricing
+	if input == nil && base != nil {
 		if base.InputPricePerToken > 0 {
 			input = &base.InputPricePerToken
 		}
@@ -334,14 +356,15 @@ func (s *ProviderPricingService) buildTokenRow(ctx context.Context, row Provider
 		return ProviderPricingModel{}, false
 	}
 	row.PriceUnit = providerPricingDefaultUnit
-	row.InputPrice = providerPricingTokenPrice(input)
+	multiplier := providerPricingMultiplier(group, BillingModeToken)
+	row.InputPrice = providerPricingTokenPrice(input, multiplier)
 	if row.InputPrice == nil {
 		return ProviderPricingModel{}, false
 	}
-	row.OutputPrice = providerPricingTokenPrice(output)
-	row.CacheInputPrice = providerPricingTokenPrice(cacheRead)
-	row.CacheCreatePrice = providerPricingTokenPrice(cacheWrite)
-	row.CacheCreatePrice1h = providerPricingTokenPrice(cacheWrite1h)
+	row.OutputPrice = providerPricingTokenPrice(output, multiplier)
+	row.CacheInputPrice = providerPricingTokenPrice(cacheRead, multiplier)
+	row.CacheCreatePrice = providerPricingTokenPrice(cacheWrite, multiplier)
+	row.CacheCreatePrice1h = providerPricingTokenPrice(cacheWrite1h, multiplier)
 	return row, true
 }
 
@@ -364,7 +387,7 @@ func (s *ProviderPricingService) buildPerCallRow(row ProviderPricingModel, group
 		return ProviderPricingModel{}, false
 	}
 	row.PriceUnit = "per_call"
-	row.UnitPrice = providerPricingUnitPrice(price)
+	row.UnitPrice = providerPricingUnitPrice(price, providerPricingMultiplier(group, resolved.Mode))
 	if row.UnitPrice == nil {
 		return ProviderPricingModel{}, false
 	}
@@ -387,7 +410,7 @@ func providerPricingRowFromChannelPricing(row ProviderPricingModel, pricing *Cha
 			return ProviderPricingModel{}, false
 		}
 		row.PriceUnit = "per_call"
-		row.UnitPrice = providerPricingUnitPrice(*price)
+		row.UnitPrice = providerPricingUnitPrice(*price, providerPricingMultiplier(group, mode))
 		if row.UnitPrice == nil {
 			return ProviderPricingModel{}, false
 		}
@@ -400,11 +423,15 @@ func providerPricingRowFromChannelPricing(row ProviderPricingModel, pricing *Cha
 		return ProviderPricingModel{}, false
 	}
 	row.PriceUnit = providerPricingDefaultUnit
-	row.InputPrice = providerPricingTokenPrice(pricing.InputPrice)
-	row.OutputPrice = providerPricingTokenPrice(pricing.OutputPrice)
-	row.CacheInputPrice = providerPricingTokenPrice(pricing.CacheReadPrice)
-	row.CacheCreatePrice = providerPricingTokenPrice(pricing.CacheWritePrice)
-	row.CacheCreatePrice1h = providerPricingTokenPrice(pricing.CacheWrite1hPrice)
+	multiplier := providerPricingMultiplier(group, BillingModeToken)
+	row.InputPrice = providerPricingTokenPrice(pricing.InputPrice, multiplier)
+	if row.InputPrice == nil {
+		return ProviderPricingModel{}, false
+	}
+	row.OutputPrice = providerPricingTokenPrice(pricing.OutputPrice, multiplier)
+	row.CacheInputPrice = providerPricingTokenPrice(pricing.CacheReadPrice, multiplier)
+	row.CacheCreatePrice = providerPricingTokenPrice(pricing.CacheWritePrice, multiplier)
+	row.CacheCreatePrice1h = providerPricingTokenPrice(pricing.CacheWrite1hPrice, multiplier)
 	return row, true
 }
 
@@ -420,30 +447,43 @@ func providerPricingImagePrice(group *Group) *float64 {
 	return nil
 }
 
-func providerPricingTokenPrice(usdPerToken *float64) *float64 {
+func providerPricingMultiplier(group *Group, mode BillingMode) float64 {
+	if group == nil {
+		return 1
+	}
+	if mode == BillingModeImage {
+		return resolveImageRateMultiplier(&APIKey{Group: group}, group.RateMultiplier)
+	}
+	return group.RateMultiplier
+}
+
+func providerPricingTokenPrice(usdPerToken *float64, multiplier float64) *float64 {
 	if usdPerToken == nil || *usdPerToken <= 0 {
 		return nil
 	}
-	value := roundProviderPricing(*usdPerToken * 1_000_000 * providerPricingUSDToCNY)
-	if value <= 0 {
+	value := roundProviderPricing(*usdPerToken*1_000_000*multiplier, 1)
+	if value <= 0 || math.IsNaN(value) || math.IsInf(value, 0) {
 		return nil
 	}
 	return &value
 }
 
-func providerPricingUnitPrice(usdPerCall float64) *float64 {
-	if usdPerCall <= 0 {
+// Balance units map 1:1 to CNY; apply the public group rate once, then round
+// per-call prices to cents so low-cost image requests such as 0.06 remain exact.
+func providerPricingUnitPrice(basePrice float64, multiplier float64) *float64 {
+	if basePrice <= 0 || multiplier <= 0 {
 		return nil
 	}
-	value := roundProviderPricing(usdPerCall * providerPricingUSDToCNY)
-	if value <= 0 {
+	value := roundProviderPricing(basePrice*multiplier, 2)
+	if value <= 0 || math.IsNaN(value) || math.IsInf(value, 0) {
 		return nil
 	}
 	return &value
 }
 
-func roundProviderPricing(value float64) float64 {
-	rounded := math.Round(value*10) / 10
+func roundProviderPricing(value float64, digits int) float64 {
+	scale := math.Pow10(digits)
+	rounded := math.Round(value*scale) / scale
 	if rounded == 0 {
 		return 0
 	}

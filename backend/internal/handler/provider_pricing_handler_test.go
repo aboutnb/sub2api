@@ -37,8 +37,8 @@ func (s *providerPricingGroupRepoStub) List(context.Context, pagination.Paginati
 
 func TestProviderPricingHandlerReturnsHvoyDocument(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	input := 2e-6
-	output := 8e-6
+	input := 6e-6
+	output := 30e-6
 	channelRepo := &providerPricingChannelRepoStub{channels: []service.Channel{{
 		Name:     "channel",
 		Status:   service.StatusActive,
@@ -52,7 +52,7 @@ func TestProviderPricingHandlerReturnsHvoyDocument(t *testing.T) {
 		}},
 	}}}
 	groupRepo := &providerPricingGroupRepoStub{groups: []service.Group{{
-		ID: 7, Name: "公开分组", Platform: service.PlatformOpenAI, Status: service.StatusActive,
+		ID: 7, Name: "公开分组", Platform: service.PlatformOpenAI, Status: service.StatusActive, RateMultiplier: 0.25,
 	}}}
 	pricingService := service.NewProviderPricingService(
 		channelRepo,
@@ -98,8 +98,8 @@ func TestProviderPricingHandlerReturnsHvoyDocument(t *testing.T) {
 	if model.ModelName != "gpt-test" || model.GroupName != "公开分组" || !model.Enabled {
 		t.Fatalf("unexpected model row: %+v", model)
 	}
-	if model.InputPrice == nil || *model.InputPrice != 15.0 || model.OutputPrice == nil || *model.OutputPrice != 60.0 {
-		t.Fatalf("unexpected converted prices: %+v", model)
+	if model.InputPrice == nil || *model.InputPrice != 1.5 || model.OutputPrice == nil || *model.OutputPrice != 7.5 {
+		t.Fatalf("unexpected CNY prices after group multiplier: %+v", model)
 	}
 
 	second := httptest.NewRecorder()

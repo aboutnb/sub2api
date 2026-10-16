@@ -1,5 +1,13 @@
 # FlowAI 分支变更台账
 
+### 2026-10-17 公开价格 API 报价修正发布候选
+
+- 版本保持 `0.2.17`；origin/main 与 upstream/main 无新增业务提交，复用现有 main 整合原工作区 4 个价格 API 文件，未改动原工作区。
+- 公开报价改为官方模型价格数字按站内 CNY 余额 1:1 口径乘公开分组倍率一次；官方目录优先，无官方价格的自定义模型回退分组/渠道配置。移除固定 7.5 汇率，不叠加用户专属或高峰倍率；不修改实际网关计费及生产分组配置。
+- 图片按次报价遵循独立图片倍率，普通按次报价用分组倍率；token 保留一位小数，按次保留两位小数，避免 0.06 等低价舍入失真。无效、非有限或舍入为零的必要价格继续省略，独占组排除、禁用条目和 30 分钟缓存保持原规则。
+- 受影响路径：`backend/internal/service/provider_pricing.go` 及 service/handler 测试、`docs/PROVIDER_PRICING_API_PRD.md`；无数据库迁移、前端或支付修改。
+- 本地 ProviderPricing 服务/处理器专项通过；完整后端 unit、同源 CI/安全/镜像及生产备份、蓝绿验收待完成。
+
 ### 2026-10-16 v0.2.17 与最新本地功能已发布至 23 服务器
 
 - 已审上游 `b0a02a3304a0a78cdd003ddda1dd23ba02c03084`（47 提交、150 文件），合并提交 `0477bb8bfb648eddbd051bd6f6a59cceed0085fe`。接入 Gemini 4 Argon/思考档位、Vertex 429 重试、OpenAI 搜索模拟与模型退役、Responses created_at、退款 pending 扣减保留和 Stripe 本地快照。无新增或修改数据库迁移。
