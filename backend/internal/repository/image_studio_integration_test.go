@@ -75,43 +75,125 @@ func (s *APIKeyRepoSuite) TestImageStudioKeyIdempotentAndHidden() {
 	s.Require().Error(err)
 }
 
-func TestImageStudioRouteInitializationIsAtomicAndPreservesEdits(t *testing.T) {
-	client := testEntClient(t)
+func studioRouteFixture(t *testing.T) (*smartRouteRepository, *service.SmartRouteConfig, *service.SmartRouteConfig) {
+	t.Helper()
 	ctx := context.Background()
+	client := testEntClient(t)
 	user, err := client.User.Create().SetEmail(fmt.Sprintf("studio-route-%d@test.com", time.Now().UnixNano())).SetPasswordHash("hash").Save(ctx)
 	require.NoError(t, err)
-	group, err := client.Group.Create().SetName(fmt.Sprintf("studio-route-%d", user.ID)).Save(ctx)
+	first, err := client.Group.Create().SetName(fmt.Sprintf("studio-route-first-%d", user.ID)).Save(ctx)
+	require.NoError(t, err)
+	second, err := client.Group.Create().SetName(fmt.Sprintf("studio-route-second-%d", user.ID)).Save(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_, _ = client.APIKey.Delete().Where(apikey.UserIDEQ(user.ID)).Exec(ctx)
-		_ = client.Group.DeleteOneID(group.ID).Exec(ctx)
+		_ = client.Group.DeleteOneID(first.ID).Exec(ctx)
+		_ = client.Group.DeleteOneID(second.ID).Exec(ctx)
 		_ = client.User.DeleteOneID(user.ID).Exec(ctx)
 	})
-	repo := newAPIKeyRepositoryWithSQL(client, integrationDB)
-	key, err := repo.ImageStudioPromptRouteKey(ctx, user.ID, "studio-internal-route", "route")
+	key, err := newAPIKeyRepositoryWithSQL(client, integrationDB).ImageStudioPromptRouteKey(ctx, user.ID, fmt.Sprintf("studio-internal-route-%d", user.ID), "AI 绘图")
 	require.NoError(t, err)
-	routes := NewSmartRouteRepository(client, nil)
-	cfg := &service.SmartRouteConfig{APIKeyID: key.ID, Platform: "openai", SubscriptionType: "standard", CrossPlatform: true, PreferPlatform: "openai", Strategy: "auto", Weights: service.SmartRouteWeights{Price: 40, Speed: 30, Success: 30}, CandidateGroupIDs: []int64{group.ID}}
-	var wg sync.WaitGroup
-	errors := make(chan error, 8)
-	for i := 0; i < 8; i++ {
-		wg.Add(1)
-		go func() { defer wg.Done(); errors <- routes.Initialize(ctx, cfg) }()
+	config := &service.SmartRouteConfig{
+		APIKeyID: key.ID, Mode: service.SmartRouteModeSmart, Platform: service.PlatformOpenAI,
+		SubscriptionType: service.SubscriptionTypeStandard, CrossPlatform: true, PreferPlatform: service.PlatformOpenAI,
+		CandidateGroupIDs: []int64{first.ID, second.ID}, Strategy: service.SmartRouteStrategyAuto,
+		Weights: service.SmartRouteWeights{Price: 40, Speed: 30, Success: 30},
 	}
-	wg.Wait()
-	close(errors)
-	for err := range errors {
-		require.NoError(t, err)
+	edited := cloneSmartRouteConfig(config)
+	edited.CandidateGroupIDs = []int64{second.ID}
+	edited.Strategy = service.SmartRouteStrategyPrice
+	return NewSmartRouteRepository(client, nil).(*smartRouteRepository), config, edited
+}
+
+func TestImageStudioRouteConcurrentInitialization(t *testing.T) {
+	repo, initial, alternate := studioRouteFixture(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	start := make(chan struct{})
+	failures := make(chan error, 12)
+	for i := 0; i < cap(failures); i++ {
+		go func(i int) {
+			<-start
+			config := initial
+			if i%2 == 1 {
+				config = alternate
+			}
+			failures <- repo.CreateImageStudioRouteIfAbsent(ctx, config)
+		}(i)
 	}
-	loaded, err := routes.Get(ctx, key.ID)
+	close(start)
+	for i := 0; i < cap(failures); i++ {
+		require.NoError(t, <-failures)
+	}
+	stored, err := repo.Get(ctx, initial.APIKeyID)
 	require.NoError(t, err)
-	require.Equal(t, []int64{group.ID}, loaded.CandidateGroupIDs)
-	edited := *cfg
-	edited.Strategy = "price"
-	require.NoError(t, routes.WithinTransaction(ctx, func(ctx context.Context) error { return routes.Replace(ctx, &edited) }))
-	require.NoError(t, routes.Initialize(ctx, cfg))
-	routes.Invalidate(ctx, key.ID)
-	loaded, err = routes.Get(ctx, key.ID)
+	require.NotNil(t, stored)
+	if stored.Strategy == initial.Strategy {
+		require.Equal(t, initial.CandidateGroupIDs, stored.CandidateGroupIDs)
+	} else {
+		require.Equal(t, alternate.Strategy, stored.Strategy)
+		require.Equal(t, alternate.CandidateGroupIDs, stored.CandidateGroupIDs)
+	}
+	// A stale negative cache must never make a later bootstrap overwrite a route.
+	repo.setCached(ctx, initial.APIKeyID, nil)
+	require.NoError(t, repo.CreateImageStudioRouteIfAbsent(ctx, initial))
+	repo.Invalidate(ctx, initial.APIKeyID)
+	after, err := repo.Get(ctx, initial.APIKeyID)
 	require.NoError(t, err)
-	require.Equal(t, "price", loaded.Strategy)
+	require.Equal(t, stored.CandidateGroupIDs, after.CandidateGroupIDs)
+	require.Equal(t, stored.Strategy, after.Strategy)
+}
+
+func TestImageStudioRouteInitializationWaitsForUserEdit(t *testing.T) {
+	repo, initial, edited := studioRouteFixture(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	editWritten := make(chan error, 1)
+	releaseEdit := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(releaseEdit) }) }
+	defer release()
+	editDone := make(chan error, 1)
+	go func() {
+		editDone <- repo.WithinTransaction(ctx, func(txCtx context.Context) error {
+			err := repo.Replace(txCtx, edited)
+			editWritten <- err
+			if err != nil {
+				return err
+			}
+			select {
+			case <-releaseEdit:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
+	}()
+	require.NoError(t, <-editWritten)
+	repo.setCached(ctx, initial.APIKeyID, nil)
+	initDone := make(chan error, 1)
+	go func() { initDone <- repo.CreateImageStudioRouteIfAbsent(ctx, initial) }()
+	select {
+	case err := <-initDone:
+		t.Fatalf("initialization completed before the edit released its key lock: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	release()
+	require.NoError(t, <-editDone)
+	require.NoError(t, <-initDone)
+	repo.Invalidate(ctx, initial.APIKeyID)
+	stored, err := repo.Get(ctx, initial.APIKeyID)
+	require.NoError(t, err)
+	require.Equal(t, edited.CandidateGroupIDs, stored.CandidateGroupIDs)
+	require.Equal(t, edited.Strategy, stored.Strategy)
+}
+
+func TestImageStudioRouteInitializationRollsBackPartialCandidates(t *testing.T) {
+	repo, config, _ := studioRouteFixture(t)
+	ctx := context.Background()
+	config.CandidateGroupIDs = append(config.CandidateGroupIDs, -1)
+	require.Error(t, repo.CreateImageStudioRouteIfAbsent(ctx, config))
+	stored, err := repo.Get(ctx, config.APIKeyID)
+	require.NoError(t, err)
+	require.Nil(t, stored)
 }

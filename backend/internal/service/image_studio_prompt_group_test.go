@@ -95,7 +95,7 @@ func TestGetAvailableGroupsHidesImageStudioSmartGroup(t *testing.T) {
 }
 
 func TestImageStudioPromptModelPrefersGPT56Sol(t *testing.T) {
-	models := []string{"gpt-image-2", "gpt-5.4-mini", "GPT-5.6-Sol", "claude-3-5-haiku"}
+	models := []string{"gpt-image-2", "gpt-5.4-mini", "GPT-5.6-Sol", "claude-3-5-haiku", "gpt-*", "*", "chat?"}
 	require.Equal(t, "GPT-5.6-Sol", ImageStudioPromptModel(models))
 	require.Equal(t, []string{"gpt-5.4-mini", "GPT-5.6-Sol", "claude-3-5-haiku"}, ImageStudioPromptModels(models, 0))
 }
@@ -121,4 +121,18 @@ func TestPlanImageStudioPromptRoutePrefersDefaultGPTModel(t *testing.T) {
 	require.Equal(t, "gpt-5.6-sol", plan.Model)
 	require.Equal(t, "sol", plan.Label)
 	require.Equal(t, int64(2), plan.Groups[0].ID)
+}
+
+func TestPlanImageStudioPromptRouteKeepsChannelsBeyondInitialRouteLimit(t *testing.T) {
+	groups := make([]Group, SmartRouteMaxCandidates+1)
+	for i := range groups {
+		groups[i] = Group{ID: int64(i + 1), Status: StatusActive, Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeStandard}
+	}
+	plan, err := (&APIKeyService{groupRepo: &promptPoolRepo{groups: groups}}).PlanImageStudioPromptRoute(context.Background(), func(Group) []string {
+		return []string{"gpt-5.6-sol"}
+	})
+	require.NoError(t, err)
+	// Existing user selections may include a channel outside today's default ranking.
+	require.Len(t, plan.Groups, len(groups))
+	require.Equal(t, groups[len(groups)-1].ID, plan.Groups[len(plan.Groups)-1].ID)
 }

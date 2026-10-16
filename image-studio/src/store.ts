@@ -52,7 +52,7 @@ import { showBrowserNotification } from './lib/browserNotification'
 import { IMAGE_FETCH_CORS_HINT } from './lib/imageApiShared'
 import { getFalErrorMessage, getFalQueuedImageResult } from './lib/falAiImageApi'
 import { getCustomQueuedImageResult } from './lib/openaiCompatibleImageApi'
-import { optimizeStudioPrompt, studioStorageNamespace } from './lib/studioBridge'
+import { optimizeStudioPrompt, studioConfig, studioStorageNamespace, validateStudioImageInputs } from './lib/studioBridge'
 import { validateMaskMatchesImage } from './lib/canvasImage'
 import { orderInputImagesForMask } from './lib/mask'
 import { getChangedParams, normalizeParamsForSettings } from './lib/paramCompatibility'
@@ -76,11 +76,13 @@ const SUPPORT_PROMPT_IMAGE_THRESHOLD = 50
 const falRecoveryTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const customRecoveryTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const openAIWatchdogTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const taskControllers = new Map<string, AbortController>()
 const agentRoundControllers = new Map<string, AbortController>()
 const agentRecoveryContinuations = new Set<string>()
 const deletedActiveAgentTasks = new Map<string, { task: TaskRecord; controller: AbortController }>()
 let agentConversationPersistenceReady = false
 let agentConversationMigrationPending = false
+let taskSubmissionPending = false
 const AGENT_STOPPED_MESSAGE = '已停止生成。'
 const AGENT_RECOVERY_PAUSE_ERROR = 'AgentRecoveryPauseError'
 const AGENT_CONVERSATION_TITLE_MAX_LENGTH = 28
@@ -296,6 +298,7 @@ interface AppState {
   setPrompt: (p: string) => void
   inputImages: InputImage[]
   addInputImage: (img: InputImage) => void
+  submittingTask: boolean
   replaceInputImage: (idx: number, img: InputImage) => void
   removeInputImage: (idx: number) => void
   clearInputImages: () => void
@@ -680,6 +683,7 @@ export const useStore = create<AppState>()(
 
       // Input
       prompt: '',
+      submittingTask: false,
       setPrompt: (prompt) => set((s) => syncActiveInputDraft(s, { prompt })),
       inputImages: [],
       addInputImage: (img) =>
@@ -1104,6 +1108,7 @@ function failOpenAITaskIfStillRunning(taskId: string, error: string, now = Date.
     falRecoverable: false,
     elapsed: Math.max(0, now - task.createdAt),
   })
+  taskControllers.get(taskId)?.abort()
   return true
 }
 
@@ -1113,12 +1118,11 @@ function scheduleOpenAIWatchdog(taskId: string, timeoutSeconds: number, profile?
   if (!task || !isRunningOpenAITask(task)) return
 
   const timeoutMs = Math.max(0, timeoutSeconds * 1000)
-  const remainingMs = Math.max(0, timeoutMs - (Date.now() - task.createdAt))
   const timer = setTimeout(() => {
     openAIWatchdogTimers.delete(taskId)
     const failed = failOpenAITaskIfStillRunning(taskId, createOpenAITimeoutError(timeoutSeconds, profile))
     if (failed) useStore.getState().showToast('OpenAI 任务请求超时', 'error')
-  }, remainingMs)
+  }, timeoutMs)
   openAIWatchdogTimers.set(taskId, timer)
 }
 
@@ -1638,8 +1642,25 @@ export async function initStore() {
   }
 }
 
-/** 提交新任务 */
-export async function submitTask(options: { allowFullMask?: boolean; useCurrentApiProfileWhenReusedMissing?: boolean } = {}) {
+type TaskSubmitOptions = { allowFullMask?: boolean; useCurrentApiProfileWhenReusedMissing?: boolean }
+
+/** 提交锁覆盖图片处理和持久化，避免连续点击重复扣费。 */
+export async function submitTask(options: TaskSubmitOptions = {}) {
+  if (taskSubmissionPending) return
+  taskSubmissionPending = true
+  useStore.setState({ submittingTask: true })
+  try {
+    await submitGalleryTask(options)
+  } catch (err) {
+    console.warn('保存绘图任务失败', err)
+    useStore.getState().showToast('无法保存绘图任务，请检查浏览器存储空间后重试', 'error')
+  } finally {
+    taskSubmissionPending = false
+    useStore.setState({ submittingTask: false })
+  }
+}
+
+async function submitGalleryTask(options: TaskSubmitOptions) {
   const { settings, prompt, inputImages, maskDraft, params, reusedTaskApiProfileId, reusedTaskApiProfileName, reusedTaskApiProfileMissing, showToast, setConfirmDialog } =
     useStore.getState()
 
@@ -1714,7 +1735,7 @@ export async function submitTask(options: { allowFullMask?: boolean; useCurrentA
 
   // 持久化输入图片到 IndexedDB（此前只在内存缓存中）
   for (const img of orderedInputImages) {
-    await storeImage(img.dataUrl)
+    if (!await getImage(img.id)) await putImage({ id: img.id, dataUrl: img.dataUrl, source: 'upload', createdAt: Date.now() })
   }
 
   const normalizedParams = normalizeParamsForSettings(params, requestSettings, { hasInputImages: orderedInputImages.length > 0 })
@@ -1755,7 +1776,12 @@ export async function submitTask(options: { allowFullMask?: boolean; useCurrentA
 
   const latestTasks = useStore.getState().tasks
   useStore.getState().setTasks([task, ...latestTasks])
-  await putTask(task)
+  try {
+    await putTask(task)
+  } catch (err) {
+    useStore.getState().setTasks(useStore.getState().tasks.filter((item) => item.id !== taskId))
+    throw err
+  }
   useStore.getState().showToast('任务已提交', 'success')
 
   if (settings.clearInputAfterSubmit) {
@@ -3515,7 +3541,7 @@ async function executeAgentRound(
 async function executeTask(taskId: string) {
   const { settings } = useStore.getState()
   const task = useStore.getState().tasks.find((t) => t.id === taskId)
-  if (!task) return
+  if (!task || task.status !== 'running' || taskControllers.has(taskId)) return
   const taskProfile = getTaskApiProfile(settings, task)
   if (!taskProfile && task.apiProfileId) {
     updateTaskInStore(taskId, {
@@ -3526,22 +3552,26 @@ async function executeTask(taskId: string) {
     return
   }
   const activeProfile = taskProfile ?? getActiveApiProfile(settings)
+  const config = studioConfig()
+  if (config && activeProfile.id.startsWith('studio:')) {
+    const groupID = Number(/^studio:(\d+):/.exec(activeProfile.id)?.[1])
+    if (!config.enabled || !config.groups.some((group) => group.id === groupID && group.models.some((model) => model.id === activeProfile.model))) {
+      updateTaskInStore(taskId, createTaskErrorPatch(task, config.enabled
+        ? '原任务的渠道或模型已不可用，请复用提示词并重新选择模型'
+        : 'AI 绘图暂未开放，已提交的任务仍可查询', Date.now()))
+      return
+    }
+  }
   const requestSettings = createSettingsForApiProfile(settings, activeProfile)
   const taskProvider = taskProfile?.provider ?? task.apiProvider ?? activeProfile.provider
+  const controller = new AbortController()
+  taskControllers.set(taskId, controller)
   let falRequestInfo: { requestId: string; endpoint: string } | null = task.falRequestId && task.falEndpoint
         ? { requestId: task.falRequestId, endpoint: task.falEndpoint }
     : null
   let customTaskInfo: { taskId: string } | null = task.customTaskId
     ? { taskId: task.customTaskId }
     : null
-
-  if (
-    taskProvider !== 'fal' &&
-    !isAsyncCustomProviderTask(requestSettings, taskProvider, task.inputImageIds.length > 0) &&
-    !usesConcurrentImageRequests(requestSettings, activeProfile, task.params, task.inputImageIds.length > 0)
-  ) {
-    scheduleOpenAIWatchdog(taskId, activeProfile.timeout, activeProfile)
-  }
 
   try {
     // 获取输入图片 data URLs
@@ -3556,13 +3586,17 @@ async function executeTask(taskId: string) {
       maskDataUrl = await ensureImageCached(task.maskImageId)
       if (!maskDataUrl) throw new Error('遮罩图片已不存在')
     }
+    if (controller.signal.aborted || !useStore.getState().tasks.some((item) => item.id === taskId && item.status === 'running')) return
 
+    if (activeProfile.id.startsWith('studio:')) await validateStudioImageInputs(activeProfile, inputDataUrls, maskDataUrl, task.params.n)
+    if (controller.signal.aborted || !useStore.getState().tasks.some((item) => item.id === taskId && item.status === 'running')) return
     let requestPrompt = task.prompt
     if (activeProfile.id.startsWith('studio:') && !task.promptOptimized && task.sourceMode !== 'agent') {
       updateTaskInStore(taskId, { promptOptimizing: true })
       try {
-        const optimization = await optimizeStudioPrompt(activeProfile.id, task.prompt)
-        if (optimization.optimized) {
+        const optimization = await optimizeStudioPrompt(activeProfile.id, task.prompt, controller.signal)
+        if (controller.signal.aborted || !useStore.getState().tasks.some((item) => item.id === taskId && item.status === 'running')) return
+        if (optimization.optimized || optimization.model) {
           requestPrompt = optimization.prompt
           updateTaskInStore(taskId, {
             prompt: optimization.prompt,
@@ -3574,17 +3608,27 @@ async function executeTask(taskId: string) {
           })
         }
       } catch (err) {
+        if (controller.signal.aborted) throw err
         const message = err instanceof Error ? err.message : String(err)
-        if (message === 'Aborted') throw err
-        useStore.getState().showToast('提示词优化失败，已使用原始提示词', 'error')
+        throw new Error(`提示词优化失败：${message}。可重新选择优化模型，或选择使用原提示词后重试。`)
       } finally {
         const latest = useStore.getState().tasks.find((item) => item.id === taskId)
         if (latest?.promptOptimizing) updateTaskInStore(taskId, { promptOptimizing: false })
       }
     }
+    if (controller.signal.aborted || !useStore.getState().tasks.some((item) => item.id === taskId && item.status === 'running')) return
     if (task.transparentOutput && task.transparentPrompt) requestPrompt = createTransparentOutputMeta(requestPrompt).effectivePrompt
 
+    if (
+      taskProvider !== 'fal' &&
+      !isAsyncCustomProviderTask(requestSettings, taskProvider, task.inputImageIds.length > 0) &&
+      !usesConcurrentImageRequests(requestSettings, activeProfile, task.params, task.inputImageIds.length > 0)
+    ) {
+      scheduleOpenAIWatchdog(taskId, activeProfile.timeout, activeProfile)
+    }
+
     const result = await callImageApi({
+      signal: controller.signal,
       settings: requestSettings,
       prompt: replaceImageMentionsForApi(requestPrompt, inputDataUrls.length),
       params: task.params,
@@ -3735,6 +3779,7 @@ async function executeTask(taskId: string) {
       useStore.getState().setDetailTaskId(taskId)
     }
   } finally {
+    if (taskControllers.get(taskId) === controller) taskControllers.delete(taskId)
     // 释放输入图片的内存缓存（已持久化到 IndexedDB，后续按需从 DB 加载）
     for (const imgId of task.inputImageIds) {
       deleteCachedImage(imgId)
@@ -3844,9 +3889,20 @@ export async function deleteFavoriteCollection(collectionId: string, deleteTasks
 
 /** 重试失败的任务：创建新任务并执行 */
 export async function retryTask(task: TaskRecord) {
+  if (task.apiProfileId?.startsWith('studio:') && task.customTaskId && (task.customRecoverable || task.error?.startsWith('已停止等待'))) {
+    updateTaskInStore(task.id, { status: 'running', error: null, finishedAt: null, elapsed: null, customRecoverable: true })
+    scheduleCustomRecovery(task.id, taskControllers.has(task.id) ? CUSTOM_RECOVERY_POLL_MS : 0)
+    return
+  }
   const { settings } = useStore.getState()
-  const activeProfile = getActiveApiProfile(settings)
-  const normalizedParams = normalizeParamsForSettings(task.params, settings, { hasInputImages: task.inputImageIds.length > 0 })
+  const originalProfile = task.apiProfileId?.startsWith('studio:') ? getTaskApiProfile(settings, task) : null
+  if (task.apiProfileId?.startsWith('studio:') && !originalProfile) {
+    useStore.getState().showToast('原任务的渠道或模型已不可用，请复用提示词并重新选择模型', 'error')
+    return
+  }
+  const activeProfile = originalProfile ?? getActiveApiProfile(settings)
+  const requestSettings = createSettingsForApiProfile(settings, activeProfile)
+  const normalizedParams = normalizeParamsForSettings(task.params, requestSettings, { hasInputImages: task.inputImageIds.length > 0 })
   const shouldUseTransparentOutput = (normalizedParams.output_format === 'png' || normalizedParams.output_format === 'webp') && normalizedParams.transparent_output
   const taskParams = shouldUseTransparentOutput
     ? getTransparentRequestParams(normalizedParams)
@@ -4143,6 +4199,7 @@ async function removeTasks(taskIds: string[], updateState?: TaskDeletionStateUpd
 
   const deletedImageIds = new Set<string>()
   for (const task of deletedTasks) {
+    taskControllers.get(task.id)?.abort()
     addTaskReferencedImageIds(deletedImageIds, task)
     const controller = task.agentConversationId && task.agentRoundId
       ? agentRoundControllers.get(getAgentRoundControllerKey(task.agentConversationId, task.agentRoundId))
@@ -4218,6 +4275,25 @@ export async function removeTask(task: TaskRecord) {
   useStore.getState().showToast('任务已删除', 'success')
 }
 
+/** 停止浏览器请求，不承诺取消已经提交的上游任务。 */
+export function stopTask(taskId: string) {
+  const task = useStore.getState().tasks.find((item) => item.id === taskId)
+  if (!task || (task.status !== 'running' && !task.customRecoverable)) return
+  updateTaskInStore(taskId, {
+    ...createTaskErrorPatch(task, task.promptOptimizing
+      ? '已停止提示词优化，未提交生图任务。'
+      : '已停止等待。已提交的任务可能仍在生成并计费。', Date.now()),
+    promptOptimizing: false,
+    customRecoverable: false,
+    falRecoverable: false,
+  })
+  clearCustomRecoveryTimer(taskId)
+  clearFalRecoveryTimer(taskId)
+  clearOpenAIWatchdogTimer(taskId)
+  taskControllers.get(taskId)?.abort()
+  useStore.getState().setTaskStreamPreview(taskId)
+}
+
 /** 清空数据选项 */
 export interface ClearOptions {
   clearConfig?: boolean
@@ -4229,6 +4305,9 @@ export async function clearData(options: ClearOptions = { clearConfig: true, cle
   const { setTasks, clearInputImages, clearMaskDraft, setSettings, setParams, showToast } = useStore.getState()
 
   if (options.clearTasks) {
+    for (const controller of taskControllers.values()) controller.abort()
+    for (const taskId of customRecoveryTimers.keys()) clearCustomRecoveryTimer(taskId)
+    for (const taskId of openAIWatchdogTimers.keys()) clearOpenAIWatchdogTimer(taskId)
     await dbClearTasks()
     await dbClearAgentConversations()
     await clearImages()
@@ -4294,7 +4373,7 @@ async function completeRecoveredCustomTask(task: TaskRecord, result: Awaited<Ret
 async function recoverCustomTask(taskId: string) {
   const { settings, tasks } = useStore.getState()
   const task = tasks.find((item) => item.id === taskId)
-  if (!task || !task.customTaskId || task.status === 'done') return
+  if (!task || !task.customTaskId || (task.status !== 'running' && !task.customRecoverable) || taskControllers.has(taskId)) return
 
   const profile = getCustomRecoveryProfile(settings, task)
   const customProvider = profile ? getCustomProviderDefinition(settings, profile.provider) : null
@@ -4303,19 +4382,23 @@ async function recoverCustomTask(taskId: string) {
     return
   }
 
+  const controller = new AbortController()
+  taskControllers.set(taskId, controller)
   try {
-    const result = await getCustomQueuedImageResult(profile, customProvider, task.customTaskId, task.params)
+    const result = await getCustomQueuedImageResult(profile, customProvider, task.customTaskId, task.params, controller.signal)
     clearCustomRecoveryTimer(taskId)
     await completeRecoveredCustomTask(task, result)
   } catch (err) {
     clearCustomRecoveryTimer(taskId)
-    if (!useStore.getState().tasks.some((item) => item.id === taskId)) return
+    if (controller.signal.aborted || !useStore.getState().tasks.some((item) => item.id === taskId)) return
     updateTaskInStore(taskId, {
       ...createTaskErrorPatch(task, err instanceof Error ? err.message : String(err), Date.now()),
       ...getRawErrorPayload(err),
       customRecoverable: false,
     })
     if (isAgentTask(task)) void continueRecoveredAgentRound(taskId)
+  } finally {
+    if (taskControllers.get(taskId) === controller) taskControllers.delete(taskId)
   }
 }
 

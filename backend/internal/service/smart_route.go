@@ -149,7 +149,6 @@ type SmartRouteRepository interface {
 	Get(ctx context.Context, apiKeyID int64) (*SmartRouteConfig, error)
 	GetMany(ctx context.Context, apiKeyIDs []int64) (map[int64]*SmartRouteConfig, error)
 	Replace(ctx context.Context, config *SmartRouteConfig) error
-	Initialize(ctx context.Context, config *SmartRouteConfig) error
 	Delete(ctx context.Context, apiKeyID int64) error
 	GetMetrics(ctx context.Context, groupIDs []int64, model, metric string, start, end time.Time) (map[int64]SmartRouteMetric, error)
 	Invalidate(ctx context.Context, apiKeyID int64)
@@ -362,6 +361,12 @@ func (s *SmartRouteService) EnsureImageStudioRoute(ctx context.Context, apiKeyID
 	if s == nil || s.repo == nil || apiKeyID <= 0 || len(groups) == 0 {
 		return nil
 	}
+	initializer, ok := s.repo.(interface {
+		CreateImageStudioRouteIfAbsent(context.Context, *SmartRouteConfig) error
+	})
+	if !ok {
+		return errors.New("image studio route initialization is unavailable")
+	}
 	if len(groups) > SmartRouteMaxCandidates {
 		groups = groups[:SmartRouteMaxCandidates]
 	}
@@ -376,7 +381,7 @@ func (s *SmartRouteService) EnsureImageStudioRoute(ctx context.Context, apiKeyID
 		CandidateGroupIDs: ids, Strategy: SmartRouteStrategyAuto, Weights: weights,
 		RateGuard: SmartRouteRateGuard{Enabled: false},
 	}
-	if err := s.repo.Initialize(ctx, config); err != nil {
+	if err := initializer.CreateImageStudioRouteIfAbsent(ctx, config); err != nil {
 		return err
 	}
 	s.repo.Invalidate(ctx, apiKeyID)

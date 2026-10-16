@@ -22,6 +22,29 @@ describe('callImageApi', () => {
     vi.useRealTimers()
   })
 
+  it('keeps cancellation connected while an accepted asynchronous task is polling', async () => {
+    const controller = new AbortController()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ task_id: 'imgtask_existing' }), { status: 202 }))
+      .mockImplementationOnce(async (_input, init) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+      }))
+    const request = callImageApi({
+      settings: {
+        ...DEFAULT_SETTINGS,
+        profiles: [{ ...DEFAULT_SETTINGS.profiles[0], id: 'async-profile', provider: 'sb2api-async', baseUrl: 'https://site.test/v1', apiKey: 'test-key' }],
+        activeProfileId: 'async-profile',
+      },
+      prompt: 'prompt', params: { ...DEFAULT_PARAMS }, inputImageDataUrls: [], signal: controller.signal,
+    })
+    const rejected = expect(request).rejects.toMatchObject({ name: 'AbortError' })
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    controller.abort()
+    await rejected
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[1][1]?.signal?.aborted).toBe(true)
+  })
+
   it.each([false, true])(
     'adds the prompt rewrite guard on Responses API when Codex CLI mode is %s',
     async (codexCli) => {

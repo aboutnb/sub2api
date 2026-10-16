@@ -114,12 +114,12 @@ export default function SizePickerModal({ currentSize, onSelect, onClose, allowA
 
   const previewSize = useMemo(() => {
     if (mode === 'auto') return 'auto'
-
+    
     if (mode === 'ratio') {
       const size = calculateImageSize(tier, activeRatio)
       return size ? normalizeSize(size) : ''
     }
-
+    
     if (mode === 'resolution') {
       const w = parseInt(customW, 10)
       const h = parseInt(customH, 10)
@@ -128,7 +128,7 @@ export default function SizePickerModal({ currentSize, onSelect, onClose, allowA
       }
       return ''
     }
-
+    
     return ''
   }, [mode, tier, activeRatio, customW, customH, normalizeSize])
 

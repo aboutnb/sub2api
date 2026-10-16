@@ -65,7 +65,7 @@ func ImageStudioPromptModels(models []string, limit int) []string {
 
 func imageStudioPromptScore(model string) int {
 	lower := strings.ToLower(strings.TrimSpace(model))
-	if lower == "" {
+	if lower == "" || strings.ContainsAny(lower, "*?") {
 		return 0
 	}
 	for _, blocked := range []string{"image", "embed", "whisper", "tts", "dall", "moderation", "realtime", "audio", "transcribe"} {
@@ -164,9 +164,6 @@ func (s *APIKeyService) PlanImageStudioPromptRoute(ctx context.Context, models f
 	sources := imageStudioPromptSources(groups, models)
 	if len(sources) == 0 {
 		return nil, nil
-	}
-	if len(sources) > SmartRouteMaxCandidates {
-		sources = sources[:SmartRouteMaxCandidates]
 	}
 	chosen := sources[0]
 	for _, source := range sources {

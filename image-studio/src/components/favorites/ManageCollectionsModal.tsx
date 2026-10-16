@@ -22,7 +22,7 @@ export function ManageCollectionsModal() {
   const setFavoriteCollections = useStore((s) => s.setFavoriteCollections)
   const setConfirmDialog = useStore((s) => s.setConfirmDialog)
   const tasks = useStore((s) => s.tasks)
-
+  
   const [draft, setDraft] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
@@ -190,7 +190,7 @@ export function ManageCollectionsModal() {
       e.preventDefault()
       const sourceId = drag.id
       const targetId = dragOverId
-
+      
       const sourceIndex = selectableCollections.findIndex((c) => c.id === sourceId)
       const targetIndex = selectableCollections.findIndex((c) => c.id === targetId)
       if (sourceIndex >= 0 && targetIndex >= 0) {
@@ -317,8 +317,8 @@ export function ManageCollectionsModal() {
               const isDefault = collection.id === defaultFavoriteCollectionId
               const canDelete = collections.length > 1
               return (
-              <div
-                key={collection.id}
+              <div 
+                key={collection.id} 
                 data-collection-id={collection.id}
                 draggable={editingId !== collection.id}
                 onDragStart={(e) => handleDragStart(e, collection.id)}
@@ -340,7 +340,7 @@ export function ManageCollectionsModal() {
                   <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-500 z-40 pointer-events-none" />
                 )}
                 <div className="flex h-12 items-center flex-1 min-w-0 gap-3 pl-4 pr-3">
-                  <div
+                  <div 
                     data-drag-handle
                     className="flex cursor-grab active:cursor-grabbing items-center justify-center text-gray-400 opacity-60 transition-opacity hover:opacity-100 dark:text-gray-500 shrink-0"
                     style={{ touchAction: 'none' }}
@@ -401,9 +401,9 @@ export function ManageCollectionsModal() {
               placeholder="新建收藏夹..."
               className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-transparent px-4 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-white/10 dark:text-white dark:focus:border-white/30 dark:focus:ring-white/30"
             />
-            <button
-              type="button"
-              onClick={handleCreate}
+            <button 
+              type="button" 
+              onClick={handleCreate} 
               disabled={!draft.trim()}
               className="inline-flex items-center justify-center rounded-xl bg-gray-200 px-5 py-2 text-sm font-medium text-gray-800 transition hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/20"
             >

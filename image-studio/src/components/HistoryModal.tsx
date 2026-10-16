@@ -213,14 +213,14 @@ export default function HistoryModal({ onClose, ignoreOutsideClickRef }: History
   }
 
   return (
-    <div
+    <div 
       ref={modalRef}
       className="absolute top-12 left-0 w-80 sm:w-96 max-w-[calc(100vw-2rem)] max-h-[70vh] bg-white dark:bg-[#1c1c1e] rounded-xl shadow-2xl overflow-hidden flex flex-col border border-gray-200 dark:border-white/10 z-50 text-gray-900 dark:text-gray-200 animate-dropdown-down"
     >
       <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-white/10 shrink-0">
-        <input
-          type="text"
-          placeholder="搜索聊天..."
+        <input 
+          type="text" 
+          placeholder="搜索聊天..." 
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="flex-1 bg-transparent border-none outline-none text-sm px-2 text-gray-900 dark:text-white placeholder-gray-400"
@@ -238,8 +238,8 @@ export default function HistoryModal({ onClose, ignoreOutsideClickRef }: History
           <div key={label}>
             <div className="mt-4 mb-1 px-3 text-xs font-medium text-gray-500">{label}</div>
             {items.map(c => (
-              <div
-                key={c.id}
+              <div 
+                key={c.id} 
                 className="group flex h-14 items-center justify-between gap-2 rounded-lg px-3 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                 onClick={() => handleSelect(c.id)}
               >

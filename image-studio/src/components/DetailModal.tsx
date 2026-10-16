@@ -873,7 +873,7 @@ export default function DetailModal() {
                 {task.prompt || studioText('(无提示词)')}
               </p>
             )}
-            {showOptimizedPrompt && optimizerLabel && (
+            {optimizerLabel && (
               <div className="mb-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                 <span className="text-gray-400 dark:text-gray-500">{studioText("优化模型")}</span>
                 <span className="max-w-full truncate rounded-full bg-[rgb(var(--av-rgb-brand-primary-soft))] px-2 py-0.5 font-medium text-[rgb(var(--av-rgb-brand-primary))]" title={optimizerLabel}>

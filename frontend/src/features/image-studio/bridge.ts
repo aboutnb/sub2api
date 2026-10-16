@@ -1,13 +1,60 @@
 import apiClient from '@/api/client'
+import axios, { CanceledError } from 'axios'
 import { STUDIO_CHANNEL, isStudioRequest } from '../../../../shared/image-studio'
 import type { StudioThemeTokens } from '../../../../shared/image-studio-theme'
 
-export function installStudioBridge(frame: HTMLIFrameElement, active: () => boolean, context: () => { theme: string; lang: string; tokens?: StudioThemeTokens }) {
+function storedUserID(): number | null {
+  try {
+    const token = localStorage.getItem('auth_token')
+    if (!token) return null
+    const user = JSON.parse(localStorage.getItem('auth_user') || 'null')
+    const claims = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    // This checks account continuity only; the server still authenticates every JWT.
+    return Number.isSafeInteger(user?.id) && user.id > 0 && claims.user_id === user.id ? user.id : null
+  } catch {
+    return null
+  }
+}
+
+export function installStudioBridge(
+  frame: HTMLIFrameElement,
+  active: () => boolean,
+  context: () => { theme: string; lang: string; tokens?: StudioThemeTokens },
+  onSessionChange: () => void = () => {},
+) {
+  const userID = storedUserID()
   const requests = new Map<string, AbortController>()
   const seen = new Set<string>()
   let disposed = false
+  function dispose() {
+    disposed = true
+    window.removeEventListener('message', receive)
+    window.removeEventListener('storage', checkStoredSession)
+    for (const request of requests.values()) request.abort()
+    requests.clear()
+  }
+  function sessionIsCurrent() {
+    if (disposed || !active()) return false
+    if (userID !== null && storedUserID() === userID) return true
+    dispose()
+    onSessionChange()
+    return false
+  }
+  function checkStoredSession(event: StorageEvent) {
+    if (event.storageArea && event.storageArea !== localStorage) return
+    if (event.key === null || event.key === 'auth_user' || event.key === 'auth_token') sessionIsCurrent()
+  }
+  const defaultTransforms = axios.defaults.transformRequest
+  const transformRequest = [
+    ...(Array.isArray(defaultTransforms) ? defaultTransforms : defaultTransforms ? [defaultTransforms] : []),
+    (data: unknown) => {
+      // Axios attaches the current token asynchronously. Recheck immediately before sending.
+      if (!sessionIsCurrent()) throw new CanceledError('Image studio session changed')
+      return data
+    },
+  ]
   async function receive(event: MessageEvent) {
-    if (disposed || !active() || event.origin !== window.location.origin || event.source !== frame.contentWindow || !isStudioRequest(event.data)) return
+    if (event.origin !== window.location.origin || event.source !== frame.contentWindow || !isStudioRequest(event.data) || !sessionIsCurrent()) return
     const request = event.data
     if (request.operation === 'cancel') { requests.get(request.id)?.abort(); return }
     if (seen.has(request.id)) return
@@ -20,13 +67,13 @@ export function installStudioBridge(frame: HTMLIFrameElement, active: () => bool
     requests.set(request.id, controller)
     const target = frame.contentWindow
     const send = (data: unknown) => {
-      if (!disposed && active() && !controller.signal.aborted && target === frame.contentWindow) {
+      if (sessionIsCurrent() && !controller.signal.aborted && target === frame.contentWindow) {
         target?.postMessage({ channel: STUDIO_CHANNEL, id: request.id, ...data as object }, window.location.origin)
       }
     }
     try {
       if (request.operation === 'bootstrap') {
-        const { data } = await apiClient.get('/image-studio/bootstrap', { signal: controller.signal })
+        const { data } = await apiClient.get('/image-studio/bootstrap', { signal: controller.signal, transformRequest })
         send({ status: 200, data: { ...data, ...context() } })
         return
       }
@@ -36,7 +83,7 @@ export function installStudioBridge(frame: HTMLIFrameElement, active: () => bool
         for (const [name, value] of request.body) body.append(name, value)
       } else body = request.body
       const result = await apiClient.request({
-        url: request.path, method: request.method, data: body, signal: controller.signal,
+        url: request.path, method: request.method, data: body, signal: controller.signal, transformRequest,
         timeout: 31 * 60 * 1000,
         // Preserve Images error bodies, while retaining the site's session refresh on 401.
         validateStatus: (status) => status !== 401,
@@ -44,15 +91,19 @@ export function installStudioBridge(frame: HTMLIFrameElement, active: () => bool
       })
       send({ status: result.status, data: result.data })
     } catch (error) {
-      const failure = error as { status?: number; message?: string }
-      send({ status: failure.status || 502, data: { error: { message: failure.message || 'Image request failed' } } })
+      const failure = error as { status?: number; message?: string; code?: string; reason?: string; error?: { message?: string; code?: string; type?: string } }
+      send({
+        status: failure.status && failure.status >= 400 ? failure.status : 502,
+        data: { error: {
+          message: failure.error?.message || failure.message || 'Image request failed',
+          code: failure.error?.code || failure.code,
+          type: failure.error?.type,
+          reason: failure.reason,
+        } },
+      })
     } finally { requests.delete(request.id) }
   }
   window.addEventListener('message', receive)
-  return () => {
-    disposed = true
-    window.removeEventListener('message', receive)
-    for (const request of requests.values()) request.abort()
-    requests.clear()
-  }
+  window.addEventListener('storage', checkStoredSession)
+  return dispose
 }

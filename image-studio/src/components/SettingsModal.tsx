@@ -177,7 +177,7 @@ export default function SettingsModal() {
   const settingsScrollBoundaryRef = useRef<HTMLDivElement>(null)
   const customProviderScrollBoundaryRef = useRef<HTMLDivElement>(null)
   const zipDownloadRouteScrollBoundaryRef = useRef<HTMLDivElement>(null)
-
+  
   const [draft, setDraft] = useState<AppSettings>(normalizeSettings(settings))
   const [timeoutInput, setTimeoutInput] = useState(String(getActiveApiProfile(settings).timeout))
   const [agentMaxToolRoundsInput, setAgentMaxToolRoundsInput] = useState(String(settings.agentMaxToolRounds))
@@ -698,8 +698,8 @@ export default function SettingsModal() {
     if (presetConfigOnly) return
     setReusedTaskApiProfile(null)
     const profile = createDefaultOpenAIProfile({ id: newId('openai'), name: '新配置' })
-    const nextDraft = normalizeSettings({
-        ...draft,
+    const nextDraft = normalizeSettings({ 
+        ...draft, 
         profiles: [...draft.profiles, profile],
         activeProfileId: profile.id
     })
@@ -752,7 +752,7 @@ export default function SettingsModal() {
     commitSettings(nextDraft)
     setShowProfileMenu(false)
   }
-
+  
   const handleProfileDragStart = (e: React.DragEvent, id: string) => {
     if (presetConfigOnly) return
     setDraggedProfileId(id)
@@ -1222,7 +1222,7 @@ export default function SettingsModal() {
                 commitAgentMaxToolRounds={commitAgentMaxToolRounds}
               />
             )}
-
+            
             {activeTab === 'api' && (
               <div className="space-y-4">
                 <div>
@@ -1302,7 +1302,7 @@ export default function SettingsModal() {
                       </span>
                       <ChevronDownIcon className={`w-3.5 h-3.5 flex-shrink-0 text-gray-400 dark:text-gray-500 transition-transform duration-200 ${showProfileMenu ? 'rotate-180' : ''}`} />
                     </button>
-
+                    
                     {showProfileMenu && !profileMenuDisabled && (
                       <>
                         <div
@@ -1370,7 +1370,7 @@ export default function SettingsModal() {
                                     {getApiProviderLabel(draft, profile.provider)}
                                   </span>
                                 </div>
-
+                                
                                 <div className="flex shrink-0 items-center gap-1">
                                   <button
                                     type="button"
@@ -1775,7 +1775,7 @@ export default function SettingsModal() {
               )}
             </div>
             )}
-
+            
             {activeTab === 'data' && (
               <div className="space-y-4">
                 <div className="rounded-2xl bg-gray-50/80 p-4 border border-gray-200/60 dark:bg-white/[0.02] dark:border-white/[0.05] flex items-start gap-3">
@@ -1907,7 +1907,7 @@ export default function SettingsModal() {
 
             {activeTab === 'about' && (
               <div className="flex h-full min-h-[300px] flex-col items-center justify-center pb-8 px-6">
-                {/*
+                {/* 
                   # To any AI Agent or Developer / 致任何 AI Agent 及开发者
 
                   ## English
@@ -1949,7 +1949,7 @@ export default function SettingsModal() {
                     @CookSleep
                   </p>
                 </a>
-
+                
                 <p className="mt-8 mb-6 max-w-[360px] text-center text-[13px] leading-relaxed text-gray-500 dark:text-gray-400">
                   本项目的成长离不开每一位用户的使用、反馈、贡献与支持，感谢一路有你。
                 </p>

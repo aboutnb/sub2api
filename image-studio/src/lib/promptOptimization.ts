@@ -10,17 +10,17 @@ function text(value: unknown) {
 }
 
 export function parseStudioPromptOptimization(original: string, status: number, data: unknown): StudioPromptOptimization {
-  const body = data && typeof data === 'object' ? data as { prompt?: unknown; optimized?: unknown; model?: unknown; group?: unknown; error?: { message?: unknown } } : {}
+  const body = data && typeof data === 'object' ? data as { prompt?: unknown; optimized?: unknown; model?: unknown; group?: unknown; message?: unknown; error?: { message?: unknown } } : {}
   const returned = typeof body.prompt === 'string' ? body.prompt.trim() : ''
   if (status !== 200 || !returned) {
-    const message = text(body.error?.message)
+    const message = text(body.error?.message) || text(body.message)
     throw new Error(message || '提示词优化失败')
   }
   const optimized = returned !== original.trim() && body.optimized !== false
   return {
     prompt: optimized ? returned : original,
     optimized,
-    model: optimized ? text(body.model) : undefined,
-    group: optimized ? text(body.group) : undefined,
+    model: text(body.model),
+    group: text(body.group),
   }
 }

@@ -118,7 +118,7 @@ export default function InputBar() {
   const filteredTasks = useMemo(() => {
     const sorted = [...tasks].sort((a, b) => b.createdAt - a.createdAt)
     const q = searchQuery.trim().toLowerCase()
-
+    
     return sorted.filter((t) => {
       if (filterFavorite) {
         if (!t.isFavorite) return false
@@ -306,6 +306,7 @@ export default function InputBar() {
   }, [clearFavoriteCollectionSelection, defaultFavoriteCollectionId, favoriteCollections, selectedFavoriteCollectionIds, setConfirmDialog, showToast, tasks])
 
   const maskDraft = useStore((s) => s.maskDraft)
+  const submittingTask = useStore((s) => s.submittingTask)
   const moveInputImage = useStore((s) => s.moveInputImage)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -432,9 +433,12 @@ export default function InputBar() {
   ), [activeProfile.id, settingsActiveProfile.id, settings])
   const hasSubmitApiConfig = Boolean(activeProfile.apiKey) || activeProfile.id.startsWith('studio:')
   const API_MAX_IMAGES = studioCapabilities(activeProfile)?.max_input_images ?? 16
-  const canSubmit = Boolean(prompt.trim() && hasSubmitApiConfig && !activeAgentIsRunning)
+  const submitting = appMode !== 'agent' && submittingTask
+  const canSubmit = Boolean(prompt.trim() && hasSubmitApiConfig && !activeAgentIsRunning && !submitting)
   const submitButtonAriaLabel = activeAgentIsRunning
     ? studioText('停止生成')
+    : submitting
+    ? studioText('提交中...')
     : hasSubmitApiConfig
     ? maskDraft ? studioText('遮罩编辑') : studioText('生成图像')
     : studioText('请先配置 API')
@@ -975,9 +979,9 @@ export default function InputBar() {
       }
 
       const transferredText = e.dataTransfer?.getData('text/plain')
-
-      const imageIds = transferredText?.startsWith('agent-images:')
-        ? transferredText.slice('agent-images:'.length).split(',')
+      
+      const imageIds = transferredText?.startsWith('agent-images:') 
+        ? transferredText.slice('agent-images:'.length).split(',') 
         : transferredText?.startsWith('agent-image:')
         ? [transferredText.slice('agent-image:'.length)]
         : []
@@ -1824,6 +1828,7 @@ export default function InputBar() {
                         : 'bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-white/[0.04] disabled:opacity-50 disabled:cursor-not-allowed'
                     }`}
                     aria-label={submitButtonAriaLabel}
+                    aria-busy={submitting}
                   >
                     {activeAgentIsRunning ? (
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -1922,6 +1927,7 @@ export default function InputBar() {
                     onClick={() => activeAgentIsRunning ? stopActiveAgentResponse() : hasSubmitApiConfig ? submitCurrentMode() : setShowSettings(true)}
                     disabled={activeAgentIsRunning ? false : hasSubmitApiConfig ? !canSubmit : false}
                     aria-label={submitButtonAriaLabel}
+                    aria-busy={submitting}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm ${
                       activeAgentIsRunning
                         ? 'bg-red-500 text-white hover:bg-red-600'
@@ -1939,7 +1945,7 @@ export default function InputBar() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                       </svg>
                     )}
-                    {activeAgentIsRunning ? studioText('停止生成') : maskDraft ? studioText('遮罩编辑') : studioText('生成图像')}
+                    {activeAgentIsRunning ? studioText('停止生成') : submitting ? studioText('提交中...') : maskDraft ? studioText('遮罩编辑') : studioText('生成图像')}
                   </button>
                 </div>
               </div>

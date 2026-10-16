@@ -2,9 +2,12 @@ import { useMemo, useRef, useState, useEffect } from 'react'
 import { useStore, reuseConfig, editOutputs, removeTask, taskMatchesFilterStatus, taskMatchesSearchQuery } from '../store'
 import { ALL_FAVORITES_COLLECTION_ID, getTaskFavoriteCollectionIds } from '../lib/favoriteState'
 import TaskCard from './TaskCard'
+import { studioConfig } from '../lib/studioBridge'
+import { studioText } from '../lib/studioLocale'
 
 export default function TaskGrid() {
   const tasks = useStore((s) => s.tasks)
+  const prompt = useStore((s) => s.prompt)
   const searchQuery = useStore((s) => s.searchQuery)
   const filterStatus = useStore((s) => s.filterStatus)
   const filterFavorite = useStore((s) => s.filterFavorite)
@@ -34,7 +37,7 @@ export default function TaskGrid() {
   const filteredTasks = useMemo(() => {
     const sorted = [...tasks].sort((a, b) => b.createdAt - a.createdAt)
     const q = searchQuery.trim().toLowerCase()
-
+    
     return sorted.filter((t) => {
       if (filterFavorite) {
         if (!t.isFavorite) return false
@@ -255,10 +258,22 @@ export default function TaskGrid() {
   }, [clearSelection, isMac])
 
   if (!filteredTasks.length) {
+    if (studioConfig()?.enabled && studioConfig()?.groups.some((group) => group.models.length) && !tasks.length && !searchQuery && !filterFavorite && filterStatus === 'all') {
+      return <section className="studio-empty">
+        <h2>{studioText('你的下一张作品，从这里开始')}</h2>
+        <p>{studioText('描述主体、风格和用途，也可以上传参考图。生成后可对比提示词、继续编辑或下载。')}</p>
+        {!prompt.trim() && <div className="studio-examples">
+          {['产品摄影：奶油色背景上的陶瓷咖啡杯，柔和窗光，简洁构图', '海报设计：以春日花园为主题，清新配色，预留标题空间', '插画创作：雨夜街角的书店，暖色灯光，细腻水彩风格'].map((example) => <button key={example} type="button" onClick={() => {
+            useStore.getState().setPrompt(studioText(example))
+            document.querySelector<HTMLElement>('[data-input-bar] [contenteditable="true"]')?.focus()
+          }}>{studioText(example)}</button>)}
+        </div>}
+      </section>
+    }
     return (
       <div className="text-center py-20 text-gray-400 dark:text-gray-500">
-        {searchQuery || filterFavorite ? (
-          <p className="text-sm">没有找到匹配的任务</p>
+        {searchQuery || filterFavorite || filterStatus !== 'all' ? (
+          <p className="text-sm">{studioText('没有找到匹配的任务')}</p>
         ) : (
           <>
             <svg
@@ -274,7 +289,7 @@ export default function TaskGrid() {
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <p className="text-sm">输入提示词开始生成图片</p>
+            <p className="text-sm">{studioText('输入提示词开始生成图片')}</p>
           </>
         )}
       </div>
@@ -282,7 +297,7 @@ export default function TaskGrid() {
   }
 
   return (
-    <div
+    <div 
       ref={rootRef}
       data-task-grid-root
       className="relative min-h-[50vh]"

@@ -1,7 +1,7 @@
 import { studioText } from '../lib/studioLocale'
 import { useEffect, useState, useRef, type ReactNode } from 'react'
 import type { TaskRecord } from '../types'
-import { useStore, retryTask } from '../store'
+import { useStore, retryTask, stopTask } from '../store'
 import { ensureImageThumbnailCached, subscribeImageThumbnail } from '../lib/imageCache'
 import { formatImageRatio } from '../lib/size'
 import { getParamDisplay, ActualValueBadge } from '../lib/paramDisplay'
@@ -163,7 +163,7 @@ export default function TaskCard({
     if (!touchStartRef.current) return
     const deltaX = e.touches[0].clientX - touchStartRef.current.x
     const deltaY = e.touches[0].clientY - touchStartRef.current.y
-
+    
     // 如果主要是水平滑动
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
       horizontalSwipeRef.current = true
@@ -192,7 +192,7 @@ export default function TaskCard({
     setIsSwiping(false)
     cancelSwipeFrame()
     updateSwipeDirection(0)
-
+    
     if (!touchStartRef.current) return
     const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x
     touchStartRef.current = null
@@ -327,7 +327,7 @@ export default function TaskCard({
 
   const defaultModelForProvider = task.apiProvider === 'fal' ? DEFAULT_FAL_MODEL : DEFAULT_IMAGES_MODEL
   const showModel = task.apiModel && task.apiModel !== defaultModelForProvider
-  const isInterrupted = task.status === 'error' && task.error === '已停止生成。'
+  const isInterrupted = task.status === 'error' && Boolean(task.error?.startsWith('已停止'))
 
   return (
     <div className="relative rounded-xl">
@@ -566,7 +566,7 @@ export default function TaskCard({
           </div>
           <div className="mt-auto flex flex-col gap-1.5">
             {/* 参数与信息：横向滚动 */}
-            <div
+            <div 
               data-tag-scroll-area
               className="flex overflow-x-auto hide-scrollbar pt-0.5 gap-1.5 whitespace-nowrap mask-edge-r min-w-0 pr-2"
               onTouchStart={(e) => e.stopPropagation()}
@@ -576,7 +576,7 @@ export default function TaskCard({
             >
               {/* API Name */}
               {(task.apiProfileName || task.apiProvider) && (
-                <span
+                <span 
                   className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/[0.04] text-gray-600 dark:text-gray-300 text-xs flex-shrink-0"
                   title={task.apiProfileName || task.apiProvider}
                 >
@@ -587,7 +587,7 @@ export default function TaskCard({
                 </span>
               )}
               {/* Model */}
-              {showOptimizedPrompt && task.promptOptimizerModel && (
+              {task.promptOptimizerModel && (
                 <span
                   className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[rgb(var(--av-rgb-brand-primary-soft))] text-[rgb(var(--av-rgb-brand-primary))] text-xs flex-shrink-0"
                   title={[task.promptOptimizerModel, task.promptOptimizerGroup].filter(Boolean).join(' · ')}
@@ -597,7 +597,7 @@ export default function TaskCard({
                 </span>
               )}
               {showModel && (
-                <span
+                <span 
                   className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/[0.04] text-gray-600 dark:text-gray-300 text-xs flex-shrink-0"
                   title={task.apiModel}
                 >
@@ -657,6 +657,15 @@ export default function TaskCard({
               onTouchEnd={(e) => e.stopPropagation()}
               onTouchCancel={(e) => e.stopPropagation()}
             >
+              {task.apiProfileId?.startsWith('studio:') && (task.status === 'running' || task.customRecoverable) && (
+                <TaskActionButton
+                  tooltip={studioText(task.promptOptimizing ? '停止优化，不再提交生图' : '停止等待，不取消已提交的上游任务')}
+                  onClick={() => stopTask(task.id)}
+                  className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+                </TaskActionButton>
+              )}
               {((task.status === 'error' && !isFalReconnecting) || settings.alwaysShowRetryButton) && (
                 <TaskActionButton
                   tooltip={studioText("重试任务")}

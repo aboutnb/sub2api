@@ -19,10 +19,10 @@ vi.mock('./lib/db', () => {
   return {
     CURRENT_THUMBNAIL_VERSION: 2,
     getAllTasks: async () => [...tasks.values()],
-    putTask: async (task: TaskRecord) => {
+    putTask: vi.fn(async (task: TaskRecord) => {
       tasks.set(task.id, task)
       return task.id
-    },
+    }),
     deleteTask: vi.fn(async (id: string) => {
       tasks.delete(id)
     }),
@@ -94,6 +94,15 @@ vi.mock('./lib/api', () => ({
     revisedPrompts: [],
   })),
 }))
+vi.mock('./lib/studioBridge', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./lib/studioBridge')>(),
+  optimizeStudioPrompt: vi.fn(async (_profile: string, prompt: string) => ({ prompt, optimized: false })),
+  validateStudioImageInputs: vi.fn(async () => {}),
+}))
+vi.mock('./lib/openaiCompatibleImageApi', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./lib/openaiCompatibleImageApi')>(),
+  getCustomQueuedImageResult: vi.fn(async () => ({ images: [], actualParams: {} })),
+}))
 vi.mock('./lib/falAiImageApi', () => ({
   getFalErrorMessage: vi.fn((err: unknown) => err instanceof Error ? err.message : String(err)),
   getFalQueuedImageResult: vi.fn(async () => ({
@@ -133,10 +142,12 @@ vi.mock('./lib/agentApi', async (importOriginal) => {
 })
 import { clearAgentConversations, clearImages, clearTasks, commitTaskDeletion, deleteImage as deleteDbImage, deleteTask as deleteDbTask, getAllAgentConversations, getAllImageIds, getAllTasks, getImage, getStoredFreshImageThumbnail, putAgentConversation, putImage, putImageThumbnail, putTask as putDbTask } from './lib/db'
 import { callImageApi } from './lib/api'
+import { optimizeStudioPrompt, validateStudioImageInputs } from './lib/studioBridge'
+import { getCustomQueuedImageResult } from './lib/openaiCompatibleImageApi'
 import { callAgentResponsesApi, callBatchImageSingle } from './lib/agentApi'
 import { getFalQueuedImageResult } from './lib/falAiImageApi'
 import { removeKeyedBackgroundFromDataUrl } from './lib/transparentImage'
-import { clearData, clearFailedTasks, deleteFavoriteCollection, editOutputs, getErrorToastMessage, getPersistedState, getTaskApiProfile, importData, initStore, regenerateAgentAssistantMessage, removeMultipleTasks, removeTask, restoreExplicitPresetConfig, reuseConfig, stopAgentResponse, submitAgentMessage, submitTask, taskMatchesFilterStatus, taskMatchesSearchQuery, useStore } from './store'
+import { clearData, clearFailedTasks, deleteFavoriteCollection, editOutputs, getErrorToastMessage, getPersistedState, getTaskApiProfile, importData, initStore, regenerateAgentAssistantMessage, removeMultipleTasks, removeTask, restoreExplicitPresetConfig, retryTask, reuseConfig, stopAgentResponse, stopTask, submitAgentMessage, submitTask, taskMatchesFilterStatus, taskMatchesSearchQuery, useStore } from './store'
 
 const commitTaskDeletionImplementation = vi.mocked(commitTaskDeletion).getMockImplementation()!
 const deleteDbImageImplementation = vi.mocked(deleteDbImage).getMockImplementation()!
@@ -202,6 +213,128 @@ function importFile(data: ExportData, files: Record<string, Uint8Array> = {}): F
   const buffer = zipped.buffer.slice(zipped.byteOffset, zipped.byteOffset + zipped.byteLength)
   return { name: 'backup.zip', size: zipped.byteLength, arrayBuffer: async () => buffer.slice(0) } as File
 }
+
+describe('studio task lifecycle', () => {
+  const studioProfile = {
+    ...createDefaultOpenAIProfile(),
+    id: 'studio:3:drawing:async',
+    name: 'Image channel / drawing',
+    provider: 'sb2api-async',
+    model: 'drawing',
+    baseUrl: 'https://site.test/image-studio/groups/3/',
+  }
+
+  beforeEach(async () => {
+    await clearTasks()
+    await clearImages()
+    await clearAgentConversations()
+    vi.mocked(callImageApi).mockReset().mockResolvedValue({ images: [] })
+    vi.mocked(optimizeStudioPrompt).mockReset().mockImplementation(async (_profile, prompt) => ({ prompt, optimized: false }))
+    vi.mocked(validateStudioImageInputs).mockReset().mockResolvedValue()
+    vi.mocked(getCustomQueuedImageResult).mockReset().mockResolvedValue({ images: [] })
+    useStore.setState({
+      settings: normalizeSettings({ ...DEFAULT_SETTINGS, profiles: [studioProfile], activeProfileId: studioProfile.id }),
+      tasks: [], prompt: '一只猫', params: { ...DEFAULT_PARAMS }, inputImages: [], maskDraft: null,
+      reusedTaskApiProfileId: null, reusedTaskApiProfileMissing: false, galleryInputDraft: null,
+      agentConversations: [], agentInputDrafts: {}, appMode: 'gallery', showToast: vi.fn(), detailTaskId: null,
+    })
+  })
+
+  afterEach(async () => {
+    await removeMultipleTasks(useStore.getState().tasks.map((item) => item.id))
+    vi.useRealTimers()
+  })
+
+  it.each(['stop', 'delete'])('does not generate after %s during prompt optimization even if the optimizer completes late', async (action) => {
+    const optimization = deferred<{ prompt: string; optimized: boolean }>()
+    vi.mocked(optimizeStudioPrompt).mockReturnValueOnce(optimization.promise)
+    await submitTask()
+    await vi.waitFor(() => expect(optimizeStudioPrompt).toHaveBeenCalledTimes(1))
+    const current = useStore.getState().tasks[0]
+    const signal = vi.mocked(optimizeStudioPrompt).mock.calls[0][2]
+    expect(current.promptOptimizing).toBe(true)
+    if (action === 'stop') stopTask(current.id)
+    else await removeTask(current)
+    expect(signal?.aborted).toBe(true)
+    optimization.resolve({ prompt: 'rewritten cat', optimized: true })
+    await optimization.promise
+    await Promise.resolve()
+    expect(callImageApi).not.toHaveBeenCalled()
+    if (action === 'stop') expect(useStore.getState().tasks[0]).toMatchObject({ status: 'error', promptOptimizing: false, prompt: '一只猫' })
+    else expect(useStore.getState().tasks).toEqual([])
+  })
+
+  it('preserves optimizer errors without submitting a generation request', async () => {
+    vi.mocked(optimizeStudioPrompt).mockRejectedValueOnce(new Error('余额不足'))
+    await submitTask()
+    await vi.waitFor(() => expect(useStore.getState().tasks[0]?.status).toBe('error'))
+    expect(useStore.getState().tasks[0]?.error).toContain('余额不足')
+    expect(useStore.getState().tasks[0]?.promptOptimizing).toBe(false)
+    expect(callImageApi).not.toHaveBeenCalled()
+  })
+
+  it('rejects invalid reference images before charging for prompt optimization', async () => {
+    vi.mocked(validateStudioImageInputs).mockRejectedValueOnce(new Error('单张图片超过本站上传限制'))
+    await submitTask()
+    await vi.waitFor(() => expect(useStore.getState().tasks[0]?.status).toBe('error'))
+    expect(useStore.getState().tasks[0]?.error).toContain('上传限制')
+    expect(optimizeStudioPrompt).not.toHaveBeenCalled()
+    expect(callImageApi).not.toHaveBeenCalled()
+  })
+
+  it('ignores duplicate generate clicks while the first task is being saved', async () => {
+    const first = submitTask()
+    const second = submitTask()
+    await Promise.all([first, second])
+    await vi.waitFor(() => expect(callImageApi).toHaveBeenCalledTimes(1))
+    expect(useStore.getState().tasks).toHaveLength(1)
+  })
+
+  it('does not leave a visible running task when IndexedDB cannot save it', async () => {
+    vi.mocked(putDbTask).mockRejectedValueOnce(new Error('quota exceeded'))
+    await submitTask()
+    expect(useStore.getState().tasks).toEqual([])
+    expect(callImageApi).not.toHaveBeenCalled()
+    expect(useStore.getState().showToast).toHaveBeenCalledWith(expect.stringContaining('无法保存'), 'error')
+  })
+
+  it('retries using the original channel and model after the current selection changes', async () => {
+    const otherProfile = { ...studioProfile, id: 'studio:8:other:async', model: 'other', name: 'Other channel' }
+    useStore.getState().setSettings({ profiles: [studioProfile, otherProfile], activeProfileId: otherProfile.id })
+    await retryTask(task({ apiProfileId: studioProfile.id, apiProvider: studioProfile.provider, apiModel: studioProfile.model, status: 'error' }))
+    await vi.waitFor(() => expect(callImageApi).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(callImageApi).mock.calls[0][0].settings.activeProfileId).toBe(studioProfile.id)
+    expect(useStore.getState().tasks[0]?.apiModel).toBe('drawing')
+  })
+
+  it('resumes the original asynchronous task after stopping without submitting again', async () => {
+    const original = task({
+      id: 'stopped-async', apiProfileId: studioProfile.id, apiProvider: studioProfile.provider,
+      customTaskId: 'imgtask_existing', status: 'error', error: '已停止等待。已提交的任务可能仍在生成并计费。',
+    })
+    useStore.setState({ tasks: [original] })
+    await retryTask(original)
+    await vi.waitFor(() => expect(useStore.getState().tasks[0]?.status).toBe('done'))
+    expect(getCustomQueuedImageResult).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(getCustomQueuedImageResult).mock.calls[0][2]).toBe('imgtask_existing')
+    expect(callImageApi).not.toHaveBeenCalled()
+    expect(optimizeStudioPrompt).not.toHaveBeenCalled()
+    expect(useStore.getState().tasks).toHaveLength(1)
+  })
+
+  it('aborts restored polling when its task is deleted', async () => {
+    vi.mocked(getCustomQueuedImageResult).mockImplementationOnce(async (_profile, _provider, _taskId, _params, signal) => new Promise((_resolve, reject) => {
+      signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+    }))
+    await putDbTask(task({ id: 'restored-async', apiProfileId: studioProfile.id, apiProvider: studioProfile.provider, customTaskId: 'imgtask_restored', status: 'running' }))
+    await initStore()
+    await vi.waitFor(() => expect(getCustomQueuedImageResult).toHaveBeenCalledTimes(1))
+    const signal = vi.mocked(getCustomQueuedImageResult).mock.calls[0][4]
+    await removeTask(useStore.getState().tasks[0])
+    expect(signal?.aborted).toBe(true)
+    expect(callImageApi).not.toHaveBeenCalled()
+  })
+})
 
 describe('data operation locking', () => {
   it('detects running and recoverable work before import or export', () => {

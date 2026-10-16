@@ -226,28 +226,39 @@ func (r *smartRouteRepository) Invalidate(ctx context.Context, apiKeyID int64) {
 	}
 }
 
-func (r *smartRouteRepository) Initialize(ctx context.Context, cfg *service.SmartRouteConfig) error {
-	if cfg == nil {
-		return errors.New("nil smart route config")
+// CreateImageStudioRouteIfAbsent serializes initialization with ordinary route
+// edits on the API-key row and never replaces an existing user selection.
+func (r *smartRouteRepository) CreateImageStudioRouteIfAbsent(ctx context.Context, cfg *service.SmartRouteConfig) error {
+	if cfg == nil || cfg.APIKeyID <= 0 || len(cfg.CandidateGroupIDs) == 0 {
+		return errors.New("invalid image studio route config")
 	}
 	return r.WithinTransaction(ctx, func(txCtx context.Context) error {
 		client := clientFromContext(txCtx, r.client)
-		result, err := client.ExecContext(txCtx, `UPDATE api_keys SET updated_at = updated_at WHERE id = $1 AND purpose = 'image_studio' AND group_id IS NULL AND deleted_at IS NULL`, cfg.APIKeyID)
+		rows, err := client.QueryContext(txCtx, `SELECT id FROM api_keys
+			WHERE id = $1 AND purpose = 'image_studio' AND group_id IS NULL AND deleted_at IS NULL
+			FOR UPDATE`, cfg.APIKeyID)
 		if err != nil {
-			return err
+			return fmt.Errorf("lock image studio route key: %w", err)
 		}
-		count, err := result.RowsAffected()
-		if err != nil {
-			return err
+		found := rows.Next()
+		readErr := rows.Err()
+		closeErr := rows.Close()
+		if readErr != nil {
+			return readErr
 		}
-		if count != 1 {
+		if closeErr != nil {
+			return closeErr
+		}
+		if !found {
 			return service.ErrAPIKeyNotFound
 		}
-		configs, err := r.getManyDB(txCtx, []int64{cfg.APIKeyID})
+		// Read from the transaction, not the process/Redis cache: another initializer
+		// or user edit may have committed while this request waited for the key lock.
+		existing, err := r.getManyDB(txCtx, []int64{cfg.APIKeyID})
 		if err != nil {
 			return err
 		}
-		if configs[cfg.APIKeyID] != nil {
+		if existing[cfg.APIKeyID] != nil {
 			return nil
 		}
 		return r.Replace(txCtx, cfg)

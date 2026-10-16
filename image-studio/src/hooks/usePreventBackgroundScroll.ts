@@ -79,7 +79,7 @@ export function usePreventBackgroundScroll(active: boolean, allowRefs?: ScrollBo
 
     const preventOutsideWheel = (event: WheelEvent) => {
       const root = getAllowedRoot(event.target, allowRefs)
-      if (!root || !canScrollWithin(root, event.target, { x: event.deltaX, y: event.deltaY })) {
+      if (event.cancelable && (!root || !canScrollWithin(root, event.target, { x: event.deltaX, y: event.deltaY }))) {
         event.preventDefault()
       }
     }
@@ -95,7 +95,7 @@ export function usePreventBackgroundScroll(active: boolean, allowRefs?: ScrollBo
       const touch = event.touches[0]
       const root = getAllowedRoot(event.target, allowRefs)
       if (!touch || !root) {
-        event.preventDefault()
+        if (event.cancelable) event.preventDefault()
         return
       }
 
@@ -103,7 +103,7 @@ export function usePreventBackgroundScroll(active: boolean, allowRefs?: ScrollBo
       lastTouchX = touch.clientX
       lastTouchY = touch.clientY
 
-      if (!canScrollWithin(root, event.target, delta)) event.preventDefault()
+      if (event.cancelable && !canScrollWithin(root, event.target, delta)) event.preventDefault()
     }
 
     document.addEventListener('wheel', preventOutsideWheel, { capture: true, passive: false })
