@@ -1,12 +1,19 @@
 # FlowAI 分支变更台账
 
-### 2026-10-17 公开价格 API 报价修正发布候选
+### 2026-10-17 公开价格 API 报价修正已发布至 23 服务器
 
 - 版本保持 `0.2.17`；origin/main 与 upstream/main 无新增业务提交，复用现有 main 整合原工作区 4 个价格 API 文件，未改动原工作区。
 - 公开报价改为官方模型价格数字按站内 CNY 余额 1:1 口径乘公开分组倍率一次；官方目录优先，无官方价格的自定义模型回退分组/渠道配置。移除固定 7.5 汇率，不叠加用户专属或高峰倍率；不修改实际网关计费及生产分组配置。
 - 图片按次报价遵循独立图片倍率，普通按次报价用分组倍率；token 保留一位小数，按次保留两位小数，避免 0.06 等低价舍入失真。无效、非有限或舍入为零的必要价格继续省略，独占组排除、禁用条目和 30 分钟缓存保持原规则。
 - 受影响路径：`backend/internal/service/provider_pricing.go` 及 service/handler 测试、`docs/PROVIDER_PRICING_API_PRD.md`；无数据库迁移、前端或支付修改。
-- 本地 ProviderPricing 服务/处理器专项通过；完整后端 unit、同源 CI/安全/镜像及生产备份、蓝绿验收待完成。
+- 本地 ProviderPricing 服务/处理器专项、完整后端 unit、golangci-lint（0 issues）和严格契约（0 failure/0 warning）通过；同源 CI `38949586873`（含集成与前端全量）、Security Scan `38949586853`、Aivoza Image `38950943175` 均成功。
+- 发布源码 `487cc0e94f05c1461c410bff9495baad4c489284`，固定镜像 `ghcr.io/aboutnb/aivoza-sub2api@sha256:4df9eb40ddf98c62259144c0c832f9437f6944996091bfcb1f1cf80cef1206d2`。蓝绿状态 `/root/flowai/deploy/state/aivoza-pricing-487cc0e94f05.json` 为 promoted；当前 `flowai-app` 端口 3016，上一版 `e4ea87bf7` 保留为 `flowai-app-rollback-e1ce49badf70`（3015）。
+- 两公网域名健康与价格 API 返回 200，均导出 33 个模型；Pro GPT-5.5 输出报价为 7.5 CNY/1M tokens。当前 gpt-image2 渠道实际模式为 `per_request`、基础价 0.08、分组倍率 0.2，按次导出 0.02；文档中的 0.06 是精度示例，不是生产配置期望值。未修改线上计费模式或倍率，未执行付费生成。
+- 首页/帮助页 200，未认证用户/管理员工单 API 401；Caddy 配置与发布状态一致，应用日志无 panic/fatal/迁移失败/checksum mismatch。数据库、Redis、GM、Mihomo、Caddy、Guardian 容器 ID 与启动时间保持不变；Guardian 到稳定 flowai-app 地址的 health 返回正常。
+- 备份 `/root/flowai/backups/aivoza-pricing-20261017`：PostgreSQL custom dump 528630430 字节并通过 TOC 校验，app-data 29178 字节并通过 tar 校验，Redis RDB 1262578 字节并通过 redis-check-rdb；配置与容器元数据已保存。Redis 备份按实际无密码配置在单独进程清除继承的 REDISCLI_AUTH 后成功，未改 Redis 服务配置。
+
+- 服务器双域名连续健康探测覆盖北京时间 02:53:41–03:11:35，共 798 次（每域名 399 次）全部 HTTP 200，失败 0；探测已停止，原始记录及 `probe-summary.json` 保留在备份目录。
+- 更早 v0.2.16 `flowai-app-rollback-636b3301667b` 与 v0.2.15 `flowai-app-rollback-5f6b13d3ec6f` 入站连接均为 0，核对依赖无旧目标并备份元数据后优雅停止、删除，随后仅删除全部容器均无引用的对应镜像。最终当前与上一版共 2 个应用容器健康，数据卷、备份与其他服务保留。
 
 ### 2026-10-16 v0.2.17 与最新本地功能已发布至 23 服务器
 
