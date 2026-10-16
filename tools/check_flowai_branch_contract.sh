@@ -148,8 +148,10 @@ ledger_has_commit() {
   local short_token='`'"$prefix"'`'
   local full_token='`'"$commit"'`'
 
-  printf '%s\n' "$ledger" | grep -Fq -- "$short_token" && return 0
-  printf '%s\n' "$ledger" | grep -Fq -- "$full_token"
+  # Avoid grep -q here: with pipefail enabled GNU grep exits early on a match,
+  # turning printf's SIGPIPE into a false negative on Linux CI runners.
+  printf '%s\n' "$ledger" | grep -F -- "$short_token" >/dev/null && return 0
+  printf '%s\n' "$ledger" | grep -F -- "$full_token" >/dev/null
 }
 
 extract_hash_tokens() {
