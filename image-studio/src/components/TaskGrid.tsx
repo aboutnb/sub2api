@@ -37,7 +37,7 @@ export default function TaskGrid() {
   const filteredTasks = useMemo(() => {
     const sorted = [...tasks].sort((a, b) => b.createdAt - a.createdAt)
     const q = searchQuery.trim().toLowerCase()
-    
+
     return sorted.filter((t) => {
       if (filterFavorite) {
         if (!t.isFavorite) return false
@@ -297,7 +297,7 @@ export default function TaskGrid() {
   }
 
   return (
-    <div 
+    <div
       ref={rootRef}
       data-task-grid-root
       className="relative min-h-[50vh]"

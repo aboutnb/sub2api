@@ -144,14 +144,14 @@ export function useDragSelect({
       if (!target.closest(containerSelector)) return
       if (target.closest('[data-input-bar]')) return
       if (target.closest('[data-no-drag-select], [data-lightbox-root]')) return
-      
+
       const closestInteractive = target.closest('button, a, input, textarea, select, [draggable="true"]')
-      
+
       // If we clicked on an interactive element (like a button or draggable thumb)
       if (closestInteractive) {
         // If it's the ReferenceThumb button itself, don't start box selection, allow native drag and drop
         if (closestInteractive.closest('.reference-thumb-wrapper')) return
-        
+
         // If it's a button/link inside TaskCard (like delete/reuse), don't start selection
         // Wait, if it's the TaskCard wrapper itself (which is not a button), closestInteractive would be null.
         // If the user clicked a real button inside TaskCard, closestInteractive is the button.

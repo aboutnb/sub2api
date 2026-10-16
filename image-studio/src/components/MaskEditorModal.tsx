@@ -328,12 +328,12 @@ export default function MaskEditorModal() {
     ctx.arc(x, y, radius, 0, Math.PI * 2)
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
     ctx.stroke()
-    
+
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
     ctx.beginPath()
     ctx.arc(x, y, radius + 1, 0, Math.PI * 2)
     ctx.stroke()
-    
+
     ctx.beginPath()
     ctx.arc(x, y, Math.max(0, radius - 1), 0, Math.PI * 2)
     ctx.stroke()
@@ -949,7 +949,7 @@ export default function MaskEditorModal() {
                   </svg>
                 </button>
               </div>
-              
+
               <div ref={brushSizeControlRef} className="relative flex items-center justify-center">
                 <button
                   ref={brushSizeButtonRef}

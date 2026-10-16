@@ -163,7 +163,7 @@ export default function TaskCard({
     if (!touchStartRef.current) return
     const deltaX = e.touches[0].clientX - touchStartRef.current.x
     const deltaY = e.touches[0].clientY - touchStartRef.current.y
-    
+
     // 如果主要是水平滑动
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
       horizontalSwipeRef.current = true
@@ -192,7 +192,7 @@ export default function TaskCard({
     setIsSwiping(false)
     cancelSwipeFrame()
     updateSwipeDirection(0)
-    
+
     if (!touchStartRef.current) return
     const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x
     touchStartRef.current = null
@@ -566,7 +566,7 @@ export default function TaskCard({
           </div>
           <div className="mt-auto flex flex-col gap-1.5">
             {/* 参数与信息：横向滚动 */}
-            <div 
+            <div
               data-tag-scroll-area
               className="flex overflow-x-auto hide-scrollbar pt-0.5 gap-1.5 whitespace-nowrap mask-edge-r min-w-0 pr-2"
               onTouchStart={(e) => e.stopPropagation()}
@@ -576,7 +576,7 @@ export default function TaskCard({
             >
               {/* API Name */}
               {(task.apiProfileName || task.apiProvider) && (
-                <span 
+                <span
                   className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/[0.04] text-gray-600 dark:text-gray-300 text-xs flex-shrink-0"
                   title={task.apiProfileName || task.apiProvider}
                 >
@@ -597,7 +597,7 @@ export default function TaskCard({
                 </span>
               )}
               {showModel && (
-                <span 
+                <span
                   className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/[0.04] text-gray-600 dark:text-gray-300 text-xs flex-shrink-0"
                   title={task.apiModel}
                 >

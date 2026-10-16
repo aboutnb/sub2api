@@ -48,7 +48,7 @@ function ChatImageThumb({ imageId, imageIndex, maskImageId }: { imageId: string;
   }, [imageId, maskImageId])
 
   return (
-    <div 
+    <div
       className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-lg shadow-sm cursor-pointer transition-opacity hover:opacity-90 ${
         maskImageId ? 'border-2 border-blue-500' : 'border border-gray-200 dark:border-white/[0.08]'
       }`}
@@ -193,7 +193,7 @@ export default function AgentWorkspace() {
   const handleHeaderTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY
   }
-   
+
   const handleTouchMove = (e: React.TouchEvent) => {
     if (touchStartY.current <= 0 || agentMobileHeaderVisible) return
 
@@ -299,7 +299,7 @@ export default function AgentWorkspace() {
   useEffect(() => {
     if (appMode !== 'agent') return
     if (!conversationsLoaded) return
-    
+
     if (conversations.length === 0) {
       createConversation()
     } else if (!conversation) {
@@ -600,13 +600,13 @@ export default function AgentWorkspace() {
   }
 
   return (
-    <main 
-      data-agent-workspace 
+    <main
+      data-agent-workspace
       className="safe-area-x mx-auto flex min-h-[calc(100vh-100px)] flex-col lg:flex-row max-w-7xl lg:gap-3 px-3 lg:px-0 relative overflow-visible transition-all duration-300"
     >
       {/* Pull Down Indicator */}
       {pullDownOffset > 0 && !agentMobileHeaderVisible && (
-        <div 
+        <div
           className="fixed top-0 left-0 right-0 z-50 flex justify-center items-end pointer-events-none sm:hidden"
           style={{ height: `${pullDownOffset + 10}px`, opacity: pullDownOffset / MOBILE_HEADER_PULL_MAX_OFFSET }}
         >
@@ -620,7 +620,7 @@ export default function AgentWorkspace() {
       {!sidebarCollapsed && (
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarCollapsed(true)} />
       )}
-      
+
       {/* Left Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 flex w-4/5 max-w-[320px] flex-col border-r border-gray-200 bg-white/95 shadow-2xl backdrop-blur transition-transform duration-300 dark:border-white/[0.08] dark:bg-gray-950/95 lg:hidden ${!sidebarCollapsed ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="pl-[max(1rem,env(safe-area-inset-left))] flex h-full min-h-0 w-full flex-col">
@@ -742,7 +742,7 @@ export default function AgentWorkspace() {
           </div>
         </div>
 
-        <div 
+        <div
           ref={scrollContainerRef}
           className="flex-1 space-y-4 overflow-visible pb-[calc(var(--input-bar-clearance,12rem)+1.5rem)] px-1 lg:pt-14 lg:px-4"
           onTouchStart={handleTouchStart}
@@ -791,10 +791,10 @@ export default function AgentWorkspace() {
                       }}
                       className={`group flex max-w-[95%] flex-col md:max-w-[85%] lg:max-w-[75%] ${isAssistant ? 'items-start' : 'items-end'}`}
                     >
-                      <article 
+                      <article
                         className={`relative flex min-w-[16rem] max-w-full flex-col rounded-2xl p-4 transition-all duration-200 ${
-                        isAssistant 
-                          ? 'bg-white/70 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-tl-sm hover:bg-white dark:hover:bg-white/[0.04]' 
+                        isAssistant
+                          ? 'bg-white/70 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-tl-sm hover:bg-white dark:hover:bg-white/[0.04]'
                           : `bg-gray-100 dark:bg-[#2A2D31] rounded-tr-sm ${isEditing ? 'ring-2 ring-blue-500/50 dark:ring-blue-400/50' : ''}`
                       }`}
                       >
@@ -803,7 +803,7 @@ export default function AgentWorkspace() {
                          <span className={isAssistant ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-200 font-semibold'}>{isAssistant ? 'Agent' : '用户'}</span> <span className="opacity-60 font-normal ml-1">· 第 {round?.index ?? '?'} 轮</span>
                       </span>
                     </div>
-                    
+
                     {message.role === 'user' && round && round.inputImageIds.length > 0 && (
                       <div className="flex gap-2 mb-3 overflow-x-auto pb-1" onClick={e => e.stopPropagation()}>
                           {round.inputImageIds.map((imgId, imageIndex) => (

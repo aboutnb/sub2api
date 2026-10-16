@@ -118,7 +118,7 @@ export default function InputBar() {
   const filteredTasks = useMemo(() => {
     const sorted = [...tasks].sort((a, b) => b.createdAt - a.createdAt)
     const q = searchQuery.trim().toLowerCase()
-    
+
     return sorted.filter((t) => {
       if (filterFavorite) {
         if (!t.isFavorite) return false
@@ -979,9 +979,9 @@ export default function InputBar() {
       }
 
       const transferredText = e.dataTransfer?.getData('text/plain')
-      
-      const imageIds = transferredText?.startsWith('agent-images:') 
-        ? transferredText.slice('agent-images:'.length).split(',') 
+
+      const imageIds = transferredText?.startsWith('agent-images:')
+        ? transferredText.slice('agent-images:'.length).split(',')
         : transferredText?.startsWith('agent-image:')
         ? [transferredText.slice('agent-image:'.length)]
         : []

@@ -25,7 +25,7 @@ export function FavoriteCollectionsView() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const suppressClickUntilRef = useRef(0)
-  
+
   const cards = useMemo<CollectionCard[]>(() => {
     const allTasks = getCollectionTasks(ALL_FAVORITES_COLLECTION_ID, tasks, defaultFavoriteCollectionId)
     return [
