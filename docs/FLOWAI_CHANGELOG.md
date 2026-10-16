@@ -1,13 +1,16 @@
 # FlowAI 分支变更台账
 
-### 2026-10-16 v0.2.17 与最新本地功能发布候选
+### 2026-10-16 v0.2.17 与最新本地功能已发布至 23 服务器
 
 - 已审上游 `b0a02a3304a0a78cdd003ddda1dd23ba02c03084`（47 提交、150 文件），合并提交 `0477bb8bfb648eddbd051bd6f6a59cceed0085fe`。接入 Gemini 4 Argon/思考档位、Vertex 429 重试、OpenAI 搜索模拟与模型退役、Responses created_at、退款 pending 扣减保留和 Stripe 本地快照。无新增或修改数据库迁移。
 - 6 处冲突逐块整合：支付确认统一使用同一 provider，保留 USDT 签名/PID/订单/金额/币种/链上交易校验，普通易支付增加上游确认；查单兼容 GET 参数和 PHP 字符串状态，拒绝异常金额，失败保持未入账并返回 503。保留账号折叠筛选、可访问性测试及 Aivoza 主题；OpenAI API key 接入搜索模拟开关。
 - 整合原工作目录最新生图更新：渠道与模型分开选择、提示词优化独立开关、失效选择显式报错、图片/遮罩预校验、提交锁、取消后不再提交生成、重试复用原异步任务；桥接检查跨标签账号连续性，路由初始化加行锁并保留用户编辑。原工作目录与未提交工作不改写。
 - 新增公开只读 `GET /api/provider/pricing`，仅非独占分组，遵循 v1.1 协议、CNY 固定换算与 30 分钟缓存，受公开 IP 限流保护；按 PRD 不应用用户/分组倍率，不公开凭据，省略视频价格。Wire 已重新生成。
 - 提交 `67054ae31` 接入最新图片工作台控件与公开价格 API；提交 `c76322ded` 在其他集成套件前清理工单测试夹具；提交 `97a9ba465` 修正工单断言并关闭仓储查询行，均已纳入本候选台账。
-- 本地支付专项、供应商价格/生图/智能路由专项通过；Vue 427 文件/3205 项、React 39 文件/599 项、lint/typecheck 和两套构建通过。后端全量、集成、同源 CI/安全/镜像及生产验收证据待补齐。
+- 本地支付专项、供应商价格/生图/智能路由专项通过；Vue 427 文件/3205 项、React 39 文件/599 项、lint/typecheck 和两套构建通过。发布源码为 `e4ea87bf76e1cdb10e5994f1a9787961c2223354`，版本 `0.2.17`；同源 CI `38880178280`、Security Scan `38880178255`、Aivoza Image `38881413389` 均成功。
+- 生产固定镜像为 `ghcr.io/aboutnb/aivoza-sub2api@sha256:f3e3b198ec7d4a66e0050a0987aeafa4a24054d4c5dd419bd8b6c0dbe1f0c969`。蓝绿 prepare/promote 已完成，当前 `flowai-app` 使用回环端口 3015，发布状态 `/root/flowai/deploy/state/aivoza-v0217-e4ea87bf76e1.json` 为 `promoted`；上一版 v0.2.16 保留为 `flowai-app-rollback-636b3301667b`。Caddy 两个应用上游均已切换到 `aivoza-e4ea87bf76e1:8080`，PostgreSQL、Redis、GM、Mihomo、Caddy 保持运行。
+- 发布前备份位于 `/root/flowai/backups/aivoza-v0217-20261016`，PostgreSQL dump、app-data、Redis RDB、容器/配置/依赖状态均已完成并校验；本次无新增数据库迁移，未删除数据卷、备份或依赖服务。
+- `aivoza.com` 与 `us.aivoza.com` `/health` 均返回 200；切流连续探测共 3728 次（每域名 1864 次），失败 0。公开价格 API 返回 HTTP 200、schema `1.1`、33 个模型并带 30 分钟公共缓存；未认证用户/管理员工单接口返回 401；首页、帮助页返回 200，图片工作台入口保持既有 301 跳转。启动日志未发现 migration failed、checksum mismatch、panic 或 fatal。
 
 ### 2026-10-14 v0.2.16 与站内工单已发布至 23 服务器
 
