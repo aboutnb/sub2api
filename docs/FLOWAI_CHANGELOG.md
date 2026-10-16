@@ -1,5 +1,13 @@
 # FlowAI 分支变更台账
 
+### 2026-10-16 v0.2.17 与最新本地功能发布候选
+
+- 已审上游 `b0a02a3304a0a78cdd003ddda1dd23ba02c03084`（47 提交、150 文件），合并提交 `0477bb8bfb648eddbd051bd6f6a59cceed0085fe`。接入 Gemini 4 Argon/思考档位、Vertex 429 重试、OpenAI 搜索模拟与模型退役、Responses created_at、退款 pending 扣减保留和 Stripe 本地快照。无新增或修改数据库迁移。
+- 6 处冲突逐块整合：支付确认统一使用同一 provider，保留 USDT 签名/PID/订单/金额/币种/链上交易校验，普通易支付增加上游确认；查单兼容 GET 参数和 PHP 字符串状态，拒绝异常金额，失败保持未入账并返回 503。保留账号折叠筛选、可访问性测试及 Aivoza 主题；OpenAI API key 接入搜索模拟开关。
+- 整合原工作目录最新生图更新：渠道与模型分开选择、提示词优化独立开关、失效选择显式报错、图片/遮罩预校验、提交锁、取消后不再提交生成、重试复用原异步任务；桥接检查跨标签账号连续性，路由初始化加行锁并保留用户编辑。原工作目录与未提交工作不改写。
+- 新增公开只读 `GET /api/provider/pricing`，仅非独占分组，遵循 v1.1 协议、CNY 固定换算与 30 分钟缓存，受公开 IP 限流保护；按 PRD 不应用用户/分组倍率，不公开凭据，省略视频价格。Wire 已重新生成。
+- 本地支付专项、供应商价格/生图/智能路由专项通过；Vue 427 文件/3205 项、React 39 文件/599 项、lint/typecheck 和两套构建通过。后端全量、集成、同源 CI/安全/镜像及生产验收证据待补齐。
+
 ### 2026-10-14 v0.2.16 与站内工单已发布至 23 服务器
 
 - 发布源码 `61579cd85606882feacec8198c3db8597f858742`，版本 `0.2.16`；固定 GitHub 镜像 `ghcr.io/aboutnb/aivoza-sub2api@sha256:b1145eb844046ce21753227762b7c0de9baf0f39019360ad60ebe45d92f4341d`。CI `38567146664`（含完整集成）、Security Scan `38567146685`、Aivoza Image `38568371535` 均成功。工单集成测试清理顺序已修复，安全扫描依赖下载错误诊断后重跑成功。
@@ -745,6 +753,38 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
 
+| 2026-10-16 | `67054ae3170f7cfebc9238e1589d5e9d280a7c92` | 最新生图渠道/优化开关/取消与提交保护、用户隔离桥接、原子路由初始化及公开价格 API；Wire 重生成 | 生图/价格接口 |
+| 2026-10-16 | `cec41bb961868af820cd08a41124f5b4196b96e6` | 清理导入生图源码尾随空白，不改变行为 | 格式 |
+| 2026-10-16 | `b0a02a3304a0a78cdd003ddda1dd23ba02c03084` | 已审上游 v0.2.17：chore: sync VERSION to 0.2.17 [skip ci]；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `71e6b6a9717064b61826d7e5bc480a5f4b50d9cf` | 已审上游 v0.2.17：test(responses): 模型改写转发测试夹具补齐上游 created_at；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `f2e5b55f3e8069df1c02a9a27af537b5fdefa64e` | 已审上游 v0.2.17：test(responses): 模型改写转发测试夹具补齐上游 created_at；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `bdfe215cbb06f5089112873b14c34c538fc37118` | 已审上游 v0.2.17：fix(responses): 网关送出的 Responses 对象一律带 created_at，修复 grok-build 反序列化失败；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `1b92038eaf60674e622dcd90d13d79642c422a6f` | 已审上游 v0.2.17：fix(payment): fix EasyPay order queries and confirm notifications before crediting；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `86f844304591800be66bafa4454c4a5bc8e02514` | 已审上游 v0.2.17：fix(openai): evaluate retirement after public alias projection；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `f37b69b77934ab2479b41178ef65ea337cc18041` | 已审上游 v0.2.17：fix(payment): treat Alipay refund query errors as pending and delay not-found failure；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `83337a0c6547037fbd122a6dcf0f6cc71679db08` | 已审上游 v0.2.17：fix(payment): query Alipay refund status and close unsupported order types；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `44e35fbf844059c9937c8d910f3da5fdfe0810dc` | 已审上游 v0.2.17：fix(payment): finalize failed pending refunds atomically；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `f996b0bfaae10d0894aaf7edced956805ad4229f` | 已审上游 v0.2.17：fix(payment): load Stripe client secret from the local order snapshot；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `7c6f70680d76faf2b8e0a2df3669b8966c410f97` | 已审上游 v0.2.17：fix(payment): validate order types and keep refund deductions while pending；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `26aab6dc076059efb919d8b88ce33b2b27fde246` | 已审上游 v0.2.17：fix(openai): respect GPT-5.5 retirement on ChatGPT upstreams；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `c2cca510f2dc46f400bd8f9dcc4a5de55859cf51` | 已审上游 v0.2.17：revert(accounts): restore inline account filters (#7853)；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `64211de8defd7144c1e99f72770278adeae3c2a5` | 已审上游 v0.2.17：feat(gemini): 兼容入口转发思考档位并流式返回思考摘要；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `9d3cc4507ff773e8f52e7340f20a5ffcfe8df22f` | 已审上游 v0.2.17：fix(antigravity): keep legacy default passthroughs and bill Claude 5.5 tier IDs at base rates；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `d19265ddb218c79e951011e6dec54fe17a215223` | 已审上游 v0.2.17：fix(gateway): 拒绝含 OpenAI 网关 OAuth 的 composite 歧义路由，防止凭据误入 Anthropic 管线；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `1774b79dcbf9ba25a007772c015d29758b7fdbc2` | 已审上游 v0.2.17：fix(zhipu): 修正 GLM Coding Plan 5h/weekly 用量窗口标反；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `92c9433d40db69b00f8e158fc573e2b796c4a678` | 已审上游 v0.2.17：chore: update sponsors；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `feab6d80dc09fa2d64894d20cdca64fb4e460931` | 已审上游 v0.2.17：fix(antigravity): preserve tool_result images, native Gemini functionCall/thoughtSignature, and composite /v1beta routing；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `2a8cb088af205586b514a27f6a63e9bcf7adb4e6` | 已审上游 v0.2.17：feat(apicompat): configure minimum output token floor；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `373d43533a0fa06e1993af1eedd61154db8ebfb0` | 已审上游 v0.2.17：feat(antigravity): support Gemini 4 Argon and accurate upstream model catalogs；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `16611a8ee0b459ee002d50efb5a90d9d06d92ff0` | 已审上游 v0.2.17：fix(openai): isolate Codex imports by workspace；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `7de15113c77cf6d3c431b1840c6997d561cc634d` | 已审上游 v0.2.17：fix(openai): exclude OAuth accounts from web search emulation；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `26e55cf332e73ae25ae0e17f1e0ef90bcbf03e54` | 已审上游 v0.2.17：fix(openai): emulate web_search on /v1/messages for OpenAI API Key accounts；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `867563ae76f3ff99ed20dfed93ee216a7939ce3f` | 已审上游 v0.2.17：fix(gateway): honor Anthropic protocol base URLs；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `c6c9935ae37035ba69555701e2fb103ab4993f5e` | 已审上游 v0.2.17：feat(gemini): 补齐 Gemini 4 Argon 计费；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `14cd5871752dabfc38069e9a7d87f282da0c9eda` | 已审上游 v0.2.17：fix(gemini): 每个上游错误响应只检查一次错误策略；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `20c4bf5ae59e4cb94669165436bb57ee16c41cb3` | 已审上游 v0.2.17：fix(gemini): Vertex SA 已不存在时账号置为 error 并换号；随 0477bb8bf 合并 | 上游同步 |
+| 2026-10-16 | `89ad4c2caa0a2c9f5a393f9d1c9c7e3c73f7c3b3` | 已审上游 v0.2.17：fix(gemini): Vertex 共享容量不足的 429 不冷却账号，改为同号退避重试；随 0477bb8bf 合并 | 上游同步 |
+
 | 2026-10-14 | `c76322ded955b66ad10063cf168c430d5a15abbb` | 工单 PostgreSQL 测试按外键顺序清理消息、工单和用户；避免新非级联外键阻断后续用户/订阅套件清理 | 工单集成测试隔离 |
 
 | 2026-10-14 | `b219ac6b4675e4e7c82ea82907cd990ee957367b` | 工单上限 metadata 断言检查类型转换 | 工单测试 |
@@ -948,6 +988,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 审阅结论加入标记区。`git merge-base HEAD upstream/main` 变化后，以命令输出为准补齐。
 
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
+
+| 2026-10-16 | `0477bb8bfb648eddbd051bd6f6a59cceed0085fe` | 合并已审上游 b0a02a330 v0.2.17；支付确认保留 USDT 强校验并接入普通易支付查单，保留账号筛选/主题；其余模型协议、退款和计费修复完整接入 |
 
 | 2026-10-14 | `1905ee5ce3359087262204b653430b935a7565c3` | 合并已审上游 9c2cca9e6 v0.2.16；8 个冲突保留智能路由、错误清洗、主题及拖拽 JSON，并接入分组本地化、Vertex API Key、运营账号名称；Ent/Wire 重新生成 |
 
