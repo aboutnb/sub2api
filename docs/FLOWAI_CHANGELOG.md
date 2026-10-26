@@ -1,5 +1,17 @@
 # FlowAI 分支变更台账
 
+### 2026-10-26 v0.2.18 已发布至 23 服务器
+
+- 发布源码 `c79fe06716a52314957be6d32b89b1e6895292b6`；同源 CI `40303716905`、Security Scan `40303716906`、Aivoza Image `40305339104`（#148）均成功。生产候选固定为 `ghcr.io/aboutnb/aivoza-sub2api@sha256:1d5c95e4a2f665cdb2b07f45522702da42a587bcdd815059311be873e02ca9c7`。
+- 通过 Termius 确认 23 服务器 `/root/flowai/deploy`；蓝绿脚本 SHA256 与源码一致。候选 `flowai-app-next-c79fe06716a5` 在回环端口 3017 启动，`state/aivoza-v0218-c79fe06716a5.json` 返回 ready，容器 healthy，二进制与公开设置均为 `0.2.18`，镜像 revision 与发布源码一致。
+- 发布前备份 `/root/flowai/backups/aivoza-v0218-20261026`：PostgreSQL custom dump 596578426 字节并通过 TOC 校验，app-data 29514 字节并通过 tar 校验，Redis RDB 1743685 字节并通过 redis-check-rdb；生产配置、部署脚本、历史发布状态和容器元数据均已保存。应用日志不纳入 app-data 归档，原数据与依赖服务保留。
+- 三条新增迁移已应用，数据库 checksum 与源码 TrimSpace 后 SHA256 逐条一致：`246_enable_gemini_image_generation_groups.sql`、`247_scoped_admin_api_keys.sql`、`248_group_image_count_billing.sql`。候选启动日志未检出 panic/fatal/migration failed/checksum mismatch。
+- 蓝绿状态已确认 promoted，当前 `flowai-app`（`b4444df731db`，端口 3017）与状态文件 new_id 一致，Caddy 配置与预期 after 完全一致。上一版价格修正镜像 `4df9eb40ddf9...` 保留为 `flowai-app-rollback-e9df5963e1a6`（3016）；两者均 healthy。
+- 候选首页、教程、工单、图片工作台、公开设置和价格 API 均 200；未认证用户/管理员工单 API 均 401。独立公网检查确认两个域名 `/health` 正常且公开版本均为 `0.2.18`，主站页面入口正常，价格 API 返回 success、schema 1.1、CNY 和 31 个模型；美国 API 域名页面 404 符合既有隔离配置。
+- 服务器双域名连续探测覆盖北京时间 18:37:51 至 18:44:53，共 360 次（每域名 180 次）全部 HTTP 200，失败 0；任务正常完成，原始结果保存在备份目录 `switch-probes.txt`。PostgreSQL、Redis、GM、Mihomo、Caddy、Guardian 和 workbuddy2api 的容器 ID 与启动时间均未变化；Guardian 到 `http://flowai-app:8080/health` 在清理前后均正常。
+- 更早回滚容器 `flowai-app-rollback-e1ce49badf70` 入站连接为 0，Caddy 无旧别名、容器配置无旧 IP 引用；优雅停止以 exit 0 退出后删除。仅在检查全部运行及停止容器均无引用后删除其 `f3e3b198ec7d...` 镜像；最终仅保留当前与上一版两个应用容器，数据卷、备份、回滚状态及无关服务均保留。最近应用日志未检出 panic/fatal/migration failed/checksum mismatch。
+- 未执行真实付费生成、支付或生产写入验收；Guardian 管理员认证未在本次重新验收。
+
 ### 2026-10-26 v0.2.18 镜像构建修复
 
 - 修正 `deploy/Dockerfile` Go builder 镜像版本为 1.27.3，与 `backend/go.mod` 的最低 Go 版本一致；此前 v0.2.18 候选镜像在 `go mod download` 阶段因 builder 为 1.27.2 确定性失败。
