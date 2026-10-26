@@ -6,7 +6,7 @@
 - 接入分范围管理员 API 密钥及审计/限流/事务保护、Vertex 账号配额上限、Gemini 分组生图开关、按实际返回图片数计费、OpenAI 请求级 Retry-After 退避、流式断开后的用量计费和调度快照优化；保留 Aivoza 主题、支付确认、教程、生图智能路由、站内工单、账号优先级与并发契约。
 - 新增迁移 `246_enable_gemini_image_generation_groups.sql`、`247_scoped_admin_api_keys.sql`、`248_group_image_count_billing.sql`，均为增量文件，未改写既有迁移；旧镜像回滚不逆向删除新列/表或已入账数据。
 - 图片工作台生产依赖升级至 `streamdown 2.7.1`、`@streamdown/math 1.0.3`、`katex 0.19.1`、`dompurify 3.4.17`，消除 Security Scan 报告的高危依赖；`npm ci`、生产 audit 结果为 0 漏洞，React 工作台 599 项测试和生产构建通过。
-- 本地后端 `go test ./...`、Vue 账号/设置/管理员密钥专项 187 项、前端 lint/typecheck、React 图片工作台生产构建通过；本机未安装 `golangci-lint`，该门禁待同源 GitHub CI 验证。尚未部署 23 服务器。
+- 本地后端 `go test ./...` 与 `go test -tags=unit ./...`、Vue 账号/设置/管理员密钥专项 187 项、前端 lint/typecheck、React 图片工作台生产构建通过；本机未安装 `golangci-lint`，该门禁待同源 GitHub CI 验证。尚未部署 23 服务器。
 
 ### 2026-10-17 公开价格 API 报价修正已发布至 23 服务器
 
@@ -779,6 +779,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+
+| 2026-10-26 | `b65d97539` | 对齐 v0.2.18 新增管理员服务/代理处理器/支付路由参数的 unit 测试夹具；`go test -tags=unit ./...` 全量通过 | CI 修复 |
 
 | 2026-10-26 | `c83a78b88` | 图片工作台 Markdown 依赖安全升级：streamdown/math、KaTeX、DOMPurify 锁定修复版本并通过生产 audit/599 项测试 | 安全修复 |
 
