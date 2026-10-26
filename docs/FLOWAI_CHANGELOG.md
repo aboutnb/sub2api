@@ -1,5 +1,12 @@
 # FlowAI 分支变更台账
 
+### 2026-10-26 v0.2.18 发布候选
+
+- 已审并合并上游 `ba81c7fd758e425d67f856d601147ef0c5263d3f`（相对已发布 v0.2.17 共 54 个提交、244 个文件），合并提交 `5779f635a1f89a95babdc484dc9380c4dc0e9fc7`；版本为 `0.2.18`。
+- 接入分范围管理员 API 密钥及审计/限流/事务保护、Vertex 账号配额上限、Gemini 分组生图开关、按实际返回图片数计费、OpenAI 请求级 Retry-After 退避、流式断开后的用量计费和调度快照优化；保留 Aivoza 主题、支付确认、教程、生图智能路由、站内工单、账号优先级与并发契约。
+- 新增迁移 `246_enable_gemini_image_generation_groups.sql`、`247_scoped_admin_api_keys.sql`、`248_group_image_count_billing.sql`，均为增量文件，未改写既有迁移；旧镜像回滚不逆向删除新列/表或已入账数据。
+- 本地后端 `go test ./...`、Vue 账号/设置/管理员密钥专项 187 项、前端 lint/typecheck、React 图片工作台生产构建通过；本机未安装 `golangci-lint`，该门禁待同源 GitHub CI 验证。尚未部署 23 服务器。
+
 ### 2026-10-17 公开价格 API 报价修正已发布至 23 服务器
 
 - 版本保持 `0.2.17`；origin/main 与 upstream/main 无新增业务提交，复用现有 main 整合原工作区 4 个价格 API 文件，未改动原工作区。
@@ -1011,6 +1018,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 审阅结论加入标记区。`git merge-base HEAD upstream/main` 变化后，以命令输出为准补齐。
 
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
+
+| 2026-10-26 | `5779f635a1f89a95babdc484dc9380c4dc0e9fc7` | 合并已审上游 ba81c7fd7 v0.2.18；4 处冲突保留 Aivoza 主题、请求级容量判定与旧管理员密钥兼容入口，接入 Retry-After 退避、Vertex 配额、分范围管理员密钥、Gemini 分组生图开关及按返回图片数计费；新增 246/247/248 增量迁移 | 上游同步/发布候选 |
 
 | 2026-10-16 | `0477bb8bfb648eddbd051bd6f6a59cceed0085fe` | 合并已审上游 b0a02a330 v0.2.17；支付确认保留 USDT 强校验并接入普通易支付查单，保留账号筛选/主题；其余模型协议、退款和计费修复完整接入 |
 
