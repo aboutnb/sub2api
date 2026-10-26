@@ -4,6 +4,7 @@
 
 - 修正 `deploy/Dockerfile` Go builder 镜像版本为 1.27.3，与 `backend/go.mod` 的最低 Go 版本一致；此前 v0.2.18 候选镜像在 `go mod download` 阶段因 builder 为 1.27.2 确定性失败。
 - 发布前需确认同源 CI、安全扫描及 Aivoza Image 成功，再使用不可变 digest 通过 23 服务器蓝绿流程部署。
+- 修复提交：`f8daec67f`。
 
 ### 2026-10-26 v0.2.18 发布候选
 
