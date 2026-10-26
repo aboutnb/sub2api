@@ -786,6 +786,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
 
+| 2026-10-26 | `f8daec67f` | 修正 v0.2.18 部署镜像 Go builder 为 1.27.3，匹配 backend/go.mod | 镜像构建修复 |
+
 | 2026-10-26 | `b65d97539` | 对齐 v0.2.18 新增管理员服务/代理处理器/支付路由参数的 unit 测试夹具；`go test -tags=unit ./...` 全量通过 | CI 修复 |
 
 | 2026-10-26 | `c83a78b88` | 图片工作台 Markdown 依赖安全升级：streamdown/math、KaTeX、DOMPurify 锁定修复版本并通过生产 audit/599 项测试 | 安全修复 |
