@@ -344,7 +344,13 @@ func (e *EasyPay) queryOrder(ctx context.Context, outTradeNo string) (*easyPayQu
 	for k, v := range params {
 		query.Set(k, v)
 	}
-	body, err := e.post(ctx, e.apiBase()+"/api.php?"+query.Encode(), params)
+	endpoint := e.apiBase() + "/api.php"
+	// GMPay merges URL and body parameters and rejects duplicates. Keep its
+	// authenticated query body-only; PHP gateways still need both locations.
+	if !strings.HasSuffix(e.apiBase(), "/payments/epay/v1/order/create-transaction") {
+		endpoint += "?" + query.Encode()
+	}
+	body, err := e.post(ctx, endpoint, params)
 	if err != nil {
 		// The request URL carries the merchant key; never let it reach logs
 		// or audit records through *url.Error.

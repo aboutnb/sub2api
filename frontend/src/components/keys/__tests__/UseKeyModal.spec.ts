@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 vi.mock('@/api/groups', () => ({ userGroupsAPI: { getHelpModels: vi.fn().mockResolvedValue([]) } }))
+import { userGroupsAPI } from '@/api/groups'
 
 const { copyToClipboardMock, saveAsMock } = vi.hoisted(() => ({
   copyToClipboardMock: vi.fn().mockResolvedValue(true),
@@ -37,6 +38,26 @@ function readBlobAsText(blob: Blob): Promise<string> {
 }
 
 describe('UseKeyModal', () => {
+  it('loads the assigned group models and applies the selected model to generated setup', async () => {
+    vi.mocked(userGroupsAPI.getHelpModels).mockResolvedValue([{ id: 'gemini-custom-model' }])
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        apiKey: 'test-placeholder-key',
+        baseUrl: 'https://site.example/v1',
+        platform: 'gemini',
+        groupId: 42
+      },
+      global: { stubs: { BaseDialog: { template: '<div><slot /></div>' }, Icon: { template: '<span />' } } }
+    })
+    await flushPromises()
+
+    const modelSelect = wrapper.find('select')
+    expect((modelSelect.element as HTMLSelectElement).value).toBe('gemini-custom-model')
+    expect(wrapper.find('pre code').text()).toContain('GEMINI_MODEL="gemini-custom-model"')
+    expect(userGroupsAPI.getHelpModels).toHaveBeenCalledWith(42, expect.any(AbortSignal))
+  })
+
   it('offers the same desktop fields as help without terminal tabs', async () => {
     const wrapper = mount(UseKeyModal, {
       props: { show: true, apiKey: 'test-placeholder-key', baseUrl: 'https://site.example/gateway/v1/', platform: 'openai' },
@@ -740,6 +761,12 @@ describe('UseKeyModal', () => {
     }
     expect(models['gpt-5.6'].name).toBe('GPT-5.6 (Sol)')
     expect(models['gpt-6.1-sol'].variants).not.toHaveProperty('none')
+    expect(models['gpt-6.1-terra']).toEqual({
+      name: 'GPT-6.1 Terra',
+      limit: { context: 1050000, output: 128000 },
+      options: { store: false },
+      variants: { none: {}, low: {}, medium: {}, high: {}, xhigh: {}, max: {} }
+    })
     expect(models['gpt-6-sol'].variants).toHaveProperty('none')
     expect(models['gpt-6-luna'].limit).toEqual({ context: 1050000, output: 128000 })
     expect(models['gpt-6']).toEqual({

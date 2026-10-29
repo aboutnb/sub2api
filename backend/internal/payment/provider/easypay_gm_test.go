@@ -361,6 +361,14 @@ func newEasyPayGMQueryServer(t *testing.T, fields map[string]string, corruptSign
 		if err := r.ParseForm(); err != nil {
 			t.Errorf("ParseForm: %v", err)
 		}
+		// Mirror GMPay's strict parser rather than silently using the first value.
+		for key, values := range r.Form {
+			if len(values) != 1 {
+				t.Errorf("duplicate query parameter: %s", key)
+				http.Error(w, `{"code":0,"msg":"invalid request"}`, http.StatusBadRequest)
+				return
+			}
+		}
 		if r.PostForm.Get("act") != "order" || r.PostForm.Get("pid") != "1000" || r.PostForm.Get("key") != "gm-secret" || r.PostForm.Get("out_trade_no") != "sub2_gm_order_1" {
 			t.Errorf("unexpected query form: %v", r.PostForm)
 		}
