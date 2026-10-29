@@ -1,12 +1,16 @@
 # FlowAI 分支变更台账
 
-### 2026-10-29 v0.2.19 发布候选（尚未部署）
+### 2026-10-29 v0.2.19 已发布至 23 服务器
 
 - 已审阅并合并上游 `a3298b46ebe239fb0720b068a1eb3383955bdac2`（67 个提交、130 个变更路径）；上游版本为 `0.2.19`。新增 Grok 账号模型目录同步/诊断、Gemini 同账号重试与模型目录更新、OpenAI OAuth 非流式兼容、分页溢出保护、图片上传大小校验、国产 Coding Plan 频率型 429 冷却及多项计费/协议修正；本次上游无数据库迁移。
 - 保留 FlowAI 主题、教程、生图智能路由、图片工作台、站内工单、充值签到、渠道监控、优先级/并发契约及 GMPay 主动查单。四处冲突按模块合并：账号仓储保留优先级排序并接入 Grok 管理目录持久化；Gemini Messages 合并模型/缓存安全与可配置同账号重试；账号编辑弹窗合并 Grok 诊断和自定义标识；密钥使用弹窗保留客户端配置/教程并接入分组模型列表。
 - 保留本地 GMPay 查单修复：GMPay 仅通过 POST 表单传参，避免 URL 与表单重复参数；其他 PHP 易支付渠道行为不变。此项只影响主动查单请求，不修改订单余额或支付状态。
 - 修复发布前安全扫描发现的 Vue I18n 高危 `srcdoc` XSS：从受影响的 9.14.5 升级至 11.4.16，并同步 `@intlify/message-compiler`；升级后修正支付套餐组件测试的本地化断言和英文单位空格。审阅确认当前 Composition API 用法兼容，前端 Node 20 本地验证及生产 Node 24 构建均通过。
-- 最新验证：Vue 前端 431 文件/3,354 项测试、ESLint、类型检查、i18n 检查、生产构建通过；`pnpm audit` 保留的两条高危记录均是既有 `xlsx` 通告并被核准例外清单校验通过。后端 `go test ./...`、`go vet ./...` 及此前图片工作台 39 文件/599 项测试和构建通过；本机 `make -C backend test` 仅因未安装 `golangci-lint` 不能完成该 lint 步骤。GitHub 同源 CI、安全扫描和不可变镜像构建仍为发布前提；当前尚未推送或部署。
+- 发布源码 `a518e9258a9352d68698ff05a8a6c6a36dbaca47`；同源 CI #195、Security Scan #211、Aivoza Image #151 均成功。服务器仅使用不可变镜像 `ghcr.io/aboutnb/aivoza-sub2api@sha256:c215f227b2964c1e191e42a8997b6fd1e5704abb778072395189c79013316dc3`，与产物摘要区分；工作流 #151 的源 revision 与该提交一致。
+- 发布前备份位于 `/root/flowai/backups/aivoza-v0219-20261029`：PostgreSQL custom dump 630615692 字节并通过 `pg_restore -l`，app-data 归档 28965 字节并通过 `tar -tzf`，Redis RDB 1422019 字节并通过 `redis-check-rdb`；服务器配置、蓝绿脚本及状态快照已另外保存。未将凭据写入记录。
+- 23 服务器蓝绿 `prepare/promote` 均成功；当前 `flowai-app` 使用上述 digest、回环端口 3018、容器 healthy，发布状态 `state/aivoza-v0219-a518e9258a93.json` 为 `promoted`，Caddy 配置与目标一致。立即回滚保留为 v0.2.18 `flowai-app-rollback-b4444df731db`（3017）；旧 v0.2.17 容器在清理前已确认入站连接为 0，Caddy/Guardian 当前目标无旧别名引用，清理后仅保留当前和立即回滚两个应用容器。PostgreSQL、Redis、GM、Mihomo、Caddy、Guardian 等非应用服务容器 ID 与启动时间未变化，Guardian 健康。
+- 公网 `aivoza.com` 和 `us.aivoza.com` 的 `/health` 各连续 90 次均为 HTTP 200（共 180 次，失败 0）；两个域名公开设置均报告版本 `0.2.19`。首页、教程、工单、图片工作台、渠道状态入口均 HTTP 200，未认证工单 API 按预期返回 401；近期应用日志未检出 panic/fatal/迁移错误。未执行真实付费生成、支付或生产写入验收。
+- 最新验证：Vue 前端 431 文件/3,354 项测试、ESLint、类型检查、i18n 检查、生产构建通过；`pnpm audit` 保留的两条高危记录均是既有 `xlsx` 通告并被核准例外清单校验通过。后端 `go test ./...`、`go vet ./...` 及此前图片工作台 39 文件/599 项测试和构建通过；本机 `make -C backend test` 仅因未安装 `golangci-lint` 不能完成该 lint 步骤。GitHub 同源 CI、安全扫描与镜像构建均成功。
 
 ### 2026-10-29 GMPay 查单重复参数修复（尚未部署）
 
