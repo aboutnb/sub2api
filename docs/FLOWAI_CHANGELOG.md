@@ -812,6 +812,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
 
+| 2026-10-29 | `2739490583d153e2f713c7dae4d78d2637078836` | 升级 Vue I18n 与 message compiler 至 11.4.16，修复高危 srcdoc XSS；更新套餐组件本地化测试与英文时长单位间距 | 安全修复；前端全测/ESLint/类型检查/生产构建通过，GitHub CI/安全扫描待完成 |
+
 | 2026-10-26 | `f8daec67f` | 修正 v0.2.18 部署镜像 Go builder 为 1.27.3，匹配 backend/go.mod | 镜像构建修复 |
 
 | 2026-10-26 | `b65d97539` | 对齐 v0.2.18 新增管理员服务/代理处理器/支付路由参数的 unit 测试夹具；`go test -tags=unit ./...` 全量通过 | CI 修复 |
