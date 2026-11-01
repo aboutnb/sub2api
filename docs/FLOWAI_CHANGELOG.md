@@ -825,6 +825,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
 
+| 2026-11-01 | `2c1cdc64f19ffef8d661df9cfd6e4a09c31728a7` | 恢复注册防护缓存类型断言检查，保留主线 fail-closed 行为并修复 errcheck | CI 修复 |
+
 | 2026-11-01 | `e7b26c66e2fd2be8518ebeea47cdfe94e0e03c50` | 修复生产依赖安全门禁：follow-redirects 1.16.2、decode-uri-component 0.5.1，仅更新必要锁文件项 | 生产依赖审计例外校验通过 |
 
 | 2026-11-01 | `8b4eae232e7afee1b730ef0b43d111fe20d68c64` | 注册服务端 Turnstile 许可、OAuth 新用户验证、签名浏览器成功注册额度及特征观察；保留主线安全修复；新增 257 浏览器摘要迁移 | unit 专项、PostgreSQL 集成、前端 3358 测试、lint 和构建通过 |
