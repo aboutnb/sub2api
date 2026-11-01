@@ -267,6 +267,9 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 		return "", nil, ErrRegDisabled
 	}
+	if err := s.requireRegistrationTurnstile(ctx); err != nil {
+		return "", nil, err
+	}
 
 	// 防止用户注册 LinuxDo OAuth 合成邮箱，避免第三方登录与本地账号发生碰撞。
 	if isReservedEmail(email) {
@@ -711,6 +714,9 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 			if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 				return "", nil, ErrRegDisabled
 			}
+			if err := s.requireRegistrationTurnstile(ctx); err != nil {
+				return "", nil, err
+			}
 
 			randomPassword, err := randomHexString(32)
 			if err != nil {
@@ -849,6 +855,9 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			// OAuth 首次登录视为注册
 			if s.settingService == nil || (!s.settingService.IsRegistrationEnabled(ctx) && !s.canBypassRegistrationDisabledForOAuth(ctx, signupSource)) {
 				return nil, nil, ErrRegDisabled
+			}
+			if err := s.requireRegistrationTurnstile(ctx); err != nil {
+				return nil, nil, err
 			}
 
 			// 检查是否需要邀请码
@@ -1422,6 +1431,9 @@ func (s *AuthService) validateRegistrationEmailQuota(ctx context.Context, email 
 }
 
 func (s *AuthService) createUserWithRegistrationEmailGuard(ctx context.Context, user *User) error {
+	if err := s.requireRegistrationTurnstile(ctx); err != nil {
+		return err
+	}
 	if s == nil || s.userRepo == nil {
 		return ErrServiceUnavailable
 	}

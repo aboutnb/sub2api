@@ -376,6 +376,26 @@ func TestAuthService_Register_EmailVerifyInvalid(t *testing.T) {
 	require.ErrorContains(t, err, "verify code")
 }
 
+func TestAuthService_Register_ForgedEmailCodeCannotReplaceTurnstile(t *testing.T) {
+	for _, cachedCode := range []*VerificationCodeData{nil, {Code: "654321", ExpiresAt: time.Now().Add(time.Minute)}} {
+		repo := &userRepoStub{}
+		svc := newAuthService(repo, map[string]string{
+			SettingKeyRegistrationEnabled: "true",
+			SettingKeyEmailVerifyEnabled:  "true",
+			SettingKeyTurnstileEnabled:    "true",
+			SettingKeyTurnstileSecretKey:  "secret",
+		}, &emailCacheStub{data: cachedCode}, nil)
+		ctx := context.Background()
+		// The initial gate deliberately defers to email verification to avoid
+		// consuming the one-use CAPTCHA already checked when sending the code.
+		require.NoError(t, svc.VerifyCaptchaForRegister(ctx, CaptchaProof{}, "203.0.113.10", "123456"))
+		_, user, err := svc.RegisterWithVerification(ctx, "user@test.com", "password", "123456", "", "", "")
+		require.ErrorIs(t, err, ErrTurnstileVerificationFailed)
+		require.Nil(t, user)
+		require.Empty(t, repo.created)
+	}
+}
+
 func TestAuthService_Register_EmailVerifyAllowsLegacyCodeWithoutContext(t *testing.T) {
 	repo := &userRepoStub{nextID: 3}
 	cache := &emailCacheStub{

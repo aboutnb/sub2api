@@ -162,6 +162,30 @@ func TestOAuthBindingPathRemainsOutsideTencentGate(t *testing.T) {
 	require.Equal(t, http.StatusOK, recorder.Code)
 }
 
+func TestOAuthStartAllowsLoginWithoutTurnstile(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for provider := range oauthStartHandlers() {
+		for _, method := range []string{http.MethodGet, http.MethodPost} {
+			t.Run(provider+"/"+method, func(t *testing.T) {
+				cfg := &config.Config{}
+				settings := service.NewSettingService(&oauthCaptchaSettingRepo{values: map[string]string{
+					service.SettingKeyTurnstileEnabled:   "true",
+					service.SettingKeyTurnstileSecretKey: "secret",
+				}}, cfg)
+				auth := service.NewAuthService(nil, nil, nil, nil, cfg, settings, nil,
+					service.NewTurnstileService(settings, nil), nil, nil, nil, nil, nil)
+				handler := &AuthHandler{authService: auth, settingSvc: settings, cfg: cfg}
+				recorder := httptest.NewRecorder()
+				c, _ := gin.CreateTestContext(recorder)
+				c.Request = httptest.NewRequest(method, "/api/v1/auth/oauth/"+provider+"/start", strings.NewReader(`{}`))
+				c.Request.Header.Set("Content-Type", "application/json")
+				require.True(t, handler.requireActionCaptchaForOAuthLoginStart(c))
+				require.Equal(t, http.StatusOK, recorder.Code)
+			})
+		}
+	}
+}
+
 func TestOAuthStartGetRemainsCompatibleWhenTencentDisabled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	handler, verifier := newOAuthCaptchaTestHandler(false)

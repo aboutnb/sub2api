@@ -1,6 +1,7 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import OAuthCallbackView from '@/views/auth/OAuthCallbackView.vue'
+import CaptchaChallenge from '@/components/CaptchaChallenge.vue'
 
 const {
   routeState,
@@ -12,6 +13,7 @@ const {
   copyToClipboardMock,
   exchangePendingOAuthCompletionMock,
   apiPostMock,
+  getPublicSettingsMock,
 } = vi.hoisted(() => ({
   routeState: {
     path: '/auth/callback',
@@ -30,6 +32,7 @@ const {
   copyToClipboardMock: vi.fn(),
   exchangePendingOAuthCompletionMock: vi.fn(),
   apiPostMock: vi.fn(),
+  getPublicSettingsMock: vi.fn(),
 }))
 
 vi.mock('vue-router', () => ({
@@ -65,6 +68,7 @@ vi.mock('@/api/auth', async () => {
   const actual = await vi.importActual<typeof import('@/api/auth')>('@/api/auth')
   return {
     ...actual,
+    getPublicSettings: (...args: any[]) => getPublicSettingsMock(...args),
     exchangePendingOAuthCompletion: (...args: any[]) => exchangePendingOAuthCompletionMock(...args),
     persistOAuthTokenContext: vi.fn(),
   }
@@ -95,6 +99,8 @@ describe('OAuthCallbackView', () => {
     copyToClipboardMock.mockReset()
     exchangePendingOAuthCompletionMock.mockReset()
     apiPostMock.mockReset()
+    getPublicSettingsMock.mockReset()
+    getPublicSettingsMock.mockResolvedValue({ turnstile_enabled: false })
     window.sessionStorage.clear()
   })
 
@@ -179,6 +185,7 @@ describe('OAuthCallbackView', () => {
     const invitationInput = wrapper.find('input[type="text"]')
     await invitationInput.setValue('INVITE456')
     await wrapper.findAll('button').at(0)?.trigger('click')
+    await flushPromises()
 
     expect(apiPostMock).toHaveBeenCalledWith('/auth/oauth/google/complete-registration', {
       password: 'secret-123',
@@ -216,11 +223,38 @@ describe('OAuthCallbackView', () => {
     await passwordInputs[0].setValue('secret-456')
     await passwordInputs[1].setValue('secret-456')
     await wrapper.findAll('button').at(0)?.trigger('click')
+    await flushPromises()
 
     expect(apiPostMock).toHaveBeenCalledWith('/auth/oauth/github/complete-registration', {
       password: 'secret-456',
     })
     expect(apiPostMock.mock.calls[0][1]).not.toHaveProperty('email')
     expect(setTokenMock).toHaveBeenCalledWith('token-2')
+  })
+
+  it('blocks new-account submission until Turnstile is complete and forwards the token', async () => {
+    routeState.path = '/auth/oauth/callback'
+    getPublicSettingsMock.mockResolvedValue({ turnstile_enabled: true, turnstile_site_key: 'site-key' })
+    exchangePendingOAuthCompletionMock.mockResolvedValue({
+      error: 'registration_completion_required', provider: 'github',
+      resolved_email: 'verified@example.com', invitation_required: false
+    })
+    apiPostMock.mockRejectedValue(new Error('upstream test rejection'))
+    const wrapper = mount(OAuthCallbackView, { global: { stubs: {
+      CaptchaChallenge: { template: '<div />', methods: { reset: vi.fn() } }
+    } } })
+    await flushPromises()
+    for (const input of wrapper.findAll('input[type="password"]')) await input.setValue('secret-456')
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(apiPostMock).not.toHaveBeenCalled()
+    wrapper.getComponent(CaptchaChallenge).vm.$emit('verify', 'verified-token', '')
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(apiPostMock).toHaveBeenCalledWith('/auth/oauth/github/complete-registration', expect.objectContaining({ turnstile_token: 'verified-token' }))
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(apiPostMock).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
   })
 })

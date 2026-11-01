@@ -337,6 +337,7 @@ func (h *AuthHandler) createEmailOAuthRegistrationPendingSession(
 }
 
 type completeEmailOAuthRequest struct {
+	oauthStartCaptchaRequest
 	Password       string `json:"password" binding:"required,min=6"`
 	InvitationCode string `json:"invitation_code,omitempty"`
 	AffCode        string `json:"aff_code,omitempty"`
@@ -372,6 +373,12 @@ func (h *AuthHandler) completeEmailOAuthRegistration(c *gin.Context, provider st
 		affiliateCode = pendingSessionStringValue(session.UpstreamIdentityClaims, "aff_code")
 	}
 
+	verifiedCtx, err := h.authService.VerifyRegistrationCaptcha(c.Request.Context(), captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr), h.registrationSecurityClientIP(c))
+	if err != nil {
+		h.registrationError(c, err)
+		return
+	}
+	c.Request = c.Request.WithContext(verifiedCtx)
 	tokenPair, user, err := h.authService.RegisterVerifiedOAuthEmailAccount(
 		c.Request.Context(),
 		strings.TrimSpace(session.ResolvedEmail),

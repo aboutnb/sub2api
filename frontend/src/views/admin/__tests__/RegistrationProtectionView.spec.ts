@@ -9,7 +9,7 @@ vi.mock('@/stores/app', () => ({ useAppStore: () => ({ showSuccess: vi.fn() }) }
 vi.mock('vue-i18n', async () => ({ ...(await vi.importActual<typeof import('vue-i18n')>('vue-i18n')), useI18n: () => ({ t: (key: string) => key, te: () => false }) }))
 const layout = defineComponent({ template: '<main><slot /></main>' })
 const dialog = defineComponent({ props: ['show', 'title', 'pending'], template: '<section v-if="show" role="dialog"><slot /><slot name="footer" /></section>' })
-const defaults = { enabled: true, ip_success_limit: 10, identity_success_limit: 2, success_window_hours: 24, ip_failure_limit: 100, identity_failure_limit: 20, failure_window_minutes: 10, block_minutes: 15, observe_identity_success_limit: 4 }
+const defaults = { enabled: true, ip_success_limit: 10, identity_success_limit: 2, success_window_hours: 24, ip_failure_limit: 100, identity_failure_limit: 20, failure_window_minutes: 10, block_minutes: 15, observe_identity_success_limit: 4, browser_success_limit: 3, observe_fingerprint_limit: 5, fingerprint_window_minutes: 30, fingerprint_distinct_ips: 3 }
 const record = { id: 7, user_id: 42, email: 'user@example.com', ip_address: '203.0.113.1', user_agent: 'browser', status: 'restricted', concurrency: -1, previous_concurrency: 3, created_at: '2026-09-12T00:00:00Z' }
 const create = () => mount(RegistrationProtectionView, { global: { stubs: { AppLayout: layout, BaseDialog: dialog } } })
 function button(wrapper: ReturnType<typeof create>, suffix: string) {
@@ -40,9 +40,10 @@ describe('RegistrationProtectionView', () => {
     const wrapper = create(); await flushPromises()
     await wrapper.find('input[type="checkbox"]').setValue(false)
     await wrapper.findAll('input[type="number"]')[2].setValue('48')
-    api.updateSettings.mockResolvedValue({ ...defaults, enabled: false, success_window_hours: 48 })
+    await wrapper.findAll('input[type="number"]')[8].setValue('4')
+    api.updateSettings.mockResolvedValue({ ...defaults, enabled: false, success_window_hours: 48, browser_success_limit: 4 })
     await wrapper.find('form').trigger('submit'); await flushPromises()
-    expect(api.updateSettings).toHaveBeenCalledWith({ ...defaults, enabled: false, success_window_hours: 48 })
+    expect(api.updateSettings).toHaveBeenCalledWith({ ...defaults, enabled: false, success_window_hours: 48, browser_success_limit: 4 })
     wrapper.unmount()
   })
   it('requires a review note and retains it after a conflict', async () => {

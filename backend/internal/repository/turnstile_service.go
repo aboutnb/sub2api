@@ -53,6 +53,9 @@ func (v *turnstileVerifier) VerifyToken(ctx context.Context, secretKey, token, r
 		return nil, fmt.Errorf("send request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("turnstile verification returned HTTP %d", resp.StatusCode)
+	}
 
 	var result service.TurnstileVerifyResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {

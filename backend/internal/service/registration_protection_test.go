@@ -33,6 +33,10 @@ func TestRegistrationProtectionSettingsRejectInvalidPolicy(t *testing.T) {
 		func(s *RegistrationProtectionSettings) { s.BlockMinutes = -1 },
 		func(s *RegistrationProtectionSettings) { s.IdentitySuccessLimit = s.IPSuccessLimit + 1 },
 		func(s *RegistrationProtectionSettings) { s.IdentityFailureLimit = s.IPFailureLimit + 1 },
+		func(s *RegistrationProtectionSettings) { s.BrowserSuccessLimit = 0 },
+		func(s *RegistrationProtectionSettings) { s.ObserveFingerprintLimit = -1 },
+		func(s *RegistrationProtectionSettings) { s.FingerprintDistinctIPs = 0 },
+		func(s *RegistrationProtectionSettings) { s.FingerprintWindowMinutes = 1441 },
 	} {
 		settings := DefaultRegistrationProtectionSettings()
 		mutate(&settings)

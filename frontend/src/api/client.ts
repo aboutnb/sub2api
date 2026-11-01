@@ -15,6 +15,7 @@ import {
 import { withPublicAccessHeader } from './publicAccess'
 import { refreshAuthTokens } from './tokenRefresh'
 import { getAPIBaseURL } from './url'
+import { registrationFeatureDigest } from './registrationFeatures'
 export { buildApiUrl, buildGatewayUrl } from './url'
 
 // ==================== Axios Instance Configuration ====================
@@ -94,6 +95,7 @@ function isRegistrationChallengeFresh(challenge: RegistrationChallengeResponse |
 }
 
 async function fetchRegistrationChallenge(): Promise<RegistrationChallengeResponse> {
+  const features = await registrationFeatureDigest()
   if (isRegistrationChallengeFresh(cachedRegistrationChallenge)) {
     return cachedRegistrationChallenge
   }
@@ -106,7 +108,8 @@ async function fetchRegistrationChallenge(): Promise<RegistrationChallengeRespon
       baseURL: getAPIBaseURL(),
       withCredentials: true,
       headers: withPublicAccessHeader({
-        'Accept-Language': getLocale()
+        'Accept-Language': getLocale(),
+        'X-Registration-Features': features
       })
     })
     .then(response => {
@@ -250,6 +253,7 @@ async function attachRegistrationChallenge(config: InternalAxiosRequestConfig): 
   if (!parsed) return
   if (parsed.body.registration_challenge) return
 
+  config.headers.set('X-Registration-Features', await registrationFeatureDigest())
   const challenge = await fetchRegistrationChallenge()
   cachedRegistrationChallenge = null
   parsed.body.registration_challenge = await buildRegistrationChallengeSubmission(

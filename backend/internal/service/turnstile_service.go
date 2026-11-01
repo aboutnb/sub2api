@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -46,14 +47,20 @@ func NewTurnstileService(settingService *SettingService, verifier TurnstileVerif
 // VerifyToken 验证 Turnstile token
 func (s *TurnstileService) VerifyToken(ctx context.Context, token string, remoteIP string) error {
 	// 检查是否启用 Turnstile
-	if !s.settingService.IsTurnstileEnabled(ctx) {
+	if s == nil || s.settingService == nil {
+		return ErrTurnstileNotConfigured
+	}
+	provider, err := s.settingService.GetCaptchaProviderConfig(ctx)
+	if err != nil {
+		return ErrServiceUnavailable
+	}
+	if !provider.TurnstileEnabled {
 		logger.LegacyPrintf("service.turnstile", "%s", "[Turnstile] Disabled, skipping verification")
 		return nil
 	}
 
 	// 获取 Secret Key
-	secretKey := s.settingService.GetTurnstileSecretKey(ctx)
-	return s.VerifyTokenWithSecret(ctx, secretKey, token, remoteIP)
+	return s.VerifyTokenWithSecret(ctx, provider.TurnstileSecretKey, token, remoteIP)
 }
 
 func (s *TurnstileService) VerifyTokenWithSecret(ctx context.Context, secretKey, token, remoteIP string) error {
@@ -63,7 +70,7 @@ func (s *TurnstileService) VerifyTokenWithSecret(ctx context.Context, secretKey,
 	}
 
 	// 如果 token 为空，返回错误
-	if token == "" {
+	if strings.TrimSpace(token) == "" || len(token) > 2048 {
 		logger.LegacyPrintf("service.turnstile", "%s", "[Turnstile] Token is empty")
 		return ErrTurnstileVerificationFailed
 	}
@@ -75,7 +82,10 @@ func (s *TurnstileService) VerifyTokenWithSecret(ctx context.Context, secretKey,
 	result, err := s.verifier.VerifyToken(ctx, secretKey, token, remoteIP)
 	if err != nil {
 		logger.LegacyPrintf("service.turnstile", "[Turnstile] Request failed: %v", err)
-		return fmt.Errorf("send request: %w", err)
+		return ErrServiceUnavailable
+	}
+	if result == nil {
+		return ErrServiceUnavailable
 	}
 
 	if !result.Success {
@@ -99,10 +109,16 @@ func (s *TurnstileService) IsEnabled(ctx context.Context) bool {
 
 // ValidateSecretKey 验证 Turnstile Secret Key 是否有效
 func (s *TurnstileService) ValidateSecretKey(ctx context.Context, secretKey string) error {
+	if s == nil || s.verifier == nil {
+		return ErrTurnstileNotConfigured
+	}
 	// 发送一个测试token的验证请求来检查secret_key是否有效
 	result, err := s.verifier.VerifyToken(ctx, secretKey, "test-validation", "")
 	if err != nil {
 		return fmt.Errorf("validate secret key: %w", err)
+	}
+	if result == nil {
+		return ErrServiceUnavailable
 	}
 
 	// 检查是否有 invalid-input-secret 错误

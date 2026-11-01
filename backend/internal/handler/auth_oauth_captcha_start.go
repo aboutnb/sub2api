@@ -11,7 +11,7 @@ import (
 )
 
 type oauthStartCaptchaRequest struct {
-	// TurnstileToken 承载阿里云验证码的 captchaVerifyParam（复用既有请求字段名）
+	// TurnstileToken also carries Aliyun captchaVerifyParam for that provider.
 	TurnstileToken        string `json:"turnstile_token"`
 	TencentCaptchaTicket  string `json:"tencent_captcha_ticket"`
 	TencentCaptchaRandstr string `json:"tencent_captcha_randstr"`
@@ -30,6 +30,7 @@ func (h *AuthHandler) requireActionCaptchaForOAuthLoginStart(c *gin.Context) boo
 	if c.Request.Method == http.MethodPost {
 		_ = c.ShouldBindJSON(&req)
 	}
+	// Turnstile is enforced when creating an account, not when logging in.
 	if err := h.authService.VerifyActionCaptchaIfEnabled(c.Request.Context(), service.CaptchaProof{
 		TurnstileToken: req.TurnstileToken,
 		TencentTicket:  req.TencentCaptchaTicket,

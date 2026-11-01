@@ -120,6 +120,16 @@ func (s *TurnstileServiceSuite) TestVerifyToken_InvalidJSON() {
 	require.Error(s.T(), err, "expected error for invalid JSON response")
 }
 
+func (s *TurnstileServiceSuite) TestVerifyToken_RejectsNonSuccessHTTPStatus() {
+	s.setupTransport(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = io.WriteString(w, `{"success":true}`)
+	}))
+	resp, err := s.verifier.VerifyToken(s.ctx, "sk", "token", "1.1.1.1")
+	require.Error(s.T(), err)
+	require.Nil(s.T(), resp)
+}
+
 func (s *TurnstileServiceSuite) TestVerifyToken_SuccessFalse() {
 	s.setupTransport(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

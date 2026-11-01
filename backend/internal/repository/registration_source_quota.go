@@ -25,7 +25,11 @@ func checkRegistrationSourceQuota(ctx context.Context, client *dbent.Client, sou
 	}{
 		{"ip_hash", source.IPHash, source.Policy.IPSuccessLimit},
 		{"identity_hash", source.IdentityHash, source.Policy.IdentitySuccessLimit},
+		{"browser_hash", source.BrowserHash, source.Policy.BrowserSuccessLimit},
 	} {
+		if dim.hash == "" || dim.limit <= 0 {
+			continue
+		}
 		// Column names are internal constants, never request values.
 		// The newest limit records determine when a slot becomes available,
 		// including when an administrator lowers a previously higher limit.
@@ -59,8 +63,11 @@ func checkRegistrationSourceQuota(ctx context.Context, client *dbent.Client, sou
 }
 
 func recordRegistrationSourceAccount(ctx context.Context, client *dbent.Client, userID int64, source service.RegistrationSource) error {
-	_, err := client.ExecContext(ctx, `INSERT INTO registration_source_accounts (user_id, ip_hash, identity_hash, ip_address, user_agent, trigger_path) VALUES ($1,$2,$3,$4,$5,$6)`, userID, source.IPHash, source.IdentityHash, source.IPAddress, source.UserAgent, source.Path)
+	_, err := client.ExecContext(ctx, `INSERT INTO registration_source_accounts (user_id, ip_hash, identity_hash, ip_address, user_agent, trigger_path, browser_hash, feature_hash) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, userID, source.IPHash, source.IdentityHash, source.IPAddress, source.UserAgent, source.Path, source.BrowserHash, source.FeatureHash)
 	if err != nil || !source.Policy.Enabled {
+		return err
+	}
+	if err := observeRegistrationFeatures(ctx, client, userID, source); err != nil {
 		return err
 	}
 	// Observation never changes concurrency. The existing signup grant decision
@@ -75,7 +82,31 @@ func recordRegistrationSourceAccount(ctx context.Context, client *dbent.Client, 
 	_, err = client.ExecContext(ctx, `INSERT INTO registration_risk_events (user_id,ip_hash,identity_hash,ip_address,user_agent,trigger_path,reason,action,observed_count)
 	 SELECT $1::bigint,$2::varchar,$3::varchar,$4::text,$5::varchar,$6::varchar,'identity_registration_observed','observed',
 	 (SELECT COUNT(*) FROM registration_source_accounts WHERE identity_hash=$3 AND created_at > CURRENT_TIMESTAMP - ($7 * INTERVAL '1 hour'))
-	 WHERE EXISTS (SELECT 1 FROM registration_risk_accounts WHERE user_id=$1 AND status='observed')`,
+	 WHERE EXISTS (SELECT 1 FROM registration_risk_accounts WHERE user_id=$1 AND status='observed' AND reason='identity_registration_observed')`,
 		userID, source.IPHash, source.IdentityHash, source.IPAddress, source.UserAgent, source.Path, source.Policy.SuccessWindowHours)
+	return err
+}
+
+func observeRegistrationFeatures(ctx context.Context, client *dbent.Client, userID int64, source service.RegistrationSource) error {
+	p := source.Policy
+	if source.FeatureHash == "" || p.ObserveFingerprintLimit <= 0 || p.FingerprintWindowMinutes <= 0 || p.FingerprintDistinctIPs <= 0 {
+		return nil
+	}
+	// Require both a burst of accounts and multiple IPs. Similar devices alone
+	// never restrict an account; review uses the existing manual restriction flow.
+	_, err := client.ExecContext(ctx, `INSERT INTO registration_risk_accounts (user_id,reason,status,previous_concurrency)
+	 SELECT $1,'browser_features_registration_observed','observed',u.concurrency FROM users u WHERE u.id=$1 AND
+	 (SELECT COUNT(*) >= $4 AND COUNT(DISTINCT ip_hash) >= $5 FROM registration_source_accounts
+	 WHERE feature_hash=$2 AND created_at > CURRENT_TIMESTAMP - ($3 * INTERVAL '1 minute'))
+	 ON CONFLICT (user_id) DO NOTHING`, userID, source.FeatureHash, p.FingerprintWindowMinutes, p.ObserveFingerprintLimit, p.FingerprintDistinctIPs)
+	if err != nil {
+		return err
+	}
+	_, err = client.ExecContext(ctx, `INSERT INTO registration_risk_events
+	 (user_id,ip_hash,identity_hash,ip_address,user_agent,trigger_path,reason,action,observed_count)
+	 SELECT $1::bigint,$2::varchar,$3::varchar,$4::text,$5::varchar,$6::varchar,'browser_features_registration_observed','observed',
+	 (SELECT COUNT(*) FROM registration_source_accounts WHERE feature_hash=$7 AND created_at > CURRENT_TIMESTAMP - ($8 * INTERVAL '1 minute'))
+	 WHERE EXISTS (SELECT 1 FROM registration_risk_accounts WHERE user_id=$1 AND status='observed' AND reason='browser_features_registration_observed')`,
+		userID, source.IPHash, source.IdentityHash, source.IPAddress, source.UserAgent, source.Path, source.FeatureHash, p.FingerprintWindowMinutes)
 	return err
 }

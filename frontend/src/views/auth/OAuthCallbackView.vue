@@ -65,6 +65,7 @@
               @keyup.enter="handleSubmitRegistration"
             />
           </div>
+          <RegistrationCaptcha ref="registrationCaptcha" />
           <p v-if="registrationError" class="text-sm text-red-600 dark:text-red-400">
             {{ registrationError }}
           </p>
@@ -150,6 +151,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useClipboard } from '@/composables/useClipboard'
+import RegistrationCaptcha from '@/components/auth/RegistrationCaptcha.vue'
 import { useAppStore, useAuthStore } from '@/stores'
 import { apiClient } from '@/api/client'
 import { buildApiUrl } from '@/api/url'
@@ -179,6 +181,7 @@ const password = ref('')
 const confirmPassword = ref('')
 const invitationCode = ref('')
 const registrationError = ref('')
+const registrationCaptcha = ref<InstanceType<typeof RegistrationCaptcha> | null>(null)
 const pendingProvider = ref<'github' | 'google'>('github')
 const redirectTo = ref('/dashboard')
 const invalidCallback = ref(false)
@@ -342,8 +345,12 @@ async function handleSubmitRegistration() {
 
   isSubmitting.value = true
   try {
-    const payload: { password: string; invitation_code?: string; aff_code?: string } = {
+    if (!registrationCaptcha.value) throw new Error(t('auth.turnstileFailed'))
+    const proof = await registrationCaptcha.value.getProof()
+    const payload = {
       password: password.value,
+      invitation_code: undefined as string | undefined,
+      ...proof,
       ...oauthAffiliatePayload(loadOAuthAffiliateCode())
     }
     if (invitationRequired.value) {
@@ -359,6 +366,7 @@ async function handleSubmitRegistration() {
     registrationError.value =
       err.response?.data?.message || err.message || t('auth.oidc.completeRegistrationFailed')
   } finally {
+    registrationCaptcha.value?.reset()
     isSubmitting.value = false
   }
 }

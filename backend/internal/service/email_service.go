@@ -69,6 +69,7 @@ type EmailCache interface {
 
 // VerificationCodeData represents verification code data
 type VerificationCodeData struct {
+	TurnstileBinding              string
 	Code                          string
 	Attempts                      int
 	CreatedAt                     time.Time
@@ -353,6 +354,7 @@ func (s *EmailService) SendVerifyCode(ctx context.Context, email, siteName strin
 		ExpiresAt: time.Now().Add(verifyCodeTTL),
 	}
 	if registrationCtx, ok := registrationVerificationContextFrom(ctx); ok {
+		data.TurnstileBinding = registrationCtx.TurnstileBinding
 		data.RegistrationAction = registrationCtx.Action
 		data.RegistrationClientIPHash = registrationCtx.ClientIPHash
 		data.RegistrationUserAgentHash = registrationCtx.UserAgentHash

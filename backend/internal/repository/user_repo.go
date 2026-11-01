@@ -108,6 +108,12 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 	lockKeys := []string{normalizedEmailUniquenessLockKey(userIn.Email)}
 	if hasRegistrationSource {
 		lockKeys = append(lockKeys, "registration:ip:"+registrationSource.IPHash, "registration:identity:"+registrationSource.IdentityHash)
+		if registrationSource.BrowserHash != "" {
+			lockKeys = append(lockKeys, "registration:browser:"+registrationSource.BrowserHash)
+		}
+		if registrationSource.FeatureHash != "" {
+			lockKeys = append(lockKeys, "registration:features:"+registrationSource.FeatureHash)
+		}
 	}
 	if guardEmailAlias {
 		// 别名变体的字面量不同，唯一索引无法兜底；用收件箱身份锁把同一收件箱的并发注册串行化。

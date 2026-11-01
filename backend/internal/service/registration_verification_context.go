@@ -10,6 +10,7 @@ type registrationVerificationContextKey struct{}
 // RegistrationVerificationContext is stored with registration verification codes.
 // Values are pre-hashed by the handler so Redis never stores raw IP or UA strings.
 type RegistrationVerificationContext struct {
+	TurnstileBinding  string
 	Action            string
 	ClientIPHash      string
 	UserAgentHash     string

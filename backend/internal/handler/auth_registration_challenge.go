@@ -100,11 +100,14 @@ type registrationChallengeTokenPayload struct {
 	TrapField    string `json:"trap"`
 	Salt         string `json:"salt"`
 	Fingerprint  string `json:"fp"`
+	FeatureHash  string `json:"features,omitempty"`
 }
 
 // GetRegistrationChallenge returns a short-lived browser-bound token required by
 // high-risk registration endpoints. It is deliberately lightweight and stateless.
 func (h *AuthHandler) GetRegistrationChallenge(c *gin.Context) {
+	h.ensureRegistrationBrowser(c)
+	c.Header("Cache-Control", "no-store")
 	challenge, err := h.issueRegistrationChallenge(c)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -124,6 +127,7 @@ func (h *AuthHandler) issueRegistrationChallenge(c *gin.Context) (*RegistrationC
 		TrapField:    "company_website_" + randomRegistrationChallengeID(8),
 		Salt:         randomRegistrationChallengeID(16),
 		Fingerprint:  h.registrationChallengeFingerprint(c),
+		FeatureHash:  h.registrationFeatureHash(c),
 	}
 	token, err := h.signRegistrationChallengePayload(payload)
 	if err != nil {
@@ -202,6 +206,9 @@ func (h *AuthHandler) validateRegistrationChallenge(c *gin.Context, action, emai
 		return empty, errRegistrationChallengeInvalid
 	}
 	if payload.Fingerprint == "" || payload.Fingerprint != h.registrationChallengeFingerprint(c) {
+		return empty, errRegistrationChallengeInvalid
+	}
+	if payload.FeatureHash != "" && !constantTimeStringEqual(payload.FeatureHash, h.registrationFeatureHash(c)) {
 		return empty, errRegistrationChallengeInvalid
 	}
 	if submission.CompletedAt <= 0 {
@@ -413,6 +420,7 @@ func (h *AuthHandler) AttachSignupRiskIdentity(c *gin.Context) {
 	if h.settingSvc != nil {
 		source := service.RegistrationSource{
 			IPHash: h.registrationClientIPHash(c), IdentityHash: fingerprint,
+			BrowserHash: h.registrationBrowserHash(c), FeatureHash: h.registrationFeatureHash(c),
 			IPAddress:  h.registrationSecurityClientIP(c),
 			UserAgent:  normalizeRegistrationUserAgent(c.Request.UserAgent()),
 			Path:       c.Request.URL.Path,

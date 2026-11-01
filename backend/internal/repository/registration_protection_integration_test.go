@@ -21,6 +21,99 @@ func registrationIntegrationSource() service.RegistrationSource {
 		IPAddress: "203.0.113.9", UserAgent: "integration-test", Path: "/api/v1/auth/register", Policy: service.DefaultRegistrationProtectionSettings()}
 }
 
+func TestRegistrationPostgresBrowserQuotaAcrossConcurrentIPs(t *testing.T) {
+	source := registrationIntegrationSource()
+	source.BrowserHash = "browser-" + source.IPHash
+	repo := NewUserRepository(integrationEntClient, integrationDB)
+	results := make(chan error, 12)
+	var wg sync.WaitGroup
+	for i := 0; i < 12; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			current := source
+			current.IPHash += fmt.Sprint(i)
+			current.IdentityHash += fmt.Sprint(i)
+			user := &service.User{Email: fmt.Sprintf("browser-%s-%d@example.com", source.IPHash, i), PasswordHash: "test", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 3}
+			results <- repo.Create(service.WithRegistrationSource(context.Background(), current), user)
+		}(i)
+	}
+	wg.Wait()
+	close(results)
+	allowed := 0
+	for err := range results {
+		if err == nil {
+			allowed++
+		} else {
+			var quota *service.RegistrationQuotaExceeded
+			require.ErrorAs(t, err, &quota)
+			require.Equal(t, "browser_hash", quota.Dimension)
+		}
+	}
+	require.Equal(t, source.Policy.BrowserSuccessLimit, allowed)
+}
+
+func TestRegistrationPostgresBrowserProtectionDisabledAndExpiredWindow(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprint("enabled=", enabled), func(t *testing.T) {
+			source := registrationIntegrationSource()
+			source.Policy.Enabled = enabled
+			source.Policy.BrowserSuccessLimit = 1
+			source.Policy.ObserveFingerprintLimit = 2
+			source.Policy.FingerprintDistinctIPs = 2
+			source.BrowserHash = "browser-" + source.IPHash
+			source.FeatureHash = "features-" + source.IPHash
+			repo := NewUserRepository(integrationEntClient, integrationDB)
+			for i := 0; i < 2; i++ {
+				current := source
+				current.IPHash += fmt.Sprint(i)
+				current.IdentityHash += fmt.Sprint(i)
+				user := &service.User{Email: fmt.Sprintf("expiry-%s-%d@example.com", source.IPHash, i), PasswordHash: "test", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 3}
+				require.NoError(t, repo.Create(service.WithRegistrationSource(context.Background(), current), user))
+				var count int
+				require.NoError(t, integrationDB.QueryRow(`SELECT COUNT(*) FROM registration_risk_accounts WHERE user_id=$1`, user.ID).Scan(&count))
+				require.Zero(t, count)
+				if enabled {
+					_, err := integrationDB.Exec(`UPDATE registration_source_accounts SET created_at=NOW()-INTERVAL '25 hours' WHERE user_id=$1`, user.ID)
+					require.NoError(t, err)
+				}
+			}
+		})
+	}
+}
+
+func TestRegistrationPostgresSimilarFeaturesOnlyObserveCrossIPBurst(t *testing.T) {
+	for _, sameIP := range []bool{false, true} {
+		t.Run(fmt.Sprint("sharedIP=", sameIP), func(t *testing.T) {
+			source := registrationIntegrationSource()
+			source.FeatureHash = "features-" + source.IPHash
+			repo := NewUserRepository(integrationEntClient, integrationDB)
+			for i := 0; i < 6; i++ {
+				current := source
+				if !sameIP {
+					current.IPHash += fmt.Sprint(i)
+				}
+				current.IdentityHash += fmt.Sprint(i)
+				current.BrowserHash = fmt.Sprintf("browser-%s-%d", source.IPHash, i)
+				user := &service.User{Email: fmt.Sprintf("features-%s-%d@example.com", source.IPHash, i), PasswordHash: "test", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 3, Balance: 0.2}
+				require.NoError(t, repo.Create(service.WithRegistrationSource(context.Background(), current), user))
+				var count int
+				require.NoError(t, integrationDB.QueryRow(`SELECT COUNT(*) FROM registration_risk_accounts WHERE user_id=$1 AND reason='browser_features_registration_observed' AND status='observed'`, user.ID).Scan(&count))
+				expected := 0
+				if !sameIP && i >= 4 {
+					expected = 1
+				}
+				require.Equal(t, expected, count)
+				var concurrency int
+				var balance float64
+				require.NoError(t, integrationDB.QueryRow(`SELECT concurrency,balance FROM users WHERE id=$1`, user.ID).Scan(&concurrency, &balance))
+				require.Equal(t, 3, concurrency)
+				require.Equal(t, 0.2, balance)
+			}
+		})
+	}
+}
+
 func TestRegistrationPostgresConcurrentCreationHonorsQuota(t *testing.T) {
 	for _, rotated := range []bool{false, true} {
 		t.Run(fmt.Sprint("rotated=", rotated), func(t *testing.T) {

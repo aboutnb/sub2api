@@ -1,6 +1,8 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import LoginView from '@/views/auth/LoginView.vue'
+import { buildOAuthLoginStartURL, startOAuthLogin } from '@/api/auth'
+import EmailOAuthButtons from '@/components/auth/EmailOAuthButtons.vue'
 
 const { getPublicSettingsMock, pushMock } = vi.hoisted(() => ({
   getPublicSettingsMock: vi.fn(),
@@ -82,7 +84,7 @@ function mountLogin() {
         OidcOAuthSection: true,
         RouterLink: { template: '<a><slot /></a>' },
         TotpLoginModal: true,
-        TurnstileWidget: true,
+        TurnstileWidget: { template: '<div />', methods: { reset: vi.fn() } },
         WechatOAuthSection: true,
         transition: false
       }
@@ -92,9 +94,27 @@ function mountLogin() {
 
 describe('LoginView registration entry', () => {
   beforeEach(() => {
+    vi.mocked(startOAuthLogin).mockReset()
+    vi.mocked(buildOAuthLoginStartURL).mockClear()
     getPublicSettingsMock.mockReset()
     pushMock.mockReset()
     getPublicSettingsMock.mockResolvedValue(publicSettings)
+  })
+
+  it('starts third-party login without requiring Turnstile', async () => {
+    getPublicSettingsMock.mockResolvedValueOnce({
+      ...publicSettings, github_oauth_enabled: true,
+      turnstile_enabled: true, turnstile_site_key: 'site-key'
+    })
+    vi.mocked(buildOAuthLoginStartURL).mockReturnValue('#oauth-login')
+    const wrapper = mountLogin()
+    await flushPromises()
+    const request = { provider: 'github', params: {} }
+    wrapper.getComponent(EmailOAuthButtons).vm.$emit('start', request)
+    await flushPromises()
+    expect(startOAuthLogin).not.toHaveBeenCalled()
+    expect(buildOAuthLoginStartURL).toHaveBeenCalledWith(request)
+    wrapper.unmount()
   })
 
   it('shows the registration entry when registration is enabled', async () => {

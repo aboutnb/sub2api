@@ -122,11 +122,12 @@ func (r *registrationProtectionRepository) List(ctx context.Context, f service.R
 	case "accounts":
 		query = `SELECT r.id, r.user_id, u.email, u.concurrency, r.reason, r.status, r.previous_concurrency,
 		 r.created_at, r.updated_at, r.reviewed_at, r.reviewed_by, r.review_note,
-		 COALESCE(s.ip_address,'') AS ip_address, COALESCE(s.user_agent,'') AS user_agent
+		 COALESCE(s.ip_address,'') AS ip_address, COALESCE(s.user_agent,'') AS user_agent,
+		 COALESCE(s.browser_hash,'') AS browser_hash, COALESCE(s.feature_hash,'') AS feature_hash
 		 FROM registration_risk_accounts r JOIN users u ON u.id=r.user_id
 		 LEFT JOIN registration_source_accounts s ON s.user_id=r.user_id WHERE u.deleted_at IS NULL`
 	case "sources":
-		query = `SELECT s.id, s.user_id, COALESCE(u.email,'') AS email, s.ip_address, s.user_agent, s.trigger_path, s.created_at, '' AS status
+		query = `SELECT s.id, s.user_id, COALESCE(u.email,'') AS email, s.ip_address, s.user_agent, s.browser_hash, s.feature_hash, s.trigger_path, s.created_at, '' AS status
 		 FROM registration_source_accounts s LEFT JOIN users u ON u.id=s.user_id`
 	case "events":
 		query = `SELECT e.id, e.user_id, COALESCE(u.email,'') AS email, e.ip_address, e.user_agent, e.trigger_path,

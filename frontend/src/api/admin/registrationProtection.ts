@@ -10,6 +10,10 @@ export interface RegistrationProtectionSettings {
   failure_window_minutes: number
   block_minutes: number
   observe_identity_success_limit: number
+  browser_success_limit: number
+  observe_fingerprint_limit: number
+  fingerprint_window_minutes: number
+  fingerprint_distinct_ips: number
 }
 
 export type RegistrationRecordKind = 'sources' | 'events' | 'blocks' | 'accounts'
@@ -19,6 +23,8 @@ export interface RegistrationRiskRecord {
   email?: string
   ip_address: string
   user_agent: string
+  browser_hash?: string
+  feature_hash?: string
   status: string
   reason?: string
   action?: string

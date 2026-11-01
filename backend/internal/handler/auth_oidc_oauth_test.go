@@ -1090,6 +1090,37 @@ func TestOIDCOAuthCallbackVerifiedEmailFastPathBackendModeBlocksBeforeUserCreati
 	require.Zero(t, pendingCount)
 }
 
+func TestOIDCOAuthVerifiedEmailCannotSkipRegistrationTurnstile(t *testing.T) {
+	cfg, cleanup := newOIDCTestProvider(t, oidcProviderFixture{
+		Subject: "captcha-new", PreferredUsername: "captcha_new", DisplayName: "New",
+		Email: "captcha-new@example.com", EmailVerified: true,
+	})
+	defer cleanup()
+	handler, client := newOIDCOAuthHandlerAndClientWithSettings(t, false, cfg, map[string]string{
+		service.SettingKeyTurnstileEnabled: "true", service.SettingKeyTurnstileSecretKey: "secret",
+	})
+	t.Cleanup(func() { _ = client.Close() })
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc/callback?code=oidc-code&state=captcha-state", nil)
+	req.AddCookie(encodedCookie(oidcOAuthStateCookieName, "captcha-state"))
+	req.AddCookie(encodedCookie(oidcOAuthRedirectCookie, "/dashboard"))
+	req.AddCookie(encodedCookie(oidcOAuthVerifierCookie, "captcha-verifier"))
+	req.AddCookie(encodedCookie(oidcOAuthNonceCookie, "nonce-captcha-new"))
+	req.AddCookie(encodedCookie(oidcOAuthIntentCookieName, oauthIntentLogin))
+	req.AddCookie(encodedCookie(oauthPendingBrowserCookieName, "captcha-browser"))
+	c.Request = req
+	handler.OIDCOAuthCallback(c)
+	require.Equal(t, http.StatusFound, recorder.Code)
+	require.NotContains(t, recorder.Header().Get("Location"), "access_token=")
+	count, err := client.User.Query().Count(context.Background())
+	require.NoError(t, err)
+	require.Zero(t, count)
+	session, err := client.PendingAuthSession.Query().Only(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, oauthPendingChoiceStep, mergePendingCompletionResponse(session, nil)["step"])
+}
+
 func TestTryOIDCVerifiedEmailFastPathSkippedWhenInvitationCodeRequired(t *testing.T) {
 	handler, client := newOAuthPendingFlowTestHandler(t, true)
 	t.Cleanup(func() { _ = client.Close() })

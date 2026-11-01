@@ -4,8 +4,9 @@ export default {
     title: '注册防护', description: '按注册来源控制批量建号，集中查看风险记录与账号限制。不会限制已有用户登录或更改余额。',
     tabs: { settings: '防护配置', sources: '来源记录', accounts: '风险账号' },
     enabled: '启用注册增强防护', quotaHint: '数量按成功创建账号统计，失败重试不占名额。普通注册和 OAuth 新建账号共用额度。关闭增强防护仍保留基础限流、人机验证和既有注册赠送判定。',
-    observationHint: '观察阈值只记录风险，不直接限制账号。低于观察阈值的成功注册上限会优先生效。UA 相同不代表同一人。',
+    observationHint: '签名浏览器标识关联换 IP 注册；相似浏览器特征仅在短时间、多账号且跨多个 IP 时进入观察，不直接限制账号。隐私浏览器缺失特征时沿用基础验证。标识可被清除、特征可被伪造，不能单独判断同一人。',
     fields: {
+      browser_success_limit: '同签名浏览器成功注册上限', observe_fingerprint_limit: '相似浏览器特征观察账号数', fingerprint_window_minutes: '浏览器特征统计窗口（分钟）', fingerprint_distinct_ips: '浏览器特征观察最少不同 IP 数',
       identity_success_limit: '同 IP＋UA 成功注册上限', ip_success_limit: '同 IP 成功注册总上限', success_window_hours: '成功注册统计窗口（小时）',
       identity_failure_limit: '同 IP＋UA 验证失败上限', ip_failure_limit: '同 IP 验证失败总上限', failure_window_minutes: '验证失败统计窗口（分钟）',
       block_minutes: '来源临时限制时长（分钟）', observe_identity_success_limit: '同 IP＋UA 风险观察数量'
@@ -18,7 +19,7 @@ export default {
     reviewHint: '限制使用会将并发设为 -1。解除时恢复记录中保存的并发值；若原值就是 -1，解除风险标记后仍不能调用。账号状态已被其他操作修改时，请刷新后重新核查。',
     note: '审核说明（必填）', cancel: '取消', confirm: '确认审核', reviewed: '风险账号审核已完成', failed: '操作失败，请稍后重试',
     statuses: { observed: '待审查', restricted: '已限制使用', released: '已解除', active: '限制中', expired: '已到期' },
-    reasons: { duplicate_signup_identity: '重复注册来源，既有赠送风控限制', admin_review: '管理员审核', identity_registration_observed: '同来源多账号注册', registration_failure_limit: '注册验证失败过多', registration_source_quota: '成功注册来源额度已满' },
-    detailFields: { ip_address: 'IP 地址', user_agent: 'User-Agent', email: '邮箱', user_id: '用户 ID', reason: '风险原因', status: '处理状态', concurrency: '当前并发', previous_concurrency: '解除后恢复并发', trigger_path: '触发接口', created_at: '记录时间', expires_at: '到期时间', reviewed_at: '审核时间', reviewed_by: '审核人 ID', review_note: '审核说明', release_note: '解除说明' }
+    reasons: { browser_features_registration_observed: '相似浏览器特征短时间跨 IP 批量注册，待审核', duplicate_signup_identity: '重复注册来源，既有赠送风控限制', admin_review: '管理员审核', identity_registration_observed: '同来源多账号注册', registration_failure_limit: '注册验证失败过多', registration_source_quota: '成功注册来源额度已满' },
+    detailFields: { browser_hash: '签名浏览器标识摘要', feature_hash: '浏览器特征摘要（辅助信号）', ip_address: 'IP 地址', user_agent: 'User-Agent', email: '邮箱', user_id: '用户 ID', reason: '风险原因', status: '处理状态', concurrency: '当前并发', previous_concurrency: '解除后恢复并发', trigger_path: '触发接口', created_at: '记录时间', expires_at: '到期时间', reviewed_at: '审核时间', reviewed_by: '审核人 ID', review_note: '审核说明', release_note: '解除说明' }
   }
 }

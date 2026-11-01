@@ -6,6 +6,9 @@ import type { AxiosInstance } from 'axios'
 vi.mock('@/i18n', () => ({
   getLocale: () => 'zh-CN',
 }))
+vi.mock('../registrationFeatures', () => ({
+  registrationFeatureDigest: async () => 'a'.repeat(64),
+}))
 
 describe('API Client', () => {
   let apiClient: AxiosInstance
@@ -181,6 +184,10 @@ describe('API Client', () => {
       )
       const config = adapter.mock.calls[0][0]
       const body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data
+      expect(config.headers.get('X-Registration-Features')).toBe('a'.repeat(64))
+      expect(axios.get).toHaveBeenCalledWith('/auth/registration-challenge', expect.objectContaining({
+        headers: expect.objectContaining({ 'X-Registration-Features': 'a'.repeat(64) })
+      }))
       expect(body.registration_challenge).toEqual(
         expect.objectContaining({
           token: 'challenge-token',

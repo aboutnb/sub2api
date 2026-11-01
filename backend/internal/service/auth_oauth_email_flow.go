@@ -117,6 +117,9 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 	if s == nil {
 		return nil, nil, ErrServiceUnavailable
 	}
+	if err := s.requireRegistrationTurnstile(ctx); err != nil {
+		return nil, nil, err
+	}
 	if s.settingService == nil || (!s.settingService.IsRegistrationEnabled(ctx) && !s.canBypassRegistrationDisabledForOAuth(ctx, signupSource)) {
 		return nil, nil, ErrRegDisabled
 	}
@@ -209,6 +212,9 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 ) (*TokenPair, *User, error) {
 	if s == nil {
 		return nil, nil, ErrServiceUnavailable
+	}
+	if err := s.requireRegistrationTurnstile(ctx); err != nil {
+		return nil, nil, err
 	}
 	if s.settingService == nil || (!s.settingService.IsRegistrationEnabled(ctx) && !s.canBypassRegistrationDisabledForOAuth(ctx, signupSource)) {
 		return nil, nil, ErrRegDisabled

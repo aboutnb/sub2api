@@ -124,9 +124,11 @@ type NumericSetting = Exclude<keyof RegistrationProtectionSettings, 'enabled'>
 const fields: { key: NumericSetting; max: number }[] = [
   { key: 'identity_success_limit', max: 100000 }, { key: 'ip_success_limit', max: 100000 }, { key: 'success_window_hours', max: 720 },
   { key: 'identity_failure_limit', max: 100000 }, { key: 'ip_failure_limit', max: 100000 }, { key: 'failure_window_minutes', max: 1440 },
-  { key: 'block_minutes', max: 10080 }, { key: 'observe_identity_success_limit', max: 100000 }
+  { key: 'block_minutes', max: 10080 }, { key: 'observe_identity_success_limit', max: 100000 },
+  { key: 'browser_success_limit', max: 100000 }, { key: 'observe_fingerprint_limit', max: 100000 },
+  { key: 'fingerprint_window_minutes', max: 1440 }, { key: 'fingerprint_distinct_ips', max: 100000 }
 ]
-const detailFields = ['ip_address', 'user_agent', 'email', 'user_id', 'reason', 'status', 'concurrency', 'previous_concurrency', 'trigger_path', 'created_at', 'expires_at', 'reviewed_at', 'reviewed_by', 'review_note', 'release_note'] as const
+const detailFields = ['ip_address', 'user_agent', 'browser_hash', 'feature_hash', 'email', 'user_id', 'reason', 'status', 'concurrency', 'previous_concurrency', 'trigger_path', 'created_at', 'expires_at', 'reviewed_at', 'reviewed_by', 'review_note', 'release_note'] as const
 let requestVersion = 0
 function message(e: unknown) { return e instanceof Error ? e.message : t('admin.registrationProtection.failed') }
 function statusLabel(value: string) { const key = `admin.registrationProtection.statuses.${value}`; return te(key) ? t(key) : value }

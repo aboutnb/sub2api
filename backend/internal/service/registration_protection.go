@@ -26,6 +26,10 @@ type RegistrationProtectionSettings struct {
 	FailureWindowMinutes        int  `json:"failure_window_minutes"`
 	BlockMinutes                int  `json:"block_minutes"`
 	ObserveIdentitySuccessLimit int  `json:"observe_identity_success_limit"`
+	BrowserSuccessLimit         int  `json:"browser_success_limit"`
+	ObserveFingerprintLimit     int  `json:"observe_fingerprint_limit"`
+	FingerprintWindowMinutes    int  `json:"fingerprint_window_minutes"`
+	FingerprintDistinctIPs      int  `json:"fingerprint_distinct_ips"`
 }
 
 func DefaultRegistrationProtectionSettings() RegistrationProtectionSettings {
@@ -33,6 +37,7 @@ func DefaultRegistrationProtectionSettings() RegistrationProtectionSettings {
 		Enabled: true, IPSuccessLimit: 10, IdentitySuccessLimit: 2,
 		SuccessWindowHours: 24, IPFailureLimit: 100, IdentityFailureLimit: 20,
 		FailureWindowMinutes: 10, BlockMinutes: 15, ObserveIdentitySuccessLimit: 4,
+		BrowserSuccessLimit: 3, ObserveFingerprintLimit: 5, FingerprintWindowMinutes: 30, FingerprintDistinctIPs: 3,
 	}
 }
 
@@ -42,6 +47,14 @@ func (s RegistrationProtectionSettings) Validate() error {
 		if n < 1 || n > 100000 {
 			return fmt.Errorf("注册防护数量必须在 1 至 100000 之间")
 		}
+	}
+	for _, n := range []int{s.BrowserSuccessLimit, s.ObserveFingerprintLimit, s.FingerprintDistinctIPs} {
+		if n < 1 || n > 100000 {
+			return fmt.Errorf("浏览器防护数量必须在 1 至 100000 之间")
+		}
+	}
+	if s.FingerprintWindowMinutes < 1 || s.FingerprintWindowMinutes > 1440 {
+		return fmt.Errorf("浏览器特征统计窗口必须在 1 至 1440 分钟之间")
 	}
 	if s.SuccessWindowHours < 1 || s.SuccessWindowHours > 720 || s.FailureWindowMinutes < 1 || s.FailureWindowMinutes > 1440 || s.BlockMinutes < 1 || s.BlockMinutes > 10080 {
 		return fmt.Errorf("注册防护时间窗口超出允许范围")
@@ -121,18 +134,17 @@ func (s *SettingService) GetRegistrationProtectionSettingsCached(ctx context.Con
 	if err != nil {
 		return DefaultRegistrationProtectionSettings(), err
 	}
-	settings, ok := value.(RegistrationProtectionSettings)
-	if !ok {
-		return DefaultRegistrationProtectionSettings(), ErrServiceUnavailable
-	}
-	return settings, nil
+	return value.(RegistrationProtectionSettings), nil
 }
 
 // RegistrationSource is set only by trusted public registration handlers.
-// The source hashes are server-derived; no request field is trusted as identity.
+// Source hashes are server-derived. FeatureHash comes from untrusted browser
+// features and must only be used for observation, never as proof of identity.
 type RegistrationSource struct {
 	IPHash       string
 	IdentityHash string
+	BrowserHash  string
+	FeatureHash  string
 	IPAddress    string
 	UserAgent    string
 	Path         string

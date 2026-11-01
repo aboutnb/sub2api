@@ -50,7 +50,7 @@ func (h *RegistrationProtectionHandler) ReleaseBlock(c *gin.Context) {
 }
 
 func (h *RegistrationProtectionHandler) UpdateSettings(c *gin.Context) {
-	var settings service.RegistrationProtectionSettings
+	settings := service.DefaultRegistrationProtectionSettings()
 	if err := c.ShouldBindJSON(&settings); err != nil {
 		response.BadRequest(c, "注册防护配置格式无效")
 		return

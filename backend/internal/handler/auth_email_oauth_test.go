@@ -83,7 +83,13 @@ func TestEmailOAuthCallbackRequiresPendingRegistrationWhenInvitationEnabled(t *t
 }
 
 func TestEmailOAuthCallbackExistingEmailLogsInWhenInvitationEnabled(t *testing.T) {
-	handler, client := newOAuthPendingFlowTestHandler(t, true)
+	handler, client := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{
+		invitationEnabled: true,
+		settingValues: map[string]string{
+			service.SettingKeyTurnstileEnabled:   "true",
+			service.SettingKeyTurnstileSecretKey: "secret",
+		},
+	})
 	ctx := context.Background()
 
 	user, err := client.User.Create().

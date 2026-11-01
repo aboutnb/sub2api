@@ -433,7 +433,7 @@ func (h *AuthHandler) legacyCompleteRegistrationSessionStatus(
 
 	emailVerificationRequired := h != nil && h.authService != nil && h.authService.IsEmailVerifyEnabled(c.Request.Context())
 	forceEmailOnSignup := h.isForceEmailOnThirdPartySignup(c.Request.Context())
-	if !emailVerificationRequired && !forceEmailOnSignup {
+	if !emailVerificationRequired && !forceEmailOnSignup && !h.authService.RegistrationNeedsTurnstile(c.Request.Context()) {
 		return session, false, nil
 	}
 
@@ -577,10 +577,12 @@ func (h *AuthHandler) SendPendingOAuthVerifyCode(c *gin.Context) {
 	}
 
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
-	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, ip.GetClientIP(c)); err != nil {
+	verifiedCtx, err := h.authService.VerifyRegistrationCaptcha(c.Request.Context(), proof, ip.GetClientIP(c))
+	if err != nil {
 		h.registrationError(c, err)
 		return
 	}
+	c.Request = c.Request.WithContext(verifiedCtx)
 
 	_, session, _, err := readPendingOAuthBrowserSession(c, h)
 	if err != nil {
@@ -1773,10 +1775,12 @@ func (h *AuthHandler) createPendingOAuthAccount(c *gin.Context, provider string)
 		return
 	}
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
-	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, ip.GetClientIP(c)); err != nil {
+	verifiedCtx, err := h.authService.VerifyRegistrationCaptcha(c.Request.Context(), proof, ip.GetClientIP(c))
+	if err != nil {
 		h.registrationError(c, err)
 		return
 	}
+	c.Request = c.Request.WithContext(verifiedCtx)
 
 	tokenPair, user, err := h.authService.RegisterOAuthEmailAccount(
 		c.Request.Context(),
