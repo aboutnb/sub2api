@@ -825,6 +825,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
 
+| 2026-11-01 | `e7b26c66e2fd2be8518ebeea47cdfe94e0e03c50` | 修复生产依赖安全门禁：follow-redirects 1.16.2、decode-uri-component 0.5.1，仅更新必要锁文件项 | 生产依赖审计例外校验通过 |
+
 | 2026-11-01 | `8b4eae232e7afee1b730ef0b43d111fe20d68c64` | 注册服务端 Turnstile 许可、OAuth 新用户验证、签名浏览器成功注册额度及特征观察；保留主线安全修复；新增 257 浏览器摘要迁移 | unit 专项、PostgreSQL 集成、前端 3358 测试、lint 和构建通过 |
 
 | 2026-10-29 | `2739490583d153e2f713c7dae4d78d2637078836` | 升级 Vue I18n 与 message compiler 至 11.4.16，修复高危 srcdoc XSS；更新套餐组件本地化测试与英文时长单位间距 | 安全修复；前端全测/ESLint/类型检查/生产构建通过，GitHub CI/安全扫描待完成 |
