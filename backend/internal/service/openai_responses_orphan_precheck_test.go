@@ -132,7 +132,9 @@ func TestOpenAIResponsesOrphanPrecheckLargeEscapedContent(t *testing.T) {
 	// background workers running, so measure in an isolated test process.
 	const isolated = "AIVOZA_ORPHAN_PRECHECK_ALLOC_TEST"
 	if os.Getenv(isolated) != "1" {
-		cmd := exec.Command(os.Args[0], "-test.run=^TestOpenAIResponsesOrphanPrecheckLargeEscapedContent$")
+		binary, err := os.Executable()
+		require.NoError(t, err)
+		cmd := exec.Command(binary, "-test.run=^TestOpenAIResponsesOrphanPrecheckLargeEscapedContent$")
 		cmd.Env = append(os.Environ(), isolated+"=1")
 		output, err := cmd.CombinedOutput()
 		require.NoError(t, err, "%s", output)
