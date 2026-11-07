@@ -162,7 +162,7 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 		return nil, ErrRegDisabled
 	}
-	if err := s.validateRegistrationEmailRiskPolicy(ctx, email); err != nil {
+	if err := s.validateRegistrationEmailPolicy(ctx, email); err != nil {
 		return nil, err
 	}
 	invitationRedeemCode, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode)
