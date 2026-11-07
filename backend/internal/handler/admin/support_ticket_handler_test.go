@@ -73,3 +73,27 @@ func TestSupportTicketAdminHandlerQueuesAndReopen(t *testing.T) {
 	require.Equal(t, 400, code)
 	require.Equal(t, "TICKET_STATUS_INVALID", payload["reason"])
 }
+
+func TestSupportTicketAdminSummaryTracksCloseAndReply(t *testing.T) {
+	r := tickettest.New()
+	r.AddUser(1, "owner@example.test")
+	r.AddUser(9, "admin@example.test")
+	s := service.NewSupportTicketService(r)
+	ctx := context.Background()
+	ticket, err := s.Create(ctx, 1, service.CreateTicketInput{Subject: "Summary", Body: "Body", Category: "other"})
+	require.NoError(t, err)
+	h := NewSupportTicketHandler(s)
+	code, payload := adminSupportTicketRequest(t, h.Summary, "GET", "/admin/tickets/summary", "")
+	require.Equal(t, 200, code)
+	require.Equal(t, map[string]any{"pending_count": float64(1), "total_count": float64(1)}, payload["data"])
+	_, err = s.UpdateStatus(ctx, ticket.ID, "closed")
+	require.NoError(t, err)
+	_, payload = adminSupportTicketRequest(t, h.Summary, "GET", "/admin/tickets/summary", "")
+	require.Equal(t, map[string]any{"pending_count": float64(0), "total_count": float64(1)}, payload["data"])
+	_, err = s.ReplyAsAdmin(ctx, 9, ticket.ID, "Reopen")
+	require.NoError(t, err)
+	_, err = s.ReplyAsUser(ctx, 1, ticket.ID, "Follow up")
+	require.NoError(t, err)
+	_, payload = adminSupportTicketRequest(t, h.Summary, "GET", "/admin/tickets/summary", "")
+	require.Equal(t, map[string]any{"pending_count": float64(1), "total_count": float64(1)}, payload["data"])
+}

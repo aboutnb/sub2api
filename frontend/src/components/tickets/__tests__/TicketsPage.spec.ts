@@ -50,6 +50,20 @@ function button(view: VueWrapper, text: string) {
 }
 
 describe('TicketsPage', () => {
+  it('closes an admin ticket directly, preserves a draft on failure, and permits retry', async () => {
+    mocks.updateStatus.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ ...ticket, status: 'closed' })
+    const { view, error, success } = await render(true)
+    await view.get('#ticket-reply').setValue('保留草稿')
+    await button(view, '关闭工单').trigger('click'); await flushPromises()
+    expect(error).toHaveBeenCalled()
+    expect((view.get('#ticket-reply').element as HTMLTextAreaElement).value).toBe('保留草稿')
+    await button(view, '关闭工单').trigger('click'); await flushPromises()
+    expect(mocks.updateStatus).toHaveBeenLastCalledWith(1, 'closed')
+    expect(mocks.close).not.toHaveBeenCalled()
+    expect(success).toHaveBeenCalledWith('工单已关闭')
+    expect(view.findAll('button').some(b => b.text() === '关闭工单')).toBe(false)
+  })
+
   it('creates, replies to, and closes a user ticket with text-only message rendering', async () => {
     mocks.create.mockResolvedValue(ticket)
     mocks.reply.mockResolvedValue({ ...ticket, status: 'pending_admin' })

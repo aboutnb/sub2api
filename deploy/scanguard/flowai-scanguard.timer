@@ -1,0 +1,8 @@
+[Unit]
+Description=Evaluate Aivoza scan bans every 10 seconds
+[Timer]
+OnBootSec=30
+OnUnitInactiveSec=10
+AccuracySec=1
+[Install]
+WantedBy=timers.target

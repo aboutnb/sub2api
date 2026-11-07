@@ -518,6 +518,7 @@ func registerAnnouncementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 func registerSupportTicketRoutes(admin *gin.RouterGroup, h *handler.Handlers, panelRateLimiter *middleware.PanelRateLimiter) {
 	tickets := admin.Group("/tickets")
 	tickets.GET("", h.Admin.SupportTicket.List)
+	tickets.GET("/summary", h.Admin.SupportTicket.Summary)
 	tickets.GET("/:id", h.Admin.SupportTicket.Get)
 	tickets.POST("/:id/messages", panelRateLimiter.TicketWrite(false), h.Admin.SupportTicket.Reply)
 	tickets.PUT("/:id/status", h.Admin.SupportTicket.UpdateStatus)

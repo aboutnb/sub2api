@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
+
+var ErrRegistrationDenied = infraerrors.Forbidden("REGISTRATION_UNAVAILABLE", "暂时无法完成此操作")
 
 const SettingKeyRegistrationProtection = "registration_protection"
 
@@ -143,7 +144,7 @@ func (s *SettingService) GetRegistrationProtectionSettingsCached(ctx context.Con
 
 // RegistrationSource is set only by trusted public registration handlers.
 // Source hashes are server-derived. FeatureHash comes from untrusted browser
-// features and must only be used for observation, never as proof of identity.
+// features are not proof of identity; admission requires corroborating burst/IP evidence.
 type RegistrationSource struct {
 	IPHash       string
 	IdentityHash string
@@ -183,33 +184,32 @@ func RegistrationSourceFromContext(ctx context.Context) (RegistrationSource, boo
 	return source, ok && source.IPHash != "" && source.IdentityHash != ""
 }
 
-// RegistrationQuotaExceeded carries the remaining window without disclosing
-// the matched source dimension in a public error response.
+// RegistrationQuotaExceeded retains internal diagnostics; public responses
+// expose neither the source dimension nor the remaining window.
 type RegistrationQuotaExceeded struct {
 	RetryAfter time.Duration
 	Dimension  string
 }
 
 func (e *RegistrationQuotaExceeded) Error() string {
-	return "当前注册来源已达到注册数量限制，请稍后再试"
+	return "暂时无法完成此操作"
 }
 
 func (e *RegistrationQuotaExceeded) Unwrap() error {
-	return infraerrors.TooManyRequests("REGISTRATION_SOURCE_QUOTA_EXCEEDED", e.Error())
-}
-
-func (e *RegistrationQuotaExceeded) RetryAfterSeconds() int {
-	return max(1, int(math.Ceil(e.RetryAfter.Seconds())))
+	return ErrRegistrationDenied
 }
 
 func registrationQuotaError(err error) error {
+	if errors.Is(err, ErrRegistrationDenied) {
+		return ErrRegistrationDenied
+	}
 	var blocked *RegistrationSourceBlocked
 	if errors.As(err, &blocked) {
-		return blocked
+		return ErrRegistrationDenied
 	}
 	var quota *RegistrationQuotaExceeded
 	if errors.As(err, &quota) {
-		return quota
+		return ErrRegistrationDenied
 	}
 	return nil
 }

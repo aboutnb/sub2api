@@ -1,5 +1,7 @@
 export default {
   supportTickets: {
+    newNotice: '有 {count} 条新工单，请前往工单管理查看',
+    pendingNotice: '有 {count} 条工单待客服处理',
     title: '我的工单',
     description: '提交问题，查看客服回复与处理进度',
     adminTitle: '工单管理',

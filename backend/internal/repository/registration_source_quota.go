@@ -11,6 +11,10 @@ import (
 
 // The caller holds both source locks until the user transaction commits.
 func checkRegistrationSourceQuota(ctx context.Context, client *dbent.Client, source service.RegistrationSource) error {
+	return checkRegistrationSourceQuotaQuery(ctx, client, source)
+}
+
+func checkRegistrationSourceQuotaQuery(ctx context.Context, client registrationAdmissionQuerier, source service.RegistrationSource) error {
 	if !source.Policy.Enabled {
 		return nil
 	}

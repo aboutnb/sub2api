@@ -144,8 +144,17 @@ func (h *AuthHandler) issueRegistrationChallenge(c *gin.Context) (*RegistrationC
 }
 
 func (h *AuthHandler) requireRegistrationChallenge(c *gin.Context, action, email string, submission *RegistrationChallengeSubmission) error {
+	if h.registrationProtection != nil && strings.TrimSpace(email) != "" {
+		source, err := h.registrationSource(c)
+		if err != nil {
+			return service.ErrRegistrationDenied
+		}
+		if err := h.registrationProtection.CheckEmailAdmission(c.Request.Context(), source, email); err != nil {
+			return service.ErrRegistrationDenied
+		}
+	}
 	if err := h.checkRegistrationSource(c); err != nil {
-		return err
+		return service.ErrRegistrationDenied
 	}
 	payload, err := h.validateRegistrationChallenge(c, action, email, submission)
 	if err != nil {
@@ -426,18 +435,8 @@ func (h *AuthHandler) AttachSignupRiskIdentity(c *gin.Context) {
 			Path:       c.Request.URL.Path,
 			LoadPolicy: h.settingSvc.GetRegistrationProtectionSettingsCached,
 		}
-		if h.registrationProtection != nil {
-			base := source
-			source.LoadPolicy = func(ctx context.Context) (service.RegistrationProtectionSettings, error) {
-				policy, err := h.settingSvc.GetRegistrationProtectionSettingsCached(ctx)
-				if err != nil {
-					return policy, err
-				}
-				current := base
-				current.Policy = policy
-				return policy, h.registrationProtection.CheckSource(ctx, current)
-			}
-		}
+		// Final user creation checks source blocks and persists email denials.
+
 		c.Request = c.Request.WithContext(service.WithRegistrationSource(c.Request.Context(), source))
 	}
 }

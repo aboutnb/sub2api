@@ -30,6 +30,7 @@ type RegistrationRiskPage struct {
 type RegistrationProtectionRepository interface {
 	List(context.Context, RegistrationRiskFilter) (*RegistrationRiskPage, error)
 	ReviewAccount(ctx context.Context, id, actorID int64, action, note string) (int64, error)
+	CheckEmailAdmission(context.Context, RegistrationSource, string) error
 	CheckSourceBlock(context.Context, RegistrationSource) (time.Duration, error)
 	ActivateSourceBlock(context.Context, RegistrationSource, string, int64) error
 	ReleaseSourceBlock(context.Context, int64, int64, string, func(context.Context, string) error) error
@@ -71,6 +72,11 @@ func (s *RegistrationProtectionService) ReleaseSourceBlock(ctx context.Context, 
 	return s.repo.ReleaseSourceBlock(ctx, id, actorID, note, s.counter.Delete)
 }
 
+// CheckEmailAdmission persists denials before any verification mail is queued.
+func (s *RegistrationProtectionService) CheckEmailAdmission(ctx context.Context, source RegistrationSource, email string) error {
+	return s.repo.CheckEmailAdmission(ctx, source, email)
+}
+
 func (s *RegistrationProtectionService) CheckSource(ctx context.Context, source RegistrationSource) error {
 	if !source.Policy.Enabled {
 		return nil
@@ -107,13 +113,10 @@ func (s *RegistrationProtectionService) RecordSourceFailures(ctx context.Context
 type RegistrationSourceBlocked struct{ RetryAfter time.Duration }
 
 func (e *RegistrationSourceBlocked) Error() string {
-	return "注册验证失败次数过多，当前来源已被临时限制，请稍后再试"
+	return "暂时无法完成此操作"
 }
 func (e *RegistrationSourceBlocked) Unwrap() error {
-	return infraerrors.TooManyRequests("REGISTRATION_SOURCE_BLOCKED", e.Error())
-}
-func (e *RegistrationSourceBlocked) RetryAfterSeconds() int {
-	return max(1, int((e.RetryAfter+time.Second-1)/time.Second))
+	return ErrRegistrationDenied
 }
 
 func (s *RegistrationProtectionService) List(ctx context.Context, filter RegistrationRiskFilter) (*RegistrationRiskPage, error) {

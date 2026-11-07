@@ -4,9 +4,9 @@ export default {
     title: '注册防护', description: '按注册来源控制批量建号，集中查看风险记录与账号限制。不会限制已有用户登录或更改余额。',
     tabs: { settings: '防护配置', sources: '来源记录', accounts: '风险账号' },
     enabled: '启用注册增强防护', quotaHint: '数量按成功创建账号统计，失败重试不占名额。普通注册和 OAuth 新建账号共用额度。关闭增强防护仍保留基础限流、人机验证和既有注册赠送判定。',
-    observationHint: '签名浏览器标识关联换 IP 注册；相似浏览器特征仅在短时间、多账号且跨多个 IP 时进入观察，不直接限制账号。隐私浏览器缺失特征时沿用基础验证。标识可被清除、特征可被伪造，不能单独判断同一人。',
+    observationHint: '达到来源注册额度、命中来源封禁，或相似浏览器特征在窗口内同时达到账号数和不同 IP 数阈值时，在发送验证码前拒绝注册并持久标记邮箱。被标记邮箱及其别名不能通过换 IP 重试。客户端特征或缺少标识本身不会单独触发封禁。',
     fields: {
-      browser_success_limit: '同签名浏览器成功注册上限', observe_fingerprint_limit: '相似浏览器特征观察账号数', fingerprint_window_minutes: '浏览器特征统计窗口（分钟）', fingerprint_distinct_ips: '浏览器特征观察最少不同 IP 数',
+      browser_success_limit: '同签名浏览器成功注册上限', observe_fingerprint_limit: '跨 IP 批量注册拦截账号数', fingerprint_window_minutes: '浏览器特征统计窗口（分钟）', fingerprint_distinct_ips: '批量注册拦截最少不同 IP 数',
       identity_success_limit: '同 IP＋UA 成功注册上限', ip_success_limit: '同 IP 成功注册总上限', success_window_hours: '成功注册统计窗口（小时）',
       identity_failure_limit: '同 IP＋UA 验证失败上限', ip_failure_limit: '同 IP 验证失败总上限', failure_window_minutes: '验证失败统计窗口（分钟）',
       block_minutes: '来源临时限制时长（分钟）', observe_identity_success_limit: '同 IP＋UA 风险观察数量'

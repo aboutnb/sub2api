@@ -2,6 +2,10 @@ package handler
 
 import (
 	"context"
+	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/gin-gonic/gin"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,4 +53,43 @@ func TestRegistrationFailureClassificationExcludesSignedExpiryAndFastSubmit(t *t
 	submission.Token, err = h.signRegistrationChallengePayload(payload)
 	require.NoError(t, err)
 	require.False(t, h.registrationChallengeFailureIsAbuse(submission))
+}
+
+type registrationAdmissionDenyStub struct {
+	service.RegistrationProtectionRepository
+	emails []string
+}
+
+func (s *registrationAdmissionDenyStub) CheckEmailAdmission(_ context.Context, _ service.RegistrationSource, email string) error {
+	s.emails = append(s.emails, email)
+	return service.ErrRegistrationDenied
+}
+func TestRegistrationAdmissionRejectsBeforeCaptchaAndMail(t *testing.T) {
+	for _, method := range []string{"send", "register", "oauth-send"} {
+		t.Run(method, func(t *testing.T) {
+			h := newRegistrationChallengeTestHandler()
+			h.settingSvc = service.NewSettingService(&oauthPendingFlowSettingRepoStub{values: map[string]string{}}, h.cfg)
+			repo := &registrationAdmissionDenyStub{}
+			h.registrationProtection = service.NewRegistrationProtectionService(repo, h.settingSvc, nil, nil)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest("POST", "/auth", strings.NewReader(`{"email":"blocked@example.com","password":"Password123!"}`))
+			c.Request.Header.Set("Content-Type", "application/json")
+			// authService is deliberately nil: calling CAPTCHA, mail, or registration
+			// after a denial panics, so this also asserts the ordering of side effects.
+			switch method {
+			case "send":
+				h.SendVerifyCode(c)
+			case "register":
+				h.Register(c)
+			default:
+				h.SendPendingOAuthVerifyCode(c)
+			}
+			require.Equal(t, 403, w.Code)
+			require.Equal(t, []string{"blocked@example.com"}, repo.emails)
+			require.Contains(t, w.Body.String(), "REGISTRATION_UNAVAILABLE")
+			require.NotContains(t, w.Body.String(), "Retry")
+			require.Empty(t, w.Header().Get("Retry-After"))
+		})
+	}
 }

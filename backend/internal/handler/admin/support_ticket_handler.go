@@ -94,3 +94,11 @@ func (h *SupportTicketHandler) UpdateStatus(c *gin.Context) {
 	}
 	response.Success(c, dto.SupportTicketFromService(ticket))
 }
+
+func (h *SupportTicketHandler) Summary(c *gin.Context) {
+	summary, err := h.service.Summary(c.Request.Context())
+	if response.ErrorFrom(c, err) {
+		return
+	}
+	response.Success(c, summary)
+}

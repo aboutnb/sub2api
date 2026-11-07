@@ -17,8 +17,8 @@ func TestRegistrationQuotaResponseDoesNotExposeSource(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	require.True(t, response.ErrorFrom(c, err))
-	require.Equal(t, http.StatusTooManyRequests, recorder.Code)
-	require.Equal(t, "2", recorder.Header().Get("Retry-After"))
-	require.Contains(t, recorder.Body.String(), "REGISTRATION_SOURCE_QUOTA_EXCEEDED")
+	require.Equal(t, http.StatusForbidden, recorder.Code)
+	require.Empty(t, recorder.Header().Get("Retry-After"))
+	require.Contains(t, recorder.Body.String(), "REGISTRATION_UNAVAILABLE")
 	require.NotContains(t, recorder.Body.String(), "identity_hash")
 }

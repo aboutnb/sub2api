@@ -231,3 +231,15 @@ func (r *Repository) EmailsByUserIDs(_ context.Context, ids []int64) (map[int64]
 }
 
 var _ service.SupportTicketRepository = (*Repository)(nil)
+
+func (r *Repository) Summary(_ context.Context) (*service.SupportTicketSummary, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	result := &service.SupportTicketSummary{TotalCount: int64(len(r.state.tickets))}
+	for _, t := range r.state.tickets {
+		if t.Status == service.TicketStatusOpen || t.Status == service.TicketStatusPendingAdmin {
+			result.PendingCount++
+		}
+	}
+	return result, nil
+}

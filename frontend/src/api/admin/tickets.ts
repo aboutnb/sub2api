@@ -29,5 +29,10 @@ export async function updateStatus(id: number, status: TicketStatus): Promise<Su
   return data
 }
 
-export const adminTicketsAPI = { list, getById, reply, updateStatus }
+export interface TicketSummary { pending_count: number; total_count: number }
+export async function summary(options?: { signal?: AbortSignal }): Promise<TicketSummary> {
+ const { data } = await apiClient.get<TicketSummary>('/admin/tickets/summary', options)
+ return data
+}
+export const adminTicketsAPI = { list, getById, reply, updateStatus, summary }
 export default adminTicketsAPI

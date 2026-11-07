@@ -125,7 +125,7 @@
                   </div>
                 </template>
               </div>
-              <button v-if="!admin && selected && selected.status !== 'closed'" class="btn btn-secondary shrink-0" :disabled="busy || detailLoading" @click="closeTicket">{{ t('supportTickets.closeTicket') }}</button>
+              <button v-if="selected && selected.status !== 'closed'" class="btn btn-secondary shrink-0" :disabled="busy || detailLoading" @click="closeTicket">{{ t('supportTickets.closeTicket') }}</button>
             </header>
             <p v-if="detailLoading" class="ticket-placeholder flex-1" role="status">{{ t('common.loading') }}</p>
             <div v-else-if="detailError" class="ticket-empty flex-1" role="alert">
@@ -374,17 +374,19 @@ async function submitReply() {
     delete replyDrafts[ticket.id]
     appStore.showSuccess(t('supportTickets.replied'))
     void loadTickets()
+    if (props.admin) window.dispatchEvent(new Event('support-tickets-changed'))
   } catch (err) { showError(err) } finally { busy.value = false }
 }
 async function closeTicket() {
   if (busy.value || !selected.value) return
   busy.value = true
   try {
-    const ticket = await ticketsAPI.close(selected.value.id)
+    const ticket = props.admin ? await adminAPI.tickets.updateStatus(selected.value.id, 'closed') : await ticketsAPI.close(selected.value.id)
     if (disposed) return
     showTicket(ticket)
     appStore.showSuccess(t('supportTickets.closed'))
     void loadTickets()
+    if (props.admin) window.dispatchEvent(new Event('support-tickets-changed'))
   } catch (err) { showError(err) } finally { busy.value = false }
 }
 async function saveStatus() {
@@ -396,6 +398,7 @@ async function saveStatus() {
     showTicket(ticket)
     appStore.showSuccess(t('supportTickets.statusSaved'))
     void loadTickets()
+    if (props.admin) window.dispatchEvent(new Event('support-tickets-changed'))
   } catch (err) { showError(err) } finally { busy.value = false }
 }
 

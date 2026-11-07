@@ -59,6 +59,6 @@ func (h *AuthHandler) registrationFeatureHash(c *gin.Context) string {
 	if _, err := hex.DecodeString(value); err != nil {
 		return ""
 	}
-	// Client features can be spoofed: they are only an observation signal.
+	// Client features can be spoofed; admission combines them with server-side history.
 	return h.registrationSensitiveHash("registration-features-v1", strings.ToLower(value)+"\x00"+normalizeRegistrationUserAgent(c.Request.UserAgent()))
 }

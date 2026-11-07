@@ -133,7 +133,19 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 	}
 	defer releaseEmailLock()
 	if hasRegistrationSource {
+		reason, err := registrationAdmissionReason(txCtx, txClient, registrationSource, userIn.Email)
+		if err != nil {
+			return err
+		}
+		if reason != "" {
+			return r.persistRegistrationDenial(ctx, ownedTx, registrationSource, userIn.Email, reason)
+		}
 		if err := checkRegistrationSourceQuota(txCtx, txClient, registrationSource); err != nil {
+			if _, ok := err.(*service.RegistrationQuotaExceeded); ok {
+				if blockedErr := r.persistRegistrationDenial(ctx, ownedTx, registrationSource, userIn.Email, "source_quota"); !errors.Is(blockedErr, service.ErrRegistrationDenied) {
+					return blockedErr
+				}
+			}
 			return err
 		}
 	}
@@ -1632,4 +1644,18 @@ func (r *userRepository) DisableTotp(ctx context.Context, userID int64) error {
 		return translatePersistenceError(err, service.ErrUserNotFound, nil)
 	}
 	return nil
+}
+
+// Release an owned rejected transaction before using the independent connection.
+func (r *userRepository) persistRegistrationDenial(ctx context.Context, tx *dbent.Tx, source service.RegistrationSource, email, reason string) error {
+	if tx != nil {
+		if err := tx.Rollback(); err != nil {
+			return err
+		}
+	}
+	db, ok := r.sql.(*sql.DB)
+	if !ok || db == nil {
+		return service.ErrServiceUnavailable
+	}
+	return (&registrationProtectionRepository{db: db}).denyEmail(ctx, source, email, reason)
 }

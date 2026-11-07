@@ -308,3 +308,22 @@ func (r *supportTicketRepository) EmailsByUserIDs(ctx context.Context, ids []int
 	}
 	return emails, nil
 }
+
+func (r *supportTicketRepository) Summary(ctx context.Context) (*service.SupportTicketSummary, error) {
+	rows, err := clientFromContext(ctx, r.client).QueryContext(ctx, `SELECT COUNT(*), COUNT(*) FILTER (WHERE status IN ('open','pending_admin')) FROM support_tickets`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("missing ticket summary")
+	}
+	var result service.SupportTicketSummary
+	if err := rows.Scan(&result.TotalCount, &result.PendingCount); err != nil {
+		return nil, err
+	}
+	return &result, rows.Err()
+}

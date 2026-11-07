@@ -4,9 +4,9 @@ export default {
     title: 'Registration Protection', description: 'Control bulk signups by source and review risk records and account restrictions. Existing logins and balances are unaffected.',
     tabs: { settings: 'Protection settings', sources: 'Source records', accounts: 'Risk accounts' },
     enabled: 'Enable enhanced registration protection', quotaHint: 'Only created accounts consume quotas; failed attempts do not. Email and OAuth signups share quotas. Disabling protection retains basic throttling, CAPTCHA and existing signup benefit decisions.',
-    observationHint: 'Signed browser identifiers correlate signups across IPs. Similar browser features only trigger review when account and distinct-IP thresholds are reached within the window. Missing features retain basic verification. Identifiers can be cleared and features spoofed; neither proves a shared identity.',
+    observationHint: 'Source quotas, active source blocks, or matching browser features reaching both account and distinct-IP thresholds reject signup before email delivery and persist an email block. Blocked inbox aliases cannot retry from another IP. Features or missing identifiers alone do not trigger a block.',
     fields: {
-      browser_success_limit: 'Successful signups per signed browser', observe_fingerprint_limit: 'Browser feature observation account count', fingerprint_window_minutes: 'Browser feature window (minutes)', fingerprint_distinct_ips: 'Minimum distinct IPs for feature observation',
+      browser_success_limit: 'Successful signups per signed browser', observe_fingerprint_limit: 'Cross-IP signup blocking account threshold', fingerprint_window_minutes: 'Browser feature window (minutes)', fingerprint_distinct_ips: 'Minimum distinct IPs for signup blocking',
       identity_success_limit: 'Successful signup limit per IP + UA', ip_success_limit: 'Total successful signup limit per IP', success_window_hours: 'Successful signup window (hours)',
       identity_failure_limit: 'Verification failure limit per IP + UA', ip_failure_limit: 'Total verification failure limit per IP', failure_window_minutes: 'Verification failure window (minutes)',
       block_minutes: 'Temporary source restriction (minutes)', observe_identity_success_limit: 'IP + UA observation threshold'

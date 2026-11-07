@@ -106,10 +106,10 @@
             <router-link
               v-else
               :to="item.path"
-              class="sidebar-link mb-1"
+              class="sidebar-link relative mb-1"
               :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
-              :title="sidebarCollapsed ? item.label : undefined"
-              :aria-label="sidebarCollapsed ? item.label : undefined"
+              :title="sidebarCollapsed ? (item.path === '/admin/tickets' && ticketNotifications.pendingCount ? `${item.label}: ${t('supportTickets.pendingNotice', { count: ticketNotifications.pendingCount })}` : item.label) : undefined"
+              :aria-label="sidebarCollapsed ? (item.path === '/admin/tickets' && ticketNotifications.pendingCount ? `${item.label}: ${t('supportTickets.pendingNotice', { count: ticketNotifications.pendingCount })}` : item.label) : undefined"
               :id="
                 item.path === '/admin/accounts'
                   ? 'sidebar-channel-manage'
@@ -122,6 +122,7 @@
               <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
               <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
               <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
+              <span v-if="item.path === '/admin/tickets' && ticketNotifications.pendingCount > 0" :class="{ '!absolute right-1 top-1 !h-2 !w-2 !min-h-0 !min-w-0 !p-0 !text-[0px]': sidebarCollapsed }" class="ml-auto inline-flex min-h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary-100 px-1.5 text-xs font-semibold text-primary-700 dark:bg-primary-900 dark:text-primary-200" :title="t('supportTickets.pendingNotice', { count: ticketNotifications.pendingCount })" :aria-label="t('supportTickets.pendingNotice', { count: ticketNotifications.pendingCount })">{{ ticketNotifications.pendingCount > 99 ? '99+' : ticketNotifications.pendingCount }}</span>
             </router-link>
           </template>
         </div>
@@ -235,6 +236,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { FeatureFlags, isFeatureFlagEnabled, makeSidebarFlag } from '@/utils/featureFlags'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
+import { useTicketNotificationsStore } from '@/stores/ticketNotifications'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 
 interface NavItem {
@@ -1098,7 +1100,24 @@ watch(mobileOpen, async (open) => {
   }
 })
 
+const ticketNotifications = useTicketNotificationsStore()
+let ticketPollTimer: ReturnType<typeof setInterval> | undefined
+async function refreshTicketNotifications() {
+ if (!isAdmin.value || document.visibilityState === 'hidden') return
+ const result = await ticketNotifications.refresh()
+ if (!result) return
+ if (result.added > 0) appStore.showInfo(t('supportTickets.newNotice', { count: result.added }), 6000)
+ else if (result.initial && ticketNotifications.pendingCount > 0) appStore.showInfo(t('supportTickets.pendingNotice', { count: ticketNotifications.pendingCount }), 6000)
+}
+watch(() => isAdmin.value ? authStore.user?.id ?? null : null, id => {
+ ticketNotifications.setOwner(id)
+ void refreshTicketNotifications()
+}, { immediate: true })
+
 onMounted(() => {
+  ticketPollTimer = setInterval(() => { void refreshTicketNotifications() }, 30000)
+  document.addEventListener('visibilitychange', refreshTicketNotifications)
+  window.addEventListener('support-tickets-changed', refreshTicketNotifications)
   desktopSidebarMedia?.addEventListener('change', handleDesktopSidebarChange)
   document.addEventListener('keydown', handleSidebarDocumentKeydown)
   updateMobileBodyLock()
@@ -1117,6 +1136,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  clearInterval(ticketPollTimer)
+  ticketNotifications.cancel()
+  document.removeEventListener('visibilitychange', refreshTicketNotifications)
+  window.removeEventListener('support-tickets-changed', refreshTicketNotifications)
   desktopSidebarMedia?.removeEventListener('change', handleDesktopSidebarChange)
   document.removeEventListener('keydown', handleSidebarDocumentKeydown)
   document.body.classList.remove('sidebar-open')

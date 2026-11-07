@@ -197,3 +197,24 @@ func TestSupportTicketPostgresUserTabsAndSearch(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, items, "user search matches subjects and IDs, not email")
 }
+
+func TestSupportTicketPostgresSummary(t *testing.T) {
+	ctx := context.Background()
+	repo := NewSupportTicketRepository(integrationEntClient)
+	before, err := repo.Summary(ctx)
+	require.NoError(t, err)
+	userID := ticketIntegrationUser(t, "ticket-summary")
+	s := service.NewSupportTicketService(repo)
+	ticket, err := s.Create(ctx, userID, service.CreateTicketInput{Subject: "Summary", Body: "Body", Category: "other"})
+	require.NoError(t, err)
+	after, err := repo.Summary(ctx)
+	require.NoError(t, err)
+	require.Equal(t, before.TotalCount+1, after.TotalCount)
+	require.Equal(t, before.PendingCount+1, after.PendingCount)
+	_, err = s.UpdateStatus(ctx, ticket.ID, "closed")
+	require.NoError(t, err)
+	after, err = repo.Summary(ctx)
+	require.NoError(t, err)
+	require.Equal(t, before.TotalCount+1, after.TotalCount)
+	require.Equal(t, before.PendingCount, after.PendingCount)
+}

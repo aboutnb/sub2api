@@ -49,7 +49,13 @@ type SupportTicketListFilters struct {
 	Search   string
 }
 
+type SupportTicketSummary struct {
+	PendingCount int64 `json:"pending_count"`
+	TotalCount   int64 `json:"total_count"`
+}
+
 type SupportTicketRepository interface {
+	Summary(context.Context) (*SupportTicketSummary, error)
 	WithTx(context.Context, func(context.Context) error) error
 	LockUser(context.Context, int64) error
 	CountOpenByUser(context.Context, int64) (int, error)
@@ -409,4 +415,8 @@ func (s *SupportTicketService) UpdateStatus(ctx context.Context, ticketID int64,
 		return nil, err
 	}
 	return s.GetForAdmin(ctx, ticketID)
+}
+
+func (s *SupportTicketService) Summary(ctx context.Context) (*SupportTicketSummary, error) {
+	return s.repo.Summary(ctx)
 }

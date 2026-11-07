@@ -82,7 +82,7 @@ func TestRegistrationPostgresBrowserProtectionDisabledAndExpiredWindow(t *testin
 	}
 }
 
-func TestRegistrationPostgresSimilarFeaturesOnlyObserveCrossIPBurst(t *testing.T) {
+func TestRegistrationPostgresFeaturesRejectCrossIPBurst(t *testing.T) {
 	for _, sameIP := range []bool{false, true} {
 		t.Run(fmt.Sprint("sharedIP=", sameIP), func(t *testing.T) {
 			source := registrationIntegrationSource()
@@ -96,7 +96,15 @@ func TestRegistrationPostgresSimilarFeaturesOnlyObserveCrossIPBurst(t *testing.T
 				current.IdentityHash += fmt.Sprint(i)
 				current.BrowserHash = fmt.Sprintf("browser-%s-%d", source.IPHash, i)
 				user := &service.User{Email: fmt.Sprintf("features-%s-%d@example.com", source.IPHash, i), PasswordHash: "test", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 3, Balance: 0.2}
-				require.NoError(t, repo.Create(service.WithRegistrationSource(context.Background(), current), user))
+				err := repo.Create(service.WithRegistrationSource(context.Background(), current), user)
+				if !sameIP && i >= source.Policy.ObserveFingerprintLimit-1 {
+					require.ErrorIs(t, err, service.ErrRegistrationDenied)
+					var blocked int
+					require.NoError(t, integrationDB.QueryRow(`SELECT count(*) FROM registration_email_blocks WHERE email_identity=$1 AND released_at IS NULL`, user.Email).Scan(&blocked))
+					require.Equal(t, 1, blocked)
+					continue
+				}
+				require.NoError(t, err)
 				var count int
 				require.NoError(t, integrationDB.QueryRow(`SELECT COUNT(*) FROM registration_risk_accounts WHERE user_id=$1 AND reason='browser_features_registration_observed' AND status='observed'`, user.ID).Scan(&count))
 				expected := 0
@@ -275,4 +283,91 @@ func TestRegistrationPostgresRetentionPreservesUnresolvedEvidence(t *testing.T) 
 	require.NoError(t, err)
 	require.NoError(t, integrationDB.QueryRow(`SELECT COUNT(*) FROM registration_source_accounts WHERE user_id=$1`, user.ID).Scan(&count))
 	require.Zero(t, count)
+}
+
+func TestRegistrationPostgresAdmissionPersistsEmailAcrossSourceRotation(t *testing.T) {
+	ctx := context.Background()
+	source := registrationIntegrationSource()
+	repo := &registrationProtectionRepository{db: integrationDB}
+	require.NoError(t, repo.ActivateSourceBlock(ctx, source, "ip", 100))
+	email := "blocked-" + source.IPHash + "@gmail.com"
+	require.ErrorIs(t, repo.CheckEmailAdmission(ctx, source, email), service.ErrRegistrationDenied)
+	clean := registrationIntegrationSource()
+	clean.Policy.Enabled = false
+	alias := "blocked-" + source.IPHash + "+retry@googlemail.com"
+	require.ErrorIs(t, repo.CheckEmailAdmission(ctx, clean, alias), service.ErrRegistrationDenied)
+	require.NoError(t, repo.CheckEmailAdmission(ctx, clean, "clean-"+source.IPHash+"@example.com"))
+	user := &service.User{Email: alias, PasswordHash: "test", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 3}
+	require.ErrorIs(t, NewUserRepository(integrationEntClient, integrationDB).Create(service.WithRegistrationSource(ctx, clean), user), service.ErrRegistrationDenied)
+	var n int
+	require.NoError(t, integrationDB.QueryRow(`SELECT count(*) FROM users WHERE email=$1`, alias).Scan(&n))
+	require.Zero(t, n)
+	require.NoError(t, integrationDB.QueryRow(`SELECT count(*) FROM registration_email_blocks WHERE email_identity=$1`, service.NormalizeEmailForAliasDedup(email)).Scan(&n))
+	require.Equal(t, 1, n)
+}
+
+func TestRegistrationPostgresAdmissionBlocksBeforeMailAtQuota(t *testing.T) {
+	ctx := context.Background()
+	source := registrationIntegrationSource()
+	source.Policy.IdentitySuccessLimit = 1
+	user := &service.User{Email: "first-" + source.IPHash + "@example.com", PasswordHash: "test", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 3}
+	require.NoError(t, NewUserRepository(integrationEntClient, integrationDB).Create(service.WithRegistrationSource(ctx, source), user))
+	repo := &registrationProtectionRepository{db: integrationDB}
+	email := "second-" + source.IPHash + "@example.com"
+	require.ErrorIs(t, repo.CheckEmailAdmission(ctx, source, email), service.ErrRegistrationDenied)
+	require.ErrorIs(t, repo.CheckEmailAdmission(ctx, registrationIntegrationSource(), email), service.ErrRegistrationDenied)
+}
+
+func TestRegistrationPostgresAdmissionConfirmedCluster(t *testing.T) {
+	ctx := context.Background()
+	source := registrationIntegrationSource()
+	source.FeatureHash = "cluster-" + source.IPHash
+	users := NewUserRepository(integrationEntClient, integrationDB)
+	for i := 0; i < 2; i++ {
+		current := source
+		current.IPHash += fmt.Sprint(i)
+		current.IdentityHash += fmt.Sprint(i)
+		user := &service.User{Email: fmt.Sprintf("cluster-%s-%d@example.com", source.IPHash, i), PasswordHash: "test", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 3}
+		require.NoError(t, users.Create(service.WithRegistrationSource(ctx, current), user))
+		_, err := integrationDB.Exec(`UPDATE users SET status='disabled' WHERE id=$1`, user.ID)
+		require.NoError(t, err)
+		_, err = integrationDB.Exec(`INSERT INTO registration_risk_events(user_id,ip_hash,identity_hash,ip_address,reason,action) VALUES($1,$2,$3,'203.0.113.9','manual_batch_registration_abuse','disabled')`, user.ID, current.IPHash, current.IdentityHash)
+		require.NoError(t, err)
+	}
+	_, err := integrationDB.Exec(`UPDATE registration_source_accounts SET created_at=NOW()-INTERVAL '2 days' WHERE feature_hash=$1`, source.FeatureHash)
+	require.NoError(t, err)
+	source.IPHash += "new"
+	source.IdentityHash += "new"
+	repo := &registrationProtectionRepository{db: integrationDB}
+	require.ErrorIs(t, repo.CheckEmailAdmission(ctx, source, "candidate-"+source.IPHash+"@example.com"), service.ErrRegistrationDenied)
+}
+
+func TestRegistrationPostgresConcurrentFeatureAdmission(t *testing.T) {
+	source := registrationIntegrationSource()
+	source.FeatureHash = "concurrent-" + source.IPHash
+	repo := NewUserRepository(integrationEntClient, integrationDB)
+	results := make(chan error, 12)
+	var wg sync.WaitGroup
+	for i := 0; i < 12; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			current := source
+			current.IPHash += fmt.Sprint(i)
+			current.IdentityHash += fmt.Sprint(i)
+			user := &service.User{Email: fmt.Sprintf("parallel-%s-%d@example.com", source.IPHash, i), PasswordHash: "test", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 3}
+			results <- repo.Create(service.WithRegistrationSource(context.Background(), current), user)
+		}(i)
+	}
+	wg.Wait()
+	close(results)
+	allowed := 0
+	for err := range results {
+		if err == nil {
+			allowed++
+		} else {
+			require.ErrorIs(t, err, service.ErrRegistrationDenied)
+		}
+	}
+	require.Equal(t, source.Policy.ObserveFingerprintLimit-1, allowed)
 }

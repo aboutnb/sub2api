@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -20,6 +21,11 @@ func (h *AuthHandler) registrationError(c *gin.Context, err error) bool {
 		if riskErr := h.recordRegistrationSourceFailure(c); riskErr != nil {
 			err = riskErr
 		}
+	}
+	var quota *service.RegistrationQuotaExceeded
+	var blocked *service.RegistrationSourceBlocked
+	if errors.As(err, &quota) || errors.As(err, &blocked) {
+		err = service.ErrRegistrationDenied
 	}
 	return response.ErrorFrom(c, err)
 }
@@ -48,6 +54,7 @@ func (h *AuthHandler) registrationSource(c *gin.Context) (service.RegistrationSo
 	}
 	return service.RegistrationSource{
 		IPHash: h.registrationClientIPHash(c), IdentityHash: h.registrationClientIdentityHash(c),
+		BrowserHash: h.registrationBrowserHash(c), FeatureHash: h.registrationFeatureHash(c),
 		IPAddress: h.registrationSecurityClientIP(c), UserAgent: normalizeRegistrationUserAgent(c.Request.UserAgent()),
 		Path: c.Request.URL.Path, Policy: settings,
 	}, nil

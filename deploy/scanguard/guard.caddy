@@ -1,0 +1,30 @@
+# Imported only by the Aivoza application site blocks.
+@scan_probe {
+    path_regexp scan_probe `(?i)(^|/)(\.env([./~_-]|$)|\.(git|svn|hg)(/|$)|wp-admin(/|$)|wp-includes(/|$)|wp-content(/|$)|wp-login\.php($|/)|xmlrpc\.php($|/)|phpmyadmin(/|$)|cgi-bin(/|$))|\.(php[0-9]?|phtml|asp|aspx)($|/)`
+    not path /.well-known/* /pay/* /api/v1/payment/*
+}
+@not_scan_probe not {
+    path_regexp `(?i)(^|/)(\.env([./~_-]|$)|\.(git|svn|hg)(/|$)|wp-admin(/|$)|wp-includes(/|$)|wp-content(/|$)|wp-login\.php($|/)|xmlrpc\.php($|/)|phpmyadmin(/|$)|cgi-bin(/|$))|\.(php[0-9]?|phtml|asp|aspx)($|/)`
+    not path /.well-known/* /pay/* /api/v1/payment/*
+}
+log {
+    output file /config/scanguard/scan.jsonl {
+        mode 0600
+        roll_size 10MiB
+        roll_uncompressed
+        roll_keep 5
+        roll_keep_for 168h
+    }
+    format filter {
+        fields {
+            request>headers delete
+            request>uri delete
+            request>tls delete
+            resp_headers delete
+        }
+        wrap json
+    }
+}
+log_skip @not_scan_probe
+log_append @scan_probe security_event scan_probe
+log_append @scan_probe scan_path {http.request.uri.path}

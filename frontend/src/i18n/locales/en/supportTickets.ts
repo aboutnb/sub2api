@@ -1,5 +1,7 @@
 export default {
   supportTickets: {
+    newNotice: '{count} new support ticket(s). Open ticket management to review.',
+    pendingNotice: '{count} support ticket(s) awaiting staff',
     title: 'My Tickets',
     description: 'Submit questions and follow support replies and progress',
     adminTitle: 'Ticket Management',
