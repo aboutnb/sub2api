@@ -10,6 +10,7 @@
 - 23 服务器蓝绿状态 `state/aivoza-v0220-288419826667.json` 已 promoted，当前 `flowai-app`（cb8a11fca7bb，3020）healthy，Caddy 与目标配置一致。立即回滚保留为 `flowai-app-rollback-1440f6978a86`（3019，9e7f86bf6879，镜像 c7d31d5f009d），同样 healthy。
 - 新增两条迁移数据库 checksum 与源码一致，持久异常邮箱表已有 37 条有效标记。两个公网域名均报告版本 0.2.20，MCP 默认关闭；页面入口 200，未认证工单接口 401，源站扫描路径 404/9 字节。真实后台可见待处理工单提示及“关闭工单”按钮；未关闭真实工单、发送邮件、创建新账号或进行付费操作。
 - 备份 `/root/flowai/backups/aivoza-v0220-20261107`：数据库 782311741 字节通过 TOC 校验，应用数据 30096 字节通过 tar 校验，Redis 1596469 字节通过 RDB 校验，配置及容器元数据单独保存。应用日志未检出 panic/fatal/迁移失败/checksum mismatch；非应用服务 ID 与启动时间不变，Guardian 健康，scanguard timer active。
+- 最终连续探测已完成：aivoza.com 与 us.aivoza.com 共 180 次健康请求全部 HTTP 200，失败 0；21:57 再次确认当前及立即回滚容器均 healthy。原始记录与最终 `release-verification.json` 保存在本次备份目录。
 - 更早回滚 `flowai-app-rollback-1196b96821a0` 经连接与引用检查后优雅退出（exit 0）并删除；仅删除已无容器引用的 c215f227b296 镜像。保留当前与立即回滚两套应用、全部数据卷、备份和无关服务。
 
 ### 2026-11-07 自动化扫描入口防护（已在 23 生效）
