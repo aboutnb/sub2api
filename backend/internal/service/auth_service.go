@@ -1363,6 +1363,9 @@ func inferLegacySignupSource(email string) string {
 }
 
 func (s *AuthService) validateRegistrationEmailRiskPolicy(ctx context.Context, email string) error {
+	if s != nil && s.settingService != nil && s.settingService.IsRegistrationEmailBlacklisted(ctx, email) {
+		return ErrEmailBlocked
+	}
 	if IsDisposableRegistrationEmailDomain(email) {
 		return ErrEmailDisposableNotAllowed
 	}
@@ -1397,6 +1400,14 @@ func (s *AuthService) validateRegistrationEmailSuffixPolicy(ctx context.Context,
 	}
 	if s.settingService.IsRegistrationEmailBlacklisted(ctx, email) {
 		return ErrEmailBlocked
+	}
+	return s.validateEmailSuffixWhitelist(ctx, email)
+}
+
+// OAuth sign-in of existing users must not apply registration blacklist rules.
+func (s *AuthService) validateEmailSuffixWhitelist(ctx context.Context, email string) error {
+	if s == nil || s.settingService == nil {
+		return nil
 	}
 	whitelist := s.settingService.GetRegistrationEmailSuffixWhitelist(ctx)
 	if !IsRegistrationEmailSuffixAllowed(email, whitelist) {
