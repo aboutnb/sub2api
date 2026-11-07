@@ -105,6 +105,14 @@ func (s *projectMihomoAdminServiceStub) CreateUser(context.Context, *CreateUserI
 func (s *projectMihomoAdminServiceStub) UpdateUser(context.Context, int64, *UpdateUserInput) (*User, error) {
 	panic("unexpected UpdateUser call")
 }
+func (s *projectMihomoAdminServiceStub) BatchDisableUsers(context.Context, []int64) (int, error) {
+	panic("unexpected BatchDisableUsers call")
+}
+
+func (s *projectMihomoAdminServiceStub) FindActiveUsersByBlacklistedEmails(context.Context, []string) ([]User, error) {
+	panic("unexpected FindActiveUsersByBlacklistedEmails call")
+}
+
 func (s *projectMihomoAdminServiceStub) DeleteUser(context.Context, int64) error {
 	panic("unexpected DeleteUser call")
 }

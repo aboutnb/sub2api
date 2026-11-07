@@ -35,6 +35,7 @@ jobs:
           /bin/sh deploy/tests/docker-runtime-resources-test.sh
           /bin/sh deploy/test-caddyfile-cache.sh
           python3 -m unittest discover -s deploy/tests -p 'test_aivoza_bluegreen.py'
+          python3 -m unittest discover -s deploy/scanguard -p 'test_*.py'
 
   test:
     runs-on: ubuntu-latest
@@ -69,7 +70,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'pnpm'
           cache-dependency-path: frontend/pnpm-lock.yaml
       - name: Install frontend dependencies

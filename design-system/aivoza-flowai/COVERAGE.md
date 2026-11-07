@@ -283,3 +283,10 @@ by the coverage contract test so new overlays cannot ship unrecorded.
 ### v0.2.14 新增共享界面
 
 - `frontend/src/components/account/ClaudeResetCreditsCell.vue`：Claude 重置额度单元格与浮层，保留主题和暗色模式。
+
+## v0.2.20 新增界面
+
+- `frontend/src/views/user/MCPView.vue`：沿用现有卡片、对话框和深色模式组件；MCP 页面受部署开关控制。
+- `frontend/src/views/auth/MCPOAuthAuthorizeView.vue`：沿用现有卡片、对话框和深色模式组件；MCP 页面受部署开关控制。
+- `frontend/src/components/admin/settings/RegistrationEmailBlacklistEditor.vue`：沿用现有卡片、对话框和深色模式组件；MCP 页面受部署开关控制。
+- `frontend/src/components/admin/settings/AdminAccessKeysSettings.vue`：沿用现有卡片、对话框和深色模式组件；MCP 页面受部署开关控制。

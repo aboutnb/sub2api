@@ -295,6 +295,7 @@ export default {
       REGISTRATION_CHALLENGE_INIT_FAILED: '注册验证初始化失败，请检查网络后重试。',
       REGISTRATION_TOO_MANY_ATTEMPTS: '注册尝试过于频繁，请稍后再试。',
       REGISTRATION_RISK_CONTROL_UNAVAILABLE: '注册验证服务暂时不可用，请稍后再试。',
+      EMAIL_BLOCKED: '暂时无法完成此操作。',
     },
     registrationFailed: '注册失败，请重试。',
     emailDomainRegistrationLimit:

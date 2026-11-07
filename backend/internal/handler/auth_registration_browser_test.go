@@ -25,7 +25,9 @@ func TestRegistrationBrowserSignedCookie(t *testing.T) {
 	// IP changes retain the browser identity, while a forged cookie is ignored.
 	c.Request.RemoteAddr = "198.51.100.7:1234"
 	require.Equal(t, hash, h.registrationBrowserHash(c))
-	c.Request.Header.Set("Cookie", registrationBrowserCookie+"=x"+cookie.Value[1:])
+	forged := []byte(cookie.Value)
+	forged[0] ^= 1 // Always change the random ID, even when it starts with x.
+	c.Request.Header.Set("Cookie", registrationBrowserCookie+"="+string(forged))
 	require.Empty(t, h.registrationBrowserHash(c))
 }
 

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -755,7 +756,7 @@ func (s *APIKeyService) GetByKey(ctx context.Context, key string) (*APIKey, erro
 }
 
 func (s *APIKeyService) getByKey(ctx context.Context, key string) (*APIKey, error) {
-	if len(key) == 0 || len(key) > MaxAPIKeyCredentialBytes {
+	if len(key) == 0 || len(key) > MaxAPIKeyCredentialBytes || !utf8.ValidString(key) {
 		return nil, ErrAPIKeyNotFound
 	}
 	cacheKey := s.authCacheKey(key)

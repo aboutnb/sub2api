@@ -70,6 +70,7 @@ var ProviderSet = wire.NewSet(
 	NewCheckinRepository,
 	NewAdminCheckinRepository,
 	NewCheckinAbuseGuard,
+	NewMCPOAuthRepository,
 	NewAPIKeyRepository,
 	NewSmartRouteRepository,
 	NewGroupRepository,

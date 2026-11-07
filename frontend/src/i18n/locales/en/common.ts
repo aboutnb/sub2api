@@ -295,6 +295,7 @@ export default {
       REGISTRATION_CHALLENGE_INIT_FAILED: 'Failed to initialize registration verification. Check your connection and try again.',
       REGISTRATION_TOO_MANY_ATTEMPTS: 'Too many registration attempts. Please try again later.',
       REGISTRATION_RISK_CONTROL_UNAVAILABLE: 'Registration verification is temporarily unavailable. Please try again later.',
+      EMAIL_BLOCKED: 'Unable to complete this action at this time.',
     },
     registrationFailed: 'Registration failed. Please try again.',
     emailDomainRegistrationLimit:

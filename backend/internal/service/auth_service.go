@@ -89,6 +89,7 @@ type AuthService struct {
 	defaultSubAssigner    DefaultSubscriptionAssigner
 	userPlatformQuotaRepo UserPlatformQuotaRepository
 	signupRiskGrantStore  SignupRiskGrantStore
+	mcpGrantRevoker       MCPGrantRevoker
 }
 
 type CaptchaProof struct {
@@ -96,6 +97,11 @@ type CaptchaProof struct {
 	TurnstileToken string
 	TencentTicket  string
 	TencentRandstr string
+}
+
+// MCPGrantRevoker revokes MCP authorizations, which outlive browser sessions.
+type MCPGrantRevoker interface {
+	RevokeAllGrants(ctx context.Context, userID int64) error
 }
 
 type DefaultSubscriptionAssigner interface {
@@ -254,6 +260,10 @@ func (s *AuthService) releaseSignupGrant(ctx context.Context, userID int64) {
 	if err := s.signupRiskGrantStore.ReleaseSignupGrant(ctx, userID); err != nil {
 		logger.LegacyPrintf("service.auth", "[Auth] failed to release signup risk grant for user %d: %v", userID, err)
 	}
+}
+
+func (s *AuthService) SetMCPGrantRevoker(revoker MCPGrantRevoker) {
+	s.mcpGrantRevoker = revoker
 }
 
 // Register 用户注册，返回token和用户
@@ -1369,6 +1379,7 @@ func (s *AuthService) validateRegistrationEmailRiskPolicy(ctx context.Context, e
 	return nil
 }
 
+// validateRegistrationEmailPolicy 校验邮箱能否用于新建账号或绑定为账号邮箱：精确黑名单与域名白名单。
 func (s *AuthService) validateRegistrationEmailPolicy(ctx context.Context, email string) error {
 	if err := s.validateRegistrationEmailRiskPolicy(ctx, email); err != nil {
 		return err
@@ -1384,6 +1395,9 @@ func (s *AuthService) validateRegistrationEmailSuffixPolicy(ctx context.Context,
 	if s == nil || s.settingService == nil {
 		return nil
 	}
+	if s.settingService.IsRegistrationEmailBlacklisted(ctx, email) {
+		return ErrEmailBlocked
+	}
 	whitelist := s.settingService.GetRegistrationEmailSuffixWhitelist(ctx)
 	if !IsRegistrationEmailSuffixAllowed(email, whitelist) {
 		return buildEmailSuffixNotAllowedError(whitelist)
@@ -1391,12 +1405,15 @@ func (s *AuthService) validateRegistrationEmailSuffixPolicy(ctx context.Context,
 	return nil
 }
 
-// validateRegistrationEmailQuota 保留白名单为空时的全放行行为；配置白名单后，
-// 非白名单域名默认直接拒绝（严格白名单模式）；仅当域名限量注册开关开启时，
+// validateRegistrationEmailQuota 精确黑名单命中直接拒绝；保留白名单为空时的全放行行为；
+// 配置白名单后，非白名单域名默认直接拒绝（严格白名单模式）；仅当域名限量注册开关开启时，
 // 非白名单域名每个最多允许一个账户。
 func (s *AuthService) validateRegistrationEmailQuota(ctx context.Context, email string) error {
 	if s.settingService == nil {
 		return nil
+	}
+	if s.settingService.IsRegistrationEmailBlacklisted(ctx, email) {
+		return ErrEmailBlocked
 	}
 	whitelist := s.settingService.GetRegistrationEmailSuffixWhitelist(ctx)
 	if !IsRegistrationEmailSuffixLimited(email, whitelist) {
@@ -2097,6 +2114,13 @@ func (s *AuthService) RevokeAllUserTokens(ctx context.Context, userID int64) err
 
 	if err := s.RevokeAllUserSessions(ctx, userID); err != nil {
 		logger.LegacyPrintf("service.auth", "[Auth] Failed to revoke refresh sessions after token invalidation for user %d: %v", userID, err)
+	}
+	// A browser JWT can mint a long-lived MCP grant, so revoking every session
+	// must also revoke those grants. Fail loudly: the caller can retry.
+	if s.mcpGrantRevoker != nil {
+		if err := s.mcpGrantRevoker.RevokeAllGrants(ctx, userID); err != nil {
+			return fmt.Errorf("revoke MCP grants: %w", err)
+		}
 	}
 	return nil
 }
