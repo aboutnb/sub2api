@@ -96,10 +96,12 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Cont
 	if account != nil && account.Platform == PlatformGrok && isGrokContentPolicyRejection(statusCode, responseBody) {
 		return false
 	}
-	// Capacity shedding is request-scoped: do not turn a provider decision for
-	// this request into account/model health state or a scheduler penalty.
+	// Other request-scoped failures must not affect account/model health.
+	// Capacity shedding is handled below so explicit model cooldown rules
+	// retain precedence over the default request-local retry policy.
 	if account != nil && account.Platform == PlatformOpenAI &&
-		isOpenAIRequestScopedTransientError("", responseBody) {
+		isOpenAIRequestScopedTransientError("", responseBody) &&
+		!isOpenAIRequestScopedCapacityShed("", responseBody) {
 		return false
 	}
 	// Any non-2xx upstream HTTP response means the model request was actually sent.
