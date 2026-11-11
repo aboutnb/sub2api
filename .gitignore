@@ -148,6 +148,7 @@ docs/*
 !docs/DAILY_CHECK_IN_PRD.md
 !docs/checkin-design/
 !docs/checkin-design/**
+!docs/OPENAI_IMAGES_CODEX.md
 !docs/BATCH_IMAGE_MVP.md
 !docs/COMPOSITE_GROUPS.md
 !docs/PLUGIN_DEVELOPMENT.md
