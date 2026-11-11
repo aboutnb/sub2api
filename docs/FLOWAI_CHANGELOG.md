@@ -1,12 +1,19 @@
 # FlowAI 分支变更台账
 
-### 2026-11-11 v0.2.21 发布候选
+### 2026-11-11 v0.2.21 已发布至 23 服务器
 
 - 合并已审阅上游 `530c5e3a4f9c73ca2b0881191d0ef8e0d82c5484`，202 个文件变更。包含刷新令牌原子消费、调度槽位释放、请求体内存预算、Claude 5.2、OpenAI 缓存计费及 WebSocket 多轮兼容修正。
 - 9 处冲突按功能处理：保留 Aivoza 主题、充值布局和模型容量故障转移测试；接入异步用量展示、12 小时缓存价格、主动查询和上游独立进程分配测试。
-- 新增 `249_add_usage_logs_api_key_cost_index_notx.sql` 与 `250_openai_cache_write_ttl.sql`，历史迁移未改写。当前正在验证，尚未部署生产。
+- 新增 `249_add_usage_logs_api_key_cost_index_notx.sql` 与 `250_openai_cache_write_ttl.sql`，历史迁移未改写；生产迁移记录与源码 TrimSpace 后 SHA256 一致。
 - CI #208 的 unit 标签测试发现上游请求级临时错误早退绕过显式模型冷却；`762fe024e` 恢复容量降载的模型规则优先级，其他请求级错误保持无账号副作用。容量规则及临时错误专项测试、完整 `make test-unit` 均通过。
 - Security #227 检出 Go 标准库 `GO-2026-6859`（net/http MaxBytesReader header race）；`bbfc765df` 将 go.mod、两份 Dockerfile 和 CI/发布校验同步升级至修复版本 Go 1.27.4。
+- 发布源码 `0050dab590cd77d10f0bed3f56638a682b2c649b`；同源 CI #210（42952864736）、Security #228（42952864754）、Image #166（42954381019）全部成功。生产固定镜像 `ghcr.io/aboutnb/aivoza-sub2api@sha256:84a59f5e0138a026c9ac60541b128b45461c3021128a4d51bb2a05a1164ae07c`。
+- 本地前端 442 文件/3460 项测试、lint、typecheck、build 与后端 vet 通过。Go 1.27.4 本地全量 unit 曾出现有界内存测试超阈值约 12KB，独立重复 3 次通过，同源 CI 全量 unit/integration 通过；未修改或放宽断言。
+- 备份目录 `/root/flowai/backups/aivoza-v0221-20261111`：PostgreSQL 817977797 字节通过 TOC 校验，app-data 30262 字节通过 tar 校验，Redis RDB 1805467 字节通过完整性检查；生产配置、容器元数据与历史发布状态已保存。
+- 蓝绿状态 `state/aivoza-v0221-0050dab590cd.json` 已 promoted；当前 `flowai-app`（edf072b72412，3021）healthy，上一版保留为 `flowai-app-rollback-cb8a11fca7bb`（3020）healthy。两个域名公开版本均为 0.2.21，健康接口 200，未认证用户接口 401；主站页面 200，美国 API 域名页面 404 符合既有隔离配置。
+- 双域名连续健康探测共 180 次全部 200、失败 0，结果保存为备份目录 `cutover-probes.log`。所有非应用容器 ID/StartedAt 均未变化，Guardian 到 flowai-app 健康连接在清理前后正常，scanguard timer active；应用最近日志未检出 panic/fatal/migration failed/checksum mismatch。
+- 更早回滚容器 `flowai-app-rollback-1440f6978a86` 无入站连接及其他容器配置引用，优雅退出（exit 0）后移除；保留其镜像及全部数据卷、备份。当前仅保留新版与上一版两个应用容器。
+- 本次未进行真实付费生成、支付、注册写入或 Guardian 管理员认证验收；登录后账号调度和正负并发的生产业务请求未重新执行，相关行为由同源自动测试覆盖。
 
 ### 2026-11-07 v0.2.20 已发布至 23 服务器
 
