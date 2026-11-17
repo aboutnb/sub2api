@@ -378,7 +378,7 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 		server.serveIndexHTML(c)
 
 		assert.Empty(t, w.Header().Get("ETag"))
-		assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+		assertNoStoreHTMLHeaders(t, w.Header())
 	})
 
 	t.Run("returns_fresh_body_for_matching_legacy_etag", func(t *testing.T) {
@@ -389,12 +389,8 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 		server, err := NewFrontendServer(provider)
 		require.NoError(t, err)
 
-		// Use a real router for proper 304 handling
+		// No nonce in context means the cached body has no per-request part.
 		router := gin.New()
-		router.Use(func(c *gin.Context) {
-			c.Set(middleware.CSPNonceKey, "test-nonce")
-			c.Next()
-		})
 		router.Use(server.Middleware())
 
 		// First request to populate the server-side cache.
@@ -412,10 +408,47 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w2.Code)
 		assert.NotEmpty(t, w2.Body.String())
 		assert.Empty(t, w2.Header().Get("ETag"))
-		assert.Equal(t, "no-store", w2.Header().Get("Cache-Control"))
+		assertNoStoreHTMLHeaders(t, w2.Header())
 	})
 
-	t.Run("sets_cache_control_header", func(t *testing.T) {
+	t.Run("serves_fresh_html_when_cached_nonce_is_stale", func(t *testing.T) {
+		provider := &mockSettingsProvider{
+			settings: map[string]string{"test": "value"},
+		}
+
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+
+		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Set(middleware.CSPNonceKey, c.GetHeader("X-Test-Nonce"))
+			c.Next()
+		})
+		router.Use(server.Middleware())
+
+		w1 := httptest.NewRecorder()
+		req1 := httptest.NewRequest(http.MethodGet, "/", nil)
+		req1.Header.Set("X-Test-Nonce", "first-nonce")
+		router.ServeHTTP(w1, req1)
+		etag := w1.Header().Get("ETag")
+		require.Empty(t, etag)
+		assert.Contains(t, w1.Body.String(), `nonce="first-nonce"`)
+
+		// The document embeds the request nonce, so a matching ETag must not
+		// turn this into a 304 that reuses the previous nonce.
+		w2 := httptest.NewRecorder()
+		req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+		req2.Header.Set("X-Test-Nonce", "second-nonce")
+		req2.Header.Set("If-None-Match", etag)
+		router.ServeHTTP(w2, req2)
+
+		assert.Equal(t, http.StatusOK, w2.Code)
+		assert.Contains(t, w2.Body.String(), `nonce="second-nonce"`)
+		assert.NotContains(t, w2.Body.String(), `nonce="first-nonce"`)
+		assertNoStoreHTMLHeaders(t, w2.Header())
+	})
+
+	t.Run("sets_no_store_cache_headers", func(t *testing.T) {
 		provider := &mockSettingsProvider{
 			settings: map[string]string{"test": "value"},
 		}
@@ -430,7 +463,7 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 
 		server.serveIndexHTML(c)
 
-		assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+		assertNoStoreHTMLHeaders(t, w.Header())
 	})
 
 	t.Run("fallback_on_settings_error", func(t *testing.T) {
@@ -454,6 +487,78 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 		// Should still return 200 with base HTML
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
+	})
+}
+
+func assertNoStoreHTMLHeaders(t *testing.T, header http.Header) {
+	t.Helper()
+	assert.Equal(t, "no-cache, no-store, must-revalidate", header.Get("Cache-Control"))
+	assert.Equal(t, "no-cache", header.Get("Pragma"))
+	assert.Equal(t, "0", header.Get("Expires"))
+	assert.Equal(t, "no-store", header.Get("CDN-Cache-Control"))
+	assert.Equal(t, "no-store", header.Get("Surrogate-Control"))
+}
+
+func TestFrontendServer_NoStoreHeadersOnEveryHTMLPath(t *testing.T) {
+	t.Run("cache_hit", func(t *testing.T) {
+		provider := &mockSettingsProvider{
+			settings: map[string]string{"test": "value"},
+		}
+
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+
+		w1 := httptest.NewRecorder()
+		c1, _ := gin.CreateTestContext(w1)
+		c1.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+		c1.Set(middleware.CSPNonceKey, "nonce1")
+		server.serveIndexHTML(c1)
+		require.Equal(t, http.StatusOK, w1.Code)
+
+		w2 := httptest.NewRecorder()
+		c2, _ := gin.CreateTestContext(w2)
+		c2.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+		c2.Set(middleware.CSPNonceKey, "nonce2")
+		server.serveIndexHTML(c2)
+
+		assert.Equal(t, http.StatusOK, w2.Code)
+		assertNoStoreHTMLHeaders(t, w2.Header())
+	})
+
+	t.Run("settings_error_fallback", func(t *testing.T) {
+		provider := &mockSettingsProvider{
+			err: context.DeadlineExceeded,
+		}
+
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+		c.Set(middleware.CSPNonceKey, "nonce123")
+		server.serveIndexHTML(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assertNoStoreHTMLHeaders(t, w.Header())
+	})
+
+	t.Run("settings_marshal_error_fallback", func(t *testing.T) {
+		provider := &mockSettingsProvider{
+			settings: make(chan struct{}),
+		}
+
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+		c.Set(middleware.CSPNonceKey, "nonce123")
+		server.serveIndexHTML(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assertNoStoreHTMLHeaders(t, w.Header())
 	})
 }
 

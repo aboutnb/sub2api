@@ -163,7 +163,7 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 
 		// Keep the server-side settings cache, but do not expose a validator for
 		// nonce-bearing HTML. This forces a fresh body/CSP pair on reload.
-		c.Header("Cache-Control", "no-store")
+		applyHTMLNoCacheHeaders(c.Writer.Header())
 		c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 		c.Abort()
 		return
@@ -178,7 +178,7 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 		// Fallback: serve without injection, but still bind the template nonce to
 		// the CSP generated for this request.
 		content := replaceNoncePlaceholder(s.baseHTML, nonce)
-		c.Header("Cache-Control", "no-store")
+		applyHTMLNoCacheHeaders(c.Writer.Header())
 		c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 		c.Abort()
 		return
@@ -189,7 +189,7 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 		// Fallback: preserve the nonce/CSP pairing even when settings cannot be
 		// serialized.
 		content := replaceNoncePlaceholder(s.baseHTML, nonce)
-		c.Header("Cache-Control", "no-store")
+		applyHTMLNoCacheHeaders(c.Writer.Header())
 		c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 		c.Abort()
 		return
@@ -201,7 +201,7 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 	// Replace nonce placeholder with actual nonce before serving
 	content := replaceNoncePlaceholder(rendered, nonce)
 
-	c.Header("Cache-Control", "no-store")
+	applyHTMLNoCacheHeaders(c.Writer.Header())
 	c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 	c.Abort()
 }

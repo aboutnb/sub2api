@@ -68,9 +68,9 @@
       </div>
       <label class="flex items-center gap-3">
         <input v-model="form.rechargeBonusEnabled" type="checkbox" role="switch" />
-        <span>是否参与充值优惠</span>
+        <span>{{ t('admin.users.rechargeBonusEnabled') }}</span>
       </label>
-      <p class="input-hint">关闭后，新充值订单不享受阶梯赠送，已创建订单不受影响。</p>
+      <p class="input-hint">{{ t('admin.users.rechargeBonusHint') }}</p>
       <UserAttributeForm v-model="form.customAttributes" :user-id="user?.id" />
     </form>
     <template #footer>
