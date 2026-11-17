@@ -74,7 +74,8 @@ func TestGrokImagesPreservesUpstreamErrorOnSyncAndAsyncRoutes(t *testing.T) {
 					require.Equal(t, http.StatusBadRequest, recorder.Code, recorder.Body.String())
 					responseBody = recorder.Body.Bytes()
 				}
-				require.Equal(t, "Image could not be decoded: https://example.test/image?access_token=***&size=1", gjson.GetBytes(responseBody, "error.message").String())
+				require.Equal(t, "Image could not be decoded: [upstream address redacted]", gjson.GetBytes(responseBody, "error.message").String())
+				require.NotContains(t, string(responseBody), "example.test")
 				require.Equal(t, "invalid_image", gjson.GetBytes(responseBody, "error.code").String())
 				require.Equal(t, "invalid_request_error", gjson.GetBytes(responseBody, "error.type").String())
 				require.NotContains(t, string(responseBody), "secret")
