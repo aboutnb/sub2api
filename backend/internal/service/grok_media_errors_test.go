@@ -89,7 +89,7 @@ func TestGrokMediaErrorRewritesKeepPriority(t *testing.T) {
 				BindErrorPassthroughService(c, rules)
 				wantStatus, wantMessage = http.StatusUnprocessableEntity, "Configured error"
 				if tt.passthroughBody {
-					wantMessage = "Original error: https://example.test?access_token=***"
+					wantMessage = "Original error: [upstream address redacted]"
 				}
 			}
 			svc := &OpenAIGatewayService{accountRepo: &grokQuotaAccountRepo{}}

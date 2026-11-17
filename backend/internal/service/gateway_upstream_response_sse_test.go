@@ -35,7 +35,7 @@ func TestGatewayUpstreamErrorAfterKeepalive(t *testing.T) {
 		{"detail bad request", 400, `{"detail":"Request rejected"}`, false, false, 400, "invalid_request_error", "Request rejected"},
 		{"empty bad request", 400, "", false, false, 400, "invalid_request_error", "Upstream rejected the request"},
 		{"HTML bad request", 400, "<html>upstream error</html>", false, false, 400, "invalid_request_error", "Upstream rejected the request"},
-		{"sanitized bad request", 400, `{"error":{"message":"invalid endpoint https://example.test/?key=synthetic&access_token=synthetic"}}`, false, false, 400, "invalid_request_error", "invalid endpoint https://example.test/?key=***&access_token=***"},
+		{"sanitized bad request", 400, `{"error":{"message":"invalid endpoint https://example.test/?key=synthetic&access_token=synthetic"}}`, false, false, 400, "invalid_request_error", "invalid endpoint [upstream address redacted]"},
 		{"authentication", 401, rejected, false, false, 502, "upstream_error", "Upstream authentication failed, please contact administrator"},
 		{"forbidden", 403, rejected, false, false, 502, "upstream_error", "Upstream access forbidden, please contact administrator"},
 		{"rate limit", 429, rejected, false, false, 429, "rate_limit_error", "Upstream rate limit exceeded, please retry later"},
@@ -118,7 +118,11 @@ func TestGatewayUpstreamErrorAfterKeepalive(t *testing.T) {
 					require.NotContains(t, rec.Body.String(), "event: error")
 					require.Empty(t, GetOpsStreamErrors(c))
 					if tt.status == 400 && !tt.rule && !tt.exhausted {
-						require.Equal(t, state.prefix+tt.body, rec.Body.String(), "unstarted responses retain raw HTTP 400 passthrough")
+						wantBody := tt.body
+						if tt.name == "sanitized bad request" {
+							wantBody = `{"error":{"message":"invalid endpoint [upstream address redacted]"}}`
+						}
+						require.Equal(t, state.prefix+wantBody, rec.Body.String(), "HTTP 400 passthrough must preserve client redaction")
 					} else {
 						var payload gatewayKeepaliveErrorPayload
 						require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
