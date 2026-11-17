@@ -778,6 +778,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 <!-- FLOWAI_MIGRATION_LEDGER_BEGIN -->
 
+| `backend/migrations/259_user_recharge_bonus_disabled.sql` | 用户充值优惠参与开关 | 新增非空布尔列默认 false；旧应用兼容，回滚保留列和既有订单 |
+
 | `backend/migrations/258_registration_email_blocks.sql` | 注册前持久邮箱异常拦截 | 新增表并回填已审查封禁邮箱；保留旧表及余额，回滚应用不删除标记 |
 
 | `backend/migrations/257_registration_browser_signals.sql` | 注册浏览器摘要与观察信号 | 新增列默认空字符串及部分索引；不修改历史迁移，旧应用兼容，回滚不删列 |
@@ -886,6 +888,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+| 2026-11-17 | `00b20960e` | 用户级充值优惠开关与旧式开关轨道样式修复 | 用户编辑 4 项测试与前端构建通过 |
 | 2026-11-11 | `5d9818afb` | 保持上游新增缓存迁移字节一致，不修改 checksum；补充 v0.2.21 合并记录 | 发布前检查 |
 | 2026-11-11 | `762fe024e` | 恢复显式模型冷却优先级，兼容上游请求级临时错误隔离 | unit 容量降载与临时错误专项通过 |
 | 2026-11-11 | `bbfc765df` | Go 1.27.4 修复 GO-2026-6859；同步源码、镜像与 CI 工具链 | 重新运行 CI 与安全扫描 |
@@ -1151,6 +1154,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 审阅结论加入标记区。`git merge-base HEAD upstream/main` 变化后，以命令输出为准补齐。
 
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
+| 2026-11-17 | `16736015c` | 合入已审 upstream v0.2.22，保留支付、主题、错误脱敏与 HTML 无缓存约定 | 类型检查、11 项专项与前端构建通过 |
 | 2026-11-11 | `b1ca12218` | 合入已审 v0.2.21；9 处冲突保留定制界面及容量切换测试，接入缓存价格与加载状态 | 前端 3460 项及后端专项通过 |
 | 2026-11-07 | `f351b8d00` | 合入已审 upstream v0.2.20；20 文件逐块整合，保留注册拦截、工单、教程、生图路由、支付和并发约定；MCP 默认关闭 | 完整测试、严格契约及同源 CI |
 
