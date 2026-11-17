@@ -1,11 +1,30 @@
 # FlowAI 分支变更台账
 
-### 2026-11-17 v0.2.22 发布准备
+### 2026-11-17 v0.2.22 已发布至 23 服务器
 
 - 用户编辑新增充值优惠参与开关，默认参与；禁用时新订单跳过赠金和折扣阶梯，充值页隐藏阶梯和活动文案，既有订单金额不变。新增 259_user_recharge_bonus_disabled.sql，旧版本兼容新增列。
 - 修复旧式开关被通用按钮最小高度撑成圆形的问题，保留 44px 点击区域；账号调度、账号表单、额度及支付等共用样式同时生效。
 - 上游目标 15871f904056f548dd874a1d069ffc6cdf777b78：新增 Ultra Fast 模型门控、Gemini Vertex 区域和计费、调度与用量性能优化、额度刷新及流式错误修复。保持定制优先级、注册防护、支付及迁移校验不变。
-- 当前尚未发布；CI、镜像 digest 和生产验证待完成。
+- 发布源码 `167ddb1b5df61272dec856b83c5f578d4fb8c1e3`；同源 CI #213（44039318956）、Security #232（44039318766）、Image #169（44040900827）全部成功。固定镜像 `ghcr.io/aboutnb/aivoza-sub2api@sha256:96557a99905e063c0876e3709b0a27766de85ca58359b84fcfebfa657b246f4e`。
+- 本地前端 444 文件/3494 项测试、lint、typecheck、build，图片工作台 599 项测试和 build，后端完整 unit、vet、embed 测试与严格契约全部通过。更新上游 Grok 测试以匹配已有地址脱敏契约，没有取消生产脱敏。
+- 备份 `/root/flowai/backups/aivoza-v0222-20261117`：PostgreSQL 903182890 字节通过 TOC 校验，app-data-stable 24179 字节通过 tar 校验（排除正在写入的日志），Redis 2043454 字节通过 RDB 校验，配置、容器元数据及状态另存。新增三条迁移 251_group_force_openai_ultrafast、251_group_usage_rollup_nonblocking_build、259_user_recharge_bonus_disabled 的数据库 checksum 与源码一致。
+- 状态 `state/aivoza-v0222-167ddb1b5df6.json` 已 promoted，当前应用端口 3022、healthy、重启 0；上一版 `flowai-app-rollback-edf072b72412`（3021）healthy。三个域名公开版本均为 0.2.22；主站/CDN 登录页 200，美国 API 域名登录页 404，未认证充值接口 401。
+- Caddy 宿主文件与容器挂载 inode 不同（此前替换宿主文件导致）；本次通过备份目录 `promote-sync.py` 包装既有 prepare/promote 流程，先验证配置，同步挂载内容并恢复只读，再热加载。切流后宿主/容器文件 SHA256 均为 `63ac070393036e9ae3f417c82bb64085f83fb7590e34e814a5e65139e217e23d`，两处上游均指向 `aivoza-167ddb1b5df6:8080`。未重启 Caddy。未来发布/回滚仍须同步挂载内容，不能仅覆盖宿主文件后直接 reload。
+- 主站与美国 API 域名连续 180 次健康探测全部 200；CDN 90 次密集探测中 83 次 200、6 次 456、1 次连接失败，随后单次复查及间隔 10 秒的 6 次低频复查全部 200。未取得失败响应体，不能确定是限流还是边缘故障，也未为此放宽 CDN 防护。原始结果保存在备份目录 cutover-probes.log 与 cdn-low-frequency.log。
+- 非应用容器 ID/StartedAt 全部未变，Guardian 健康且可访问当前 flowai-app，scanguard timer active，源站扫描路径 404/9 字节；应用日志未检出 panic/fatal/migration failed/checksum mismatch。更早回滚 cb8a11fca7bb 确认入站连接 0、无其他容器/Caddy 引用，优雅退出（exit 0）后移除；仅删除其无容器引用的 6d2bf75446a7 镜像，保留当前与立即回滚版本、全部数据卷和备份。
+- 本次未执行真实支付、付费生成、注册写入或管理员业务操作验收。
+
+本次回滚须复用同步挂载的加载器（先检查当前状态和上一版健康，再执行）：
+
+```bash
+python3 - <<'PY'
+from pathlib import Path
+from types import SimpleNamespace
+wrapper = Path('/root/flowai/backups/aivoza-v0222-20261117/promote-sync.py').read_text()
+exec(wrapper.rsplit('deploy.promote(', 1)[0])
+deploy.rollback(SimpleNamespace(state=Path('/root/flowai/deploy/state/aivoza-v0222-167ddb1b5df6.json')))
+PY
+```
 
 ### 2026-11-11 v0.2.21 已发布至 23 服务器
 
