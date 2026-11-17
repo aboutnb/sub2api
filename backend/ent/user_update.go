@@ -66,6 +66,20 @@ func (_u *UserUpdate) ClearDeletedAt() *UserUpdate {
 	return _u
 }
 
+// SetRechargeBonusDisabled sets the "recharge_bonus_disabled" field.
+func (_u *UserUpdate) SetRechargeBonusDisabled(v bool) *UserUpdate {
+	_u.mutation.SetRechargeBonusDisabled(v)
+	return _u
+}
+
+// SetNillableRechargeBonusDisabled sets the "recharge_bonus_disabled" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableRechargeBonusDisabled(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetRechargeBonusDisabled(*v)
+	}
+	return _u
+}
+
 // SetEmail sets the "email" field.
 func (_u *UserUpdate) SetEmail(v string) *UserUpdate {
 	_u.mutation.SetEmail(v)
@@ -1017,6 +1031,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(user.FieldDeletedAt, field.TypeTime)
 	}
+	if value, ok := _u.mutation.RechargeBonusDisabled(); ok {
+		_spec.SetField(user.FieldRechargeBonusDisabled, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 	}
@@ -1756,6 +1773,20 @@ func (_u *UserUpdateOne) SetNillableDeletedAt(v *time.Time) *UserUpdateOne {
 // ClearDeletedAt clears the value of the "deleted_at" field.
 func (_u *UserUpdateOne) ClearDeletedAt() *UserUpdateOne {
 	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
+// SetRechargeBonusDisabled sets the "recharge_bonus_disabled" field.
+func (_u *UserUpdateOne) SetRechargeBonusDisabled(v bool) *UserUpdateOne {
+	_u.mutation.SetRechargeBonusDisabled(v)
+	return _u
+}
+
+// SetNillableRechargeBonusDisabled sets the "recharge_bonus_disabled" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableRechargeBonusDisabled(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetRechargeBonusDisabled(*v)
+	}
 	return _u
 }
 
@@ -2739,6 +2770,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(user.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RechargeBonusDisabled(); ok {
+		_spec.SetField(user.FieldRechargeBonusDisabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)

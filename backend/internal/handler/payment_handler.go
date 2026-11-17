@@ -100,6 +100,15 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 // GET /api/v1/payment/checkout-info
 func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 	ctx := c.Request.Context()
+	subject, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+	bonusDisabled, err := h.paymentService.UserRechargeBonusDisabled(ctx, subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 
 	// Fetch limits (methods + global range)
 	limitsResp, err := h.configService.GetAvailableMethodLimits(ctx)
@@ -145,6 +154,12 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		})
 	}
 
+	bonusTiers := cfg.RechargeBonusTiers
+	bonusNotice := cfg.RechargeBonusNotice
+	if bonusDisabled {
+		bonusTiers = []service.RechargeBonusTier{}
+		bonusNotice = ""
+	}
 	response.Success(c, checkoutInfoResponse{
 		Methods:                       limitsResp.Methods,
 		GlobalMin:                     limitsResp.GlobalMin,
@@ -152,13 +167,13 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		Plans:                         planList,
 		BalanceDisabled:               cfg.BalanceDisabled,
 		BalanceRechargeMultiplier:     cfg.BalanceRechargeMultiplier,
-		RechargeBonusTiers:            cfg.RechargeBonusTiers,
+		RechargeBonusTiers:            bonusTiers,
 		SubscriptionUSDToCNYRate:      cfg.SubscriptionUSDToCNYRate,
 		SubscriptionFeeEnabled:        cfg.SubscriptionFeeEnabled,
 		RechargeFeeRate:               cfg.RechargeFeeRate,
 		RechargeFeeCredited:           cfg.RechargeFeeCredited,
 		RechargeBonusMode:             cfg.RechargeBonusMode,
-		RechargeBonusNotice:           cfg.RechargeBonusNotice,
+		RechargeBonusNotice:           bonusNotice,
 		HelpText:                      cfg.HelpText,
 		HelpImageURL:                  cfg.HelpImageURL,
 		StripePublishableKey:          cfg.StripePublishableKey,

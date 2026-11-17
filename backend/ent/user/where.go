@@ -70,6 +70,11 @@ func DeletedAt(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldDeletedAt, v))
 }
 
+// RechargeBonusDisabled applies equality check predicate on the "recharge_bonus_disabled" field. It's identical to RechargeBonusDisabledEQ.
+func RechargeBonusDisabled(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldRechargeBonusDisabled, v))
+}
+
 // Email applies equality check predicate on the "email" field. It's identical to EmailEQ.
 func Email(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldEmail, v))
@@ -308,6 +313,16 @@ func DeletedAtIsNil() predicate.User {
 // DeletedAtNotNil applies the NotNil predicate on the "deleted_at" field.
 func DeletedAtNotNil() predicate.User {
 	return predicate.User(sql.FieldNotNull(FieldDeletedAt))
+}
+
+// RechargeBonusDisabledEQ applies the EQ predicate on the "recharge_bonus_disabled" field.
+func RechargeBonusDisabledEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldRechargeBonusDisabled, v))
+}
+
+// RechargeBonusDisabledNEQ applies the NEQ predicate on the "recharge_bonus_disabled" field.
+func RechargeBonusDisabledNEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldRechargeBonusDisabled, v))
 }
 
 // EmailEQ applies the EQ predicate on the "email" field.

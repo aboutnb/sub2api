@@ -21,6 +21,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
 	FieldDeletedAt = "deleted_at"
+	// FieldRechargeBonusDisabled holds the string denoting the recharge_bonus_disabled field in the database.
+	FieldRechargeBonusDisabled = "recharge_bonus_disabled"
 	// FieldEmail holds the string denoting the email field in the database.
 	FieldEmail = "email"
 	// FieldPasswordHash holds the string denoting the password_hash field in the database.
@@ -199,6 +201,7 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldUpdatedAt,
 	FieldDeletedAt,
+	FieldRechargeBonusDisabled,
 	FieldEmail,
 	FieldPasswordHash,
 	FieldRole,
@@ -253,6 +256,8 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultRechargeBonusDisabled holds the default value on creation for the "recharge_bonus_disabled" field.
+	DefaultRechargeBonusDisabled bool
 	// EmailValidator is a validator for the "email" field. It is called by the builders before save.
 	EmailValidator func(string) error
 	// PasswordHashValidator is a validator for the "password_hash" field. It is called by the builders before save.
@@ -318,6 +323,11 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByDeletedAt orders the results by the deleted_at field.
 func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
+}
+
+// ByRechargeBonusDisabled orders the results by the recharge_bonus_disabled field.
+func ByRechargeBonusDisabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRechargeBonusDisabled, opts...).ToFunc()
 }
 
 // ByEmail orders the results by the email field.

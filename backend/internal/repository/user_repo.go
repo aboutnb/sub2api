@@ -341,6 +341,9 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User, field
 	if fields.Notes {
 		updateOp = updateOp.SetNotes(userIn.Notes)
 	}
+	if fields.RechargeBonusDisabled {
+		updateOp = updateOp.SetRechargeBonusDisabled(userIn.RechargeBonusDisabled)
+	}
 	if fields.PasswordHash {
 		updateOp = updateOp.SetPasswordHash(userIn.PasswordHash)
 	}

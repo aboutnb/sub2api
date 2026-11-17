@@ -76,6 +76,20 @@ func (_c *UserCreate) SetNillableDeletedAt(v *time.Time) *UserCreate {
 	return _c
 }
 
+// SetRechargeBonusDisabled sets the "recharge_bonus_disabled" field.
+func (_c *UserCreate) SetRechargeBonusDisabled(v bool) *UserCreate {
+	_c.mutation.SetRechargeBonusDisabled(v)
+	return _c
+}
+
+// SetNillableRechargeBonusDisabled sets the "recharge_bonus_disabled" field if the given value is not nil.
+func (_c *UserCreate) SetNillableRechargeBonusDisabled(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetRechargeBonusDisabled(*v)
+	}
+	return _c
+}
+
 // SetEmail sets the "email" field.
 func (_c *UserCreate) SetEmail(v string) *UserCreate {
 	_c.mutation.SetEmail(v)
@@ -614,6 +628,10 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.RechargeBonusDisabled(); !ok {
+		v := user.DefaultRechargeBonusDisabled
+		_c.mutation.SetRechargeBonusDisabled(v)
+	}
 	if _, ok := _c.mutation.Role(); !ok {
 		v := user.DefaultRole
 		_c.mutation.SetRole(v)
@@ -684,6 +702,9 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "User.updated_at"`)}
+	}
+	if _, ok := _c.mutation.RechargeBonusDisabled(); !ok {
+		return &ValidationError{Name: "recharge_bonus_disabled", err: errors.New(`ent: missing required field "User.recharge_bonus_disabled"`)}
 	}
 	if _, ok := _c.mutation.Email(); !ok {
 		return &ValidationError{Name: "email", err: errors.New(`ent: missing required field "User.email"`)}
@@ -804,6 +825,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(user.FieldDeletedAt, field.TypeTime, value)
 		_node.DeletedAt = &value
+	}
+	if value, ok := _c.mutation.RechargeBonusDisabled(); ok {
+		_spec.SetField(user.FieldRechargeBonusDisabled, field.TypeBool, value)
+		_node.RechargeBonusDisabled = value
 	}
 	if value, ok := _c.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
@@ -1184,6 +1209,18 @@ func (u *UserUpsert) UpdateDeletedAt() *UserUpsert {
 // ClearDeletedAt clears the value of the "deleted_at" field.
 func (u *UserUpsert) ClearDeletedAt() *UserUpsert {
 	u.SetNull(user.FieldDeletedAt)
+	return u
+}
+
+// SetRechargeBonusDisabled sets the "recharge_bonus_disabled" field.
+func (u *UserUpsert) SetRechargeBonusDisabled(v bool) *UserUpsert {
+	u.Set(user.FieldRechargeBonusDisabled, v)
+	return u
+}
+
+// UpdateRechargeBonusDisabled sets the "recharge_bonus_disabled" field to the value that was provided on create.
+func (u *UserUpsert) UpdateRechargeBonusDisabled() *UserUpsert {
+	u.SetExcluded(user.FieldRechargeBonusDisabled)
 	return u
 }
 
@@ -1594,6 +1631,20 @@ func (u *UserUpsertOne) UpdateDeletedAt() *UserUpsertOne {
 func (u *UserUpsertOne) ClearDeletedAt() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.ClearDeletedAt()
+	})
+}
+
+// SetRechargeBonusDisabled sets the "recharge_bonus_disabled" field.
+func (u *UserUpsertOne) SetRechargeBonusDisabled(v bool) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetRechargeBonusDisabled(v)
+	})
+}
+
+// UpdateRechargeBonusDisabled sets the "recharge_bonus_disabled" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateRechargeBonusDisabled() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateRechargeBonusDisabled()
 	})
 }
 
@@ -2225,6 +2276,20 @@ func (u *UserUpsertBulk) UpdateDeletedAt() *UserUpsertBulk {
 func (u *UserUpsertBulk) ClearDeletedAt() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.ClearDeletedAt()
+	})
+}
+
+// SetRechargeBonusDisabled sets the "recharge_bonus_disabled" field.
+func (u *UserUpsertBulk) SetRechargeBonusDisabled(v bool) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetRechargeBonusDisabled(v)
+	})
+}
+
+// UpdateRechargeBonusDisabled sets the "recharge_bonus_disabled" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateRechargeBonusDisabled() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateRechargeBonusDisabled()
 	})
 }
 

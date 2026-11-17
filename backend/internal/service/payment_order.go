@@ -22,6 +22,14 @@ import (
 
 // --- Order Creation ---
 
+func (s *PaymentService) UserRechargeBonusDisabled(ctx context.Context, userID int64) (bool, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	return user.RechargeBonusDisabled, nil
+}
+
 func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest) (*CreateOrderResponse, error) {
 	if req.OrderType == "" {
 		req.OrderType = payment.OrderTypeBalance
@@ -49,6 +57,11 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	}
 	if user.Status != payment.EntityStatusActive {
 		return nil, infraerrors.Forbidden("USER_INACTIVE", "user account is disabled")
+	}
+	if user.RechargeBonusDisabled {
+		copyConfig := *cfg
+		copyConfig.RechargeBonusTiers = nil
+		cfg = &copyConfig
 	}
 	if s.notificationEmailService != nil {
 		s.notificationEmailService.RememberRecipientLocale(ctx, req.UserID, user.Email, req.Locale)

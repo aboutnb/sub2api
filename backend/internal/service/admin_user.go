@@ -229,6 +229,10 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	// fields 与下面的 input.X 判空条件一一对应：管理员没提交的列不写回，
 	// 避免这份快照回滚并发的扣费、状态变更或批量限额调整。
 	var fields UserUpdateFields
+	if input.RechargeBonusDisabled != nil {
+		user.RechargeBonusDisabled = *input.RechargeBonusDisabled
+		fields.RechargeBonusDisabled = true
+	}
 
 	if input.Email != "" {
 		user.Email = input.Email

@@ -53238,6 +53238,7 @@ type UserMutation struct {
 	created_at                    *time.Time
 	updated_at                    *time.Time
 	deleted_at                    *time.Time
+	recharge_bonus_disabled       *bool
 	email                         *string
 	password_hash                 *string
 	role                          *string
@@ -53528,6 +53529,42 @@ func (m *UserMutation) DeletedAtCleared() bool {
 func (m *UserMutation) ResetDeletedAt() {
 	m.deleted_at = nil
 	delete(m.clearedFields, user.FieldDeletedAt)
+}
+
+// SetRechargeBonusDisabled sets the "recharge_bonus_disabled" field.
+func (m *UserMutation) SetRechargeBonusDisabled(b bool) {
+	m.recharge_bonus_disabled = &b
+}
+
+// RechargeBonusDisabled returns the value of the "recharge_bonus_disabled" field in the mutation.
+func (m *UserMutation) RechargeBonusDisabled() (r bool, exists bool) {
+	v := m.recharge_bonus_disabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRechargeBonusDisabled returns the old "recharge_bonus_disabled" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldRechargeBonusDisabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRechargeBonusDisabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRechargeBonusDisabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRechargeBonusDisabled: %w", err)
+	}
+	return oldValue.RechargeBonusDisabled, nil
+}
+
+// ResetRechargeBonusDisabled resets all changes to the "recharge_bonus_disabled" field.
+func (m *UserMutation) ResetRechargeBonusDisabled() {
+	m.recharge_bonus_disabled = nil
 }
 
 // SetEmail sets the "email" field.
@@ -55244,7 +55281,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 25)
+	fields := make([]string, 0, 26)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -55253,6 +55290,9 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.deleted_at != nil {
 		fields = append(fields, user.FieldDeletedAt)
+	}
+	if m.recharge_bonus_disabled != nil {
+		fields = append(fields, user.FieldRechargeBonusDisabled)
 	}
 	if m.email != nil {
 		fields = append(fields, user.FieldEmail)
@@ -55334,6 +55374,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.UpdatedAt()
 	case user.FieldDeletedAt:
 		return m.DeletedAt()
+	case user.FieldRechargeBonusDisabled:
+		return m.RechargeBonusDisabled()
 	case user.FieldEmail:
 		return m.Email()
 	case user.FieldPasswordHash:
@@ -55393,6 +55435,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldUpdatedAt(ctx)
 	case user.FieldDeletedAt:
 		return m.OldDeletedAt(ctx)
+	case user.FieldRechargeBonusDisabled:
+		return m.OldRechargeBonusDisabled(ctx)
 	case user.FieldEmail:
 		return m.OldEmail(ctx)
 	case user.FieldPasswordHash:
@@ -55466,6 +55510,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDeletedAt(v)
+		return nil
+	case user.FieldRechargeBonusDisabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRechargeBonusDisabled(v)
 		return nil
 	case user.FieldEmail:
 		v, ok := value.(string)
@@ -55792,6 +55843,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldDeletedAt:
 		m.ResetDeletedAt()
+		return nil
+	case user.FieldRechargeBonusDisabled:
+		m.ResetRechargeBonusDisabled()
 		return nil
 	case user.FieldEmail:
 		m.ResetEmail()

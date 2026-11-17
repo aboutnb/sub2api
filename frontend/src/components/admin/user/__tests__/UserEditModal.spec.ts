@@ -54,6 +54,15 @@ const mountModal = (concurrency: number) => mount(UserEditModal, {
 })
 
 describe('UserEditModal concurrency', () => {
+  it('defaults to participating and submits an explicit opt-out', async () => {
+    const wrapper = mountModal(1)
+    const toggle = wrapper.get('input[role="switch"]')
+    expect((toggle.element as HTMLInputElement).checked).toBe(true)
+    await toggle.setValue(false)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(update).toHaveBeenCalledWith(7, expect.objectContaining({ recharge_bonus_disabled: true }))
+  })
   beforeEach(() => {
     update.mockReset()
     updateUserAttributeValues.mockReset()
