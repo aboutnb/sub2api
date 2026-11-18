@@ -933,26 +933,31 @@ func (r *userRepository) ApplyRedeemBalanceAdjustment(ctx context.Context, id in
 // 中间件会阻止余额 <= 0 的用户发起后续请求
 func (r *userRepository) DeductBalance(ctx context.Context, id int64, amount float64) error {
 	client := clientFromContext(ctx, r.client)
-	n, err := client.User.Update().
-		Where(dbuser.IDEQ(id), dbuser.BalanceGTE(amount)).
-		AddBalance(-amount).
-		Save(ctx)
-	if err != nil {
+	var owned *dbent.Tx
+	if dbent.TxFromContext(ctx) == nil {
+		var err error
+		owned, err = client.Tx(ctx)
+		if err != nil {
+			return err
+		}
+		defer owned.Rollback()
+		client = owned.Client()
+	}
+	if _, err := client.ExecContext(ctx, `SELECT set_config('aivoza.bonus_usage','on',true)`); err != nil {
 		return err
 	}
-	if n > 0 {
-		return nil
-	}
-
-	n, err = client.User.Update().
-		Where(dbuser.IDEQ(id)).
-		AddBalance(-amount).
-		Save(ctx)
+	n, err := client.User.Update().Where(dbuser.IDEQ(id)).AddBalance(-amount).Save(ctx)
 	if err != nil {
 		return err
 	}
 	if n == 0 {
 		return service.ErrUserNotFound
+	}
+	if _, err := client.ExecContext(ctx, `SELECT apply_recharge_bonus_writeoff($1,$2,'legacy')`, id, amount); err != nil {
+		return err
+	}
+	if owned != nil {
+		return owned.Commit()
 	}
 	return nil
 }

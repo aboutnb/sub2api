@@ -124,10 +124,24 @@ func (s *UsageService) Create(ctx context.Context, req CreateUsageLogRequest) (*
 	// 扣除用户余额
 	balanceUpdated := false
 	if inserted && req.ActualCost > 0 {
+		client := s.entClient
+		if tx != nil {
+			client = tx.Client()
+		}
+		if _, err := client.ExecContext(txCtx, `SELECT set_config('aivoza.bonus_usage','on',true)`); err != nil {
+			return nil, err
+		}
 		if err := s.userRepo.UpdateBalance(txCtx, req.UserID, -req.ActualCost); err != nil {
 			return nil, fmt.Errorf("update user balance: %w", err)
 		}
 		balanceUpdated = true
+		if repo, ok := s.userRepo.(interface {
+			ApplyBonusWriteoff(context.Context, int64, float64, string) error
+		}); ok {
+			if err := repo.ApplyBonusWriteoff(txCtx, req.UserID, req.ActualCost, req.RequestID); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	if tx != nil {

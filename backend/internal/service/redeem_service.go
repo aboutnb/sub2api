@@ -485,6 +485,11 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 		} else if err := s.userRepo.UpdateBalance(txCtx, userID, amount); err != nil {
 			return nil, fmt.Errorf("update user balance: %w", err)
 		}
+		if amount > 0 && ctx.Value(paymentBonusBatchContextKey{}) == true {
+			if err := createPaymentBonusBatch(txCtx, tx.Client(), userID, redeemCode.Code); err != nil {
+				return nil, fmt.Errorf("create recharge bonus batch: %w", err)
+			}
+		}
 
 	case RedeemTypeConcurrency:
 		delta := int(redeemCode.Value)

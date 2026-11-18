@@ -168,6 +168,7 @@ type AccountQuotaState struct {
 }
 
 type UsageBillingApplyResult struct {
+	BonusWrittenOff      float64
 	Applied              bool
 	APIKeyQuotaExhausted bool
 	NewBalance           *float64           // post-deduction balance (nil = no balance deduction)

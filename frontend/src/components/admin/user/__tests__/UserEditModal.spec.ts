@@ -48,6 +48,7 @@ const mountModal = (concurrency: number) => mount(UserEditModal, {
       Select: true,
       Icon: true,
       UserAttributeForm: true,
+      UserBonusWriteoff: true,
       TotpStepUpDialog: true
     }
   }

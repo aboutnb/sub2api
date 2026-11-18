@@ -478,6 +478,9 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder, l
 	case redeemActionRedeem:
 		// Code exists but unused — skip creation, proceed to redeem
 	}
+	if o.BonusAmount > 0 && o.ProviderSnapshot["recharge_bonus_mode"] == RechargeBonusModeBonus {
+		ctx = context.WithValue(ctx, paymentBonusBatchContextKey{}, true)
+	}
 	if _, err := s.redeemService.redeemForPaymentFulfillment(ctx, o.UserID, o.RechargeCode); err != nil {
 		return fmt.Errorf("redeem balance: %w", err)
 	}

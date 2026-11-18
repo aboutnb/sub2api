@@ -347,6 +347,37 @@ func applyUsageBillingBatchBalance(ctx context.Context, tx *sql.Tx, userID int64
 	if group == nil {
 		return nil
 	}
+	var hasBatches bool
+	if err := markBonusUsage(ctx, tx); err != nil {
+		return err
+	}
+	var lockedID int64
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, userID).Scan(&lockedID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return service.ErrUserNotFound
+		}
+		return err
+	}
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM recharge_bonus_writeoff_batches WHERE user_id=$1 AND active)`, userID).Scan(&hasBatches); err != nil {
+		return err
+	}
+	if hasBatches {
+		for _, i := range group.indexes {
+			balance, sufficient, err := deductUsageBillingBalance(ctx, tx, userID, cmds[i].BalanceCost)
+			if err != nil {
+				return err
+			}
+			extra, err := applyBonusWriteoff(ctx, tx, userID, cmds[i].BalanceCost, cmds[i].RequestID)
+			if err != nil {
+				return err
+			}
+			balance -= extra
+			outcomes[i].Result.NewBalance = &balance
+			outcomes[i].Result.BalanceOverdrafted = !sufficient
+			outcomes[i].Result.BonusWrittenOff = extra
+		}
+		return nil
+	}
 
 	var newBalance decimal.Decimal
 	err := tx.QueryRowContext(ctx, `

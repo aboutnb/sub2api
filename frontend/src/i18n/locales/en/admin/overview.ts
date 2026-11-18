@@ -496,6 +496,17 @@ export default {
     users: {
       rechargeBonusEnabled: 'Participate in recharge promotions',
       rechargeBonusHint: 'When disabled, new recharge orders receive no bonus or discount. Existing orders are unchanged.',
+      bonusWriteoff: {
+        previous: 'Previous page', next: 'Next page',
+        details: 'Details', batch: 'Recharge batch', request: 'Related request', actor: 'Administrator', balance: 'Balance after writeoff',
+        title: 'New recharge bonus writeoff', enabled: 'Enable for this consenting user',
+        hint: 'Existing funds are spent first. Only orders created and credited after activation qualify. Spending 10 of principal writes off 1 of a 10% bonus. Separate administrator records are retained.',
+        effectiveAt: 'Effective time', limit: 'Writeoff limit for this policy (USD, 0 = unlimited)', consent: 'Consent reference / note',
+        revisionHint: 'Saving starts a new policy and retires existing batches without catch-up deductions. A refund attempt returns prior writeoffs and retires that batch, even if the refund fails. This setting saves separately.',
+        save: 'Save writeoff policy', history: 'Administrator writeoff history', time: 'Time', action: 'Action', amount: 'Writeoff amount (negative = returned)',
+        loadError: 'Unable to load policy', saveError: 'Unable to save policy; please retry', invalid: 'Enter a valid time, nonnegative limit, and consent note', saved: 'Writeoff policy saved',
+        actions: { policy: 'Policy change', writeoff: 'Bonus writeoff', refund_restore: 'Refund writeoff return', adjustment_retired: 'Balance adjustment retired batch' }
+      },
       title: 'User Management',
       description: 'Manage users and their permissions',
       createUser: 'Create User',

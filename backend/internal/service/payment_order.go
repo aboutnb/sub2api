@@ -241,6 +241,11 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		return nil, err
 	}
 	providerSnapshot := buildPaymentOrderProviderSnapshot(sel, req)
+	if providerSnapshot == nil {
+		providerSnapshot = map[string]any{}
+	}
+	bonusMode, _ := NormalizeRechargeBonusMode(cfg.RechargeBonusMode)
+	providerSnapshot["recharge_bonus_mode"] = bonusMode
 	selectedInstanceID := ""
 	selectedProviderKey := ""
 	if sel != nil {

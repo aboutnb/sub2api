@@ -473,6 +473,12 @@ func syncBalanceCacheAfterDeduction(ctx context.Context, p *postUsageBillingPara
 	if p == nil || p.Cost == nil || p.User == nil || deps == nil || deps.billingCacheService == nil {
 		return
 	}
+	if result != nil && result.BonusWrittenOff > 0 {
+		if err := deps.billingCacheService.InvalidateUserBalance(ctx, p.User.ID); err != nil {
+			slog.Warn("invalidate balance after bonus writeoff failed", "user_id", p.User.ID, "error", err)
+		}
+		return
+	}
 	if result != nil && result.NewBalance != nil && deps.billingCacheService.balanceBelowEligibilityThreshold(*result.NewBalance) {
 		if err := deps.billingCacheService.InvalidateUserBalance(ctx, p.User.ID); err != nil {
 			slog.Warn("invalidate balance cache after exhausted deduction failed",
@@ -525,14 +531,18 @@ func notifyBalanceLow(ctx context.Context, p *postUsageBillingParams, deps *bill
 		"threshold", p.User.BalanceNotifyThreshold,
 		"result_has_new_balance", result != nil && result.NewBalance != nil,
 	)
-	deps.balanceNotifyService.CheckBalanceAfterDeduction(ctx, p.User, oldBalance, p.Cost.ActualCost)
+	totalDebit := p.Cost.ActualCost
+	if result != nil {
+		totalDebit += result.BonusWrittenOff
+	}
+	deps.balanceNotifyService.CheckBalanceAfterDeduction(ctx, p.User, oldBalance, totalDebit)
 }
 
 // resolveOldBalance returns the pre-deduction balance.
 // Prefers the DB transaction result (newBalance + cost) over snapshot.
 func resolveOldBalance(p *postUsageBillingParams, result *UsageBillingApplyResult) float64 {
 	if result != nil && result.NewBalance != nil {
-		return *result.NewBalance + p.Cost.ActualCost
+		return *result.NewBalance + p.Cost.ActualCost + result.BonusWrittenOff
 	}
 	// Legacy fallback: snapshot balance from request context
 	return p.User.Balance

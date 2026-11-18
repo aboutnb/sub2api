@@ -172,6 +172,11 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 }
 
 func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, result *service.UsageBillingApplyResult) error {
+	if cmd.BalanceCost > 0 {
+		if err := markBonusUsage(ctx, tx); err != nil {
+			return err
+		}
+	}
 	if cmd.SubscriptionCost > 0 && cmd.SubscriptionID != nil {
 		if err := incrementUsageBillingSubscription(ctx, tx, *cmd.SubscriptionID, cmd.SubscriptionCost); err != nil {
 			return err
@@ -185,6 +190,12 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		}
 		result.NewBalance = &newBalance
 		result.BalanceOverdrafted = !sufficient
+		extra, err := applyBonusWriteoff(ctx, tx, cmd.UserID, cmd.BalanceCost, cmd.RequestID)
+		if err != nil {
+			return err
+		}
+		newBalance -= extra
+		result.BonusWrittenOff = extra
 	}
 
 	// Key 已不存在时跳过其自身的额度/限速计数，其余结算项不受影响。
@@ -288,6 +299,15 @@ func reserveUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 		RETURNING balance, frozen_balance
 	`, cmd.HoldAmount, cmd.UserID).Scan(&balance, &frozen)
 	if err == nil {
+		if _, err := tx.ExecContext(ctx, `SELECT reserve_recharge_bonus_writeoff($1,$2,$3)`, cmd.UserID, cmd.HoldAmount, cmd.BatchID); err != nil {
+			if strings.Contains(err.Error(), "bonus hold insufficient balance") {
+				return nil, service.ErrBatchImageInsufficientBalance
+			}
+			return nil, err
+		}
+		if err := tx.QueryRowContext(ctx, `SELECT balance,frozen_balance FROM users WHERE id=$1`, cmd.UserID).Scan(&balance, &frozen); err != nil {
+			return nil, err
+		}
 		return &service.BatchImageBalanceHoldResult{NewBalance: &balance, FrozenBalance: &frozen}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -308,6 +328,12 @@ func captureUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 	if cmd.ActualAmount-cmd.HoldAmount > 0.00000001 {
 		return nil, service.ErrBatchImageSettlementCostExceedsHold
 	}
+	if err := markBonusUsage(ctx, tx); err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `SELECT release_recharge_bonus_liability($1,$2)`, cmd.UserID, cmd.BatchID); err != nil {
+		return nil, err
+	}
 	var balance, frozen float64
 	err := tx.QueryRowContext(ctx, `
 		UPDATE users
@@ -320,6 +346,12 @@ func captureUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 		RETURNING balance, frozen_balance
 	`, cmd.HoldAmount, cmd.ActualAmount, cmd.UserID).Scan(&balance, &frozen)
 	if err == nil {
+		var extra float64
+		err := tx.QueryRowContext(ctx, `SELECT apply_recharge_bonus_writeoff($1,$2,$3,$4)`, cmd.UserID, cmd.ActualAmount, cmd.RequestID, cmd.BatchID).Scan(&extra)
+		if err != nil {
+			return nil, err
+		}
+		balance -= extra
 		return &service.BatchImageBalanceHoldResult{NewBalance: &balance, FrozenBalance: &frozen}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -347,6 +379,9 @@ func releaseUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 		logger.LegacyPrintf("repository.usage_billing", "[BatchImage] release skipped, hold was never reserved: batch=%s", cmd.BatchID)
 		return &service.BatchImageBalanceHoldResult{}, nil
 	}
+	if _, err := tx.ExecContext(ctx, `SELECT release_recharge_bonus_liability($1,$2)`, cmd.UserID, cmd.BatchID); err != nil {
+		return nil, err
+	}
 	var balance, frozen float64
 	err := tx.QueryRowContext(ctx, `
 		UPDATE users
@@ -357,6 +392,9 @@ func releaseUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 		RETURNING balance, frozen_balance
 	`, cmd.HoldAmount, cmd.UserID).Scan(&balance, &frozen)
 	if err == nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM recharge_bonus_writeoff_holds WHERE user_id=$1 AND hold_key=$2`, cmd.UserID, cmd.BatchID); err != nil {
+			return nil, err
+		}
 		return &service.BatchImageBalanceHoldResult{NewBalance: &balance, FrozenBalance: &frozen}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {

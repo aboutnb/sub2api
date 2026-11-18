@@ -496,6 +496,17 @@ export default {
     users: {
       rechargeBonusEnabled: '是否参与充值优惠',
       rechargeBonusHint: '关闭后，新充值订单不享受赠金或折扣优惠，已创建订单不受影响。',
+      bonusWriteoff: {
+        previous: '上一页', next: '下一页',
+        details: '详情', batch: '充值批次', request: '关联请求', actor: '操作管理员', balance: '核销后余额',
+        title: '新充值赠金核销', enabled: '启用指定用户赠金核销',
+        hint: '仅用于已明确同意的用户。历史余额先消费；生效后新建并到账的充值按赠送比例核销。例如本金消费 10，10% 赠金核销 1。仅管理员查看独立记录。',
+        effectiveAt: '生效时间', limit: '本轮核销上限（USD，0 为不设上限）', consent: '用户同意依据 / 备注',
+        revisionHint: '保存会开启新一轮规则，并终止旧批次后续核销；不会追补扣款。退款尝试会返还该批次已核销赠金并终止核销，即使退款失败也不再次核销。此设置独立保存。',
+        save: '保存核销设置', history: '管理员核销流水', time: '时间', action: '类型', amount: '核销金额（负数为返还）',
+        loadError: '无法加载核销设置', saveError: '保存失败，请重试', invalid: '请填写有效时间、非负上限及用户同意备注', saved: '核销设置已保存',
+        actions: { policy: '配置变更', writeoff: '赠金核销', refund_restore: '退款返还核销', adjustment_retired: '余额调整终止批次' }
+      },
       title: '用户管理',
       description: '管理用户账户和权限',
       createUser: '创建用户',
