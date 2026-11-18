@@ -936,6 +936,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
 
+| 2026-11-18 | `0530ce671` | Vitest 使用含编译器的 i18n 构建支持纯字符串测试消息；Ultra Fast 断言覆盖新模型与时段文案，生产构建不变 | 33 项原失败相关测试通过，全量回归 |
+
 | 2026-11-18 | `cf4567b774aa8c98125b56a1bd0254bbd8d4635b` | 指定用户按新充值各批次实际赠金/本金比例核销；独立管理员审计、默认关闭、冻结归属与幂等退款保护 | 后端单元/PostgreSQL 集成、前端测试与构建、契约检查 |
 | 2026-11-18 | `5fca2a579` | 整合邀请返利同浏览器/自邀风控与 258_affiliate_risk_pairs 迁移、图片工作台跨标签会话切换提示与提示词路由显式错误校验、工单接口 Server-Timing 与前端 UI 路由标记及注册页 OAuth 测试 | 后端 repository/handler/routes/middleware 与前端 81 项专项、ESLint、vue-tsc 通过 |
 | 2026-11-17 | `559fe2832` | SSE 心跳前后与 Grok 规则透传测试均验证客户端地址脱敏，不更改生产安全行为 | service 两组专项通过 |
