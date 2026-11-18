@@ -1,4 +1,9 @@
 export default {
+  imageStudio: {
+    sessionChanged: '登录状态已变化',
+    sessionChangedDescription: '工作台已停止当前页面的请求和轮询。重新加载后将使用当前账号，已提交的生图任务会继续处理。',
+    reload: '重新加载工作台'
+  },
 
   // Subscription Progress (Header component)
   subscriptionProgress: {

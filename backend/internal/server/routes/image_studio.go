@@ -213,7 +213,7 @@ func imageStudioSelectedRouteAllows(c *gin.Context, keys *service.APIKeyService,
 		return false
 	}
 	if len(ids) == 0 {
-		return true
+		return false
 	}
 	for _, id := range ids {
 		if id == groupID {
@@ -239,7 +239,7 @@ func imageStudioPromptOptions(c *gin.Context, h *handler.Handlers, keys *service
 	}
 	plan, err := keys.PlanImageStudioPromptRoute(c.Request.Context(), modelsFor)
 	if err != nil || plan == nil || plan.Model == "" || len(plan.Groups) == 0 {
-		return choicesFor(available), nil, err
+		return []gin.H{}, nil, err
 	}
 	key, err := keys.ImageStudioPromptRouteKey(c.Request.Context(), userID)
 	if err != nil {
@@ -254,14 +254,7 @@ func imageStudioPromptOptions(c *gin.Context, h *handler.Handlers, keys *service
 	}
 	source := imageStudioRouteSource(plan, ids)
 	model, label := imageStudioPromptChoice(source, modelsFor)
-	if model == "" {
-		model, label = plan.Model, plan.Label
-	}
-	channels := len(source)
-	if len(ids) > 0 {
-		channels = len(ids)
-	}
-	return choicesFor(source), gin.H{"key_id": key.ID, "name": key.Name, "channels": channels, "default_model": model, "default_group": label}, nil
+	return choicesFor(source), gin.H{"key_id": key.ID, "name": key.Name, "channels": len(source), "default_model": model, "default_group": label}, nil
 }
 
 func imageStudioRouteSource(plan *service.ImageStudioPromptRoute, ids []int64) []service.Group {
@@ -269,7 +262,7 @@ func imageStudioRouteSource(plan *service.ImageStudioPromptRoute, ids []int64) [
 		return nil
 	}
 	if len(ids) == 0 {
-		return plan.Groups
+		return nil
 	}
 	allowed := make(map[int64]struct{}, len(ids))
 	for _, id := range ids {
@@ -280,9 +273,6 @@ func imageStudioRouteSource(plan *service.ImageStudioPromptRoute, ids []int64) [
 		if _, ok := allowed[group.ID]; ok {
 			source = append(source, group)
 		}
-	}
-	if len(source) == 0 {
-		return plan.Groups
 	}
 	return source
 }
@@ -386,10 +376,15 @@ func optimizeImageStudioPrompt(c *gin.Context, h *handler.Handlers, keys *servic
 		response.BadRequest(c, "Invalid prompt")
 		return
 	}
+	input.Model = strings.TrimSpace(input.Model)
+	if input.GroupID < 0 || (input.Model == "") != (input.GroupID == 0) {
+		response.BadRequest(c, "Prompt model and group must be selected together")
+		return
+	}
 	modelsFor := func(candidate service.Group) []string {
 		return imageStudioGroupModels(c, h, candidate)
 	}
-	if requested := strings.TrimSpace(input.Model); requested != "" && input.GroupID > 0 {
+	if requested := input.Model; requested != "" {
 		var selected *service.Group
 		for i := range groups {
 			if groups[i].ID == input.GroupID {
@@ -407,7 +402,7 @@ func optimizeImageStudioPrompt(c *gin.Context, h *handler.Handlers, keys *servic
 			}
 		}
 		if selected == nil || !allowedModel || !imageStudioSelectedRouteAllows(c, keys, promptRoutes, subject.UserID, selected.ID) {
-			response.Forbidden(c, "Prompt model is no longer available")
+			response.ErrorWithDetails(c, http.StatusForbidden, "Prompt model is no longer available", "PROMPT_MODEL_UNAVAILABLE", nil)
 			return
 		}
 		key, err := keys.ImageStudioKey(c.Request.Context(), subject.UserID, selected.ID, true)
@@ -417,7 +412,6 @@ func optimizeImageStudioPrompt(c *gin.Context, h *handler.Handlers, keys *servic
 		}
 		optimized, ok := completeImageStudioPrompt(c, gateway, key, requested, prompt)
 		if !ok {
-			response.Success(c, gin.H{"prompt": prompt, "optimized": false})
 			return
 		}
 		respondImageStudioPrompt(c, prompt, optimized, requested, selected.Name)
@@ -444,24 +438,25 @@ func optimizeImageStudioPrompt(c *gin.Context, h *handler.Handlers, keys *servic
 				response.ErrorFrom(c, idsErr)
 				return
 			}
-			model, label := imageStudioPromptChoice(imageStudioRouteSource(plan, ids), modelsFor)
+			model, _ := imageStudioPromptChoice(imageStudioRouteSource(plan, ids), modelsFor)
 			if model == "" {
-				response.Success(c, gin.H{"prompt": prompt, "optimized": false})
+				response.ErrorWithDetails(c, http.StatusForbidden, "No prompt model is available in the selected route", "PROMPT_MODEL_UNAVAILABLE", nil)
 				return
 			}
 			// One text call only. A failed route is not retried on another billing group.
 			optimized, ok := completeImageStudioPrompt(c, gateway, key, model, prompt)
 			if !ok {
-				response.Success(c, gin.H{"prompt": prompt, "optimized": false})
 				return
 			}
-			respondImageStudioPrompt(c, prompt, optimized, model, label)
+			respondImageStudioPrompt(c, prompt, optimized, model, service.ImageStudioPromptRouteName)
 			return
 		}
+		response.ErrorWithDetails(c, http.StatusForbidden, "No prompt model is available in the selected route", "PROMPT_MODEL_UNAVAILABLE", nil)
+		return
 	}
 	target, model := service.BestImageStudioPromptTarget(groups, modelsFor)
 	if model == "" {
-		response.Success(c, gin.H{"prompt": prompt, "optimized": false})
+		response.ErrorWithDetails(c, http.StatusForbidden, "No prompt model is available", "PROMPT_MODEL_UNAVAILABLE", nil)
 		return
 	}
 	key, err := keys.ImageStudioKey(c.Request.Context(), subject.UserID, target.ID, true)
@@ -471,7 +466,6 @@ func optimizeImageStudioPrompt(c *gin.Context, h *handler.Handlers, keys *servic
 	}
 	optimized, ok := completeImageStudioPrompt(c, gateway, key, model, prompt)
 	if !ok {
-		response.Success(c, gin.H{"prompt": prompt, "optimized": false})
 		return
 	}
 	respondImageStudioPrompt(c, prompt, optimized, model, target.Name)
@@ -497,6 +491,7 @@ func completeImageStudioPrompt(c *gin.Context, gateway http.Handler, key *servic
 	})
 	req, err := http.NewRequestWithContext(service.WithImageStudioCredential(c.Request.Context(), key.Key), http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	if err != nil {
+		response.ErrorWithDetails(c, http.StatusBadGateway, "Prompt optimization failed", "PROMPT_OPTIMIZATION_FAILED", nil)
 		return "", false
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -504,6 +499,20 @@ func completeImageStudioPrompt(c *gin.Context, gateway http.Handler, key *servic
 	recorder := httptest.NewRecorder()
 	gateway.ServeHTTP(recorder, req)
 	if recorder.Code < 200 || recorder.Code >= 300 {
+		// Preserve authentication, billing and rate-limit failures. The caller must
+		// explicitly choose to generate with the original prompt after an error.
+		if retryAfter := recorder.Header().Get("Retry-After"); retryAfter != "" {
+			c.Header("Retry-After", retryAfter)
+		}
+		if recorder.Code >= 400 && json.Valid(recorder.Body.Bytes()) {
+			c.Data(recorder.Code, "application/json", recorder.Body.Bytes())
+		} else {
+			status := recorder.Code
+			if status < 400 {
+				status = http.StatusBadGateway
+			}
+			response.ErrorWithDetails(c, status, "Prompt optimization failed", "PROMPT_OPTIMIZATION_FAILED", nil)
+		}
 		return "", false
 	}
 	var result struct {
@@ -512,24 +521,45 @@ func completeImageStudioPrompt(c *gin.Context, gateway http.Handler, key *servic
 				Content string `json:"content"`
 			} `json:"message"`
 		} `json:"choices"`
+		Model string `json:"model"`
 	}
 	if json.Unmarshal(recorder.Body.Bytes(), &result) != nil || len(result.Choices) == 0 {
+		response.ErrorWithDetails(c, http.StatusBadGateway, "Prompt optimizer returned an invalid response", "PROMPT_OPTIMIZATION_FAILED", nil)
 		return "", false
 	}
 	optimized := strings.TrimSpace(result.Choices[0].Message.Content)
 	if optimized == "" || len([]rune(optimized)) > 8000 {
-		return prompt, true
+		response.ErrorWithDetails(c, http.StatusBadGateway, "Prompt optimizer returned an invalid response", "PROMPT_OPTIMIZATION_FAILED", nil)
+		return "", false
 	}
+	actualModel := strings.TrimSpace(result.Model)
+	if !safeImageStudioModelID(actualModel) {
+		actualModel = model
+	}
+	c.Set("image_studio.actual_prompt_model", actualModel)
 	return optimized, true
 }
 
 func respondImageStudioPrompt(c *gin.Context, original, optimized, model, groupName string) {
-	payload := gin.H{"prompt": optimized, "optimized": optimized != original}
-	if optimized != original {
-		payload["model"] = model
-		payload["group"] = groupName
+	actualModel, _ := c.Get("image_studio.actual_prompt_model")
+	if resolved, ok := actualModel.(string); ok && resolved != "" {
+		model = resolved
 	}
+	payload := gin.H{"prompt": optimized, "optimized": optimized != original, "model": model, "group": groupName}
 	response.Success(c, payload)
+}
+
+func safeImageStudioModelID(model string) bool {
+	lower := strings.ToLower(model)
+	if model == "" || len(model) > 128 || strings.Contains(model, "://") || strings.HasPrefix(lower, "sk-") || service.IsImageStudioCredential(model) {
+		return false
+	}
+	for _, r := range model {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("._:/-", r)) {
+			return false
+		}
+	}
+	return true
 }
 
 func imageStudioPromptModel(models []string) string {

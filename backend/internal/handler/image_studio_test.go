@@ -50,3 +50,20 @@ func TestImageStudioCompositeAsyncAndTaskOwnership(t *testing.T) {
 		require.ErrorIs(t, err, service.ErrImageTaskNotFound)
 	}
 }
+
+func TestImageStudioTextModelsRequireSchedulableChannel(t *testing.T) {
+	ctx := context.Background()
+	repo := &gatewayModelsAccountRepoStub{byGroup: map[int64][]service.Account{
+		2: {{Platform: service.PlatformGemini}},
+		3: {{Platform: service.PlatformOpenAI, Credentials: map[string]any{"model_mapping": map[string]any{"gpt-5.6-sol": "gpt-5.6-sol", "gpt-5.4-mini": "gpt-5.4-mini"}}}},
+		4: {{Platform: service.PlatformDeepseek}},
+	}}
+	h := newGatewayModelsHandlerForTest(repo)
+	require.Empty(t, h.ImageStudioTextModels(ctx, service.Group{ID: 1, Platform: service.PlatformOpenAI}))
+	require.Empty(t, h.ImageStudioTextModels(ctx, service.Group{ID: 2, Platform: service.PlatformOpenAI}))
+	require.Empty(t, h.ImageStudioTextModels(ctx, service.Group{ID: 4, Platform: service.PlatformDeepseek}))
+	models := h.ImageStudioTextModels(ctx, service.Group{ID: 3, Platform: service.PlatformOpenAI, ModelAllowlist: service.GroupModelAllowlist{Enabled: true, Models: []string{"gpt-5.6-sol"}}})
+	require.Equal(t, []string{"gpt-5.6-sol"}, models)
+	models = h.ImageStudioTextModels(ctx, service.Group{ID: 3, Platform: service.PlatformComposite, ModelAllowlist: service.GroupModelAllowlist{Enabled: true, Models: []string{"gpt-5.6-sol"}}})
+	require.Equal(t, []string{"gpt-5.6-sol"}, models)
+}

@@ -1,6 +1,8 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RegisterView from '@/views/auth/RegisterView.vue'
+import { startOAuthLogin, buildOAuthLoginStartURL } from '@/api/auth'
+import EmailOAuthButtons from '@/components/auth/EmailOAuthButtons.vue'
 
 const {
   getPublicSettingsMock,
@@ -69,6 +71,8 @@ vi.mock('@/api/auth', async () => {
   const actual = await vi.importActual<typeof import('@/api/auth')>('@/api/auth')
   return {
     ...actual,
+    startOAuthLogin: vi.fn(),
+    buildOAuthLoginStartURL: vi.fn(() => '#oauth-login'),
     getPublicSettings: (...args: unknown[]) => getPublicSettingsMock(...args)
   }
 })
@@ -97,6 +101,7 @@ function mountRegister() {
 
 describe('RegisterView', () => {
   beforeEach(() => {
+    vi.mocked(startOAuthLogin).mockReset()
     getPublicSettingsMock.mockReset()
     registerMock.mockReset()
     showErrorMock.mockReset()
@@ -107,6 +112,18 @@ describe('RegisterView', () => {
     verifyActionMock.mockResolvedValue({ token: 'ticket', randstr: 'randstr' })
     getPublicSettingsMock.mockResolvedValue(publicSettings)
     registerMock.mockResolvedValue({})
+  })
+
+  it('starts OAuth without Turnstile and leaves signup verification to the callback', async () => {
+    getPublicSettingsMock.mockResolvedValueOnce({ ...publicSettings, github_oauth_enabled: true })
+    const wrapper = mountRegister()
+    await flushPromises()
+    const request = { provider: 'github', params: {} }
+    wrapper.getComponent(EmailOAuthButtons).vm.$emit('start', request)
+    await flushPromises()
+    expect(startOAuthLogin).not.toHaveBeenCalled()
+    expect(buildOAuthLoginStartURL).toHaveBeenCalledWith(request)
+    wrapper.unmount()
   })
 
   it('does not flash the promo-code field before disabled settings finish loading', async () => {

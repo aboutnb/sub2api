@@ -3,6 +3,7 @@ package routes
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -268,6 +269,9 @@ type promptRouteSaver struct {
 }
 
 func (s *promptRouteSaver) EnsureImageStudioRoute(ctx context.Context, id int64, groups []service.Group) error {
+	if len(s.ids) > 0 {
+		return nil
+	}
 	return s.SaveImageStudioRoute(ctx, id, groups)
 }
 
@@ -335,7 +339,8 @@ func TestImageStudioPromptOptimizationCreatesSmartGroupAcrossPublicChannels(t *t
 	router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	require.Contains(t, w.Body.String(), "窗边的橘猫")
-	require.Contains(t, w.Body.String(), "公开文本")
+	require.Contains(t, w.Body.String(), service.ImageStudioPromptRouteName)
+	require.NotContains(t, w.Body.String(), "公开文本")
 	require.NotContains(t, w.Body.String(), service.ImageStudioSmartGroupName)
 	require.Empty(t, repo.sources)
 	require.Empty(t, repo.bound)
@@ -420,13 +425,156 @@ func TestImageStudioPromptPoolFailureDoesNotRetryAnotherGroup(t *testing.T) {
 		c.Next()
 	}
 	next := func(c *gin.Context) { c.Next() }
-	gatewayAuth := func(c *gin.Context) { c.Status(http.StatusBadGateway) }
+	gatewayAuth := func(c *gin.Context) { c.AbortWithStatus(http.StatusBadGateway) }
 	RegisterImageStudioRoutes(router.Group("/api/v1"), &handler.Handlers{}, auth, next, next, nil, gatewayAuth, nil, keys, nil, nil, settings, nil, &promptRouteSaver{}, cfg)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/image-studio/groups/7/prompt", bytes.NewBufferString(`{"prompt":"一只猫"}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
-	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
-	require.Contains(t, w.Body.String(), `"optimized":false`)
+	require.Equal(t, http.StatusBadGateway, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), `"reason":"PROMPT_OPTIMIZATION_FAILED"`)
 	require.Equal(t, 1, keysRepo.calls)
+}
+
+func TestImageStudioRouteSourceNeverExpandsSavedSelection(t *testing.T) {
+	plan := &service.ImageStudioPromptRoute{Groups: []service.Group{{ID: 1}, {ID: 2}}}
+	require.Empty(t, imageStudioRouteSource(plan, []int64{99}))
+	require.Empty(t, imageStudioRouteSource(plan, nil))
+	require.Equal(t, []service.Group{{ID: 2}}, imageStudioRouteSource(plan, []int64{2, 99}))
+}
+
+func TestImageStudioPromptSelectionValidation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	imageStudioTextModelsOverride = func(service.Group) []string { return []string{"gpt-5.6-sol"} }
+	t.Cleanup(func() { imageStudioTextModelsOverride = nil })
+	for _, tc := range []struct {
+		name string
+		body string
+		ids  []int64
+		want int
+	}{
+		{"model without channel", `{"prompt":"cat","model":"gpt-5.6-sol"}`, []int64{7}, 400},
+		{"channel without model", `{"prompt":"cat","group_id":7}`, []int64{7}, 400},
+		{"negative channel", `{"prompt":"cat","group_id":-1}`, []int64{7}, 400},
+		{"explicit channel removed", `{"prompt":"cat","group_id":7,"model":"gpt-5.6-sol"}`, []int64{99}, 403},
+		{"automatic route unavailable", `{"prompt":"cat"}`, []int64{99}, 403},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.Gateway.MaxBodySize = 1 << 20
+			repo := &promptPoolGroupRepo{groups: []service.Group{{ID: 7, Name: "drawing", Status: service.StatusActive, Platform: service.PlatformOpenAI, SubscriptionType: service.SubscriptionTypeStandard, AllowImageGeneration: true}}}
+			keys := service.NewAPIKeyService(&studioKeysRepo{}, studioUsersRepo{}, repo, studioSubscriptionsRepo{}, nil, nil, cfg)
+			settings := service.NewSettingService(&studioSettingsRepo{enabled: true}, cfg)
+			router := gin.New()
+			auth := func(c *gin.Context) {
+				c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 42})
+				c.Next()
+			}
+			next := func(c *gin.Context) { c.Next() }
+			gatewayCalls := 0
+			gatewayAuth := func(c *gin.Context) { gatewayCalls++; c.AbortWithStatus(http.StatusBadGateway) }
+			RegisterImageStudioRoutes(router.Group("/api/v1"), &handler.Handlers{}, auth, next, next, nil, gatewayAuth, nil, keys, nil, nil, settings, nil, &promptRouteSaver{ids: tc.ids}, cfg)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/image-studio/groups/7/prompt", bytes.NewBufferString(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			require.Equal(t, tc.want, w.Code, w.Body.String())
+			require.Zero(t, gatewayCalls)
+		})
+	}
+}
+
+func TestImageStudioPromptOptionsUnavailableSavedRoute(t *testing.T) {
+	imageStudioTextModelsOverride = func(service.Group) []string { return []string{"gpt-5.6-sol"} }
+	t.Cleanup(func() { imageStudioTextModelsOverride = nil })
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	groups := []service.Group{{ID: 7, Name: "drawing", Status: service.StatusActive, Platform: service.PlatformOpenAI, SubscriptionType: service.SubscriptionTypeStandard}}
+	cfg := &config.Config{}
+	keys := service.NewAPIKeyService(&studioKeysRepo{}, studioUsersRepo{}, &promptPoolGroupRepo{groups: groups}, studioSubscriptionsRepo{}, nil, nil, cfg)
+	settings := service.NewSettingService(&studioSettingsRepo{enabled: true}, cfg)
+	choices, route, err := imageStudioPromptOptions(c, nil, keys, settings, &promptRouteSaver{ids: []int64{99}}, 42, groups)
+	require.NoError(t, err)
+	require.Empty(t, choices)
+	require.Equal(t, 0, route["channels"])
+	require.Empty(t, route["default_model"])
+}
+
+func TestImageStudioPromptCompletionPropagatesFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+		want   int
+	}{
+		{"balance", 402, `{"error":{"message":"Insufficient balance","type":"insufficient_quota"}}`, 402},
+		{"permission", 403, `{"error":{"message":"Group permission revoked"}}`, 403},
+		{"rate limit", 429, `{"error":{"message":"Rate limit exceeded"}}`, 429},
+		{"invalid upstream", 502, "invalid upstream body", 502},
+		{"missing completion", 200, `{"choices":[]}`, 502},
+		{"empty completion", 200, `{"choices":[{"message":{"content":" "}}]}`, 502},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+			calls := 0
+			gateway := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				w.Header().Set("Retry-After", "10")
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			})
+			_, ok := completeImageStudioPrompt(c, gateway, &service.APIKey{Key: "studio-internal-test"}, "gpt-5.6-sol", "cat")
+			require.False(t, ok)
+			require.Equal(t, tc.want, w.Code)
+			require.Equal(t, 1, calls)
+			require.True(t, json.Valid(w.Body.Bytes()))
+			if tc.status >= 400 && json.Valid([]byte(tc.body)) {
+				require.JSONEq(t, tc.body, w.Body.String())
+				require.Equal(t, "10", w.Header().Get("Retry-After"))
+			}
+		})
+	}
+}
+
+func TestImageStudioPromptCompletionReportsValidatedResponseModel(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		model string
+		want  string
+	}{
+		{"actual response", "gpt-5.6-sol-2026-09-01", "gpt-5.6-sol-2026-09-01"},
+		{"provider model", "vendor/claude-sonnet-4", "vendor/claude-sonnet-4"},
+		{"missing response model", "", "gpt-5.6-sol"},
+		{"untrusted markup", "<script>alert(1)</script>", "gpt-5.6-sol"},
+		{"unexpected credentials", "sk-should-never-be-a-model", "gpt-5.6-sol"},
+		{"unexpected internal key", "studio-internal-hidden", "gpt-5.6-sol"},
+		{"unexpected URL", "https://upstream.test/private", "gpt-5.6-sol"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+			gateway := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				require.NoError(t, json.NewEncoder(w).Encode(gin.H{
+					"model": tc.model, "choices": []gin.H{{"message": gin.H{"content": "cat"}}},
+				}))
+			})
+			optimized, ok := completeImageStudioPrompt(c, gateway, &service.APIKey{Key: "studio-internal-test"}, "gpt-5.6-sol", "cat")
+			require.True(t, ok)
+			respondImageStudioPrompt(c, "cat", optimized, "gpt-5.6-sol", service.ImageStudioPromptRouteName)
+			var payload struct {
+				Data struct {
+					Model     string `json:"model"`
+					Group     string `json:"group"`
+					Optimized bool   `json:"optimized"`
+				} `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &payload))
+			require.Equal(t, tc.want, payload.Data.Model)
+			require.Equal(t, service.ImageStudioPromptRouteName, payload.Data.Group)
+			require.False(t, payload.Data.Optimized)
+		})
+	}
 }

@@ -121,6 +121,10 @@ func (r *affiliateRepository) AccrueQuota(ctx context.Context, inviterID, invite
 
 	var applied bool
 	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
+		blocked, err := blockAffiliateSelfReferral(txCtx, txClient, inviterID, inviteeUserID, sourceOrderID)
+		if err != nil || blocked {
+			return err
+		}
 		// freezeHours > 0: add to frozen quota; == 0: add to available quota directly
 		var updateSQL string
 		if freezeHours > 0 {

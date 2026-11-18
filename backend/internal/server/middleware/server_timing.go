@@ -173,6 +173,8 @@ func isUserTimingPath(path string) bool {
 		return true
 	case rest == "/announcements", strings.HasPrefix(rest, "/announcements/"):
 		return true
+	case rest == "/tickets", strings.HasPrefix(rest, "/tickets/"):
+		return true
 	case rest == "/redeem", strings.HasPrefix(rest, "/redeem/"):
 		return true
 	case rest == "/subscriptions", strings.HasPrefix(rest, "/subscriptions/"):

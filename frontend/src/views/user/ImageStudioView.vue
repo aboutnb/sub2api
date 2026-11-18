@@ -1,6 +1,11 @@
 <template>
   <AppLayout>
-    <iframe v-if="auth.user && auth.token" :key="sessionKey" ref="frame" src="/image-studio-app/" :title="t('nav.imageStudio')" class="studio-frame" :style="frameHeight ? { height: `${frameHeight}px` } : undefined" @load="syncAppearance" />
+    <section v-if="sessionChanged" class="card flex min-h-80 flex-col items-center justify-center gap-4 p-6 text-center" role="status">
+      <h1 class="text-lg font-semibold">{{ t('imageStudio.sessionChanged') }}</h1>
+      <p class="max-w-md text-sm text-gray-500 dark:text-gray-400">{{ t('imageStudio.sessionChangedDescription') }}</p>
+      <button type="button" class="btn btn-primary" @click="reloadStudio">{{ t('imageStudio.reload') }}</button>
+    </section>
+    <iframe v-else-if="auth.user && auth.token" :key="sessionKey" ref="frame" src="/image-studio-app/" :title="t('nav.imageStudio')" class="studio-frame" :style="frameHeight ? { height: `${frameHeight}px` } : undefined" @load="syncAppearance" />
   </AppLayout>
 </template>
 
@@ -19,6 +24,7 @@ const { t, locale } = useI18n()
 const theme = useThemeMode()
 const frame = ref<HTMLIFrameElement>()
 const frameHeight = ref(0)
+const sessionChanged = ref(false)
 let resizeObserver: ResizeObserver | undefined
 function fitFrame() {
   if (!frame.value) return
@@ -41,7 +47,9 @@ watch(frame, (element) => {
   resizeObserver?.disconnect()
   if (!element) return
   const userID = auth.user?.id
-  dispose = installStudioBridge(element, () => !!auth.token && auth.user?.id === userID, appearance)
+  dispose = installStudioBridge(element, () => !!auth.token && auth.user?.id === userID, appearance, () => {
+    sessionChanged.value = true
+  })
   fitFrame()
   const header = element.closest('.app-workspace')?.querySelector('header')
   if (header) { resizeObserver = new ResizeObserver(fitFrame); resizeObserver.observe(header) }
@@ -51,7 +59,13 @@ function syncAppearance() {
   frame.value?.contentWindow?.postMessage({ channel: STUDIO_CHANNEL, operation: 'appearance', ...appearance() }, window.location.origin)
 }
 watch([() => theme.isDark.value, locale], syncAppearance, { flush: 'post' })
-watch(sessionKey, () => dispose?.(), { flush: 'sync' })
+watch(sessionKey, () => {
+  dispose?.()
+  sessionChanged.value = false
+}, { flush: 'sync' })
+function reloadStudio() {
+  window.location.reload()
+}
 onMounted(() => {
   window.addEventListener('resize', fitFrame)
   window.visualViewport?.addEventListener('resize', fitFrame)

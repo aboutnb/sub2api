@@ -1,4 +1,9 @@
 export default {
+  imageStudio: {
+    sessionChanged: 'Your sign-in session has changed',
+    sessionChangedDescription: 'Requests and polling on this page have stopped. Reload to use your current account. Image tasks already submitted will continue processing.',
+    reload: 'Reload studio'
+  },
 
   // Subscription Progress (Header component)
   subscriptionProgress: {
