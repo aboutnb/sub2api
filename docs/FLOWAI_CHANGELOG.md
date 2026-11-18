@@ -1,6 +1,11 @@
 # FlowAI 分支变更台账
 
-### 2026-11-18 指定用户新充值赠金核销（本地实现，待提交）
+### 2026-11-18 v0.2.23 发布候选（未部署）
+
+- 已审并合入上游 `2af3f1e15c98c893a89255a037f551046883b8c0`，32 个提交、90 个文件：缓存 TTL/总量计费修复、首输出前 idle failover 的单次切换预算、流式 flush 与 reasoning 请求改写优化、GPT-6.2 Sol/Astra、渠道 Ultra Fast 自定义倍率。
+- 合并 `121a096f87d7c74ab555e19ba0e5b4a71a41bd3c` 无文本冲突；逐项审阅网关、渠道表单及中英文重叠路径，保留定制错误脱敏、调度、充值与核销语义。新迁移 252_channel_pricing_ultrafast_multiplier 为独立文件，不改写旧迁移。
+
+### 2026-11-18 指定用户新充值赠金核销
 
 - 用户编辑新增默认关闭的独立核销设置：生效时间、总额上限、同意依据，管理员专属分页流水；仅同一启用版本下新建并到账的充值登记批次，历史资金、兑换码和签到不登记。
 - 新增迁移 `260_recharge_bonus_writeoff.sql`，使用 NUMERIC(20,8) 批次累计差额核销，原消费与核销同事务提交；单笔、批量、旧扣费入口与图片冻结结算接入，核销不计入模型/API 配额。图片任务预留对应赠金，历史冻结任务不核销。
@@ -814,6 +819,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 <!-- FLOWAI_MIGRATION_LEDGER_BEGIN -->
 
+| `backend/migrations/252_channel_pricing_ultrafast_multiplier.sql` | v0.2.23 渠道 Ultra Fast 倍率 | 新增可空倍率及正数约束；默认沿用模型价格，旧版本兼容新增列 |
+
 | `backend/migrations/260_recharge_bonus_writeoff.sql` | 指定用户新充值赠金核销 | 新增配置、批次、冻结归属及独立审计；零历史回填、默认关闭，回滚保留新增对象，启用前必须完成新版切流 |
 
 | `backend/migrations/258_affiliate_risk_pairs.sql` | 邀请返利同浏览器/自邀风控对记录 | 新增完整文件名表，保留同编号邮箱拦截迁移；仅拦截返利发放，不影响注册或充值入账 |
@@ -928,6 +935,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+
+| 2026-11-18 | `cf4567b774aa8c98125b56a1bd0254bbd8d4635b` | 指定用户按新充值各批次实际赠金/本金比例核销；独立管理员审计、默认关闭、冻结归属与幂等退款保护 | 后端单元/PostgreSQL 集成、前端测试与构建、契约检查 |
 | 2026-11-18 | `5fca2a579` | 整合邀请返利同浏览器/自邀风控与 258_affiliate_risk_pairs 迁移、图片工作台跨标签会话切换提示与提示词路由显式错误校验、工单接口 Server-Timing 与前端 UI 路由标记及注册页 OAuth 测试 | 后端 repository/handler/routes/middleware 与前端 81 项专项、ESLint、vue-tsc 通过 |
 | 2026-11-17 | `559fe2832` | SSE 心跳前后与 Grok 规则透传测试均验证客户端地址脱敏，不更改生产安全行为 | service 两组专项通过 |
 | 2026-11-17 | `36479bb89` | Grok 同步和异步图片错误测试遵循客户端地址脱敏契约，保留原因和错误码 | 四种账号及路由组合专项通过 |
@@ -1197,6 +1206,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 审阅结论加入标记区。`git merge-base HEAD upstream/main` 变化后，以命令输出为准补齐。
 
 <!-- FLOWAI_LEDGER_MERGE_BEGIN -->
+
+| 2026-11-18 | `121a096f87d7c74ab555e19ba0e5b4a71a41bd3c` | 合入已审上游 v0.2.23 `2af3f1e15`；无文本冲突，保留全部 Aivoza 定制；缓存计费、首输出 idle failover、GPT-6.2 与渠道 Ultra Fast 定价 |
 | 2026-11-17 | `16736015c` | 合入已审 upstream v0.2.22，保留支付、主题、错误脱敏与 HTML 无缓存约定 | 类型检查、11 项专项与前端构建通过 |
 | 2026-11-11 | `b1ca12218` | 合入已审 v0.2.21；9 处冲突保留定制界面及容量切换测试，接入缓存价格与加载状态 | 前端 3460 项及后端专项通过 |
 | 2026-11-07 | `f351b8d00` | 合入已审 upstream v0.2.20；20 文件逐块整合，保留注册拦截、工单、教程、生图路由、支付和并发约定；MCP 默认关闭 | 完整测试、严格契约及同源 CI |
