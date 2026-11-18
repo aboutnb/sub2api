@@ -21,7 +21,7 @@ func (r *userRepository) GetBonusWriteoff(ctx context.Context, id int64, page in
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return nil, err
@@ -46,9 +46,12 @@ func (r *userRepository) SetBonusWriteoff(ctx context.Context, id, actor int64, 
 	}
 	found := rows.Next()
 	rowErr := rows.Err()
-	rows.Close()
+	closeErr := rows.Close()
 	if rowErr != nil {
 		return rowErr
+	}
+	if closeErr != nil {
+		return closeErr
 	}
 	if !found {
 		return service.ErrUserNotFound
