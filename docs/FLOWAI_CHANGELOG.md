@@ -1,6 +1,13 @@
 # FlowAI 分支变更台账
 
-### 2026-11-18 v0.2.23 发布候选（未部署）
+### 2026-11-18 v0.2.23 已发布到服务器 23
+
+- 发布源码 `d6b6c42b0832a6f90b0efb7861e644d4a74b8d35`，标签 v0.2.23；同源 [CI 219](https://github.com/aboutnb/sub2api/actions/runs/44276519074)、[Security Scan 238](https://github.com/aboutnb/sub2api/actions/runs/44276519094)、[Aivoza Image 175](https://github.com/aboutnb/sub2api/actions/runs/44278742430) 全部成功，[正式版本](https://github.com/aboutnb/sub2api/releases/tag/v0.2.23)已发布。
+- 生产固定镜像 `ghcr.io/aboutnb/aivoza-sub2api@sha256:0061cff098d0aa9aa98264e099b2274aaf87b753cdc29b8396c210b5ceec38a7`。Termius 执行现有 prepare，3023 端口候选健康后用既有 promote-sync 包装同步 Caddy 挂载并热切流；状态文件 `/root/flowai/deploy/state/aivoza-v0223-d6b6c42b0832.json` 为 promoted，主机配置与容器挂载一致。
+- 备份 `/root/flowai/backups/aivoza-v0223-20261118` 包含可读取的 PostgreSQL dump（923897535 bytes）、应用配置与密钥、Redis RDB（当前 AOF 未启用）、Mihomo 状态、部署配置及容器元数据。数据库、Redis、Caddy、GM、Mihomo StartedAt 均未改变。
+- 新迁移 252_channel_pricing_ultrafast_multiplier 与 260_recharge_bonus_writeoff 已执行，按迁移器 TrimSpace 后的 SHA256 分别为 `458752b3523254ee60ab4a821261ab64df9216a6f208c1960e7b816f8c7cfd1d`、`c7d09894811c5ee842a6fb6cc7b31ecbc1a989cba4cc283981d7aa9339e6e1ed`，与源码一致；核销启用账号和登记批次均为 0。
+- aivoza.com、us.aivoza.com、cdn.aivoza.com 的公开版本均为 0.2.23。跨切流各 24 轮健康探测：主站和美国 API 全部 200；CDN 第 3 轮一次 502，后续连续 21 轮 200，未发现源站连接拒绝或 DNS 错误，不将此单次异常表述为零失败。
+- 当前应用和回滚 `flowai-app-rollback-1180b15de226`（v0.2.22）健康；更旧 `flowai-app-rollback-edf072b72412` 确认无入站连接后移除，其唯一引用镜像同步清理。未删除卷、备份或其他服务。
 
 - 已审并合入上游 `2af3f1e15c98c893a89255a037f551046883b8c0`，32 个提交、90 个文件：缓存 TTL/总量计费修复、首输出前 idle failover 的单次切换预算、流式 flush 与 reasoning 请求改写优化、GPT-6.2 Sol/Astra、渠道 Ultra Fast 自定义倍率。
 - 合并 `121a096f87d7c74ab555e19ba0e5b4a71a41bd3c` 无文本冲突；逐项审阅网关、渠道表单及中英文重叠路径，保留定制错误脱敏、调度、充值与核销语义。新迁移 252_channel_pricing_ultrafast_multiplier 为独立文件，不改写旧迁移。
@@ -11,7 +18,7 @@
 - 用户编辑新增默认关闭的独立核销设置：生效时间、总额上限、同意依据，管理员专属分页流水；仅同一启用版本下新建并到账的充值登记批次，历史资金、兑换码和签到不登记。
 - 新增迁移 `260_recharge_bonus_writeoff.sql`，使用 NUMERIC(20,8) 批次累计差额核销，原消费与核销同事务提交；单笔、批量、旧扣费入口与图片冻结结算接入，核销不计入模型/API 配额。图片任务预留对应赠金，历史冻结任务不核销。
 - 每次保存设置终止旧批次；非用量减款终止当前批次；退款尝试一次性返还原批次核销，失败也不追扣。保留原模型费用透支策略，核销自身不额外透支。
-- 受保护路径：`bonus_writeoff*`、`usage_billing*`、支付订单快照/履约/退款、`UserBonusWriteoff.vue`、中英文文案。数据库迁移零回填，未启用生产账户，未部署。
+- 受保护路径：`bonus_writeoff*`、`usage_billing*`、支付订单快照/履约/退款、`UserBonusWriteoff.vue`、中英文文案。数据库迁移零回填，随 v0.2.23 部署，未启用生产账户。
 - 验证：后端 repository/service/admin/routes 完整单元测试；真实 PostgreSQL 核销、并发、幂等、冻结与入账边界集成测试；前端用户编辑/核销设置及国际化测试。完整发布仍须 CI 与蓝绿发布门禁。
 
 ### 2026-11-18 本地未提交改动合入主线与工作区收口
