@@ -17,6 +17,12 @@ func bonusFixture(t *testing.T, old float64) (int64, int64) {
 	t.Helper()
 	ctx := context.Background()
 	u := mustCreateUser(t, integrationEntClient, &service.User{Email: fmt.Sprintf("bonus-%d@example.test", time.Now().UnixNano()), PasswordHash: "hash", Balance: old + 110})
+	t.Cleanup(func() {
+		for _, table := range []string{"recharge_bonus_writeoff_audit", "recharge_bonus_writeoff_holds", "recharge_bonus_writeoff_batches", "recharge_bonus_writeoff_settings"} {
+			_, cleanupErr := integrationDB.Exec("DELETE FROM "+table+" WHERE user_id=$1", u.ID)
+			require.NoError(t, cleanupErr)
+		}
+	})
 	o, err := integrationEntClient.PaymentOrder.Create().SetUserID(u.ID).SetUserEmail(u.Email).SetUserName("test").SetClientIP("127.0.0.1").SetSrcHost("test").SetAmount(110).SetPayAmount(100).SetBonusAmount(10).SetRechargeCode(fmt.Sprintf("bonus-%d", time.Now().UnixNano())).SetPaymentType("test").SetPaymentTradeNo("").SetExpiresAt(time.Now().Add(time.Hour)).SetStatus("COMPLETED").Save(ctx)
 	require.NoError(t, err)
 	_, err = integrationDB.Exec(`INSERT INTO recharge_bonus_writeoff_settings(user_id,enabled,consent_note,updated_by) VALUES($1,true,'consent',1)`, u.ID)
@@ -180,6 +186,10 @@ func TestBonusWriteoffBillingDedup(t *testing.T) {
 	ctx := context.Background()
 	key := mustCreateApiKey(t, integrationEntClient, &service.APIKey{UserID: id, Key: fmt.Sprintf("sk-bonus-%d", id), Name: "bonus"})
 	account := mustCreateAccount(t, integrationEntClient, &service.Account{Name: fmt.Sprintf("bonus-%d", id), Type: service.AccountTypeAPIKey})
+	t.Cleanup(func() {
+		_, err := integrationDB.Exec(`UPDATE accounts SET status='disabled' WHERE id=$1`, account.ID)
+		require.NoError(t, err)
+	})
 	repo := NewUsageBillingRepository(integrationEntClient, integrationDB)
 	command := &service.UsageBillingCommand{UserID: id, APIKeyID: key.ID, AccountID: account.ID, AccountType: service.AccountTypeAPIKey, RequestID: fmt.Sprintf("bonus-request-%d", id), BalanceCost: 10, APIKeyQuotaCost: 10}
 	result, err := repo.Apply(ctx, command)
