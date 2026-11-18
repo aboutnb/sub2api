@@ -940,7 +940,7 @@ func (r *userRepository) DeductBalance(ctx context.Context, id int64, amount flo
 		if err != nil {
 			return err
 		}
-		defer owned.Rollback()
+		defer func() { _ = owned.Rollback() }()
 		client = owned.Client()
 	}
 	if _, err := client.ExecContext(ctx, `SELECT set_config('aivoza.bonus_usage','on',true)`); err != nil {

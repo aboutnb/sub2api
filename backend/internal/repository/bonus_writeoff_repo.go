@@ -38,7 +38,7 @@ func (r *userRepository) SetBonusWriteoff(ctx context.Context, id, actor int64, 
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	c := tx.Client()
 	rows, err := c.QueryContext(ctx, `SELECT id FROM users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, id)
 	if err != nil {
