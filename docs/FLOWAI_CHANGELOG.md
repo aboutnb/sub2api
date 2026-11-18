@@ -1,5 +1,14 @@
 # FlowAI 分支变更台账
 
+### 2026-11-18 本地未提交改动合入主线与工作区收口
+
+- 整合原工作区遗留未合入改动（`5fca2a579`）：
+  1. 邀请返利同浏览器/自邀风控：新增 `backend/migrations/258_affiliate_risk_pairs.sql`、`backend/internal/repository/affiliate_risk.go` 及 PostgreSQL 集成测试，在 `AccrueQuota` 事务内对邀请人与被邀请人同账号或同签名浏览器标识阻断返利并记录 `AFFILIATE_REBATE_RISK_BLOCKED` 支付审计，不影响正常注册与充值到账。
+  2. 图片工作台（Image Studio）会话切换保护与提示词路由显式错误校验：`ImageStudioView.vue` 接入跨标签会话变更提示与重载恢复（含 `zh`/`en` `imageStudio` 文案及单元测试）；后端 `handler/image_studio.go` 与 `routes/image_studio.go` 校验可调度渠道/Composite 模型、拒绝失效提示词路由/模型选择并透传上游计费/限流状态码与安全校验后的实际响应模型。
+  3. 站内工单 `Server-Timing` 与前端用户态 UI 路由识别（`/tickets`、`/tickets/*`）及注册页 OAuth 启动单测补齐。
+- 清理已完整合入 `main` 的 11 个本地历史分支与对应附属 worktree，将 `/Users/xiaobo/develop/sub2api` 主工作区切回 `main`，完整保留本地未跟踪的 `data/`、`work/`、`assets/` 数据文件。
+- 本地后端 `repository` / `handler` / `routes` / `middleware` 单元测试、`go vet`、前端 81 项专项测试、`eslint`、`vue-tsc --noEmit` 与 `make check-flowai-contract` 均通过。
+
 ### 2026-11-17 v0.2.22 已发布至 23 服务器
 
 - 用户编辑新增充值优惠参与开关，默认参与；禁用时新订单跳过赠金和折扣阶梯，充值页隐藏阶梯和活动文案，既有订单金额不变。新增 259_user_recharge_bonus_disabled.sql，旧版本兼容新增列。
@@ -797,6 +806,8 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 
 <!-- FLOWAI_MIGRATION_LEDGER_BEGIN -->
 
+| `backend/migrations/258_affiliate_risk_pairs.sql` | 邀请返利同浏览器/自邀风控对记录 | 新增完整文件名表，保留同编号邮箱拦截迁移；仅拦截返利发放，不影响注册或充值入账 |
+
 | `backend/migrations/259_user_recharge_bonus_disabled.sql` | 用户充值优惠参与开关 | 新增非空布尔列默认 false；旧应用兼容，回滚保留列和既有订单 |
 
 | `backend/migrations/258_registration_email_blocks.sql` | 注册前持久邮箱异常拦截 | 新增表并回填已审查封禁邮箱；保留旧表及余额，回滚应用不删除标记 |
@@ -907,6 +918,7 @@ FlowAI 的 Mihomo 控制面不是单一订阅 URL：
 是否存在于标记区，新增代码提交未登记时，CI/发布门禁失败。
 
 <!-- FLOWAI_LEDGER_NON_MERGE_BEGIN -->
+| 2026-11-18 | `5fca2a579` | 整合邀请返利同浏览器/自邀风控与 258_affiliate_risk_pairs 迁移、图片工作台跨标签会话切换提示与提示词路由显式错误校验、工单接口 Server-Timing 与前端 UI 路由标记及注册页 OAuth 测试 | 后端 repository/handler/routes/middleware 与前端 81 项专项、ESLint、vue-tsc 通过 |
 | 2026-11-17 | `559fe2832` | SSE 心跳前后与 Grok 规则透传测试均验证客户端地址脱敏，不更改生产安全行为 | service 两组专项通过 |
 | 2026-11-17 | `36479bb89` | Grok 同步和异步图片错误测试遵循客户端地址脱敏契约，保留原因和错误码 | 四种账号及路由组合专项通过 |
 | 2026-11-17 | `00b20960e` | 用户级充值优惠开关与旧式开关轨道样式修复 | 用户编辑 4 项测试与前端构建通过 |
