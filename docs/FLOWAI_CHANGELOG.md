@@ -1,5 +1,11 @@
 # FlowAI 分支变更台账
 
+### 2026-11-21 v0.2.24 发布候选（待验证和部署）
+
+- 合入上游 `328db26f450edbdf9f8d4344a3ea903ac6396842`，110 个提交、190 个文件：请求重复字段拒绝、请求体内存优化、OAuth 刷新持久化、图片超时切换、Exa 搜索和协议兼容修复。
+- 冲突保留智能路由依赖、异常密钥拦截和 Aivoza 主题，同时接入平台默认配额、字段歧义检查和模型 ID 复制。新增上游测试适配定制构造参数，未放宽断言。
+- 保留核销、充值、邀请、签到、邮件防重与既有迁移 checksum；没有新增数据库迁移。测试和生产部署结果待完成后补记。
+
 ### 2026-11-18 v0.2.23 已发布到服务器 23
 
 - 发布源码 `d6b6c42b0832a6f90b0efb7861e644d4a74b8d35`，标签 v0.2.23；同源 [CI 219](https://github.com/aboutnb/sub2api/actions/runs/44276519074)、[Security Scan 238](https://github.com/aboutnb/sub2api/actions/runs/44276519094)、[Aivoza Image 175](https://github.com/aboutnb/sub2api/actions/runs/44278742430) 全部成功，[正式版本](https://github.com/aboutnb/sub2api/releases/tag/v0.2.23)已发布。
